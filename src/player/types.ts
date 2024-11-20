@@ -1,0 +1,281 @@
+import type { Math } from 'phaser';
+
+export interface Config {
+  resources: Resources;
+  metadata: Metadata;
+  preferences: Preferences;
+  autoplay: boolean;
+  practice: boolean;
+  autostart: boolean;
+  newTab: boolean;
+}
+
+export interface Resources {
+  song: string;
+  chart: string;
+  illustration: string;
+  assetNames: string[];
+  assetTypes: number[];
+  assets: string[];
+}
+
+export interface Metadata {
+  title: string | null;
+  composer: string | null;
+  charter: string | null;
+  illustrator: string | null;
+  levelType: 0 | 1 | 2 | 3 | 4;
+  level: string | null;
+  difficulty: number | null;
+}
+
+export interface Preferences {
+  aspectRatio: number[] | null;
+  backgroundBlur: number;
+  backgroundLuminance: number;
+  chartMirroring: number; // TODO
+  chartOffset: number;
+  fcApIndicator: boolean;
+  goodJudgment: number;
+  hitSoundVolume: number;
+  musicVolume: number;
+  noteSize: number;
+  perfectJudgment: number;
+  simultaneousNoteHint: boolean;
+}
+
+export interface RpeJson {
+  BPMList: Bpm[];
+  META: Meta;
+  chartTime: number;
+  judgeLineGroup: string[];
+  judgeLineList: JudgeLine[];
+  multiLineString: string;
+  multiScale: number;
+}
+
+export interface JudgeLine {
+  Group: number;
+  Name: string;
+  Texture: string;
+  alphaControl: AlphaControl[];
+  anchor: number[];
+  bpmfactor: number;
+  eventLayers: (EventLayer | null)[];
+  extended?: Extended;
+  father: number;
+  isCover: number;
+  isGif?: boolean;
+  notes?: Note[];
+  numOfNotes: number;
+  posControl: PosControl[];
+  sizeControl: SizeControl[];
+  skewControl: SkewControl[];
+  yControl: YControl[];
+  zOrder: number;
+}
+
+export interface YControl {
+  easing: number;
+  x: number;
+  y: number;
+}
+
+export interface SkewControl {
+  easing: number;
+  skew: number;
+  x: number;
+}
+
+export interface SizeControl {
+  easing: number;
+  size: number;
+  x: number;
+}
+
+export interface PosControl {
+  easing: number;
+  pos: number;
+  x: number;
+}
+
+export interface Note {
+  above: number;
+  alpha: number;
+  endTime: number[];
+  endBeat: number;
+  isFake: number;
+  positionX: number;
+  size: number;
+  speed: number;
+  startTime: number[];
+  startBeat: number;
+  type: number;
+  visibleTime: number;
+  yOffset: number;
+  hitsound?: string;
+}
+
+export interface Extended {
+  gifEvents?: GifEvent[];
+  inclineEvents: Event[];
+  scaleXEvents?: Event[];
+  scaleYEvents?: Event[];
+  colorEvents?: ColorEvent[];
+  textEvents?: TextEvent[];
+}
+
+export interface TextEvent {
+  bezier: number;
+  bezierPoints: number[];
+  easingLeft: number;
+  easingRight: number;
+  easingType: number;
+  end: string;
+  endTime: number[];
+  endBeat: number;
+  linkgroup: number;
+  start: string;
+  startTime: number[];
+  startBeat: number;
+}
+
+export interface ColorEvent {
+  bezier: number;
+  bezierPoints: number[];
+  easingLeft: number;
+  easingRight: number;
+  easingType: number;
+  end: number[];
+  endTime: number[];
+  endBeat: number;
+  linkgroup: number;
+  start: number[];
+  startTime: number[];
+  startBeat: number;
+}
+
+export interface GifEvent {
+  easingType: number;
+  end: number;
+  endTime: number[];
+  endBeat: number;
+  linkgroup: number;
+  start: number;
+  startTime: number[];
+  startBeat: number;
+}
+
+export interface EventLayer {
+  alphaEvents?: Event[];
+  moveXEvents?: Event[];
+  moveYEvents?: Event[];
+  rotateEvents?: Event[];
+  speedEvents?: SpeedEvent[];
+}
+
+export interface SpeedEvent {
+  end: number;
+  endTime: number[];
+  endBeat: number;
+  linkgroup: number;
+  start: number;
+  startTime: number[];
+  startBeat: number;
+}
+
+export interface Event {
+  bezier: number;
+  bezierPoints: number[];
+  easingLeft: number;
+  easingRight: number;
+  easingType: number;
+  end: number;
+  endTime: number[];
+  endBeat: number;
+  linkgroup: number;
+  start: number;
+  startTime: number[];
+  startBeat: number;
+}
+
+export interface AlphaControl {
+  alpha: number;
+  easing: number;
+  x: number;
+}
+
+interface Meta {
+  RPEVersion: number;
+  background: string;
+  charter: string;
+  composer: string;
+  duration?: number;
+  id: string;
+  illustration?: string;
+  level: string;
+  name: string;
+  offset: number;
+  song: string;
+}
+
+export interface Bpm {
+  bpm: number;
+  startTime: number[];
+  startBeat: number;
+  startTimeSec: number;
+}
+
+export interface PointerTap {
+  id: number;
+  time: number;
+  position: Math.Vector2;
+  distance: number;
+  spaceTimeDistance: number;
+}
+
+export interface PointerDrag {
+  id: number;
+  time: number;
+  position: Math.Vector2;
+  velocity: Math.Vector2;
+  velocityConsumed: Math.Vector2 | null;
+  distance: number;
+}
+
+export enum GameStatus {
+  LOADING,
+  READY,
+  ERROR,
+  PLAYING,
+  PAUSED,
+  FINISHED,
+  DESTROYED,
+}
+
+export enum JudgmentType {
+  UNJUDGED,
+  PERFECT,
+  GOOD_EARLY,
+  GOOD_LATE,
+  BAD,
+  MISS,
+  PASSED,
+}
+
+export enum FcApStatus {
+  NONE,
+  FC,
+  AP,
+}
+
+export enum Grade {
+  F,
+  C,
+  B,
+  A,
+  S,
+  V,
+  FC,
+  AP,
+}

@@ -1,0 +1,311 @@
+<script context="module" lang="ts">
+  import type { Game } from 'phaser';
+  import type { Game as GameScene } from './scenes/Game';
+
+  export type GameReference = {
+    game: Game | null;
+    scene: GameScene | null;
+  };
+</script>
+
+<script lang="ts">
+  import { onDestroy, onMount } from 'svelte';
+  import start from './main';
+  import { EventBus } from './EventBus';
+  import { GameStatus, type Config } from './types';
+  import { convertTime, getParams } from './utils';
+  import { goto } from '$app/navigation';
+
+  export let gameRef: GameReference;
+
+  export let config: Config | null = null;
+
+  export let currentActiveScene: (scene: GameScene) => void | undefined = () => {};
+
+  config ??= getParams();
+  if (!config) {
+    goto('/');
+  }
+
+  let progress = 0;
+  let fileProgress = '';
+
+  let status = GameStatus.LOADING;
+  let duration = 0;
+  let timeSec = 0;
+
+  let title: string | null = null;
+  let level: string | null = null;
+  let credits: string[] = [];
+
+  let showStart = false;
+  let showPause = false;
+  let keyboardSeeking = false;
+  let allowSeek = false;
+  let progressBarHeld = false;
+  let countdown = 0;
+  let counter = 0;
+  let stillLoading = false;
+  let timeout = 0;
+
+  onMount(() => {
+    if (!config) return;
+    gameRef.game = start('player', config);
+    timeout = setTimeout(() => {
+      stillLoading = true;
+    }, 10000);
+
+    EventBus.on('loading', (p: number) => {
+      progress = p;
+    });
+
+    EventBus.on('loading-detail', (p: string) => {
+      fileProgress = p;
+    });
+
+    EventBus.on('current-scene-ready', (scene: GameScene) => {
+      clearTimeout(timeout);
+      gameRef.scene = scene;
+      status = scene.status;
+      duration = scene.song.duration;
+      showStart = status === GameStatus.READY;
+      allowSeek = scene.autoplay || scene.practice;
+      const metadata = scene.metadata;
+      title = metadata.title;
+      level = metadata.level;
+      [metadata.composer, metadata.charter, metadata.illustrator].forEach((credit) => {
+        credits.push(credit ?? '');
+      });
+
+      if (currentActiveScene) {
+        currentActiveScene(scene);
+      }
+    });
+  });
+
+  EventBus.on('update', (t: number) => {
+    timeSec = t;
+  });
+
+  EventBus.on('paused', (emittedBySpace: boolean) => {
+    status = GameStatus.PAUSED;
+    showPause = !emittedBySpace;
+    keyboardSeeking = emittedBySpace;
+  });
+
+  EventBus.on('resumed', () => {
+    status = GameStatus.PLAYING;
+    keyboardSeeking = false;
+  });
+
+  EventBus.on('finished', () => {
+    status = GameStatus.FINISHED;
+  });
+
+  onDestroy(() => {
+    gameRef.scene?.destroy();
+    gameRef.game?.destroy(true);
+  });
+</script>
+
+<div class="absolute inset-0 flex justify-center items-center pointer-events-none">
+  <div
+    class="w-28 h-28 flex justify-center items-center rounded-3xl opacity-0 backdrop-blur-xl backdrop-brightness-90 trans"
+    class:opacity-100={countdown > 0 && status === GameStatus.PLAYING}
+  >
+    <span class="text-7xl font-bold">
+      {countdown}
+    </span>
+  </div>
+</div>
+
+<div
+  class="absolute flex flex-col justify-center items-center gap-1 w-full h-full trans backdrop-blur-2xl backdrop-brightness-75"
+  class:opacity-0={status === GameStatus.PLAYING ||
+    status === GameStatus.FINISHED ||
+    progressBarHeld ||
+    keyboardSeeking}
+  class:pointer-events-none={status === GameStatus.PLAYING ||
+    status === GameStatus.FINISHED ||
+    keyboardSeeking}
+>
+  {#if status === GameStatus.LOADING}
+    <span class="loading loading-spinner w-24"></span>
+    <span class="text-4xl">
+      {progress.toLocaleString(undefined, {
+        style: 'percent',
+        minimumFractionDigits: 0,
+      })}
+    </span>
+    {#if fileProgress}
+      <span class="text-xs">{fileProgress}</span>
+    {/if}
+  {:else if showStart}
+    {#if title && level}
+      <div class="m-4 flex flex-col items-center whitespace-pre">
+        <h2 class="text-6xl font-bold">
+          {title}
+        </h2>
+        <h4 class="text-3xl opacity-70">
+          {level}
+        </h4>
+        {#if credits.length > 0}
+          <div class="flex items-center gap-1 my-4">
+            {#each credits as credit, i}
+              {#if credit}
+                <div
+                  class="tooltip tooltip-bottom"
+                  data-tip={['Composer', 'Chart designer', 'Illustration designer'][i]}
+                >
+                  <span class="badge badge-lg opacity-70 hover:badge-outline hover:opacity-100">
+                    {credit}
+                  </span>
+                </div>
+              {/if}
+            {/each}
+          </div>
+        {/if}
+      </div>
+    {/if}
+    <button
+      class="btn btn-outline border-2 btn-lg text-2xl w-fit"
+      on:click={() => {
+        setTimeout(() => {
+          showStart = false;
+        }, 500);
+        status = GameStatus.PLAYING;
+        gameRef.scene?.start();
+      }}
+    >
+      START
+    </button>
+  {:else if showPause}
+    <div class="flex flex-col gap-4 items-center">
+      <h2 class="text-6xl font-bold">PAUSED</h2>
+      <div class="flex gap-2">
+        <button
+          class="btn btn-outline border-2 btn-lg btn-circle trans"
+          on:click={() => {
+            if (!config || config.newTab) {
+              window.close();
+            } else {
+              goto('/');
+            }
+          }}
+        >
+          {#if !config || config.newTab}
+            <i class="fa-solid fa-xmark fa-xl"></i>
+          {:else}
+            <i class="fa-solid fa-house fa-xl"></i>
+          {/if}
+        </button>
+        <button
+          class="btn btn-outline border-2 btn-lg rounded-full text-2xl w-fit trans"
+          on:click={() => {
+            setTimeout(() => {
+              showPause = false;
+            }, 500);
+            status = GameStatus.PLAYING;
+            gameRef.scene?.restart();
+          }}
+        >
+          RESTART
+        </button>
+        <button
+          class="btn btn-outline border-2 btn-lg rounded-full text-2xl w-fit trans"
+          on:click={() => {
+            setTimeout(() => {
+              showPause = false;
+            }, 500);
+            status = GameStatus.PLAYING;
+            if (gameRef.scene?.autoplay) {
+              gameRef.scene?.resume();
+            } else {
+              countdown = 3;
+              counter = setInterval(() => {
+                countdown--;
+                if (countdown === 0) {
+                  clearInterval(counter);
+                  gameRef.scene?.resume();
+                }
+              }, 1000);
+            }
+          }}
+        >
+          RESUME
+        </button>
+      </div>
+    </div>
+  {/if}
+</div>
+
+{#if allowSeek}
+  <div
+    class="absolute bottom-5 px-4 py-2 w-[75vw] flex items-center opacity-0 trans rounded-full"
+    class:opacity-50={(keyboardSeeking || showPause) &&
+      status !== GameStatus.PLAYING &&
+      status !== GameStatus.FINISHED}
+    class:hover:opacity-100={(keyboardSeeking || showPause) &&
+      status !== GameStatus.PLAYING &&
+      status !== GameStatus.FINISHED}
+    class:backdrop-blur-2xl={progressBarHeld}
+    class:backdrop-brightness-75={progressBarHeld}
+    class:pointer-events-none={status === GameStatus.PLAYING || status === GameStatus.FINISHED}
+  >
+    <span class="text-3xl min-w-24">{convertTime(timeSec, true)}</span>
+    <input
+      type="range"
+      min="0"
+      max={duration}
+      value={timeSec}
+      step="0.001"
+      class="range cursor-default"
+      class:hover:cursor-pointer={(keyboardSeeking || showPause) &&
+        status !== GameStatus.PLAYING &&
+        status !== GameStatus.FINISHED}
+      disabled={(!keyboardSeeking && !showPause) ||
+        status === GameStatus.PLAYING ||
+        status === GameStatus.FINISHED}
+      on:pointerdown={() => {
+        progressBarHeld = true;
+      }}
+      on:pointerup={() => {
+        progressBarHeld = false;
+      }}
+      on:input={(e) => {
+        gameRef.scene?.setSeek(Math.max(0, parseFloat(e.currentTarget.value)));
+      }}
+    />
+    <span class="text-3xl min-w-24 text-right">{convertTime(duration, true)}</span>
+  </div>
+{/if}
+
+{#if timeSec === duration}
+  <button
+    class="absolute bottom-5 right-5 btn btn-outline border-2 btn-lg btn-circle opacity-0 transition"
+    class:opacity-100={status === GameStatus.FINISHED || stillLoading}
+    class:pointer-events-none={status !== GameStatus.FINISHED && !stillLoading}
+    on:click={() => {
+      if (!config || config.newTab) {
+        window.close();
+      } else {
+        goto('/');
+      }
+    }}
+  >
+    {#if !config || config.newTab}
+      <i class="fa-solid fa-xmark fa-xl"></i>
+    {:else}
+      <i class="fa-solid fa-house fa-xl"></i>
+    {/if}
+  </button>
+{/if}
+
+<div id="player"></div>
+
+<style lang="postcss">
+  .trans {
+    transition-timing-function: cubic-bezier(0.165, 0.84, 0.44, 1);
+    @apply transition duration-300;
+  }
+</style>
