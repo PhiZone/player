@@ -927,6 +927,7 @@
       <a
         class="inline-flex items-center gap-x-1 text-sm text-blue-600 decoration-2 hover:underline focus:outline-none focus:underline font-medium dark:text-blue-500"
         href="{REPO_LINK}/issues/new"
+        target="_blank"
       >
         File an issue
         <i class="fa-solid fa-angle-right fa-sm"></i>
