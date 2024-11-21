@@ -84,7 +84,7 @@ According to [a statement from Pigeon Games](https://www.bilibili.com/opus/62490
 | Basic RPE support                          | 0.0.1   |                                           | ✅ Done         | 基本 RPE 适配           |
 | Support for custom line textures           | 0.0.1   |                                           | 🚧 Working      | 判定线自定义贴图适配    |
 | Support for mirroring modes                | 0.0.1   |                                           |                 | 镜像模式适配            |
-| Support for custom hit sounds              | 0.0.1   |                                           |                 | 自定义打击音效适配      |
+| Support for custom hit sounds              | 0.0.1   |                                           | 🚧 Working      | 自定义打击音效适配      |
 | Better input detections                    | 0.0.2   | Especially for Flicks                     |                 | 输入检测优化            |
 | Recording mode                             | 0.0.2   |                                           |                 | 录制模式                |
 | Basic support for the extended event layer | 0.0.3   | Excluding GIF events & incline events     |                 | 扩展事件层的基本适配    |

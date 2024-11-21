@@ -137,7 +137,7 @@ export class JudgmentHandler {
 
   createHitsound(note: PlainNote | LongNote) {
     this._scene.sound
-      .add(note.note.type.toString())
+      .add(note.note.hitsound ? `asset-${note.note.hitsound}` : note.note.type.toString())
       .setVolume(this._scene.preferences.hitSoundVolume)
       .play();
   }

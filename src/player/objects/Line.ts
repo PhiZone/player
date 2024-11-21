@@ -43,7 +43,7 @@ export class Line {
     this._scene = scene;
     this._num = num;
     this._data = lineData;
-    this._line = new GameObjects.Image(scene, 0, 0, `image-${lineData.Texture}`);
+    this._line = new GameObjects.Image(scene, 0, 0, `asset-${lineData.Texture}`);
     this._line.setScale(this._scene.p(1.0125));
     this._line.setDepth(2);
     this._line.setTint(getLineColor(scene));
