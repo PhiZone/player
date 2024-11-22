@@ -9,6 +9,7 @@ import {
   getAudio,
   inferLevelType,
   SUPPORTS_CANVAS_BLUR,
+  getGif,
 } from '../utils';
 import { GameStatus, type Bpm, type Config, type RpeJson } from '../types';
 import { Line } from '../objects/Line';
@@ -30,6 +31,7 @@ export class Game extends Scene {
   private _songUrl: string;
   private _chartUrl: string;
   private _illustrationUrl: string;
+  private _gifAssets: { key: string; url: string; frameCount?: number; frameRate?: number }[] = [];
   private _audioAssets: { key: string; url: string }[] = [];
 
   private _title: string | null;
@@ -152,8 +154,10 @@ export class Game extends Scene {
 
     assets.forEach((asset, i) => {
       const name = assetNames[i];
-      if (assetTypes[i] === 0) this.load.image(`asset-${assetNames[i]}`, asset);
-      else if (assetTypes[i] === 1) this._audioAssets.push({ key: name, url: asset });
+      if (assetTypes[i] === 0) {
+        if (name.endsWith('.gif')) this._gifAssets.push({ key: name, url: asset });
+        else this.load.image(`asset-${assetNames[i]}`, asset);
+      } else if (assetTypes[i] === 1) this._audioAssets.push({ key: name, url: asset });
       else console.log('To be implemented:', name); // TODO
     });
   }
@@ -181,11 +185,21 @@ export class Game extends Scene {
       this.load.image('illustration-background', background);
       this.load.image('illustration-cropped', cropped);
       this.load.audio('song', await getAudio(this._songUrl));
-      await Promise.all(
-        this._audioAssets.map(async (asset) =>
+      await Promise.all([
+        ...this._gifAssets.map(async (asset) => {
+          const spritesheet = await getGif(asset.url);
+          this.load.spritesheet(
+            `asset-${asset.key}`,
+            spritesheet.spritesheet.toDataURL(),
+            spritesheet.frameSize,
+          );
+          asset.frameCount = spritesheet.frameCount;
+          asset.frameRate = spritesheet.frameRate;
+        }),
+        ...this._audioAssets.map(async (asset) =>
           this.load.audio(`asset-${asset.key}`, await getAudio(asset.url)),
         ),
-      );
+      ]);
       this.load.audio('ending', `ending/LevelOver${this._levelType}.wav`);
       this.load.once('complete', () => {
         this.createBackground();
@@ -415,6 +429,20 @@ export class Game extends Scene {
       frames: 'click-effects',
       frameRate: 60,
       repeat: 0,
+    });
+  }
+
+  createGifAnimations() {
+    this._gifAssets.forEach((asset) => {
+      this.anims.create({
+        key: `asset-${asset.key}`,
+        frames: this.anims.generateFrameNumbers(`asset-${asset.key}`, {
+          start: 0,
+          end: asset.frameCount ? asset.frameCount - 1 : 0,
+        }),
+        frameRate: asset.frameRate,
+        repeat: -1,
+      });
     });
   }
 

@@ -16,6 +16,8 @@ import { EventBus } from './EventBus';
 import { getFFmpeg, loadFFmpeg } from './ffmpeg';
 import type { Game } from './scenes/Game';
 import { ENDING_ILLUSTRATION_CORNER_RADIUS } from './constants';
+import { parseGIF, decompressFrames } from 'gifuct-js';
+import { gcd } from 'mathjs';
 
 const easingFunctions: ((x: number) => number)[] = [
   (x) => x,
@@ -519,4 +521,79 @@ export const getAudio = async (url: string): Promise<string> => {
   await ffmpeg.exec(['-i', 'input', '-f', 'wav', 'output']);
   const data = await ffmpeg.readFile('output');
   return URL.createObjectURL(new Blob([(data as Uint8Array).buffer], { type: 'audio/wav' }));
+};
+
+const convertGifToSpritesheet = (
+  gifArrayBuffer: ArrayBuffer,
+): {
+  spritesheet: HTMLCanvasElement;
+  frameCount: number;
+  frameSize: { frameWidth: number; frameHeight: number }; // Dimensions of a single frame
+  frameRate: number; // Calculated from delays
+} => {
+  // Parse the GIF
+  const gif = parseGIF(gifArrayBuffer);
+  const frames = decompressFrames(gif, true);
+
+  const frameDelays = frames.map((frame) => frame.delay || 10); // Default to 10ms if delay is missing
+  const delayGCD = frameDelays.reduce((a, b) => gcd(a, b));
+
+  // Calculate the inherent frameRate in frames per second
+  const frameRate = 1000 / delayGCD; // Delays are in milliseconds
+
+  // Normalize the frames based on the GCD
+  const normalizedFrames: ImageData[] = [];
+  for (const frame of frames) {
+    const repeatCount = frame.delay / delayGCD;
+    for (let i = 0; i < repeatCount; i++) {
+      const canvas = document.createElement('canvas');
+      canvas.width = frame.dims.width;
+      canvas.height = frame.dims.height;
+      const ctx = canvas.getContext('2d')!;
+
+      // Create an ImageData object from the frame's patch
+      const imageData = new ImageData(
+        new Uint8ClampedArray(frame.patch),
+        frame.dims.width,
+        frame.dims.height,
+      );
+      ctx.putImageData(imageData, 0, 0);
+
+      normalizedFrames.push(imageData);
+    }
+  }
+
+  const frameCount = normalizedFrames.length;
+
+  // Calculate dimensions of the spritesheet
+  const spriteSize = frames[0].dims;
+  const spritesheetWidth = Math.ceil(Math.sqrt(frameCount));
+  const spritesheetHeight = Math.ceil(frameCount / spritesheetWidth);
+
+  // Create a canvas for the spritesheet
+  const spritesheetCanvas = document.createElement('canvas');
+  spritesheetCanvas.width = spritesheetWidth * spriteSize.width;
+  spritesheetCanvas.height = spritesheetHeight * spriteSize.height;
+  const ctx = spritesheetCanvas.getContext('2d')!;
+
+  // Draw the frames onto the spritesheet
+  normalizedFrames.forEach((frame, index) => {
+    const x = (index % spritesheetWidth) * spriteSize.width;
+    const y = Math.floor(index / spritesheetWidth) * spriteSize.height;
+    ctx.putImageData(frame, x, y);
+  });
+
+  // Return the spritesheet and metadata
+  return {
+    spritesheet: spritesheetCanvas,
+    frameCount,
+    frameSize: { frameWidth: spriteSize.width, frameHeight: spriteSize.height },
+    frameRate,
+  };
+};
+
+export const getGif = async (url: string) => {
+  const gif = await download(url, 'image');
+  const gifArrayBuffer = await gif.arrayBuffer();
+  return convertGifToSpritesheet(gifArrayBuffer);
 };

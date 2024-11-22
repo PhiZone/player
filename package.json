@@ -63,6 +63,7 @@
     "@ffmpeg/ffmpeg": "^0.12.10",
     "@ffmpeg/util": "^0.12.1",
     "file-type": "^19.6.0",
+    "gifuct-js": "^2.1.2",
     "jszip": "^3.10.1",
     "mathjs": "^13.2.3",
     "mime": "^4.0.4",
