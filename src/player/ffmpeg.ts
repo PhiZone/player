@@ -21,4 +21,6 @@ export const loadFFmpeg = async (
   });
 };
 
+export const terminateFFmpeg = () => ffmpeg.terminate();
+
 export const getFFmpeg = () => ffmpeg;

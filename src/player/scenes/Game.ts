@@ -20,6 +20,7 @@ import { PointerHandler } from '../handlers/PointerHandler';
 import { KeyboardHandler } from '../handlers/KeyboardHandler';
 import { JudgmentHandler } from '../handlers/JudgmentHandler';
 import { StatisticsHandler } from '../handlers/StatisticsHandler';
+import { terminateFFmpeg } from '../ffmpeg';
 
 export class Game extends Scene {
   private _status: GameStatus = GameStatus.LOADING;
@@ -29,7 +30,7 @@ export class Game extends Scene {
   private _songUrl: string;
   private _chartUrl: string;
   private _illustrationUrl: string;
-  private _audioAssets: { key: string; url: string }[];
+  private _audioAssets: { key: string; url: string }[] = [];
 
   private _title: string | null;
   private _composer: string | null;
@@ -282,6 +283,7 @@ export class Game extends Scene {
     this._lines.forEach((line) => line.destroy());
     this._gameUI.destroy();
     if (this._endingUI) this._endingUI.destroy();
+    terminateFFmpeg();
   }
 
   updateChart(beat: number, time: number, bpm: number) {

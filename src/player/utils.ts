@@ -492,7 +492,12 @@ export const position = (
 
 export const getAudio = async (url: string): Promise<string> => {
   const originalAudio = await download(url, 'audio');
-  console.log(document.createElement('audio').canPlayType(originalAudio.type)); // TODO need testing
+  console.log(
+    'can play',
+    originalAudio.type,
+    '->',
+    document.createElement('audio').canPlayType(originalAudio.type),
+  ); // TODO need testing
   if (document.createElement('audio').canPlayType(originalAudio.type) !== '') {
     return URL.createObjectURL(originalAudio);
   }
@@ -513,6 +518,5 @@ export const getAudio = async (url: string): Promise<string> => {
   await ffmpeg.writeFile('input', await fetchFile(originalAudio));
   await ffmpeg.exec(['-i', 'input', '-f', 'wav', 'output']);
   const data = await ffmpeg.readFile('output');
-  ffmpeg.terminate();
   return URL.createObjectURL(new Blob([(data as Uint8Array).buffer], { type: 'audio/wav' }));
 };

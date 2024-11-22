@@ -889,6 +889,7 @@
                       arrayFormat: 'none',
                       skipEmptyString: true,
                       skipNull: true,
+                      sort: false,
                     },
                   );
                   localStorage.setItem('preferences', JSON.stringify(preferences));
