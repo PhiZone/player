@@ -412,7 +412,7 @@ export class Game extends Scene {
     EventBus.emit('loading-detail', 'Initializing click effects');
     this.anims.create({
       key: 'click-effects',
-      frames: this.anims.generateFrameNumbers('click-effects'),
+      frames: 'click-effects',
       frameRate: 60,
       repeat: 0,
     });

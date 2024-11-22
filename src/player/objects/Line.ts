@@ -16,6 +16,7 @@ export class Line {
   private _dragContainer: GameObjects.Container;
   private _holdContainer: GameObjects.Container;
   private _notes: (PlainNote | LongNote)[] = [];
+  private _hasCustomTexture: boolean = false;
 
   private _curX = [];
   private _curY = [];
@@ -44,9 +45,10 @@ export class Line {
     this._num = num;
     this._data = lineData;
     this._line = new GameObjects.Image(scene, 0, 0, `asset-${lineData.Texture}`);
-    this._line.setScale(this._scene.p(1.0125));
+    this._hasCustomTexture = lineData.Texture !== 'line.png';
+    this._line.setScale(this._scene.p(1)); // previously 1.0125 (according to the official definition that a line is 3 times as wide as the screen)
     this._line.setDepth(2);
-    this._line.setTint(getLineColor(scene));
+    if (!this._hasCustomTexture) this._line.setTint(getLineColor(scene));
 
     this._holdContainer = this.createContainer(3);
     this._dragContainer = this.createContainer(4);
@@ -110,8 +112,8 @@ export class Line {
   update(beat: number, time: number, bpm: number) {
     if (time == this._lastUpdate) return;
     this._lastUpdate = time;
-    this._line.setScale(this._scene.p(1.0125));
-    this._line.setTint(getLineColor(this._scene));
+    this._line.setScale(this._scene.p(1));
+    if (!this._hasCustomTexture) this._line.setTint(getLineColor(this._scene));
     ({
       alpha: this._opacity,
       x: this._x,
