@@ -9,7 +9,7 @@ export class Line {
   private _scene: Game;
   private _num: number;
   private _data: JudgeLine;
-  private _line: GameObjects.Image;
+  private _line: GameObjects.Image | GameObjects.Sprite;
   private _parent: Line | null = null;
   private _flickContainer: GameObjects.Container;
   private _tapContainer: GameObjects.Container;
@@ -17,6 +17,7 @@ export class Line {
   private _holdContainer: GameObjects.Container;
   private _notes: (PlainNote | LongNote)[] = [];
   private _hasCustomTexture: boolean = false;
+  private _hasGifTexture: boolean = false;
 
   private _curX = [];
   private _curY = [];
@@ -44,8 +45,13 @@ export class Line {
     this._scene = scene;
     this._num = num;
     this._data = lineData;
-    this._line = new GameObjects.Image(scene, 0, 0, `asset-${lineData.Texture}`);
     this._hasCustomTexture = lineData.Texture !== 'line.png';
+    this._hasGifTexture = lineData.Texture.toLowerCase().endsWith('.gif');
+    this._line = this._hasGifTexture
+      ? new GameObjects.Sprite(scene, 0, 0, `asset-${lineData.Texture}`).play(
+          `asset-${lineData.Texture}`,
+        )
+      : new GameObjects.Image(scene, 0, 0, `asset-${lineData.Texture}`);
     this._line.setScale(this._scene.p(1)); // previously 1.0125 (according to the official definition that a line is 3 times as wide as the screen)
     this._line.setDepth(2);
     if (!this._hasCustomTexture) this._line.setTint(getLineColor(scene));

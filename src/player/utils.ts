@@ -18,6 +18,7 @@ import type { Game } from './scenes/Game';
 import { ENDING_ILLUSTRATION_CORNER_RADIUS } from './constants';
 import { parseGIF, decompressFrames } from 'gifuct-js';
 import { gcd } from 'mathjs';
+import { fileTypeFromBlob } from 'file-type';
 
 const easingFunctions: ((x: number) => number)[] = [
   (x) => x,
@@ -494,13 +495,9 @@ export const position = (
 
 export const getAudio = async (url: string): Promise<string> => {
   const originalAudio = await download(url, 'audio');
-  console.log(
-    'can play',
-    originalAudio.type,
-    '->',
-    document.createElement('audio').canPlayType(originalAudio.type),
-  ); // TODO need testing
-  if (document.createElement('audio').canPlayType(originalAudio.type) !== '') {
+  const type = (await fileTypeFromBlob(originalAudio))?.mime.toString() ?? '';
+  console.log('can play', type, '->', document.createElement('audio').canPlayType(type)); // TODO need testing
+  if (document.createElement('audio').canPlayType(type) !== '') {
     return URL.createObjectURL(originalAudio);
   }
 
@@ -523,6 +520,7 @@ export const getAudio = async (url: string): Promise<string> => {
   return URL.createObjectURL(new Blob([(data as Uint8Array).buffer], { type: 'audio/wav' }));
 };
 
+// expect issues
 const convertGifToSpritesheet = (
   gifArrayBuffer: ArrayBuffer,
 ): {

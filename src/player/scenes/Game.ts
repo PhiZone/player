@@ -155,7 +155,7 @@ export class Game extends Scene {
     assets.forEach((asset, i) => {
       const name = assetNames[i];
       if (assetTypes[i] === 0) {
-        if (name.endsWith('.gif')) this._gifAssets.push({ key: name, url: asset });
+        if (name.toLowerCase().endsWith('.gif')) this._gifAssets.push({ key: name, url: asset });
         else this.load.image(`asset-${assetNames[i]}`, asset);
       } else if (assetTypes[i] === 1) this._audioAssets.push({ key: name, url: asset });
       else console.log('To be implemented:', name); // TODO
@@ -165,18 +165,6 @@ export class Game extends Scene {
   create() {
     if (this._status === GameStatus.ERROR) return;
     const load = async () => {
-      const chart = await loadChart(this._chartUrl);
-      if (!chart) {
-        this._status = GameStatus.ERROR;
-        alert('Failed to load chart.');
-        return;
-      }
-      this._chart = chart;
-      this.initializeChart();
-      this.preprocess();
-      this.initializeHandlers();
-      this.setupUI();
-      this.createClickEffectsAnimation();
       const { background, cropped } = await processIllustration(
         this._illustrationUrl,
         80 * this._data.preferences.backgroundBlur,
@@ -188,6 +176,12 @@ export class Game extends Scene {
       await Promise.all([
         ...this._gifAssets.map(async (asset) => {
           const spritesheet = await getGif(asset.url);
+          console.log(
+            spritesheet.frameSize,
+            spritesheet.frameCount,
+            spritesheet.frameRate,
+            spritesheet.spritesheet.toDataURL(),
+          );
           this.load.spritesheet(
             `asset-${asset.key}`,
             spritesheet.spritesheet.toDataURL(),
@@ -200,8 +194,21 @@ export class Game extends Scene {
           this.load.audio(`asset-${asset.key}`, await getAudio(asset.url)),
         ),
       ]);
+      this.createClickEffectsAnimation();
+      const chart = await loadChart(this._chartUrl);
+      if (!chart) {
+        this._status = GameStatus.ERROR;
+        alert('Failed to load chart.');
+        return;
+      }
+      this._chart = chart;
       this.load.audio('ending', `ending/LevelOver${this._levelType}.wav`);
       this.load.once('complete', () => {
+        this.createGifAnimations();
+        this.initializeChart();
+        this.preprocess();
+        this.initializeHandlers();
+        this.setupUI();
         this.createBackground();
         this.createAudio();
         if (this._autostart) {
