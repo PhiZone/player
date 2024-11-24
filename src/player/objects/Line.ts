@@ -18,6 +18,10 @@ export class Line {
   private _notes: (PlainNote | LongNote)[] = [];
   private _hasCustomTexture: boolean = false;
   private _hasGifTexture: boolean = false;
+  private _xModifier: 1 | -1 = 1;
+  private _yModifier: 1 | -1 = 1;
+  private _rotationModifier: 1 | -1 = 1;
+  private _rotationOffset: 0 | 180 = 0;
 
   private _curX = [];
   private _curY = [];
@@ -60,6 +64,16 @@ export class Line {
     this._dragContainer = this.createContainer(4);
     this._tapContainer = this.createContainer(5);
     this._flickContainer = this.createContainer(6);
+
+    if (scene.preferences.chartFlipping & 1) {
+      this._xModifier = -1;
+      this._rotationModifier = -1;
+    }
+    if (scene.preferences.chartFlipping & 2) {
+      this._yModifier = -1;
+      this._rotationModifier = (-1 * this._xModifier) as 1 | -1;
+      this._rotationOffset = 180;
+    }
 
     // this._flickContainer.add(scene.add.rectangle(0, 0, 10, 10, 0x00ff00).setOrigin(0.5));
     // this._flickContainer.add(
@@ -142,14 +156,7 @@ export class Line {
       },
       { alpha: 0, x: 0, y: 0, rot: 0, height: 0 },
     ));
-    if (this._parent !== null) {
-      this._parent.update(beat, time, bpm);
-      const rad = this._parent._rotation * (Math.PI / 180);
-      const x = this._parent._x + this._x * Math.cos(rad) + this._y * Math.sin(rad);
-      const y = this._parent._y + this._y * Math.cos(rad) - this._x * Math.sin(rad);
-      this._x = x;
-      this._y = y;
-    }
+    this._parent?.update(beat, time, bpm);
     this.updateParams();
     this._notes.forEach((note) => {
       note.update(beat * this._data.bpmfactor, this._height);
@@ -168,8 +175,9 @@ export class Line {
   }
 
   updateParams() {
-    const position = [this._scene.w(this._x), this._scene.h(this._y)];
-    const rotation = this._rotation * (Math.PI / 180);
+    const { x, y } = this.getPosition();
+    const rotation =
+      (this._rotationModifier * this._rotation + this._rotationOffset) * (Math.PI / 180);
     this._line.setAlpha(this._opacity / 255);
     [
       this._line,
@@ -178,9 +186,25 @@ export class Line {
       this._dragContainer,
       this._holdContainer,
     ].forEach((obj) => {
-      obj.setPosition(position[0], position[1]);
+      obj.setPosition(x, y);
       obj.setRotation(rotation);
     });
+  }
+
+  getPosition() {
+    let x = this._scene.p(this._xModifier * this._x);
+    let y = this._scene.o(this._yModifier * this._y);
+    if (this._parent !== null) {
+      const newX =
+        this._parent.x + x * Math.cos(this._parent.rotation) + y * Math.sin(this._parent.rotation);
+      const newY =
+        this._parent.y + y * Math.cos(this._parent.rotation) - x * Math.sin(this._parent.rotation);
+      x = newX;
+      y = newY;
+    }
+    x += this._scene.sys.canvas.width / 2;
+    y += this._scene.sys.canvas.height / 2;
+    return { x, y };
   }
 
   createContainer(depth: number) {

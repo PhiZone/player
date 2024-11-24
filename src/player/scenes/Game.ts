@@ -465,6 +465,10 @@ export class Game extends Scene {
     return (-height / 900) * this.sys.canvas.height + this.sys.canvas.height / 2;
   }
 
+  o(offset: number) {
+    return (-offset / 900) * this.sys.canvas.height;
+  }
+
   d(distance: number) {
     return (distance * this.sys.canvas.height * 2) / 15;
   }

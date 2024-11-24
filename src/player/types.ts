@@ -33,7 +33,7 @@ export interface Preferences {
   aspectRatio: number[] | null;
   backgroundBlur: number;
   backgroundLuminance: number;
-  chartMirroring: number; // TODO
+  chartFlipping: number;
   chartOffset: number;
   fcApIndicator: boolean;
   goodJudgment: number;

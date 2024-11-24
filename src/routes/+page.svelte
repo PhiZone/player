@@ -43,7 +43,7 @@
     aspectRatio: null,
     backgroundBlur: 1,
     backgroundLuminance: 0.5,
-    chartMirroring: 0,
+    chartFlipping: 0,
     chartOffset: 0,
     fcApIndicator: true,
     goodJudgment: 160,

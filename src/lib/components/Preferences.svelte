@@ -409,12 +409,12 @@
         <span
           class="btn no-animation join-item w-1/4 min-w-[64px] font-normal text-sm dark:text-neutral-300"
         >
-          Chart mirroring
+          Chart flipping
         </span>
         <select
-          id="chart_mirroring"
-          name="chartMirroring"
-          bind:value={preferences.chartMirroring}
+          id="chart_flipping"
+          name="chartFlipping"
+          bind:value={preferences.chartFlipping}
           class="border-gray-200 rounded-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:focus:ring-neutral-600 join-item w-3/4"
         >
           {#each ['Off', 'Horizontal', 'Vertical', 'Horizontal and Vertical'] as text, value}

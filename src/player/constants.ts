@@ -51,6 +51,7 @@ export const HOLD_TAIL_TOLERANCE = 100;
 export const JUDGEMENT_THRESHOLD = 200;
 
 /*
-    The radius (in pixels) of rounded corners of the illustration on the ending scene.
+    The radius (in percentage) of rounded corners of the illustration on the ending scene.
+    0 for no rounding; 100 for full rounding.
 */
-export const ENDING_ILLUSTRATION_CORNER_RADIUS = 20;
+export const ENDING_ILLUSTRATION_CORNER_RADIUS = 12;

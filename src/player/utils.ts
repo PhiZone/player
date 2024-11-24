@@ -175,7 +175,7 @@ export const getParams = (): Config | null => {
   let aspectRatio: number[] | null = searchParams.getAll('aspectRatio').map((v) => parseInt(v));
   const backgroundBlur = parseFloat(searchParams.get('backgroundBlur') ?? '1');
   const backgroundLuminance = parseFloat(searchParams.get('backgroundLuminance') ?? '0.5');
-  const chartMirroring = parseInt(searchParams.get('chartMirroring') ?? '0');
+  const chartFlipping = parseInt(searchParams.get('chartFlipping') ?? '0');
   const chartOffset = parseInt(searchParams.get('chartOffset') ?? '0');
   const fcApIndicator = ['1', 'true'].some((v) => v == (searchParams.get('fcApIndicator') ?? '1'));
   const goodJudgment = parseInt(searchParams.get('goodJudgment') ?? '160');
@@ -214,7 +214,7 @@ export const getParams = (): Config | null => {
       aspectRatio,
       backgroundBlur,
       backgroundLuminance,
-      chartMirroring,
+      chartFlipping,
       chartOffset,
       fcApIndicator,
       goodJudgment,
@@ -282,7 +282,7 @@ export const processIllustration = (
         if (SUPPORTS_CANVAS_BLUR) ctx.filter = 'none';
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        const radius = ENDING_ILLUSTRATION_CORNER_RADIUS;
+        const radius = (ENDING_ILLUSTRATION_CORNER_RADIUS * canvas.height) / 200;
         ctx.beginPath();
         ctx.moveTo(radius, 0);
         ctx.lineTo(canvas.width - radius, 0);
@@ -295,7 +295,6 @@ export const processIllustration = (
         ctx.quadraticCurveTo(0, 0, radius, 0);
         ctx.closePath();
 
-        // Clip to the rounded rectangle
         ctx.clip();
         ctx.drawImage(img, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
         const cropped = canvas.toDataURL();
