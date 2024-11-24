@@ -44,7 +44,7 @@ This project is made possible by:
 | Full RPE support                           | 0.1.0   |                                           |                           | 完全 RPE 适配           |
 | Basic PE support                           | 0.1.1   |                                           |                           | 基本 PE 适配            |
 
-A version is reached whenever at least one feature from this version and all features from the previous version are marked as `✅ Done`.
+A version is reached whenever at least one feature from this version and all features from the previous versions are marked as `✅ Done`.
 
 ## Assets
 
