@@ -85,9 +85,9 @@ According to [a statement from Pigeon Games](https://www.bilibili.com/opus/62490
 | Support for custom line textures           | 0.0.1   |                                           | ⚠️ Issues expected (GIFs) | 判定线自定义贴图适配    |
 | Support for flipping modes                 | 0.0.1   |                                           | ✅ Done                   | 镜像模式适配            |
 | Support for custom hit sounds              | 0.0.1   |                                           | ✅ Done                   | 自定义打击音效适配      |
-| Support for `zOrder`                       | 0.0.1   |                                           | 🚧 Working                | Z 轴排序适配            |
+| Support for `zOrder`                       | 0.0.1   |                                           | ✅ Done                   | Z 轴排序适配            |
 | Better input detections                    | 0.0.2   | Especially for Flicks                     |                           | 输入检测优化            |
-| Recording mode                             | 0.0.2   |                                           |                           | 录制模式                |
+| Recording mode                             | 0.0.2   |                                           | 🚧 Working                | 录制模式                |
 | Basic support for the extended event layer | 0.0.3   | Excluding GIF events & incline events     |                           | 扩展事件层的基本适配    |
 | Support for Bézier easings                 | 0.0.4   |                                           |                           | 贝塞尔缓动适配          |
 | Alignment with official/RPE constants      | 0.0.4   | Hold tolerances, texture size units, etc. |                           | 官/RPE 常数对齐         |

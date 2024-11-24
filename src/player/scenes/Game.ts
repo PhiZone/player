@@ -10,6 +10,7 @@ import {
   inferLevelType,
   SUPPORTS_CANVAS_BLUR,
   getGif,
+  calculatePrecedences,
 } from '../utils';
 import { GameStatus, type Bpm, type Config, type RpeJson } from '../types';
 import { Line } from '../objects/Line';
@@ -376,11 +377,15 @@ export class Game extends Scene {
       lastBeat = bpm.startBeat;
       lastTimeSec = bpm.startTimeSec;
     });
+
+    const precedences = calculatePrecedences(this._chart.judgeLineList.map((data) => data.zOrder));
+    this._lines = this._chart.judgeLineList.map(
+      (data, i) => new Line(this, data, i, precedences.get(data.zOrder)!),
+    );
   }
 
   preprocess() {
     EventBus.emit('loading-detail', 'Preprocessing chart');
-    this._lines = this._chart.judgeLineList.map((data, i) => new Line(this, data, i));
     const notes = this._lines
       .map((line) => line.notes)
       .flat()

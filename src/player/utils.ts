@@ -492,6 +492,19 @@ export const position = (
   });
 };
 
+export const calculatePrecedences = (arr: number[]) => {
+  const sortedUnique = Array.from(new Set(arr)).sort((a, b) => a - b);
+
+  const valueToNormalized: Map<number, number> = new Map();
+  const step = 1 / sortedUnique.length;
+
+  sortedUnique.forEach((value, index) => {
+    valueToNormalized.set(value, index * step);
+  });
+
+  return valueToNormalized;
+};
+
 export const getAudio = async (url: string): Promise<string> => {
   const originalAudio = await download(url, 'audio');
   const type = (await fileTypeFromBlob(originalAudio))?.mime.toString() ?? '';

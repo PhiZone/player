@@ -45,7 +45,7 @@ export class Line {
 
   private _lastUpdate: number = -Infinity;
 
-  constructor(scene: Game, lineData: JudgeLine, num: number) {
+  constructor(scene: Game, lineData: JudgeLine, num: number, precedence: number) {
     this._scene = scene;
     this._num = num;
     this._data = lineData;
@@ -57,7 +57,7 @@ export class Line {
         )
       : new GameObjects.Image(scene, 0, 0, `asset-${lineData.Texture}`);
     this._line.setScale(this._scene.p(1)); // previously 1.0125 (according to the official definition that a line is 3 times as wide as the screen)
-    this._line.setDepth(2);
+    this._line.setDepth(2 + precedence);
     if (!this._hasCustomTexture) this._line.setTint(getLineColor(scene));
 
     this._holdContainer = this.createContainer(3);
