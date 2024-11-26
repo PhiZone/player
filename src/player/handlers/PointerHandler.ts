@@ -1,6 +1,6 @@
 import { dot } from 'mathjs';
 import type { Input } from 'phaser';
-import { FLICK_VELOCTY_THRESHOLD } from '../constants';
+import { FLICK_VELOCTY_THRESHOLD, JUDGMENT_THRESHOLD } from '../constants';
 import type { Line } from '../objects/Line';
 import type { LongNote } from '../objects/LongNote';
 import type { PlainNote } from '../objects/PlainNote';
@@ -141,7 +141,7 @@ export class PointerHandler {
         ((input.time - getTimeSec(this._scene.bpmList, note.note.startBeat)) * 100) ** 2;
     });
     const tap = taps
-      .filter((input) => input.distance < this._scene.p(200))
+      .filter((input) => input.distance <= this._scene.p(JUDGMENT_THRESHOLD))
       .sort((a, b) => a.spaceTimeDistance - b.spaceTimeDistance)[0];
     if (tap) this.consumeTap(tap.id);
     return tap;
@@ -173,7 +173,7 @@ export class PointerHandler {
     const drag = this._pointerDrags
       .filter((input) => {
         return (
-          input.distance < this._scene.p(200) &&
+          input.distance <= this._scene.p(JUDGMENT_THRESHOLD) &&
           (!requireVelocity ||
             (input.velocity.lengthSq() > 0 &&
               (!input.velocityConsumed || input.velocity.dot(input.velocityConsumed) < 0)))

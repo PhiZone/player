@@ -45,10 +45,10 @@ export const HOLD_BODY_TOLERANCE = 100;
 export const HOLD_TAIL_TOLERANCE = 100;
 
 /*
-    Minimum distance (in chart pixels) between the projections of the input and a note along
-    the judgment line required to hit the note.
+    Maximum distance (in chart pixels) between the projections of the input and a note along
+    the judgment line allowed to hit the note.
 */
-export const JUDGEMENT_THRESHOLD = 200;
+export const JUDGMENT_THRESHOLD = 200;
 
 /*
     The radius (in percentage) of rounded corners of the illustration on the ending scene.
