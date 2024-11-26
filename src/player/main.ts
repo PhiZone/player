@@ -19,15 +19,34 @@ const config: Types.Core.GameConfig = {
 
 const start = (parent: string, sceneConfig: Config | null) => {
   if (sceneConfig) {
-    if (sceneConfig.preferences.aspectRatio !== null) {
-      const ratio = sceneConfig.preferences.aspectRatio;
-      const dimensions = fit(
-        ratio[0],
-        ratio[1],
-        window.screen.width * window.devicePixelRatio,
-        window.screen.height * window.devicePixelRatio,
-        true,
-      );
+    localStorage.setItem('player', JSON.stringify(sceneConfig));
+    if (
+      sceneConfig.preferences.aspectRatio !== null ||
+      (sceneConfig.record && sceneConfig.recorderOptions.overrideResolution !== null)
+    ) {
+      if (
+        sceneConfig.recorderOptions.overrideResolution &&
+        (!sceneConfig.recorderOptions.overrideResolution[0] ||
+          !sceneConfig.recorderOptions.overrideResolution[1])
+      )
+        sceneConfig.recorderOptions.overrideResolution = null;
+      let dimensions: { width: number; height: number } = { width: 0, height: 0 };
+      if (sceneConfig.preferences.aspectRatio !== null) {
+        const ratio = sceneConfig.preferences.aspectRatio;
+        dimensions = fit(
+          ratio[0],
+          ratio[1],
+          window.screen.width * window.devicePixelRatio,
+          window.screen.height * window.devicePixelRatio,
+          true,
+        );
+      }
+      if (sceneConfig.recorderOptions.overrideResolution !== null) {
+        dimensions = {
+          width: sceneConfig.recorderOptions.overrideResolution[0],
+          height: sceneConfig.recorderOptions.overrideResolution[1],
+        };
+      }
       config.width = dimensions.width;
       config.height = dimensions.height;
       config.scale = {
@@ -35,7 +54,6 @@ const start = (parent: string, sceneConfig: Config | null) => {
         autoCenter: Scale.CENTER_BOTH,
       };
     }
-    localStorage.setItem('player', JSON.stringify(sceneConfig));
   }
   const game = new Game({ ...config, parent });
   game.scene.start('MainGame');

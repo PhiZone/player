@@ -163,6 +163,7 @@ export const getParams = (): Config | null => {
   const assetNames = searchParams.getAll('assetNames');
   const assetTypes = searchParams.getAll('assetTypes').map((v) => parseInt(v));
   const assets = searchParams.getAll('assets');
+
   const title = searchParams.get('title');
   const composer = searchParams.get('composer');
   const charter = searchParams.get('charter');
@@ -172,6 +173,7 @@ export const getParams = (): Config | null => {
     (clamp(parseInt(searchParams.get('levelType') ?? '2'), 0, 3) as 0 | 1 | 2 | 3) ??
     inferLevelType(level);
   const difficulty = searchParams.get('difficulty');
+
   let aspectRatio: number[] | null = searchParams.getAll('aspectRatio').map((v) => parseInt(v));
   const backgroundBlur = parseFloat(searchParams.get('backgroundBlur') ?? '1');
   const backgroundLuminance = parseFloat(searchParams.get('backgroundLuminance') ?? '0.5');
@@ -186,12 +188,25 @@ export const getParams = (): Config | null => {
   const simultaneousNoteHint = ['1', 'true'].some(
     (v) => v == (searchParams.get('simultaneousNoteHint') ?? '1'),
   );
+
+  const frameRate = parseFloat(searchParams.get('frameRate') ?? '60');
+  let overrideResolution: number[] | null = searchParams
+    .getAll('overrideResolution')
+    .map((v) => parseInt(v));
+  const videoCodec = searchParams.get('videoCodec') ?? 'H.264';
+  const videoBitrate = parseInt(searchParams.get('videoBitrate') ?? '6000');
+  const audioCodec = searchParams.get('audioCodec') ?? 'AAC';
+  const audioBitrate = parseInt(searchParams.get('audioBitrate') ?? '320');
+
   const autoplay = ['1', 'true'].some((v) => v == searchParams.get('autoplay'));
   const practice = ['1', 'true'].some((v) => v == searchParams.get('practice'));
+  const adjustOffset = ['1', 'true'].some((v) => v == searchParams.get('adjustOffset'));
+  const record = ['1', 'true'].some((v) => v == searchParams.get('record'));
   const autostart = ['1', 'true'].some((v) => v == searchParams.get('autostart'));
   const newTab = ['1', 'true'].some((v) => v == searchParams.get('newTab'));
   if (!song || !chart || !illustration || assetNames.length < assets.length) return null;
   if (aspectRatio.length === 0) aspectRatio = null;
+  if (overrideResolution.length === 0) overrideResolution = null;
   return {
     resources: {
       song,
@@ -224,8 +239,18 @@ export const getParams = (): Config | null => {
       perfectJudgment,
       simultaneousNoteHint,
     },
+    recorderOptions: {
+      frameRate,
+      overrideResolution,
+      videoCodec,
+      videoBitrate,
+      audioCodec,
+      audioBitrate,
+    },
     autoplay,
     practice,
+    adjustOffset,
+    record,
     autostart,
     newTab,
   };

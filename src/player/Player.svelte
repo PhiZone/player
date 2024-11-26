@@ -48,12 +48,31 @@
   let stillLoading = false;
   let timeout = 0;
 
+  let videoRecorder: MediaRecorder | null = null;
+  let audioRecorder: MediaRecorder | null = null;
+
   onMount(() => {
     if (!config) return;
     gameRef.game = start('player', config);
     timeout = setTimeout(() => {
       stillLoading = true;
     }, 10000);
+
+    if (config.record) {
+      const video = gameRef.game.canvas.captureStream();
+      videoRecorder = new MediaRecorder(video, {
+        mimeType: 'video/webm; codecs=vp9',
+      });
+      videoRecorder.ondataavailable = (e) => {
+        const blob = new Blob([e.data], { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'recording.webm';
+        a.click();
+        URL.revokeObjectURL(url);
+      };
+    }
 
     EventBus.on('loading', (p: number) => {
       progress = p;
@@ -76,6 +95,7 @@
       [metadata.composer, metadata.charter, metadata.illustrator].forEach((credit) => {
         credits.push(credit ?? '');
       });
+      videoRecorder?.start();
 
       if (currentActiveScene) {
         currentActiveScene(scene);
@@ -100,9 +120,11 @@
 
   EventBus.on('finished', () => {
     status = GameStatus.FINISHED;
+    videoRecorder?.stop();
   });
 
   onDestroy(() => {
+    videoRecorder?.stop();
     gameRef.scene?.destroy();
     gameRef.game?.destroy(true);
   });

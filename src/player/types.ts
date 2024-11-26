@@ -4,8 +4,11 @@ export interface Config {
   resources: Resources;
   metadata: Metadata;
   preferences: Preferences;
+  recorderOptions: RecorderOptions;
   autoplay: boolean;
   practice: boolean;
+  adjustOffset: boolean;
+  record: boolean;
   autostart: boolean;
   newTab: boolean;
 }
@@ -42,6 +45,15 @@ export interface Preferences {
   noteSize: number;
   perfectJudgment: number;
   simultaneousNoteHint: boolean;
+}
+
+export interface RecorderOptions {
+  frameRate: number;
+  overrideResolution: number[] | null;
+  videoCodec: string;
+  videoBitrate: number;
+  audioCodec: string;
+  audioBitrate?: number | undefined;
 }
 
 export interface RpeJson {

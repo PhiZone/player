@@ -4,7 +4,7 @@
   import { onMount } from 'svelte';
   import queryString from 'query-string';
   import { fileTypeFromBlob } from 'file-type';
-  import type { Metadata, RpeJson } from '../player/types';
+  import type { Metadata, RecorderOptions, RpeJson } from '../player/types';
   import { clamp, inferLevelType } from '../player/utils';
   import PreferencesModal from '$lib/components/Preferences.svelte';
   import { goto } from '$app/navigation';
@@ -27,6 +27,8 @@
   const REPO_LINK = 'https://github.com/PhiZone/player';
 
   let showCollapse = false;
+  let showRecorderCollapse = false;
+  let overrideResolution = false;
   let directoryInput: HTMLInputElement;
 
   let progress = -1;
@@ -58,6 +60,14 @@
     record: false,
     newTab: false,
   };
+  let recorderOptions: RecorderOptions = {
+    frameRate: 60,
+    overrideResolution: [1620, 1080],
+    videoCodec: 'H.264',
+    videoBitrate: 6000,
+    audioCodec: 'AAC',
+    audioBitrate: 320,
+  };
 
   let chartFiles: FileEntry[] = [];
   let audioFiles: FileEntry[] = [];
@@ -74,9 +84,13 @@
 
   onMount(() => {
     directoryInput.webkitdirectory = true;
-    const val = localStorage.getItem('preferences');
-    if (val) {
-      preferences = JSON.parse(val);
+    const pref = localStorage.getItem('preferences');
+    const rec = localStorage.getItem('recorderOptions');
+    if (pref) {
+      preferences = JSON.parse(pref);
+    }
+    if (rec) {
+      recorderOptions = JSON.parse(rec);
     }
   });
 
@@ -794,28 +808,177 @@
                   </span>
                 </label>
               </div>
-              <div class="relative flex items-start">
-                <div class="flex items-center h-5 mt-1">
-                  <input
-                    id="record"
-                    name="record"
-                    type="checkbox"
-                    class="transition border-gray-200 rounded text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
-                    aria-describedby="record-description"
-                    bind:checked={preferences.record}
-                  />
+              <div class="flex flex-col">
+                <div class="relative flex items-start">
+                  <div class="flex items-center h-5 mt-1">
+                    <input
+                      id="record"
+                      name="record"
+                      type="checkbox"
+                      class="transition border-gray-200 rounded text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
+                      aria-describedby="record-description"
+                      bind:checked={preferences.record}
+                    />
+                  </div>
+                  <label for="record" class="ms-3">
+                    <button
+                      class="flex items-center gap-1 text-sm font-semibold text-gray-800 dark:text-neutral-300"
+                      on:click={() => {
+                        showRecorderCollapse = !showRecorderCollapse;
+                      }}
+                    >
+                      <p>Record</p>
+                      <span class="transition {showRecorderCollapse ? '-rotate-180' : 'rotate-0'}">
+                        <i class="fa-solid fa-angle-down fa-sm"></i>
+                      </span>
+                    </button>
+                    <span
+                      id="record-description"
+                      class="block text-sm text-gray-600 dark:text-neutral-500"
+                    >
+                      The canvas will be recorded and saved as a video file.
+                    </span>
+                  </label>
                 </div>
-                <label for="record" class="ms-3">
-                  <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
-                    Record
-                  </span>
-                  <span
-                    id="record-description"
-                    class="block text-sm text-gray-600 dark:text-neutral-500"
+                <div
+                  class="collapse h-0 border hover:shadow-sm rounded-xl dark:border-neutral-700 dark:shadow-neutral-700/70 bg-base-200 bg-opacity-30 backdrop-blur-2xl collapse-transition"
+                  class:collapse-open={showRecorderCollapse}
+                  class:min-h-fit={showRecorderCollapse}
+                  class:h-full={showRecorderCollapse}
+                  class:mt-2={showRecorderCollapse}
+                  class:opacity-0={!showRecorderCollapse}
+                >
+                  <div
+                    class="collapse-content flex flex-col gap-4 items-center pt-0 transition-[padding] duration-300"
+                    class:pt-4={showRecorderCollapse}
                   >
-                    The canvas will be recorded and saved as a video file.
-                  </span>
-                </label>
+                    <div class="grid sm:grid-cols-3 md:grid-cols-1 lg:grid-cols-3 gap-3">
+                      <div>
+                        <span class="block text-sm font-medium mb-1 dark:text-white">
+                          Frame rate
+                        </span>
+                        <div class="relative">
+                          <input
+                            type="number"
+                            bind:value={recorderOptions.frameRate}
+                            class="py-3 px-4 pe-12 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                          />
+                          <div
+                            class="absolute inset-y-0 end-0 flex items-center pointer-events-none z-20 pe-4"
+                          >
+                            <span class="text-gray-500 dark:text-neutral-500">FPS</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="sm:col-span-2 md:col-span-1 lg:col-span-2">
+                        <input
+                          type="checkbox"
+                          class="transition border-gray-200 rounded text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
+                          bind:checked={overrideResolution}
+                          on:input={(e) => {
+                            if (!e.currentTarget.checked) {
+                              recorderOptions.overrideResolution = null;
+                            }
+                          }}
+                        />
+                        <span class="block text-sm font-medium mb-1 dark:text-white">
+                          Override resolution
+                        </span>
+                        <div class="flex rounded-lg shadow-sm">
+                          <input
+                            type="number"
+                            class="py-3 px-4 pe-11 block w-full border-gray-200 shadow-sm -ms-px first:rounded-s-lg mt-0 first:ms-0 first:rounded-se-none last:rounded-es-none last:rounded-e-lg text-sm relative focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                            disabled={!overrideResolution}
+                            on:input={(e) => {
+                              if (!recorderOptions.overrideResolution) {
+                                recorderOptions.overrideResolution = [0, 0];
+                              }
+                              recorderOptions.overrideResolution[0] = parseInt(
+                                e.currentTarget.value,
+                              );
+                            }}
+                          />
+                          <span
+                            class="py-3 px-2 inline-flex items-center min-w-fit border border-gray-200 text-sm text-gray-500 -ms-px w-auto first:rounded-s-lg mt-0 first:ms-0 first:rounded-se-none last:rounded-es-none last:rounded-e-lg bg-base-100 dark:border-neutral-700 dark:text-neutral-400"
+                          >
+                            <i class="fa-solid fa-xmark"></i>
+                          </span>
+                          <input
+                            type="number"
+                            class="py-3 px-4 pe-11 block w-full border-gray-200 shadow-sm -ms-px first:rounded-s-lg mt-0 first:ms-0 first:rounded-se-none last:rounded-es-none last:rounded-e-lg text-sm relative focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                            disabled={!overrideResolution}
+                            on:input={(e) => {
+                              if (!recorderOptions.overrideResolution) {
+                                recorderOptions.overrideResolution = [0, 0];
+                              }
+                              recorderOptions.overrideResolution[1] = parseInt(
+                                e.currentTarget.value,
+                              );
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <span class="block text-sm font-medium mb-1 dark:text-white">
+                          Video codec
+                        </span>
+                        <div class="relative">
+                          <input
+                            type="text"
+                            bind:value={recorderOptions.videoCodec}
+                            class="py-3 px-4 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                          />
+                        </div>
+                      </div>
+                      <div class="sm:col-span-2 md:col-span-1 lg:col-span-2">
+                        <span class="block text-sm font-medium mb-1 dark:text-white">
+                          Video bitrate
+                        </span>
+                        <div class="relative">
+                          <input
+                            type="number"
+                            bind:value={recorderOptions.videoBitrate}
+                            class="py-3 px-4 pe-14 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                          />
+                          <div
+                            class="absolute inset-y-0 end-0 flex items-center pointer-events-none z-20 pe-4"
+                          >
+                            <span class="text-gray-500 dark:text-neutral-500">Kbps</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <span class="block text-sm font-medium mb-1 dark:text-white">
+                          Audio codec
+                        </span>
+                        <div class="relative">
+                          <input
+                            type="text"
+                            bind:value={recorderOptions.audioCodec}
+                            class="py-3 px-4 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                          />
+                        </div>
+                      </div>
+                      <div class="sm:col-span-2 md:col-span-1 lg:col-span-2">
+                        <span class="block text-sm font-medium mb-1 dark:text-white">
+                          Audio bitrate
+                        </span>
+                        <div class="relative">
+                          <input
+                            type="number"
+                            bind:value={recorderOptions.audioBitrate}
+                            class="py-3 px-4 pe-14 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                          />
+                          <div
+                            class="absolute inset-y-0 end-0 flex items-center pointer-events-none z-20 pe-4"
+                          >
+                            <span class="text-gray-500 dark:text-neutral-500">Kbps</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div class="relative flex items-start">
                 <div class="flex items-center h-5 mt-1">
@@ -884,6 +1047,7 @@
                       assets: assetsIncluded.map((asset) => getURL(asset.file)),
                       ...currentBundle.metadata,
                       ...preferences,
+                      ...recorderOptions,
                     },
                     {
                       arrayFormat: 'none',
