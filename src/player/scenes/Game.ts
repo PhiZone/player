@@ -22,7 +22,7 @@ import { PointerHandler } from '../handlers/PointerHandler';
 import { KeyboardHandler } from '../handlers/KeyboardHandler';
 import { JudgmentHandler } from '../handlers/JudgmentHandler';
 import { StatisticsHandler } from '../handlers/StatisticsHandler';
-import { terminateFFmpeg } from '../ffmpeg';
+import { loadFFmpeg, terminateFFmpeg } from '../ffmpeg';
 
 export class Game extends Scene {
   private _status: GameStatus = GameStatus.LOADING;
@@ -151,6 +151,10 @@ export class Game extends Scene {
 
     if (new window.AudioContext().state === 'suspended') {
       this._autostart = false;
+    }
+
+    if (this._record) {
+      loadFFmpeg();
     }
 
     assets.forEach((asset, i) => {

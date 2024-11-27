@@ -3,6 +3,7 @@ import type { Game } from '../scenes/Game';
 import { FONT_FAMILY } from '../constants';
 import type { Grade } from '../types';
 import { pad, position } from '../utils';
+import { EventBus } from '../EventBus';
 
 export class EndingUI extends GameObjects.Container {
   private _scene: Game;
@@ -200,6 +201,9 @@ export class EndingUI extends GameObjects.Container {
     this._scene.sound.add('grade-hit').setVolume(this._scene.preferences.hitSoundVolume).play();
     this._timer = setInterval(() => {
       this._sound.setSeek(0);
+    }, 192e3 / 7);
+    setTimeout(() => {
+      EventBus.emit('recording-stop');
     }, 192e3 / 7);
     this._tweening = true;
     this._grade.preFX?.addShine(7 / 6, 1, 3, false);

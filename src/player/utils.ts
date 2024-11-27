@@ -11,6 +11,7 @@ import {
   JudgmentType,
   type Bpm,
   type Config,
+  type RecorderOptions,
 } from './types';
 import { EventBus } from './EventBus';
 import { getFFmpeg, loadFFmpeg } from './ffmpeg';
@@ -18,7 +19,7 @@ import type { Game } from './scenes/Game';
 import { ENDING_ILLUSTRATION_CORNER_RADIUS } from './constants';
 import { parseGIF, decompressFrames } from 'gifuct-js';
 import { gcd } from 'mathjs';
-import { fileTypeFromBlob } from 'file-type';
+import { fileTypeFromBlob, fileTypeFromBuffer } from 'file-type';
 
 const easingFunctions: ((x: number) => number)[] = [
   (x) => x,
@@ -555,6 +556,51 @@ export const getAudio = async (url: string): Promise<string> => {
   await ffmpeg.exec(['-i', 'input', '-f', 'wav', 'output']);
   const data = await ffmpeg.readFile('output');
   return URL.createObjectURL(new Blob([(data as Uint8Array).buffer], { type: 'audio/wav' }));
+};
+
+export const outputRecording = async (
+  video: Blob,
+  audio: Blob,
+  recorderOptions: RecorderOptions,
+) => {
+  const ffmpeg = getFFmpeg();
+  ffmpeg.on('progress', (progress) => {
+    EventBus.emit('recording-processing', clamp(progress.progress, 0, 1));
+  });
+  if (!ffmpeg.loaded) {
+    EventBus.emit('recording-processing-detail', 'Loading FFmpeg');
+    await loadFFmpeg(({ url, received, total }) => {
+      EventBus.emit('recording-processing', clamp(received / total, 0, 1));
+      EventBus.emit(
+        'recording-processing-detail',
+        `Downloading ${url.toString().split('/').pop()}`,
+      );
+    });
+  }
+  EventBus.emit('recording-processing-detail', 'Processing video');
+  await ffmpeg.writeFile('video', await fetchFile(video));
+  await ffmpeg.writeFile('audio', await fetchFile(audio));
+  await ffmpeg.exec([
+    '-i',
+    'video',
+    '-i',
+    'audio',
+    '-c:v',
+    recorderOptions.videoCodec,
+    '-b:v',
+    recorderOptions.videoBitrate.toString(),
+    '-c:a',
+    recorderOptions.audioCodec,
+    ...(recorderOptions.audioBitrate ? ['-b:a', recorderOptions.audioBitrate.toString()] : []),
+    'output',
+  ]);
+  const data = await ffmpeg.readFile('output');
+  const url = URL.createObjectURL(new Blob([(data as Uint8Array).buffer]));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `recording.${(await fileTypeFromBuffer(data as Uint8Array))?.ext ?? 'mp4'}`;
+  a.click();
+  URL.revokeObjectURL(url);
 };
 
 // expect issues

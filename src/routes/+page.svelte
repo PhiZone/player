@@ -63,11 +63,13 @@
   let recorderOptions: RecorderOptions = {
     frameRate: 60,
     overrideResolution: [1620, 1080],
-    videoCodec: 'H.264',
+    videoCodec: 'libx264',
     videoBitrate: 6000,
-    audioCodec: 'AAC',
+    audioCodec: 'aac',
     audioBitrate: 320,
   };
+  let recorderResolutionWidth = 1620;
+  let recorderResolutionHeight = 1080;
 
   let chartFiles: FileEntry[] = [];
   let audioFiles: FileEntry[] = [];
@@ -91,6 +93,11 @@
     }
     if (rec) {
       recorderOptions = JSON.parse(rec);
+      if (recorderOptions.overrideResolution && recorderOptions.overrideResolution.length === 2) {
+        overrideResolution = true;
+        recorderResolutionWidth = recorderOptions.overrideResolution[0];
+        recorderResolutionHeight = recorderOptions.overrideResolution[1];
+      }
     }
   });
 
@@ -871,50 +878,34 @@
                         </div>
                       </div>
                       <div class="sm:col-span-2 md:col-span-1 lg:col-span-2">
-                        <input
-                          type="checkbox"
-                          class="transition border-gray-200 rounded text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
-                          bind:checked={overrideResolution}
-                          on:input={(e) => {
-                            if (!e.currentTarget.checked) {
-                              recorderOptions.overrideResolution = null;
-                            }
-                          }}
-                        />
-                        <span class="block text-sm font-medium mb-1 dark:text-white">
-                          Override resolution
-                        </span>
+                        <div class="flex justify-between items-center">
+                          <span class="block text-sm font-medium mb-1 dark:text-white">
+                            Override resolution
+                          </span>
+                          <input
+                            type="checkbox"
+                            class="transition border-gray-200 rounded text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
+                            bind:checked={overrideResolution}
+                          />
+                        </div>
                         <div class="flex rounded-lg shadow-sm">
                           <input
                             type="number"
-                            class="py-3 px-4 pe-11 block w-full border-gray-200 shadow-sm -ms-px first:rounded-s-lg mt-0 first:ms-0 first:rounded-se-none last:rounded-es-none last:rounded-e-lg text-sm relative focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                            class="py-3 px-4 block w-full border-gray-200 shadow-sm -ms-px first:rounded-s-lg mt-0 first:ms-0 first:rounded-se-none last:rounded-es-none last:rounded-e-lg text-sm relative focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
                             disabled={!overrideResolution}
-                            on:input={(e) => {
-                              if (!recorderOptions.overrideResolution) {
-                                recorderOptions.overrideResolution = [0, 0];
-                              }
-                              recorderOptions.overrideResolution[0] = parseInt(
-                                e.currentTarget.value,
-                              );
-                            }}
+                            bind:value={recorderResolutionWidth}
                           />
                           <span
                             class="py-3 px-2 inline-flex items-center min-w-fit border border-gray-200 text-sm text-gray-500 -ms-px w-auto first:rounded-s-lg mt-0 first:ms-0 first:rounded-se-none last:rounded-es-none last:rounded-e-lg bg-base-100 dark:border-neutral-700 dark:text-neutral-400"
+                            class:opacity-50={!overrideResolution}
                           >
                             <i class="fa-solid fa-xmark"></i>
                           </span>
                           <input
                             type="number"
-                            class="py-3 px-4 pe-11 block w-full border-gray-200 shadow-sm -ms-px first:rounded-s-lg mt-0 first:ms-0 first:rounded-se-none last:rounded-es-none last:rounded-e-lg text-sm relative focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                            class="py-3 px-4 block w-full border-gray-200 shadow-sm -ms-px first:rounded-s-lg mt-0 first:ms-0 first:rounded-se-none last:rounded-es-none last:rounded-e-lg text-sm relative focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
                             disabled={!overrideResolution}
-                            on:input={(e) => {
-                              if (!recorderOptions.overrideResolution) {
-                                recorderOptions.overrideResolution = [0, 0];
-                              }
-                              recorderOptions.overrideResolution[1] = parseInt(
-                                e.currentTarget.value,
-                              );
-                            }}
+                            bind:value={recorderResolutionHeight}
                           />
                         </div>
                       </div>
@@ -1032,6 +1023,18 @@
               <button
                 class="w-1/2 inline-flex justify-center items-center gap-x-3 text-center bg-gradient-to-tl from-blue-500 via-violet-500 to-fuchsia-500 dark:from-blue-700 dark:via-violet-700 dark:to-fuchsia-700 text-white text-sm font-medium rounded-md focus:outline-none py-3 px-4 transition-all duration-300 bg-size-200 bg-pos-0 hover:bg-pos-100"
                 on:click={() => {
+                  localStorage.setItem('preferences', JSON.stringify(preferences));
+                  if (preferences.record) {
+                    localStorage.setItem('recorderOptions', JSON.stringify(recorderOptions));
+                    if (overrideResolution) {
+                      recorderOptions.overrideResolution = [
+                        recorderResolutionWidth,
+                        recorderResolutionHeight,
+                      ];
+                    } else {
+                      recorderOptions.overrideResolution = null;
+                    }
+                  }
                   const assetsIncluded = assets.filter((asset) => asset.included);
                   const params = queryString.stringify(
                     {
@@ -1056,7 +1059,6 @@
                       sort: false,
                     },
                   );
-                  localStorage.setItem('preferences', JSON.stringify(preferences));
                   if (preferences.newTab) {
                     window.open(`/play?${params}`);
                   } else {

@@ -13,7 +13,7 @@
   import start from './main';
   import { EventBus } from './EventBus';
   import { GameStatus, type Config } from './types';
-  import { convertTime, getParams } from './utils';
+  import { convertTime, getParams, outputRecording } from './utils';
   import { goto } from '$app/navigation';
 
   export let gameRef: GameReference;
@@ -50,6 +50,8 @@
 
   let videoRecorder: MediaRecorder | null = null;
   let audioRecorder: MediaRecorder | null = null;
+  let video: Blob;
+  let audio: Blob;
 
   onMount(() => {
     if (!config) return;
@@ -59,19 +61,32 @@
     }, 10000);
 
     if (config.record) {
-      const video = gameRef.game.canvas.captureStream();
-      videoRecorder = new MediaRecorder(video, {
+      const videoStream = gameRef.game.canvas.captureStream();
+      videoRecorder = new MediaRecorder(videoStream, {
         mimeType: 'video/webm; codecs=vp9',
+        videoBitsPerSecond: config.recorderOptions.videoBitrate * 1000,
       });
       videoRecorder.ondataavailable = (e) => {
-        const blob = new Blob([e.data], { type: 'video/webm' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'recording.webm';
-        a.click();
-        URL.revokeObjectURL(url);
+        video = e.data;
+        if (audio) {
+          outputRecording(video, audio, config.recorderOptions);
+        }
       };
+      if ('context' in gameRef.game.sound) {
+        const audioDest = gameRef.game.sound.context.createMediaStreamDestination();
+        audioRecorder = new MediaRecorder(audioDest.stream, {
+          mimeType: 'audio/webm; codecs=opus',
+          audioBitsPerSecond: config.recorderOptions.audioBitrate
+            ? config.recorderOptions.audioBitrate * 1000
+            : undefined,
+        });
+        audioRecorder.ondataavailable = (e) => {
+          audio = e.data;
+          if (video) {
+            outputRecording(video, audio, config.recorderOptions);
+          }
+        };
+      }
     }
 
     EventBus.on('loading', (p: number) => {
@@ -96,6 +111,7 @@
         credits.push(credit ?? '');
       });
       videoRecorder?.start();
+      audioRecorder?.start();
 
       if (currentActiveScene) {
         currentActiveScene(scene);
@@ -120,11 +136,16 @@
 
   EventBus.on('finished', () => {
     status = GameStatus.FINISHED;
+  });
+
+  EventBus.on('recording-stop', () => {
     videoRecorder?.stop();
+    audioRecorder?.stop();
   });
 
   onDestroy(() => {
     videoRecorder?.stop();
+    audioRecorder?.stop();
     gameRef.scene?.destroy();
     gameRef.game?.destroy(true);
   });
