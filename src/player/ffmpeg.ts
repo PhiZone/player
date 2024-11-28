@@ -2,7 +2,7 @@ import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { toBlobURL } from '@ffmpeg/util';
 
 const ffmpeg = new FFmpeg();
-const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
+const baseURL = '/ffmpeg';
 
 export const loadFFmpeg = async (
   callback?: ({
