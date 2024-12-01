@@ -60,7 +60,7 @@ export class LongNote extends GameObjects.Container {
     const tailDist = this._scene.d((this._targetTailHeight - height) * this._data.speed);
     if (beat >= this._data.startBeat) {
       this._head.setVisible(false);
-      headDist = Math.max(0, headDist);
+      headDist = 0;
     } else {
       this._head.setVisible(headDist >= 0);
     }

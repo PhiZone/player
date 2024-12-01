@@ -192,18 +192,22 @@ export class Line {
   }
 
   getPosition() {
+    const halfScreenWidth = this._scene.sys.canvas.width / 2;
+    const halfScreenHeight = this._scene.sys.canvas.height / 2;
     let x = this._scene.p(this._xModifier * this._x);
     let y = this._scene.o(this._yModifier * this._y);
     if (this._parent !== null) {
+      const parentX = this._parent.x - halfScreenWidth;
+      const parentY = this._parent.y - halfScreenHeight;
       const newX =
-        this._parent.x + x * Math.cos(this._parent.rotation) + y * Math.sin(this._parent.rotation);
+        parentX + x * Math.cos(this._parent.rotation) - y * Math.sin(this._parent.rotation);
       const newY =
-        this._parent.y + y * Math.cos(this._parent.rotation) - x * Math.sin(this._parent.rotation);
+        parentY + y * Math.cos(this._parent.rotation) + x * Math.sin(this._parent.rotation);
       x = newX;
       y = newY;
     }
-    x += this._scene.sys.canvas.width / 2;
-    y += this._scene.sys.canvas.height / 2;
+    x += halfScreenWidth;
+    y += halfScreenHeight;
     return { x, y };
   }
 
