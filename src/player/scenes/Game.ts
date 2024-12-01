@@ -126,7 +126,7 @@ export class Game extends Scene {
     this.load.image('grade-5', 'grades/V.png');
 
     this.load.image('asset-line.png', 'line.png');
-    this.load.spritesheet('click-effects', 'ClickEffects.png', {
+    this.load.spritesheet('hit-effects', 'HitEffects.png', {
       frameWidth: 256,
       frameHeight: 256,
     });
@@ -199,7 +199,7 @@ export class Game extends Scene {
           this.load.audio(`asset-${asset.key}`, await getAudio(asset.url)),
         ),
       ]);
-      this.createClickEffectsAnimation();
+      this.createHitEffectsAnimation();
       const chart = await loadChart(this._chartUrl);
       if (!chart) {
         this._status = GameStatus.ERROR;
@@ -438,11 +438,11 @@ export class Game extends Scene {
     this._gameUI = new GameUI(this);
   }
 
-  createClickEffectsAnimation() {
-    EventBus.emit('loading-detail', 'Initializing click effects');
+  createHitEffectsAnimation() {
+    EventBus.emit('loading-detail', 'Initializing hit effects');
     this.anims.create({
-      key: 'click-effects',
-      frames: 'click-effects',
+      key: 'hit-effects',
+      frames: 'hit-effects',
       frameRate: 60,
       repeat: 0,
     });

@@ -362,6 +362,9 @@ export const isEqual = (a: number[] | undefined, b: number[] | undefined): boole
 
 export const toSecs = (beat: number, bpm: number): number => (beat / bpm) * 60;
 
+export const rgbToHex = (rgb: number[] | undefined | null): number | undefined =>
+  rgb ? (rgb[0] << 16) | (rgb[1] << 8) | rgb[2] : undefined;
+
 export const getLineColor = (scene: Game): number => {
   const status = scene.preferences.fcApIndicator
     ? (scene.statistics?.fcApStatus ?? FcApStatus.AP)
@@ -411,15 +414,67 @@ export const easing = (
   return (progress - progressStart) / (progressEnd - progressStart);
 };
 
-export const getVal = (beat: number, event: Event | SpeedEvent): number => {
-  const progress = easing(
-    'easingType' in event ? event.easingType : 0,
-    (beat - event.startBeat) / (event.endBeat - event.startBeat),
-    'easingLeft' in event ? event.easingLeft : 0,
-    'easingRight' in event ? event.easingRight : 1,
-  );
-  return event.start + (event.end - event.start) * progress;
+const calculateValue = (
+  start: number | number[] | string,
+  end: number | number[] | string,
+  progress: number,
+) => {
+  if (Array.isArray(start)) {
+    if (Array.isArray(end)) {
+      return start.map((v, i) => v + (end[i] - v) * progress);
+    }
+    if (typeof end === 'number') {
+      return start.map((v) => v + (end - v) * progress);
+    }
+    return undefined;
+  }
+  if (Array.isArray(end)) {
+    if (typeof start === 'number') {
+      return end.map((v) => start + (v - start) * progress);
+    }
+    return undefined;
+  }
+  if (typeof start === 'number' && typeof end === 'number') {
+    return start + (end - start) * progress;
+  }
+  if (typeof start === 'string' && typeof end === 'string') {
+    if (start.startsWith(end)) {
+      return (
+        end +
+        start.substring(
+          end.length,
+          Math.floor((start.length - end.length) * (1 - progress)) + end.length,
+        )
+      );
+    }
+    if (end.startsWith(start)) {
+      return (
+        start +
+        end.substring(
+          start.length,
+          Math.floor((end.length - start.length) * progress) + start.length,
+        )
+      );
+    }
+    return progress >= 1 ? end : start;
+  }
+  return undefined;
 };
+
+export const getValue = (
+  beat: number,
+  event: Event | SpeedEvent | ColorEvent | TextEvent | GifEvent,
+) =>
+  calculateValue(
+    event.start,
+    event.end,
+    easing(
+      'easingType' in event ? event.easingType : 0,
+      (beat - event.startBeat) / (event.endBeat - event.startBeat),
+      'easingLeft' in event ? event.easingLeft : 0,
+      'easingRight' in event ? event.easingRight : 1,
+    ),
+  );
 
 export const getIntegral = (
   event: SpeedEvent | undefined,
@@ -434,7 +489,7 @@ export const getIntegral = (
       2
     );
   return (
-    ((event.start + getVal(beat, event)) *
+    ((event.start + (getValue(beat, event) as number)) *
       (getTimeSec(bpmList, beat) - getTimeSec(bpmList, event.startBeat))) /
     2
   );

@@ -1,6 +1,6 @@
 import { GameObjects } from 'phaser';
 import { JudgmentType, type Note } from '../types';
-import { clamp, getTimeSec } from '../utils';
+import { clamp, getTimeSec, rgbToHex } from '../utils';
 import type { Game } from '../scenes/Game';
 import type { Line } from './Line';
 import { NOTE_BASE_SIZE } from '../constants';
@@ -42,6 +42,9 @@ export class PlainNote extends GameObjects.Image {
     const dist = this._scene.d((this._targetHeight - height) * this._data.speed);
     if (this._judgmentType !== JudgmentType.BAD) {
       this.setY(this._yModifier * dist);
+      if (this._data.tint) {
+        this.setTint(rgbToHex(this._data.tint));
+      }
     }
     if (beat >= this._data.startBeat) {
       if (this._data.isFake) {

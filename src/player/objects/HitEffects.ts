@@ -3,49 +3,52 @@ import { JudgmentType } from '../types';
 import { getJudgmentColor } from '../utils';
 import type { Game } from '../scenes/Game';
 import {
-  CLICK_EFFECTS_PARTICLE_SIZE,
-  CLICK_EFFECTS_PARTICLE_SPREAD_RANGE,
-  CLICK_EFFECTS_SIZE,
+  HIT_EFFECTS_PARTICLE_SIZE,
+  HIT_EFFECTS_PARTICLE_SPREAD_RANGE,
+  HIT_EFFECTS_SIZE,
 } from '../constants';
 
-export class ClickEffects extends GameObjects.Sprite {
+export class HitEffects extends GameObjects.Sprite {
   private _scene: Game;
   private _color: number;
 
   constructor(scene: Game, x: number, y: number, type: JudgmentType) {
-    super(scene, x, y, 'click-effects');
+    super(scene, x, y, 'hit-effects');
 
     this._scene = scene;
     this._color = getJudgmentColor(type);
-    this.setScale(this._scene.p(CLICK_EFFECTS_SIZE));
+    this.setScale(this._scene.p(HIT_EFFECTS_SIZE));
     this.setOrigin(0.5);
     this.setTint(this._color);
     this.setDepth(7);
     scene.add.existing(this);
   }
 
-  hit() {
-    this.play('click-effects');
+  hit(tint?: number) {
+    if (tint) {
+      this.setTint(tint);
+    }
+    this.play('hit-effects');
     Array(4)
       .fill(null)
-      .forEach(() => this.particle());
+      .forEach(() => this.particle(tint));
     this.once('animationcomplete', () => {
       this.destroy();
     });
   }
 
-  particle() {
+  particle(tint?: number) {
     const particle = this.scene.add
       .rectangle(
         this.x,
         this.y,
-        this.scaleX * CLICK_EFFECTS_PARTICLE_SIZE,
-        this.scaleY * CLICK_EFFECTS_PARTICLE_SIZE,
-        this._color,
+        this.scaleX * HIT_EFFECTS_PARTICLE_SIZE,
+        this.scaleY * HIT_EFFECTS_PARTICLE_SIZE,
+        tint ?? this._color,
       )
       .setOrigin(0.5)
       .setScale(0);
-    const range = this.scale * CLICK_EFFECTS_PARTICLE_SPREAD_RANGE;
+    const range = this.scale * HIT_EFFECTS_PARTICLE_SPREAD_RANGE;
     this.scene.tweens.add({
       targets: particle,
       x: this.x + Math.random() * range - range / 2,

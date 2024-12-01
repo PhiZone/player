@@ -1,9 +1,9 @@
-import { ClickEffects } from '../objects/ClickEffects';
+import { HitEffects } from '../objects/HitEffects';
 import type { LongNote } from '../objects/LongNote';
 import type { PlainNote } from '../objects/PlainNote';
 import type { Game } from '../scenes/Game';
 import { JudgmentType, GameStatus } from '../types';
-import { isPerfectOrGood, getJudgmentColor } from '../utils';
+import { isPerfectOrGood, getJudgmentColor, rgbToHex } from '../utils';
 
 export class JudgmentHandler {
   private _scene: Game;
@@ -23,7 +23,7 @@ export class JudgmentHandler {
     if (this._scene.status === GameStatus.PLAYING) {
       if (isPerfectOrGood(type)) {
         this.createHitsound(note);
-        this.createClickEffects(type, note);
+        this.createHitEffects(type, note);
       } else if (type === JudgmentType.BAD) {
         note.setTint(getJudgmentColor(type));
         this._scene.tweens.add({
@@ -111,7 +111,7 @@ export class JudgmentHandler {
     const beat = this._scene.beat;
     if (this._scene.status === GameStatus.PLAYING) {
       this.createHitsound(note);
-      this.createClickEffects(type, note);
+      this.createHitEffects(type, note);
       const timer = setInterval(() => {
         if (
           note.judgmentType !== JudgmentType.UNJUDGED ||
@@ -122,7 +122,7 @@ export class JudgmentHandler {
           return;
         }
         if (this._scene.status === GameStatus.PLAYING) {
-          this.createClickEffects(type, note);
+          this.createHitEffects(type, note);
         }
       }, 24000 / this._scene.bpm);
       this._judgmentDeltas.push({ delta, beat });
@@ -130,9 +130,9 @@ export class JudgmentHandler {
     note.setTempJudgment(type, beat);
   }
 
-  createClickEffects(type: JudgmentType, note: PlainNote | LongNote) {
+  createHitEffects(type: JudgmentType, note: PlainNote | LongNote) {
     const { x, y } = note.judgmentPosition;
-    new ClickEffects(this._scene, x, y, type).hit();
+    new HitEffects(this._scene, x, y, type).hit(rgbToHex(note.note.tintHitEffects));
   }
 
   createHitsound(note: PlainNote | LongNote) {

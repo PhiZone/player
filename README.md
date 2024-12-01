@@ -11,6 +11,32 @@ This project is made possible by:
 - [Vite](https://github.com/vitejs/vite)
 - [TypeScript](https://github.com/microsoft/TypeScript)
 
+## Introduction
+
+Much of this program resembles any other Phigros chart player/simulator, and thus we'll only cover some unique features in this section.
+
+### User-friendly landing page
+
+Designed with [Preline UI](https://preline.co) and [daisyUI](https://daisyui.com), the landing page is meticulously written to be as intuitive yet powerful as possible.
+
+Choose either some files (or .zip/.pez archives) or an entire folder, and chart bundles will be automatically detected according to Re: PhiEdit (or RPE) metadata files (typically named `info.txt`) in which a chart, a song, and an illustration are specified. Any other files that fail to be recognized, which are most likely multimedia that will be referenced by the chart, or the `extra.json` from Phira, will be presented in the assets.
+
+### Original line & note properties
+
+Aside from adding support for RPE features, we've also designed some original properties for judgment lines & notes.
+
+| Property         | Values                                      | Example                         | Description                                                                |
+| ---------------- | ------------------------------------------- | ------------------------------- | -------------------------------------------------------------------------- |
+| `scaleOnNotes`   | `0`: none; `1`: scale; `2`: clip            | `"scaleOnNotes": 2`             | Belongs to a judgment line. Decides how `scaleX` events will affect notes. |
+| `tint`           | [R, G, B], as seen in `colorEvents`; `null` | `"tint": [255, 0, 0]`           | Belongs to a note. Sets the tint for the note.                             |
+| `tintHitEffects` | [R, G, B], as seen in `colorEvents`; `null` | `"tintHitEffects": [255, 0, 0]` | Belongs to a note. Sets the tint for the hit effects of the note.          |
+
+### Keyboard controls for autoplay
+
+Similar to a video player, the program includes intuitive keyboard controls on autoplay mode:
++ Pause/Resume: Press <kbd>Space</kbd> to toggle.
++ Rewind/Forward: Use <kbd>←</kbd> / <kbd>→</kbd> to jump 5 seconds, or <kbd>⇧ Shift</kbd>+<kbd>←</kbd> / <kbd>⇧ Shift</kbd>+<kbd>→</kbd> for precise 0.1-second adjustments.
+
 ## Requirements
 
 [`pnpm`](https://pnpm.io) is required to install dependencies and run scripts.
@@ -34,7 +60,7 @@ This project is made possible by:
 | Support for `zOrder`                       | 0.0.1   |                                                                               | ✅ Done                   | Z 轴排序适配            |
 | Better input detections                    | 0.0.2   | Especially for Flicks                                                         |                           | 输入检测优化            |
 | Recording mode                             | 0.0.2   |                                                                               | 🚧 Working                | 录制模式                |
-| Basic support for the extended event layer | 0.0.3   | Excluding GIF events & incline events                                         | 🚧 Working                | 扩展事件层的基本适配    |
+| Basic support for the extended event layer | 0.0.3   | Excluding GIF events & incline events                                         | ✅ Done                   | 扩展事件层的基本适配    |
 | Cross-platform distribution                | 0.0.3   | Plan to reference [this blog](https://nsarrazin.com/blog/sveltekit-universal) |                           | 跨平台分发              |
 | Support for Phira `extra.json`             | 0.0.4   | Including shaders                                                             | 🚧 Working                | Phira `extra.json` 适配 |
 | Support for Bézier easings                 | 0.0.4   |                                                                               |                           | 贝塞尔缓动适配          |
@@ -54,7 +80,7 @@ Game assets are stored in `./static/game`. A tree view of the folder is as follo
 
 ```
 game
-│  ClickEffects.png
+│  HitEffects.png
 │  line.png
 │  Pause.svg
 │  Progress.png

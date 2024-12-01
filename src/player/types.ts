@@ -81,6 +81,7 @@ export interface JudgeLine {
   notes?: Note[];
   numOfNotes: number;
   posControl: PosControl[];
+  scaleOnNotes?: number;
   sizeControl: SizeControl[];
   skewControl: SkewControl[];
   yControl: YControl[];
@@ -126,11 +127,13 @@ export interface Note {
   visibleTime: number;
   yOffset: number;
   hitsound?: string;
+  tint?: number[] | null;
+  tintHitEffects?: number[] | null;
 }
 
 export interface Extended {
   gifEvents?: GifEvent[];
-  inclineEvents: Event[];
+  inclineEvents?: Event[];
   scaleXEvents?: Event[];
   scaleYEvents?: Event[];
   colorEvents?: ColorEvent[];

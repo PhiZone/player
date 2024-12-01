@@ -4,20 +4,20 @@
 export const COMBO_TEXT = 'COMBO';
 
 /*
-    The size of click effects.
+    The size of hit effects.
 */
-export const CLICK_EFFECTS_SIZE = 1;
+export const HIT_EFFECTS_SIZE = 1;
 
 /*
-    The size of click effects particles, which will be scaled by CLICK_EFFECTS_SIZE.
+    The size of hit effects particles, which will be scaled by HIT_EFFECTS_SIZE.
 */
-export const CLICK_EFFECTS_PARTICLE_SIZE = 27;
+export const HIT_EFFECTS_PARTICLE_SIZE = 27;
 
 /*
-    The sidelength (in pixels) of the square area in which the click effects particles will be
-    randomly scattered, which will be scaled by CLICK_EFFECTS_SIZE.
+    The sidelength (in pixels) of the square area in which the hit effects particles will be
+    randomly scattered, which will be scaled by HIT_EFFECTS_SIZE.
 */
-export const CLICK_EFFECTS_PARTICLE_SPREAD_RANGE = 600;
+export const HIT_EFFECTS_PARTICLE_SPREAD_RANGE = 600;
 
 /*
     The font family to use in the game.

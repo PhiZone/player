@@ -570,7 +570,7 @@
                       <tr>
                         <th
                           scope="col"
-                          class="px-3 py-2 w-1/2 sm:w-1/3 md:w-1/2 text-ellipsis overflow-hidden whitespace-nowrap text-start text-xs font-medium text-gray-500 uppercase dark:text-neutral-500"
+                          class="px-3 py-2 w-1/2 sm:w-1/3 md:w-2/5 text-ellipsis overflow-hidden whitespace-nowrap text-start text-xs font-medium text-gray-500 uppercase dark:text-neutral-500"
                         >
                           Asset Name
                         </th>

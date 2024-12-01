@@ -1,23 +1,42 @@
 import { GameObjects } from 'phaser';
-import { type Event, type JudgeLine, type SpeedEvent } from '../types';
+import {
+  type ColorEvent,
+  type Event,
+  type GifEvent,
+  type JudgeLine,
+  type SpeedEvent,
+  type TextEvent,
+} from '../types';
 import { LongNote } from './LongNote';
 import { PlainNote } from './PlainNote';
-import { getIntegral, getLineColor, getTimeSec, getVal, processEvents, toBeats } from '../utils';
+import {
+  getIntegral,
+  getLineColor,
+  getTimeSec,
+  getValue,
+  processEvents,
+  rgbToHex,
+  toBeats,
+} from '../utils';
 import type { Game } from '../scenes/Game';
+import { FONT_FAMILY } from '../constants';
+import { dot } from 'mathjs';
 
 export class Line {
   private _scene: Game;
   private _num: number;
   private _data: JudgeLine;
-  private _line: GameObjects.Image | GameObjects.Sprite;
+  private _line: GameObjects.Image | GameObjects.Sprite | GameObjects.Text;
   private _parent: Line | null = null;
   private _flickContainer: GameObjects.Container;
   private _tapContainer: GameObjects.Container;
   private _dragContainer: GameObjects.Container;
   private _holdContainer: GameObjects.Container;
+  private _noteMask: GameObjects.Graphics | null = null;
   private _notes: (PlainNote | LongNote)[] = [];
   private _hasCustomTexture: boolean = false;
   private _hasGifTexture: boolean = false;
+  private _hasText: boolean = false;
   private _xModifier: 1 | -1 = 1;
   private _yModifier: 1 | -1 = 1;
   private _rotationModifier: 1 | -1 = 1;
@@ -30,17 +49,23 @@ export class Line {
   private _curSpeed = [];
   private _lastHeight = 0;
 
-  private _curColor: number = 0;
-  private _curGif: number = 0;
-  private _curIncline: number = 0;
-  private _curScaleX: number = 0;
-  private _curScaleY: number = 0;
-  private _curText: number = 0;
+  private _curColor = [];
+  private _curGif = [];
+  private _curIncline = [];
+  private _curScaleX = [];
+  private _curScaleY = [];
+  private _curText = [];
 
   private _opacity: number = 0;
   private _x: number = 0;
   private _y: number = 0;
   private _rotation: number = 0;
+  private _color: number[] | undefined = undefined;
+  private _gif: number | undefined = undefined;
+  private _incline: number | undefined = undefined;
+  private _scaleX: number | undefined = undefined;
+  private _scaleY: number | undefined = undefined;
+  private _text: string | undefined = undefined;
   private _height: number = 0;
 
   private _lastUpdate: number = -Infinity;
@@ -49,14 +74,25 @@ export class Line {
     this._scene = scene;
     this._num = num;
     this._data = lineData;
-    this._hasCustomTexture = lineData.Texture !== 'line.png';
+    this._hasText = (this._data.extended?.textEvents?.length ?? 0) > 0;
+    this._hasCustomTexture = this._hasText || lineData.Texture !== 'line.png';
     this._hasGifTexture = lineData.Texture.toLowerCase().endsWith('.gif');
-    this._line = this._hasGifTexture
-      ? new GameObjects.Sprite(scene, 0, 0, `asset-${lineData.Texture}`).play(
-          `asset-${lineData.Texture}`,
-        )
-      : new GameObjects.Image(scene, 0, 0, `asset-${lineData.Texture}`);
-    this._line.setScale(this._scene.p(1)); // previously 1.0125 (according to the official definition that a line is 3 times as wide as the screen)
+    this._line = this._hasText
+      ? new GameObjects.Text(scene, 0, 0, this._text ?? '', {
+          fontFamily: FONT_FAMILY,
+          fontSize: 60,
+          color: '#ffffff',
+          align: 'center',
+        }).setOrigin(0.5)
+      : this._hasGifTexture
+        ? new GameObjects.Sprite(scene, 0, 0, `asset-${lineData.Texture}`).play(
+            `asset-${lineData.Texture}`,
+          )
+        : new GameObjects.Image(scene, 0, 0, `asset-${lineData.Texture}`);
+    this._line.setScale(
+      this._scene.p(1) * (this._scaleX ?? 1),
+      this._scene.p(1) * (this._scaleY ?? 1),
+    ); // previously 1.0125 (according to the official definition that a line is 3 times as wide as the screen)
     this._line.setDepth(2 + precedence);
     if (!this._hasCustomTexture) this._line.setTint(getLineColor(scene));
 
@@ -73,6 +109,15 @@ export class Line {
       this._yModifier = -1;
       this._rotationModifier = (-1 * this._xModifier) as 1 | -1;
       this._rotationOffset = 180;
+    }
+
+    if (lineData.scaleOnNotes === 2) {
+      this._noteMask = new GameObjects.Graphics(scene);
+      const mask = this._noteMask.createGeometryMask();
+      this._holdContainer.setMask(mask);
+      this._dragContainer.setMask(mask);
+      this._tapContainer.setMask(mask);
+      this._flickContainer.setMask(mask);
     }
 
     // this._flickContainer.add(scene.add.rectangle(0, 0, 10, 10, 0x00ff00).setOrigin(0.5));
@@ -132,31 +177,8 @@ export class Line {
   update(beat: number, time: number, bpm: number) {
     if (time == this._lastUpdate) return;
     this._lastUpdate = time;
-    this._line.setScale(this._scene.p(1));
-    if (!this._hasCustomTexture) this._line.setTint(getLineColor(this._scene));
-    ({
-      alpha: this._opacity,
-      x: this._x,
-      y: this._y,
-      rot: this._rotation,
-      height: this._height,
-    } = this._data.eventLayers.reduce(
-      (acc, _, i) => {
-        const [nextAlpha, nextX, nextY, nextRot, nextHeight] = this.handleEventLayer(
-          beat * this._data.bpmfactor,
-          i,
-        );
-        return {
-          alpha: acc.alpha + nextAlpha,
-          x: acc.x + nextX,
-          y: acc.y + nextY,
-          rot: acc.rot + nextRot,
-          height: acc.height + nextHeight,
-        };
-      },
-      { alpha: 0, x: 0, y: 0, rot: 0, height: 0 },
-    ));
     this._parent?.update(beat, time, bpm);
+    this.handleEventLayers(beat);
     this.updateParams();
     this._notes.forEach((note) => {
       note.update(beat * this._data.bpmfactor, this._height);
@@ -175,20 +197,29 @@ export class Line {
   }
 
   updateParams() {
+    this._line.setScale(
+      this._scene.p(1) * (this._scaleX ?? 1),
+      this._scene.p(1) * (this._scaleY ?? 1),
+    );
+    if (this._hasText) (this._line as GameObjects.Text).setText(this._text ?? '');
+    if (this._color) this._line.setTint(rgbToHex(this._color));
+    else if (!this._hasCustomTexture) this._line.setTint(getLineColor(this._scene));
     const { x, y } = this.getPosition();
     const rotation =
       (this._rotationModifier * this._rotation + this._rotationOffset) * (Math.PI / 180);
+    this._line.setPosition(x, y);
+    this._line.setRotation(rotation);
     this._line.setAlpha(this._opacity / 255);
-    [
-      this._line,
-      this._flickContainer,
-      this._tapContainer,
-      this._dragContainer,
-      this._holdContainer,
-    ].forEach((obj) => {
-      obj.setPosition(x, y);
-      obj.setRotation(rotation);
-    });
+    [this._flickContainer, this._tapContainer, this._dragContainer, this._holdContainer].forEach(
+      (obj) => {
+        obj.setPosition(x, y);
+        obj.setRotation(rotation);
+        if (this._data.scaleOnNotes === 1) {
+          obj.setScale(this._scaleX ?? 1, 1);
+        }
+      },
+    );
+    this.updateMask();
   }
 
   getPosition() {
@@ -216,6 +247,39 @@ export class Line {
     container.setDepth(depth);
     this._scene.add.existing(container);
     return container;
+  }
+
+  handleEventLayers(beat: number) {
+    ({
+      alpha: this._opacity,
+      x: this._x,
+      y: this._y,
+      rotation: this._rotation,
+      height: this._height,
+    } = this._data.eventLayers.reduce(
+      (acc, _, i) => {
+        const { alpha, x, y, rotation, height } = this.handleEventLayer(
+          beat * this._data.bpmfactor,
+          i,
+        );
+        return {
+          alpha: acc.alpha + (alpha ?? 0),
+          x: acc.x + (x ?? 0),
+          y: acc.y + (y ?? 0),
+          rotation: acc.rotation + (rotation ?? 0),
+          height: acc.height + height,
+        };
+      },
+      { alpha: 0, x: 0, y: 0, rotation: 0, height: 0 },
+    ));
+    ({
+      color: this._color,
+      gif: this._gif,
+      incline: this._incline,
+      scaleX: this._scaleX,
+      scaleY: this._scaleY,
+      text: this._text,
+    } = this.handleExtendedEventLayer(beat * this._data.bpmfactor, 0));
   }
 
   handleSpeed(beat: number, layerIndex: number, events: SpeedEvent[] | undefined, cur: number[]) {
@@ -251,7 +315,12 @@ export class Line {
     }
   }
 
-  handleEvent(beat: number, layerIndex: number, events: Event[] | undefined, cur: number[]) {
+  handleEvent(
+    beat: number,
+    layerIndex: number,
+    events: (Event | ColorEvent | GifEvent | TextEvent)[] | undefined,
+    cur: number[],
+  ) {
     while (cur.length < layerIndex + 1) {
       cur.push(0);
     }
@@ -262,23 +331,102 @@ export class Line {
       while (cur[layerIndex] < events.length - 1 && beat > events[cur[layerIndex] + 1].startBeat) {
         cur[layerIndex]++;
       }
-      return getVal(beat, events[cur[layerIndex]]);
+      if (
+        typeof events[cur[layerIndex]].start === 'string' &&
+        beat < events[cur[layerIndex]].startBeat
+      ) {
+        return undefined;
+      } // shit code
+      return getValue(beat, events[cur[layerIndex]]);
     } else {
-      return 0;
+      return undefined;
     }
   }
 
-  handleEventLayer(beat: number, layerIndex: number) {
+  handleEventLayer(
+    beat: number,
+    layerIndex: number,
+  ): {
+    alpha: number | undefined;
+    x: number | undefined;
+    y: number | undefined;
+    rotation: number | undefined;
+    height: number;
+  } {
     const layer = this._data.eventLayers[layerIndex];
-    if (!layer) return [0, 0, 0, 0, 0];
+    if (!layer)
+      return { alpha: undefined, x: undefined, y: undefined, rotation: undefined, height: 0 };
 
-    return [
-      this.handleEvent(beat, layerIndex, layer.alphaEvents, this._curAlpha),
-      this.handleEvent(beat, layerIndex, layer.moveXEvents, this._curX),
-      this.handleEvent(beat, layerIndex, layer.moveYEvents, this._curY),
-      this.handleEvent(beat, layerIndex, layer.rotateEvents, this._curRot),
-      this.handleSpeed(beat, layerIndex, layer.speedEvents, this._curSpeed),
-    ];
+    return {
+      alpha: this.handleEvent(beat, layerIndex, layer.alphaEvents, this._curAlpha) as
+        | number
+        | undefined,
+      x: this.handleEvent(beat, layerIndex, layer.moveXEvents, this._curX) as number | undefined,
+      y: this.handleEvent(beat, layerIndex, layer.moveYEvents, this._curY) as number | undefined,
+      rotation: this.handleEvent(beat, layerIndex, layer.rotateEvents, this._curRot) as
+        | number
+        | undefined,
+      height: this.handleSpeed(beat, layerIndex, layer.speedEvents, this._curSpeed),
+    };
+  }
+
+  handleExtendedEventLayer(
+    beat: number,
+    layerIndex: number,
+  ): {
+    color: number[] | undefined;
+    gif: number | undefined;
+    incline: number | undefined;
+    scaleX: number | undefined;
+    scaleY: number | undefined;
+    text: string | undefined;
+  } {
+    const extended = this._data.extended;
+    if (!extended)
+      return {
+        color: undefined,
+        gif: undefined,
+        incline: undefined,
+        scaleX: undefined,
+        scaleY: undefined,
+        text: undefined,
+      };
+
+    return {
+      color: this.handleEvent(beat, layerIndex, extended.colorEvents, this._curColor) as
+        | number[]
+        | undefined,
+      gif: this.handleEvent(beat, layerIndex, extended.gifEvents, this._curGif) as
+        | number
+        | undefined,
+      incline: this.handleEvent(beat, layerIndex, extended.inclineEvents, this._curIncline) as
+        | number
+        | undefined,
+      scaleX: this.handleEvent(beat, layerIndex, extended.scaleXEvents, this._curScaleX) as
+        | number
+        | undefined,
+      scaleY: this.handleEvent(beat, layerIndex, extended.scaleYEvents, this._curScaleY) as
+        | number
+        | undefined,
+      text: this.handleEvent(beat, layerIndex, extended.textEvents, this._curText) as
+        | string
+        | undefined,
+    };
+  }
+
+  updateMask() {
+    if (this._noteMask === null) return;
+    const halfScreenWidth = this._scene.sys.canvas.width / 2;
+    const halfScreenHeight = this._scene.sys.canvas.height / 2;
+    const vector = this.vector;
+    vector.scale(dot([this.x - halfScreenWidth, this.y - halfScreenHeight], [vector.x, vector.y]));
+    vector.add(new Phaser.Math.Vector2(halfScreenWidth, halfScreenHeight));
+    this._noteMask.setPosition(vector.x, vector.y);
+    this._noteMask.setRotation(this._line.rotation);
+    this._noteMask.clear();
+    const rectWidth = this._line.displayWidth;
+    const rectHeight = this._scene.sys.canvas.width ** 2 + this._scene.sys.canvas.height ** 2;
+    this._noteMask.fillRect(-rectWidth / 2, -rectHeight / 2, rectWidth, rectHeight);
   }
 
   calculateHeight(beat: number) {
