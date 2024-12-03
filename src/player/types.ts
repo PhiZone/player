@@ -33,7 +33,7 @@ export interface Metadata {
 }
 
 export interface Preferences {
-  aspectRatio: number[] | null;
+  aspectRatio: [number, number] | null;
   backgroundBlur: number;
   backgroundLuminance: number;
   chartFlipping: number;
@@ -49,7 +49,7 @@ export interface Preferences {
 
 export interface RecorderOptions {
   frameRate: number;
-  overrideResolution: number[] | null;
+  overrideResolution: [number, number] | null;
   videoCodec: string;
   videoBitrate: number;
   audioCodec: string;
@@ -115,20 +115,20 @@ export interface PosControl {
 export interface Note {
   above: number;
   alpha: number;
-  endTime: number[];
+  endTime: [number, number, number];
   endBeat: number;
   isFake: number;
   positionX: number;
   size: number;
   speed: number;
-  startTime: number[];
+  startTime: [number, number, number];
   startBeat: number;
   type: number;
   visibleTime: number;
   yOffset: number;
   hitsound?: string;
-  tint?: number[] | null;
-  tintHitEffects?: number[] | null;
+  tint?: [number, number, number] | null;
+  tintHitEffects?: [number, number, number] | null;
 }
 
 export interface Extended {
@@ -147,11 +147,11 @@ export interface TextEvent {
   easingRight: number;
   easingType: number;
   end: string;
-  endTime: number[];
+  endTime: [number, number, number];
   endBeat: number;
   linkgroup: number;
   start: string;
-  startTime: number[];
+  startTime: [number, number, number];
   startBeat: number;
 }
 
@@ -161,23 +161,23 @@ export interface ColorEvent {
   easingLeft: number;
   easingRight: number;
   easingType: number;
-  end: number[];
-  endTime: number[];
+  end: [number, number, number];
+  endTime: [number, number, number];
   endBeat: number;
   linkgroup: number;
-  start: number[];
-  startTime: number[];
+  start: [number, number, number];
+  startTime: [number, number, number];
   startBeat: number;
 }
 
 export interface GifEvent {
   easingType: number;
   end: number;
-  endTime: number[];
+  endTime: [number, number, number];
   endBeat: number;
   linkgroup: number;
   start: number;
-  startTime: number[];
+  startTime: [number, number, number];
   startBeat: number;
 }
 
@@ -191,11 +191,11 @@ export interface EventLayer {
 
 export interface SpeedEvent {
   end: number;
-  endTime: number[];
+  endTime: [number, number, number];
   endBeat: number;
   linkgroup: number;
   start: number;
-  startTime: number[];
+  startTime: [number, number, number];
   startBeat: number;
 }
 
@@ -206,11 +206,11 @@ export interface Event {
   easingRight: number;
   easingType: number;
   end: number;
-  endTime: number[];
+  endTime: [number, number, number];
   endBeat: number;
   linkgroup: number;
   start: number;
-  startTime: number[];
+  startTime: [number, number, number];
   startBeat: number;
 }
 
@@ -236,7 +236,7 @@ interface Meta {
 
 export interface Bpm {
   bpm: number;
-  startTime: number[];
+  startTime: [number, number, number];
   startBeat: number;
   startTimeSec: number;
 }
@@ -293,4 +293,55 @@ export enum Grade {
   V,
   FC,
   AP,
+}
+
+export interface PhiraExtra {
+  bpm: {
+    time: [number, number, number];
+    bpm: number;
+  }[];
+  videos: {
+    path: string;
+    time: [number, number, number];
+    scale: 'cropCenter' | 'inside' | 'fit';
+    alpha: Variable;
+    dim: Variable;
+  }[];
+  effects: ShaderEffect[];
+}
+
+export interface ShaderEffect {
+  start: [number, number, number];
+  startBeat: number;
+  end: [number, number, number];
+  endBeat: number;
+  shader: string;
+  global: boolean;
+  vars?: {
+    [key: string]: Variable;
+  };
+}
+
+export type Variable = AnimatedVariable | number | number[];
+
+export type AnimatedVariable = VariableEvent[];
+
+export type VariableEvent = ScalarVariableEvent | VectorVariableEvent;
+
+interface ScalarVariableEvent extends BaseVariableEvent {
+  start: number;
+  end: number;
+}
+
+interface VectorVariableEvent extends BaseVariableEvent {
+  start: number[];
+  end: number[];
+}
+
+interface BaseVariableEvent {
+  startTime: [number, number, number];
+  startBeat: number;
+  endTime: [number, number, number];
+  endBeat: number;
+  easingType: number;
 }

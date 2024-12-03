@@ -12,5 +12,6 @@ vite.config.ts.timestamp-*
 static/game/**/*
 !static/game/**/
 !static/game/**/.gitkeep
+!static/game/shaders/*
 !static/game/Pause.svg
 !static/game/ending/GradeHit.wav

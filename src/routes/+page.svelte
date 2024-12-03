@@ -5,7 +5,7 @@
   import queryString from 'query-string';
   import { fileTypeFromBlob } from 'file-type';
   import type { Metadata, RecorderOptions, RpeJson } from '../player/types';
-  import { clamp, inferLevelType } from '../player/utils';
+  import { clamp, inferLevelType, isZip } from '../player/utils';
   import PreferencesModal from '$lib/components/Preferences.svelte';
   import { goto } from '$app/navigation';
 
@@ -132,20 +132,19 @@
   };
 
   const getFileType = (mime: string | null, fileName: string) => {
-    if (!mime) return 5;
     const extension = fileName.toLowerCase().split('.').pop() ?? '';
-    const isGLSLShader = ['shader', 'glsl', 'frag', 'fs'].includes(extension);
-    if (mime.startsWith('image/')) {
+    const isGLSLShader = ['shader', 'glsl', 'frag', 'fsh', 'fs'].includes(extension);
+    if (mime?.startsWith('image/')) {
       return 0;
     }
-    if (mime.startsWith('audio/')) {
+    if (mime?.startsWith('audio/')) {
       return 1;
     }
-    if (mime.startsWith('video/')) {
+    if (mime?.startsWith('video/')) {
       return 2;
     }
     if (
-      (!isGLSLShader && mime.startsWith('text/')) ||
+      (!isGLSLShader && mime?.startsWith('text/')) ||
       mime === 'application/json' ||
       ['yml', 'yaml'].includes(extension)
     ) {
@@ -369,14 +368,8 @@
                 const files = e.currentTarget.files;
                 if (!files || files.length === 0) return;
                 const fileArray = Array.from(files);
-                const zipArchives = fileArray.filter(
-                  (file) =>
-                    file.type === 'application/zip' || file.name.toLowerCase().endsWith('.pez'),
-                );
-                const regularFiles = fileArray.filter(
-                  (file) =>
-                    file.type !== 'application/zip' && !file.name.toLowerCase().endsWith('.pez'),
-                );
+                const zipArchives = fileArray.filter(isZip);
+                const regularFiles = fileArray.filter((file) => !isZip(file));
                 (await Promise.all(zipArchives.map(decompress)))
                   .flat()
                   .forEach((file) => regularFiles.push(file));

@@ -7,6 +7,7 @@ import {
   type GifEvent,
   type SpeedEvent,
   type TextEvent,
+  type VariableEvent,
   FcApStatus,
   JudgmentType,
   type Bpm,
@@ -76,11 +77,11 @@ const easingFunctions: ((x: number) => number)[] = [
     x < 0.5 ? (1 - easingFunctions[25](1 - 2 * x)) / 2 : (1 + easingFunctions[25](2 * x - 1)) / 2,
 ];
 
-const download = async (url: string, type?: string) => {
+const download = async (url: string, name?: string) => {
   EventBus.emit('loading', 0);
   EventBus.emit(
     'loading-detail',
-    url.startsWith('blob:') ? `Loading ${type ?? 'file'}` : `Downloading ${url.split('/').pop()}`,
+    url.startsWith('blob:') ? `Loading ${name ?? 'file'}` : `Downloading ${url.split('/').pop()}`,
   );
   const response = await fetch(url);
   const contentLength = response.headers.get('content-length');
@@ -175,7 +176,7 @@ export const getParams = (): Config | null => {
     inferLevelType(level);
   const difficulty = searchParams.get('difficulty');
 
-  let aspectRatio: number[] | null = searchParams.getAll('aspectRatio').map((v) => parseInt(v));
+  const aspectRatio: number[] | null = searchParams.getAll('aspectRatio').map((v) => parseInt(v));
   const backgroundBlur = parseFloat(searchParams.get('backgroundBlur') ?? '1');
   const backgroundLuminance = parseFloat(searchParams.get('backgroundLuminance') ?? '0.5');
   const chartFlipping = parseInt(searchParams.get('chartFlipping') ?? '0');
@@ -191,7 +192,7 @@ export const getParams = (): Config | null => {
   );
 
   const frameRate = parseFloat(searchParams.get('frameRate') ?? '60');
-  let overrideResolution: number[] | null = searchParams
+  const overrideResolution: number[] | null = searchParams
     .getAll('overrideResolution')
     .map((v) => parseInt(v));
   const videoCodec = searchParams.get('videoCodec') ?? 'H.264';
@@ -206,8 +207,6 @@ export const getParams = (): Config | null => {
   const autostart = ['1', 'true'].some((v) => v == searchParams.get('autostart'));
   const newTab = ['1', 'true'].some((v) => v == searchParams.get('newTab'));
   if (!song || !chart || !illustration || assetNames.length < assets.length) return null;
-  if (aspectRatio.length === 0) aspectRatio = null;
-  if (overrideResolution.length === 0) overrideResolution = null;
   return {
     resources: {
       song,
@@ -227,7 +226,7 @@ export const getParams = (): Config | null => {
       difficulty: difficulty !== null ? parseFloat(difficulty) : null,
     },
     preferences: {
-      aspectRatio,
+      aspectRatio: aspectRatio.length >= 2 ? [aspectRatio[0], aspectRatio[1]] : null,
       backgroundBlur,
       backgroundLuminance,
       chartFlipping,
@@ -242,7 +241,8 @@ export const getParams = (): Config | null => {
     },
     recorderOptions: {
       frameRate,
-      overrideResolution,
+      overrideResolution:
+        overrideResolution.length >= 2 ? [overrideResolution[0], overrideResolution[1]] : null,
       videoCodec,
       videoBitrate,
       audioCodec,
@@ -257,10 +257,14 @@ export const getParams = (): Config | null => {
   };
 };
 
-export const loadChart = async (chart: string) => {
-  const blob = await download(chart, 'chart');
+export const loadText = async (url: string, name: string) => {
+  const blob = await download(url, name);
+  return blob.text();
+};
+
+export const loadJson = async (url: string, name: string) => {
   try {
-    return JSON.parse(await blob.text());
+    return JSON.parse(await loadText(url, name));
   } catch (e) {
     console.error(e);
     return null;
@@ -340,7 +344,7 @@ export const processIllustration = (
   });
 
 export const processEvents = (
-  events: (Event | SpeedEvent | ColorEvent | GifEvent | TextEvent)[] | undefined,
+  events: (Event | SpeedEvent | ColorEvent | GifEvent | TextEvent | VariableEvent)[] | undefined,
 ): void => {
   events?.forEach((event) => {
     event.startBeat = toBeats(event.startTime);
@@ -463,7 +467,7 @@ const calculateValue = (
 
 export const getValue = (
   beat: number,
-  event: Event | SpeedEvent | ColorEvent | TextEvent | GifEvent,
+  event: Event | SpeedEvent | ColorEvent | TextEvent | GifEvent | VariableEvent,
 ) =>
   calculateValue(
     event.start,
@@ -549,6 +553,11 @@ export const convertTime = (input: string | number, round = false) => {
     round ? Math.round(seconds).toString().padStart(2, '0') : seconds.toFixed(2).padStart(5, '0')
   }`;
 };
+
+export const isZip = (file: File) =>
+  file.type === 'application/zip' ||
+  file.type === 'application/x-zip-compressed' ||
+  file.name.toLowerCase().endsWith('.pez');
 
 export const pad = (num: number, size: number) => {
   let numStr = num.toString();

@@ -1,8 +1,8 @@
-import { GameObjects, Scene, Sound } from 'phaser';
+import { GameObjects, Renderer, Scene, Sound } from 'phaser';
 import { EventBus } from '../EventBus';
 import {
   processIllustration,
-  loadChart,
+  loadJson,
   isEqual,
   toBeats,
   fit,
@@ -11,8 +11,16 @@ import {
   SUPPORTS_CANVAS_BLUR,
   getGif,
   calculatePrecedences,
+  loadText,
 } from '../utils';
-import { GameStatus, type Bpm, type Config, type RpeJson } from '../types';
+import {
+  GameStatus,
+  type Bpm,
+  type Config,
+  type PhiraExtra,
+  type RpeJson,
+  type ShaderEffect,
+} from '../types';
 import { Line } from '../objects/Line';
 import type { LongNote } from '../objects/LongNote';
 import type { PlainNote } from '../objects/PlainNote';
@@ -23,6 +31,7 @@ import { KeyboardHandler } from '../handlers/KeyboardHandler';
 import { JudgmentHandler } from '../handlers/JudgmentHandler';
 import { StatisticsHandler } from '../handlers/StatisticsHandler';
 import { loadFFmpeg, terminateFFmpeg } from '../ffmpeg';
+import { ShaderPipeline } from '../objects/ShaderPipeline';
 
 export class Game extends Scene {
   private _status: GameStatus = GameStatus.LOADING;
@@ -32,8 +41,11 @@ export class Game extends Scene {
   private _songUrl: string;
   private _chartUrl: string;
   private _illustrationUrl: string;
+  private _extraUrl: string | undefined;
+  private _extra: PhiraExtra | undefined;
   private _gifAssets: { key: string; url: string; frameCount?: number; frameRate?: number }[] = [];
   private _audioAssets: { key: string; url: string }[] = [];
+  private _shaderAssets: { key: string; url: string; source?: string }[] = [];
 
   private _title: string | null;
   private _composer: string | null;
@@ -52,6 +64,7 @@ export class Game extends Scene {
   private _bpmIndex: number = 0;
   private _lines: Line[];
   private _notes: (PlainNote | LongNote)[];
+  private _shaders: { key: string; data: ShaderEffect }[] | undefined;
   private _visible: boolean = true;
   private _timeout: number = 0;
 
@@ -86,10 +99,12 @@ export class Game extends Scene {
     this.load.on('progress', (progress: number) => {
       EventBus.emit('loading', progress);
     });
-    this.load.on('fileprogress', (e: { url: string }) => {
+    this.load.on('fileprogress', (e: { key: string; url: string }) => {
       EventBus.emit(
         'loading-detail',
-        e.url.startsWith('blob:') ? 'Loading file' : `Loading ${e.url.split('/').pop()}`,
+        e.url.startsWith('blob:')
+          ? `Loading ${e.key ?? 'file'}`
+          : `Loading ${e.url.split('/').pop()}`,
       );
     });
     this.load.setPath('game');
@@ -161,9 +176,17 @@ export class Game extends Scene {
       const name = assetNames[i];
       if (assetTypes[i] === 0) {
         if (name.toLowerCase().endsWith('.gif')) this._gifAssets.push({ key: name, url: asset });
-        else this.load.image(`asset-${assetNames[i]}`, asset);
+        else this.load.image(`asset-${name}`, asset);
       } else if (assetTypes[i] === 1) this._audioAssets.push({ key: name, url: asset });
-      else console.log('To be implemented:', name); // TODO
+      else if (assetTypes[i] === 3) {
+        if (name.toLowerCase() === 'extra.json') this._extraUrl = asset;
+        else console.log('To be implemented:', name); // TODO
+      } else if (assetTypes[i] === 4) {
+        this._shaderAssets.push({
+          key: `extsh-${name}`,
+          url: asset,
+        });
+      } else console.log('To be implemented:', name); // TODO
     });
   }
 
@@ -200,13 +223,36 @@ export class Game extends Scene {
         ),
       ]);
       this.createHitEffectsAnimation();
-      const chart = await loadChart(this._chartUrl);
+      const chart = await loadJson(this._chartUrl, 'chart');
       if (!chart) {
         this._status = GameStatus.ERROR;
         alert('Failed to load chart.');
         return;
       }
       this._chart = chart;
+      if (this._extraUrl) {
+        const extra = await loadJson(this._extraUrl, 'extra.json');
+        this._extra = extra;
+        if (!this._extra) {
+          this._status = GameStatus.ERROR;
+          alert('Failed to load extra.json.');
+          return;
+        }
+        this._extra.effects
+          .filter((e) => !e.shader.startsWith('/'))
+          .forEach((effect) => {
+            this._shaderAssets.push({
+              key: `intsh-${effect.shader}`,
+              url: '/game/shaders/' + effect.shader + '.glsl',
+            });
+          });
+        await Promise.all(
+          this._shaderAssets.map(async (asset) => {
+            asset.source = await loadText(asset.url, asset.key);
+          }),
+        );
+        this.initializeExtra();
+      }
       this.load.audio('ending', `ending/LevelOver${this._levelType}.wav`);
       this.load.once('complete', () => {
         this.createGifAnimations();
@@ -235,6 +281,41 @@ export class Game extends Scene {
     this._gameUI.in();
     this._timeout = setTimeout(() => {
       this._song.play();
+      // const renderTexture = this.add.renderTexture(0, 0, this.scale.width, this.scale.height);
+      // this.textures.addRenderTexture('camera-buffer', renderTexture);
+      // this.cameras.main.on('postrender', (camera: Phaser.Cameras.Scene2D.Camera) => {
+      //   renderTexture.clear();
+      //   renderTexture.draw(camera);
+      // });
+      // this.scale.on('resize', (gameSize: { width: number; height: number }) => {
+      //   const { width, height } = gameSize;
+      //   renderTexture.setSize(width, height);
+      //   shader.setSize(width, height);
+      // });
+      // const shader = this.add
+      //   .shader(
+      //     new Display.BaseShader(
+      //       'test',
+      //       `
+      //       #ifdef GL_ES
+      //       precision mediump float;
+      //       #endif
+      //       varying vec2 outTexCoord;
+      //       uniform sampler2D iChannel0;
+      //       uniform float time;
+      //       void main() {
+      //         gl_FragColor = texture2D(iChannel0, outTexCoord);
+      //         gl_FragColor.r = sin(time);
+      //       }
+      //     `,
+      //     ),
+      //     0,
+      //     0,
+      //     this.sys.canvas.width,
+      //     this.sys.canvas.height,
+      //   )
+      //   .setOrigin(0)
+      //   .setDepth(1000);
     }, 1000);
     this.game.events.on('hidden', () => {
       this._visible = false;
@@ -279,6 +360,7 @@ export class Game extends Scene {
     this._endingUI = new EndingUI(this);
     setTimeout(() => {
       this._endingUI.play();
+      this.cameras.main.resetPostPipeline();
       EventBus.emit('finished');
     }, 1000);
   }
@@ -313,8 +395,13 @@ export class Game extends Scene {
   }
 
   updateChart(beat: number, time: number, bpm: number) {
+    if (this._status === GameStatus.FINISHED || this._status === GameStatus.DESTROYED) return;
     this._lines.forEach((line) => line.update(beat, time, bpm));
     this._notes.forEach((note) => note.updateJudgment(beat));
+    this._shaders?.forEach((shader) =>
+      (this.cameras.main.getPostPipeline(shader.key) as ShaderPipeline)?.update(beat, time),
+    );
+    // (this.cameras.main.getPostPipeline('MyCustomPipeline') as ShaderPipeline)?.update(beat, time);
   }
 
   createAudio() {
@@ -460,6 +547,35 @@ export class Game extends Scene {
         repeat: -1,
       });
     });
+  }
+
+  initializeExtra() {
+    if (!this._extra) return;
+
+    // shaders
+    EventBus.emit('loading-detail', 'Initializing shaders');
+    this._shaders = this._extra.effects.map((effect, i) => {
+      effect.shader = effect.shader.startsWith('/')
+        ? `extsh-${effect.shader.slice(1)}`
+        : `intsh-${effect.shader}`;
+      const key = `${effect.shader}-${i}`;
+      (this.renderer as Renderer.WebGL.WebGLRenderer).pipelines.addPostPipeline(
+        key,
+        ShaderPipeline,
+      );
+      this.cameras.main.setPostPipeline(key, {
+        scene: this,
+        fragShader: this._shaderAssets.find((asset) => asset.key === effect.shader)?.source,
+        data: effect,
+      });
+      return {
+        key,
+        data: effect,
+      };
+    });
+
+    // TODO videos
+    EventBus.emit('loading-detail', 'Initializing videos');
   }
 
   w(width: number) {
