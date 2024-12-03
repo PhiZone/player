@@ -47,7 +47,8 @@ export class HitEffects extends GameObjects.Sprite {
         tint ?? this._color,
       )
       .setOrigin(0.5)
-      .setScale(0);
+      .setScale(0)
+      .setDepth(7);
     const range = this.scale * HIT_EFFECTS_PARTICLE_SPREAD_RANGE;
     this.scene.tweens.add({
       targets: particle,

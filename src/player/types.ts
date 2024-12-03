@@ -300,14 +300,18 @@ export interface PhiraExtra {
     time: [number, number, number];
     bpm: number;
   }[];
-  videos: {
-    path: string;
-    time: [number, number, number];
-    scale: 'cropCenter' | 'inside' | 'fit';
-    alpha: Variable;
-    dim: Variable;
-  }[];
+  videos: Video[];
   effects: ShaderEffect[];
+}
+
+export interface Video {
+  path: string;
+  time: [number, number, number];
+  startTimeSec: number;
+  endTimeSec: number;
+  scale: 'cropCenter' | 'inside' | 'fit';
+  alpha: AnimatedVariable | number;
+  dim: AnimatedVariable | number;
 }
 
 export interface ShaderEffect {

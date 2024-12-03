@@ -362,7 +362,7 @@
             <input
               type="file"
               multiple
-              accept=".pez,application/zip,application/json,image/*,video/*,audio/*,text/*"
+              accept=".pez,.yml,.yaml,.shader,.glsl,.frag,.fsh,.fs,application/zip,application/json,image/*,video/*,audio/*,text/*"
               class="file-input file-input-bordered w-full max-w-xs file:btn dark:file:btn-neutral file:no-animation border-gray-200 rounded-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 dark:border-neutral-700 dark:text-neutral-300 dark:focus:ring-neutral-600"
               on:input={async (e) => {
                 const files = e.currentTarget.files;

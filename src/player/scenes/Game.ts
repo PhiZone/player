@@ -13,14 +13,7 @@ import {
   calculatePrecedences,
   loadText,
 } from '../utils';
-import {
-  GameStatus,
-  type Bpm,
-  type Config,
-  type PhiraExtra,
-  type RpeJson,
-  type ShaderEffect,
-} from '../types';
+import { GameStatus, type Bpm, type Config, type PhiraExtra, type RpeJson } from '../types';
 import { Line } from '../objects/Line';
 import type { LongNote } from '../objects/LongNote';
 import type { PlainNote } from '../objects/PlainNote';
@@ -32,6 +25,7 @@ import { JudgmentHandler } from '../handlers/JudgmentHandler';
 import { StatisticsHandler } from '../handlers/StatisticsHandler';
 import { loadFFmpeg, terminateFFmpeg } from '../ffmpeg';
 import { ShaderPipeline } from '../objects/ShaderPipeline';
+import { Video } from '../objects/Video';
 
 export class Game extends Scene {
   private _status: GameStatus = GameStatus.LOADING;
@@ -64,7 +58,8 @@ export class Game extends Scene {
   private _bpmIndex: number = 0;
   private _lines: Line[];
   private _notes: (PlainNote | LongNote)[];
-  private _shaders: { key: string; data: ShaderEffect }[] | undefined;
+  private _shaders: string[] | undefined;
+  private _videos: Video[] | undefined;
   private _visible: boolean = true;
   private _timeout: number = 0;
 
@@ -174,19 +169,22 @@ export class Game extends Scene {
 
     assets.forEach((asset, i) => {
       const name = assetNames[i];
-      if (assetTypes[i] === 0) {
-        if (name.toLowerCase().endsWith('.gif')) this._gifAssets.push({ key: name, url: asset });
-        else this.load.image(`asset-${name}`, asset);
-      } else if (assetTypes[i] === 1) this._audioAssets.push({ key: name, url: asset });
-      else if (assetTypes[i] === 3) {
+      const key = `asset-${name}`;
+      if (assetTypes[i] === 0)
+        if (name.toLowerCase().endsWith('.gif')) this._gifAssets.push({ key, url: asset });
+        else this.load.image(key, asset);
+      else if (assetTypes[i] === 1) this._audioAssets.push({ key, url: asset });
+      else if (assetTypes[i] === 2) this.load.video(key, asset, true);
+      else if (assetTypes[i] === 3)
         if (name.toLowerCase() === 'extra.json') this._extraUrl = asset;
-        else console.log('To be implemented:', name); // TODO
-      } else if (assetTypes[i] === 4) {
+        else console.log('To be implemented:', name);
+      // TODO
+      else if (assetTypes[i] === 4)
         this._shaderAssets.push({
-          key: `extsh-${name}`,
+          key,
           url: asset,
         });
-      } else console.log('To be implemented:', name); // TODO
+      else console.log('To be implemented:', name); // TODO
     });
   }
 
@@ -211,7 +209,7 @@ export class Game extends Scene {
             spritesheet.spritesheet.toDataURL(),
           );
           this.load.spritesheet(
-            `asset-${asset.key}`,
+            asset.key,
             spritesheet.spritesheet.toDataURL(),
             spritesheet.frameSize,
           );
@@ -219,7 +217,7 @@ export class Game extends Scene {
           asset.frameRate = spritesheet.frameRate;
         }),
         ...this._audioAssets.map(async (asset) =>
-          this.load.audio(`asset-${asset.key}`, await getAudio(asset.url)),
+          this.load.audio(asset.key, await getAudio(asset.url)),
         ),
       ]);
       this.createHitEffectsAnimation();
@@ -251,7 +249,7 @@ export class Game extends Scene {
             asset.source = await loadText(asset.url, asset.key);
           }),
         );
-        this.initializeExtra();
+        this.initializeShaders();
       }
       this.load.audio('ending', `ending/LevelOver${this._levelType}.wav`);
       this.load.once('complete', () => {
@@ -261,6 +259,7 @@ export class Game extends Scene {
         this.initializeHandlers();
         this.setupUI();
         this.createBackground();
+        this.initializeVideos();
         this.createAudio();
         if (this._autostart) {
           this.start();
@@ -277,45 +276,11 @@ export class Game extends Scene {
   }
 
   start() {
+    if (this._status === GameStatus.ERROR) return;
     this._status = GameStatus.PLAYING;
     this._gameUI.in();
     this._timeout = setTimeout(() => {
       this._song.play();
-      // const renderTexture = this.add.renderTexture(0, 0, this.scale.width, this.scale.height);
-      // this.textures.addRenderTexture('camera-buffer', renderTexture);
-      // this.cameras.main.on('postrender', (camera: Phaser.Cameras.Scene2D.Camera) => {
-      //   renderTexture.clear();
-      //   renderTexture.draw(camera);
-      // });
-      // this.scale.on('resize', (gameSize: { width: number; height: number }) => {
-      //   const { width, height } = gameSize;
-      //   renderTexture.setSize(width, height);
-      //   shader.setSize(width, height);
-      // });
-      // const shader = this.add
-      //   .shader(
-      //     new Display.BaseShader(
-      //       'test',
-      //       `
-      //       #ifdef GL_ES
-      //       precision mediump float;
-      //       #endif
-      //       varying vec2 outTexCoord;
-      //       uniform sampler2D iChannel0;
-      //       uniform float time;
-      //       void main() {
-      //         gl_FragColor = texture2D(iChannel0, outTexCoord);
-      //         gl_FragColor.r = sin(time);
-      //       }
-      //     `,
-      //     ),
-      //     0,
-      //     0,
-      //     this.sys.canvas.width,
-      //     this.sys.canvas.height,
-      //   )
-      //   .setOrigin(0)
-      //   .setDepth(1000);
     }, 1000);
     this.game.events.on('hidden', () => {
       this._visible = false;
@@ -330,23 +295,28 @@ export class Game extends Scene {
   }
 
   pause(emittedBySpace: boolean = false) {
+    if (this._status === GameStatus.ERROR) return;
     clearTimeout(this._timeout);
     this._status = GameStatus.PAUSED;
     this._song.pause();
+    this._videos?.forEach((video) => video.pause());
     EventBus.emit('paused', emittedBySpace);
   }
 
   resume() {
+    if (this._status === GameStatus.ERROR) return;
     this.updateChart(this.beat, Date.now(), this.bpm);
     this._status = GameStatus.PLAYING;
     this._song.resume();
+    this._videos?.forEach((video) => video.resume());
     EventBus.emit('resumed');
   }
 
   restart() {
+    if (this._status === GameStatus.ERROR) return;
     this._status = GameStatus.PLAYING;
     this._song.pause();
-    this._song.setSeek(0);
+    this.setSeek(0);
     this._judgmentHandler.reset();
     this._timeout = setTimeout(() => {
       this._song.play();
@@ -354,6 +324,7 @@ export class Game extends Scene {
   }
 
   end() {
+    if (this._status === GameStatus.ERROR) return;
     this._status = GameStatus.FINISHED;
     this._gameUI.out();
     this._lines.forEach((line) => line.setVisible(false));
@@ -367,21 +338,23 @@ export class Game extends Scene {
 
   setSeek(value: number) {
     this._song.setSeek(value);
+    this._videos?.forEach((video) => video.setSeek(value));
   }
 
   update(time: number, delta: number) {
-    if (!this._song || this._status === GameStatus.DESTROYED) return;
+    if (!this._song || this._status === GameStatus.DESTROYED || this._status === GameStatus.ERROR)
+      return;
     if (this._status === GameStatus.FINISHED) this._endingUI.update();
     this._pointerHandler.update(delta);
     if (this._visible) {
       this._gameUI.update();
-      this.updateBackground();
+      this.positionBackground(this._background);
     }
     EventBus.emit(
       'update',
       this._status === GameStatus.FINISHED ? this._song.duration : this._song.seek,
     );
-    this.updateChart(this.beat, time, this.bpm);
+    this.updateChart(this.beat, this.timeSec, time);
     this.statistics.updateStat(delta);
   }
 
@@ -394,14 +367,14 @@ export class Game extends Scene {
     terminateFFmpeg();
   }
 
-  updateChart(beat: number, time: number, bpm: number) {
+  updateChart(beat: number, timeSec: number, time: number) {
     if (this._status === GameStatus.FINISHED || this._status === GameStatus.DESTROYED) return;
-    this._lines.forEach((line) => line.update(beat, time, bpm));
+    this._lines.forEach((line) => line.update(beat, time));
     this._notes.forEach((note) => note.updateJudgment(beat));
     this._shaders?.forEach((shader) =>
-      (this.cameras.main.getPostPipeline(shader.key) as ShaderPipeline)?.update(beat, time),
+      (this.cameras.main.getPostPipeline(shader) as ShaderPipeline)?.update(beat, time),
     );
-    // (this.cameras.main.getPostPipeline('MyCustomPipeline') as ShaderPipeline)?.update(beat, time);
+    this._videos?.forEach((video) => video.update(beat, timeSec));
   }
 
   createAudio() {
@@ -427,19 +400,24 @@ export class Game extends Scene {
         24 * this._data.preferences.backgroundBlur,
       );
     }
-    this.updateBackground();
+    this.positionBackground(this._background);
   }
 
-  updateBackground() {
-    this._background.setPosition(this.sys.canvas.width / 2, this.sys.canvas.height / 2);
-    const dimensions = fit(
-      this._background.displayWidth,
-      this._background.displayHeight,
-      this.sys.canvas.width,
-      this.sys.canvas.height,
-    );
-    this._background.displayWidth = dimensions.width;
-    this._background.displayHeight = dimensions.height;
+  positionBackground(
+    object: GameObjects.Image | GameObjects.Video | GameObjects.Rectangle,
+    mode: 'envelop' | 'fit' | 'stretch' = 'envelop',
+    refWidth?: number,
+    refHeight?: number,
+  ) {
+    object.setPosition(this.sys.canvas.width / 2, this.sys.canvas.height / 2);
+    refWidth ??= this.sys.canvas.width;
+    refHeight ??= this.sys.canvas.height;
+    const dimensions =
+      mode !== 'stretch'
+        ? fit(object.displayWidth, object.displayHeight, refWidth, refHeight, mode === 'fit')
+        : { width: refWidth, height: refHeight };
+    object.displayWidth = dimensions.width;
+    object.displayHeight = dimensions.height;
   }
 
   initializeChart() {
@@ -538,8 +516,8 @@ export class Game extends Scene {
   createGifAnimations() {
     this._gifAssets.forEach((asset) => {
       this.anims.create({
-        key: `asset-${asset.key}`,
-        frames: this.anims.generateFrameNumbers(`asset-${asset.key}`, {
+        key: asset.key,
+        frames: this.anims.generateFrameNumbers(asset.key, {
           start: 0,
           end: asset.frameCount ? asset.frameCount - 1 : 0,
         }),
@@ -549,15 +527,20 @@ export class Game extends Scene {
     });
   }
 
-  initializeExtra() {
+  initializeShaders() {
     if (!this._extra) return;
 
-    // shaders
     EventBus.emit('loading-detail', 'Initializing shaders');
     this._shaders = this._extra.effects.map((effect, i) => {
       effect.shader = effect.shader.startsWith('/')
-        ? `extsh-${effect.shader.slice(1)}`
+        ? `asset-${effect.shader.slice(1)}`
         : `intsh-${effect.shader}`;
+      const asset = this._shaderAssets.find((asset) => asset.key === effect.shader);
+      if (!asset) {
+        this._status = GameStatus.ERROR;
+        alert(`Unable to locate external shader ${effect.shader.slice(6)}`);
+        return '';
+      }
       const key = `${effect.shader}-${i}`;
       (this.renderer as Renderer.WebGL.WebGLRenderer).pipelines.addPostPipeline(
         key,
@@ -565,17 +548,19 @@ export class Game extends Scene {
       );
       this.cameras.main.setPostPipeline(key, {
         scene: this,
-        fragShader: this._shaderAssets.find((asset) => asset.key === effect.shader)?.source,
+        fragShader: asset.source,
         data: effect,
       });
-      return {
-        key,
-        data: effect,
-      };
+      return key;
     });
+  }
 
-    // TODO videos
+  initializeVideos() {
+    if (!this._extra) return;
+
     EventBus.emit('loading-detail', 'Initializing videos');
+    this._videos = this._extra.videos.map((data) => new Video(this, data));
+    console.log(this._videos);
   }
 
   w(width: number) {

@@ -397,7 +397,6 @@ class Button extends GameObjects.Container {
   ) {
     super(scene, x, y);
 
-    scene.add.existing(this);
     this._container = container;
     this._container.add(this);
     this._image = new GameObjects.Image(scene, offsetX, offsetY, texture)

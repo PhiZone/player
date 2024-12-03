@@ -364,8 +364,6 @@ export const isEqual = (a: number[] | undefined, b: number[] | undefined): boole
   return a[0] === b[0] && a[1] * b[2] === b[1] * a[2];
 };
 
-export const toSecs = (beat: number, bpm: number): number => (beat / bpm) * 60;
-
 export const rgbToHex = (rgb: number[] | undefined | null): number | undefined =>
   rgb ? (rgb[0] << 16) | (rgb[1] << 8) | rgb[2] : undefined;
 
@@ -524,6 +522,11 @@ export const getTimeSec = (bpmList: Bpm[], beat: number): number => {
   let bpm = bpmList.findLast((bpm) => bpm.startBeat <= beat);
   if (!bpm) bpm = bpmList[0];
   return bpm.startTimeSec + ((beat - bpm.startBeat) / bpm.bpm) * 60;
+};
+
+export const getBeat = (bpmList: Bpm[], timeSec: number): number => {
+  const curBpm = bpmList.find((bpm) => bpm.startTimeSec <= timeSec) ?? bpmList[0];
+  return curBpm.startBeat + ((timeSec - curBpm.startTimeSec) / 60) * curBpm.bpm;
 };
 
 export const isPerfectOrGood = (type: JudgmentType) => {

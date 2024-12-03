@@ -174,10 +174,10 @@ export class Line {
     }
   }
 
-  update(beat: number, time: number, bpm: number) {
+  update(beat: number, time: number) {
     if (time == this._lastUpdate) return;
     this._lastUpdate = time;
-    this._parent?.update(beat, time, bpm);
+    this._parent?.update(beat, time);
     this.handleEventLayers(beat);
     this.updateParams();
     this._notes.forEach((note) => {
