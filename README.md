@@ -63,8 +63,8 @@ Similar to a video player, the program includes intuitive keyboard controls on a
 | Recording mode                             | 0.0.2   |                                                                               | 🚧 Working                | 录制模式                |
 | Basic support for the extended event layer | 0.0.3   | Excluding GIF events & incline events                                         | ✅ Done                   | 扩展事件层的基本适配    |
 | Cross-platform distribution                | 0.0.3   | Plan to reference [this blog](https://nsarrazin.com/blog/sveltekit-universal) |                           | 跨平台分发              |
-| Support for Phira `extra.json`             | 0.0.4   | Including shaders                                                             | 🚧 Working                | Phira `extra.json` 适配 |
-| Support for `attachUI`                     | 0.0.4   |                                                                               |                           | UI 绑定适配             |
+| Support for Phira `extra.json`             | 0.0.4   | Including shaders                                                             | 🛠️ Test required          | Phira `extra.json` 适配 |
+| Support for `attachUI`                     | 0.0.4   |                                                                               | 🚧 Working                | UI 绑定适配             |
 | Support for Bézier easings                 | 0.0.4   |                                                                               |                           | 贝塞尔缓动适配          |
 | Alignment with official/RPE constants      | 0.0.5   | Hold tolerances, texture size units, etc.                                     |                           | 官/RPE 常数对齐         |
 | Offset adjustment mode                     | 0.0.5   |                                                                               |                           | 延迟调整模式            |
