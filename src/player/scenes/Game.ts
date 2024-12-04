@@ -26,6 +26,7 @@ import { StatisticsHandler } from '../handlers/StatisticsHandler';
 import { loadFFmpeg, terminateFFmpeg } from '../ffmpeg';
 import { ShaderPipeline } from '../objects/ShaderPipeline';
 import { Video } from '../objects/Video';
+import { SignalHandler } from '../handlers/SignalHandler';
 
 export class Game extends Scene {
   private _status: GameStatus = GameStatus.LOADING;
@@ -252,15 +253,15 @@ export class Game extends Scene {
         this.initializeShaders();
       }
       this.load.audio('ending', `ending/LevelOver${this._levelType}.wav`);
-      this.load.once('complete', () => {
+      this.load.once('complete', async () => {
         this.createGifAnimations();
         this.initializeChart();
         this.preprocess();
         this.initializeHandlers();
         this.setupUI();
         this.createBackground();
-        this.initializeVideos();
         this.createAudio();
+        await this.initializeVideos();
         if (this._autostart) {
           this.start();
         } else {
@@ -343,7 +344,12 @@ export class Game extends Scene {
   }
 
   update(time: number, delta: number) {
-    if (!this._song || this._status === GameStatus.DESTROYED || this._status === GameStatus.ERROR)
+    if (
+      !this._song ||
+      this._status === GameStatus.DESTROYED ||
+      this._status === GameStatus.ERROR ||
+      this._status === GameStatus.LOADING
+    )
       return;
     if (this._status === GameStatus.FINISHED) this._endingUI.update();
     this._pointerHandler.update(delta);
@@ -556,11 +562,19 @@ export class Game extends Scene {
     });
   }
 
-  initializeVideos() {
-    if (!this._extra) return;
+  async initializeVideos() {
+    if (!this._extra?.videos) return;
 
     EventBus.emit('loading-detail', 'Initializing videos');
-    this._videos = this._extra.videos?.map((data) => new Video(this, data));
+
+    const signalHandler = new SignalHandler(this._extra.videos.length);
+    this._videos = this._extra.videos.map(
+      (data) =>
+        new Video(this, data, () => {
+          signalHandler.emit();
+        }),
+    );
+    await signalHandler.wait();
   }
 
   w(width: number) {

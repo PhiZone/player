@@ -219,7 +219,12 @@
         const mimeType = (await fileTypeFromBlob(file))?.mime.toString() ?? mime.getType(file.name);
         const type = getFileType(mimeType, file.name);
         if (mimeType === 'application/json') {
-          chartFiles.push({ id, file });
+          try {
+            const json = JSON.parse(await file.text());
+            if (json.META) {
+              chartFiles.push({ id, file });
+            }
+          } catch {}
         } else if (type === 0) {
           imageFiles.push({ id, file, url: URL.createObjectURL(file) });
         } else if (type === 1) {

@@ -475,7 +475,7 @@ class ProgressBar extends GameObjects.Container {
   private _isAnimationPlaying: boolean = false;
 
   constructor(scene: Game) {
-    super(scene, 0, scene.p(-100));
+    super(scene, 0, 0);
     this._progressBar = new GameObjects.Image(scene, 0, 0, 'progress-bar').setOrigin(1, 0);
     this.setDepth(8);
     this.add(this._progressBar);

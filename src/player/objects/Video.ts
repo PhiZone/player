@@ -1,11 +1,6 @@
 import { GameObjects } from 'phaser';
 import type { Game } from '../scenes/Game';
-import {
-  GameStatus,
-  type AnimatedVariable,
-  type VariableEvent,
-  type Video as VideoType,
-} from '../types';
+import { type AnimatedVariable, type VariableEvent, type Video as VideoType } from '../types';
 import { getTimeSec, getValue, processEvents, toBeats } from '../utils';
 
 export class Video extends GameObjects.Container {
@@ -16,7 +11,7 @@ export class Video extends GameObjects.Container {
   private _alphaAnimator: VariableAnimator;
   private _dimAnimator: VariableAnimator;
 
-  constructor(scene: Game, data: VideoType) {
+  constructor(scene: Game, data: VideoType, successCallback: () => void) {
     super(scene, 0, 0);
     this._scene = scene;
     this._data = data;
@@ -30,14 +25,17 @@ export class Video extends GameObjects.Container {
       0x000000,
     );
     this.setDepth(1);
+    this._video.play();
     this._video.on('metadata', () => {
       this._data.startTimeSec = getTimeSec(scene.bpmList, toBeats(this._data.time));
       this._data.endTimeSec = this._data.startTimeSec + this._video.getDuration();
     });
     this._video.on('textureready', () => {
+      this._video.stop();
       this.add(this._video);
       this.add(this._overlay);
       scene.add.existing(this);
+      successCallback();
     });
   }
 
@@ -45,12 +43,8 @@ export class Video extends GameObjects.Container {
     this.setVisible(timeSec >= this._data.startTimeSec && timeSec < this._data.endTimeSec);
     if (!this.visible) {
       this._video.stop();
-    } else if (!this._video.isPlaying()) {
-      if (this._scene.status === GameStatus.PLAYING) this._video.play();
-      else if (this._scene.status === GameStatus.PAUSED) {
-        this._video.play();
-        setTimeout(() => this._video.pause(), 0);
-      }
+    } else if (!this._video.isPlaying() && this._scene.song.isPlaying) {
+      this._video.play();
     }
     if (typeof this._data.alpha === 'number') {
       this.setAlpha(this._data.alpha);
