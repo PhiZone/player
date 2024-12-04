@@ -119,7 +119,7 @@ class VariableAnimator {
     this._events = events;
     processEvents(this._events);
     if (
-      ['color', 'rgb', 'rgba'].some((e) => name.toLowerCase().includes(e)) &&
+      ['color', 'tint', 'rgb', 'rgba'].some((e) => name.toLowerCase().includes(e)) &&
       this._events.some((e) =>
         [e.start, e.end].some(
           (f) =>
@@ -136,7 +136,6 @@ class VariableAnimator {
         end: this._shader.correctRange(name, event.end as number[], true),
       }));
     } // shit but elegant !!!???
-    console.log(this._name, this._events);
   }
 
   update(beat: number) {

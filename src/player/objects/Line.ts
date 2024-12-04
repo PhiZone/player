@@ -89,6 +89,7 @@ export class Line {
             `asset-${lineData.Texture}`,
           )
         : new GameObjects.Image(scene, 0, 0, `asset-${lineData.Texture}`);
+    this._line.setVisible(!this._data.attachUI);
     this._line.setScale(
       this._scene.p(1) * (this._scaleX ?? 1),
       this._scene.p(1) * (this._scaleY ?? 1),
@@ -220,6 +221,48 @@ export class Line {
       },
     );
     this.updateMask();
+    if (this._data.attachUI) {
+      const params = {
+        x: this._line.x - this._scene.sys.canvas.width / 2,
+        y: this._line.y - this._scene.sys.canvas.height / 2,
+        rotation: this._line.rotation,
+        alpha: this._line.alpha,
+        scaleX: this._scaleX ?? 1,
+        scaleY: this._scaleY ?? 1,
+        tint: this._line.tint,
+      };
+      switch (this._data.attachUI) {
+        case 'pause': {
+          this._scene.gameUI.pause.setAttach(params);
+          return;
+        }
+        case 'combonumber': {
+          this._scene.gameUI.combo.setAttach(params);
+          return;
+        }
+        case 'combo': {
+          this._scene.gameUI.comboText.setAttach(params);
+          return;
+        }
+        case 'score': {
+          this._scene.gameUI.score.setAttach(params);
+          this._scene.gameUI.accuracy.setAttach(params);
+          return;
+        }
+        case 'bar': {
+          this._scene.gameUI.progressBar.setAttach(params);
+          return;
+        }
+        case 'name': {
+          this._scene.gameUI.songTitle.setAttach(params);
+          return;
+        }
+        case 'level': {
+          this._scene.gameUI.level.setAttach(params);
+          return;
+        }
+      }
+    }
   }
 
   getPosition() {
@@ -478,13 +521,13 @@ export class Line {
 
   setVisible(visible: boolean) {
     [
-      this._line,
+      !this._data.attachUI ? this._line : undefined,
       this._flickContainer,
       this._tapContainer,
       this._dragContainer,
       this._holdContainer,
     ].forEach((obj) => {
-      obj.setVisible(visible);
+      obj?.setVisible(visible);
     });
   }
 }

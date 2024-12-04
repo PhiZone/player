@@ -63,8 +63,8 @@ Similar to a video player, the program includes intuitive keyboard controls on a
 | Recording mode                             | 0.0.2   |                                                                               | 🚧 Working                | 录制模式                |
 | Basic support for the extended event layer | 0.0.3   | Excluding GIF events & incline events                                         | ✅ Done                   | 扩展事件层的基本适配    |
 | Cross-platform distribution                | 0.0.3   | Plan to reference [this blog](https://nsarrazin.com/blog/sveltekit-universal) |                           | 跨平台分发              |
-| Support for Phira `extra.json`             | 0.0.4   | Including shaders                                                             | 🛠️ Test required          | Phira `extra.json` 适配 |
-| Support for `attachUI`                     | 0.0.4   |                                                                               | 🚧 Working                | UI 绑定适配             |
+| Support for Phira `extra.json`             | 0.0.4   | Including shaders                                                             | 🛠️ Tests required         | Phira `extra.json` 适配 |
+| Support for `attachUI`                     | 0.0.4   |                                                                               | ✅ Done                   | UI 绑定适配             |
 | Support for Bézier easings                 | 0.0.4   |                                                                               |                           | 贝塞尔缓动适配          |
 | Alignment with official/RPE constants      | 0.0.5   | Hold tolerances, texture size units, etc.                                     |                           | 官/RPE 常数对齐         |
 | Offset adjustment mode                     | 0.0.5   |                                                                               |                           | 延迟调整模式            |
@@ -140,11 +140,11 @@ game
         vignette.glsl
 ```
 
-According to [a statement from Pigeon Games](https://www.bilibili.com/opus/624904779363026292), assets from Phigros are copyrighted, and their appearance in other software is legally prohibited. This restriction applies to all assets in this folder except for `Pause.svg` (by Font Awesome, licensed under [CC BY 4.0](http://creativecommons.org/licenses/by/4.0)) and `ending/GradeHit.wav` (by Naptie with sound effects on [Pixabay](https://pixabay.com), licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)). If you wish to run this program on your own, please be sure to append the missing assets as aforementioned.
+According to [a statement from Pigeon Games](https://www.bilibili.com/opus/624904779363026292), assets from Phigros are copyrighted, and their appearance in other software is legally prohibited. This restriction applies to all assets in this folder except for all shaders (`shaders/*`, the majority of which are licensed under MIT/CC0, with a few exceptions from [ShaderToy](https://www.shadertoy.com) licensed under the default [CC BY-NC-SA 3.0](https://creativecommons.org/licenses/by-nc-sa/3.0/) license specified by the site), `Pause.svg` (by Font Awesome, licensed under [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/)) and `ending/GradeHit.wav` (by Naptie with sound effects on [Pixabay](https://pixabay.com), licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)). If you wish to run this program on your own, please be sure to append the missing assets as aforementioned.
 
 ## Deployments
 
-We're unable to provide an official deployment (which is to be available at https://player.phi.zone/) due to lack of proper game assets. Anyone willing to provide a properly licensed set of assets and allow us to use and distribute it is welcome to contact us at [contact@phi.zone](mailto:contact@phi.zone) or instead create a pull request in this repository.
+We're unable to provide an official deployment (which is to be available at https://player.phi.zone) due to lack of proper game assets. Anyone willing to provide a properly licensed set of assets and allow us to use and distribute it is welcome to contact us at [contact@phi.zone](mailto:contact@phi.zone) or instead create a pull request in this repository.
 
 ## Stargazers over time
 

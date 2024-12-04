@@ -67,6 +67,7 @@ export interface RpeJson {
 }
 
 export interface JudgeLine {
+  attachUI?: 'pause' | 'combonumber' | 'combo' | 'score' | 'bar' | 'name' | 'level';
   Group: number;
   Name: string;
   Texture: string;
@@ -296,11 +297,11 @@ export enum Grade {
 }
 
 export interface PhiraExtra {
-  bpm: {
+  bpm?: {
     time: [number, number, number];
     bpm: number;
   }[];
-  videos: Video[];
+  videos?: Video[];
   effects: ShaderEffect[];
 }
 

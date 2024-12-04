@@ -278,6 +278,7 @@ export class Game extends Scene {
   start() {
     if (this._status === GameStatus.ERROR) return;
     this._status = GameStatus.PLAYING;
+    this.update(0, 0);
     this._gameUI.in();
     this._timeout = setTimeout(() => {
       this._song.play();
@@ -559,8 +560,7 @@ export class Game extends Scene {
     if (!this._extra) return;
 
     EventBus.emit('loading-detail', 'Initializing videos');
-    this._videos = this._extra.videos.map((data) => new Video(this, data));
-    console.log(this._videos);
+    this._videos = this._extra.videos?.map((data) => new Video(this, data));
   }
 
   w(width: number) {

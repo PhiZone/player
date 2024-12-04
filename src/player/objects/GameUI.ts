@@ -13,7 +13,7 @@ export class GameUI {
   private _accuracy: UIComponent;
   private _songTitle: UIComponent;
   private _level: UIComponent;
-  private _progressBar: GameObjects.Image;
+  private _progressBar: ProgressBar;
   private _positions: number[][] = [
     [-650, 435],
     [0, 435],
@@ -33,6 +33,8 @@ export class GameUI {
     [0, 0],
   ];
   private _fontSizes: number[] = [0, 60, 20, 50, 25, 32, 32];
+  private _upperTargets: (Button | UIComponent | ProgressBar)[];
+  private _lowerTargets: (Button | UIComponent | ProgressBar)[];
 
   constructor(scene: Game) {
     this._scene = scene;
@@ -112,7 +114,8 @@ export class GameUI {
         minimumFractionDigits: 2,
       })}`,
       scene.p(this._fontSizes[4]),
-    ).setAlpha(0.7);
+    );
+    this._accuracy.text.setAlpha(0.7);
 
     this._songTitle = this.createComponent(
       scene.w(this._positions[5][0]),
@@ -136,7 +139,16 @@ export class GameUI {
       scene.p(this._fontSizes[6]),
     );
 
-    this._progressBar = scene.add.image(0, 0, 'progress-bar').setOrigin(1, 0).setDepth(8);
+    this._progressBar = new ProgressBar(scene);
+    this._upperTargets = [
+      this._pause,
+      this._combo,
+      this._comboText,
+      this._score,
+      this._accuracy,
+      this._progressBar,
+    ];
+    this._lowerTargets = [this._songTitle, this._level];
     this.setVisible(false);
   }
 
@@ -181,10 +193,10 @@ export class GameUI {
     });
 
     const song = this._scene.song;
-    this._progressBar.setScale(
-      this._scene.p(1350) / this._progressBar.texture.getSourceImage().width,
+    this._progressBar.bar.setScale(
+      this._scene.p(1350) / this._progressBar.bar.texture.getSourceImage().width,
     );
-    this._progressBar.setX(
+    this._progressBar.bar.setX(
       this._scene.p(
         (this._scene.status === GameStatus.FINISHED ? 1 : song.seek / song.duration) * 1350,
       ),
@@ -203,48 +215,75 @@ export class GameUI {
   }
 
   in() {
+    if (
+      ![...this._upperTargets, ...this._lowerTargets].every(
+        (o) => o.y === 0 && o.rotation % (2 * Math.PI) === 0,
+      )
+    ) {
+      return;
+    }
+    this._upperTargets.forEach((o) => {
+      o.y = this._scene.p(-100);
+    });
+    this._lowerTargets.forEach((o) => {
+      o.y = this._scene.p(100);
+    });
     this._scene.tweens.add({
-      targets: [
-        this._pause,
-        this._combo,
-        this._comboText,
-        this._score,
-        this._accuracy,
-        this._songTitle,
-        this._level,
-      ],
+      targets: [...this._upperTargets, ...this._lowerTargets],
       y: 0,
       ease: 'Cubic.easeOut',
       duration: 1000,
+      onStart: (tween) => {
+        tween.targets.forEach((o) => {
+          const target = o as Button | ProgressBar | UIComponent;
+          target.isAnimationPlaying = true;
+        });
+      },
+      onComplete: (tween) => {
+        tween.targets.forEach((o) => {
+          const target = o as Button | ProgressBar | UIComponent;
+          target.isAnimationPlaying = false;
+        });
+      },
     });
   }
 
   out() {
+    if (
+      ![...this._upperTargets, ...this._lowerTargets].every(
+        (o) => o.y === 0 && o.rotation % (2 * Math.PI) === 0,
+      )
+    ) {
+      [...this._upperTargets, ...this._lowerTargets].forEach((o) => {
+        o.setVisible(false);
+      });
+      return;
+    }
     [
       this._scene.tweens.add({
-        targets: [
-          this._pause,
-          this._combo,
-          this._comboText,
-          this._score,
-          this._accuracy,
-          this._progressBar,
-        ],
+        targets: this._upperTargets,
         y: this._scene.p(-100),
         ease: 'Cubic.easeIn',
         duration: 1000,
       }),
       this._scene.tweens.add({
-        targets: [this._songTitle, this._level],
+        targets: this._lowerTargets,
         y: this._scene.p(100),
         ease: 'Cubic.easeIn',
         duration: 1000,
       }),
     ].forEach((tween) => {
+      tween.on('start', () => {
+        tween.targets.forEach((o) => {
+          const target = o as Button | ProgressBar | UIComponent;
+          target.isAnimationPlaying = true;
+        });
+      });
       tween.on('complete', () => {
         tween.targets.forEach((o) => {
-          const target = o as Button | UIComponent | GameObjects.Image;
+          const target = o as Button | ProgressBar | UIComponent;
           target.setVisible(false);
+          target.isAnimationPlaying = false;
         });
       });
     });
@@ -266,7 +305,7 @@ export class GameUI {
       this._scene,
       container,
       0,
-      this._scene.p(100) * (2 * originY - 1),
+      0,
       offsetX,
       offsetY,
       originX,
@@ -292,7 +331,7 @@ export class GameUI {
       this._scene,
       container,
       0,
-      this._scene.p(100) * (2 * originY - 1),
+      0,
       offsetX,
       offsetY,
       originX,
@@ -319,12 +358,42 @@ export class GameUI {
   public get pause() {
     return this._pause;
   }
+
+  public get combo() {
+    return this._combo;
+  }
+
+  public get comboText() {
+    return this._comboText;
+  }
+
+  public get score() {
+    return this._score;
+  }
+
+  public get accuracy() {
+    return this._accuracy;
+  }
+
+  public get songTitle() {
+    return this._songTitle;
+  }
+
+  public get level() {
+    return this._level;
+  }
+
+  public get progressBar() {
+    return this._progressBar;
+  }
 }
 
 class UIComponent extends GameObjects.Container {
   private _text: GameObjects.Text;
   private _background: GameObjects.Graphics;
   private _container: GameObjects.Container;
+  private _isAnimationPlaying: boolean = false;
+
   constructor(
     scene: Game,
     container: GameObjects.Container,
@@ -366,6 +435,28 @@ class UIComponent extends GameObjects.Container {
     this._text.setText(text);
   }
 
+  setAttach(params: {
+    x: number;
+    y: number;
+    rotation: number;
+    alpha: number;
+    scaleX: number;
+    scaleY: number;
+    tint: number;
+  }) {
+    if (this._isAnimationPlaying) return;
+    const { x, y, rotation, alpha, scaleX, scaleY, tint } = params;
+    this.setPosition(x, y);
+    this.setRotation(rotation);
+    this.setAlpha(alpha);
+    this.setScale(scaleX, scaleY);
+    this._text.setTint(tint);
+  }
+
+  public set isAnimationPlaying(value: boolean) {
+    this._isAnimationPlaying = value;
+  }
+
   public get text() {
     return this._text;
   }
@@ -379,11 +470,52 @@ class UIComponent extends GameObjects.Container {
   }
 }
 
+class ProgressBar extends GameObjects.Container {
+  private _progressBar: GameObjects.Image;
+  private _isAnimationPlaying: boolean = false;
+
+  constructor(scene: Game) {
+    super(scene, 0, scene.p(-100));
+    this._progressBar = new GameObjects.Image(scene, 0, 0, 'progress-bar').setOrigin(1, 0);
+    this.setDepth(8);
+    this.add(this._progressBar);
+    scene.add.existing(this);
+  }
+
+  setAttach(params: {
+    x: number;
+    y: number;
+    rotation: number;
+    alpha: number;
+    scaleX: number;
+    scaleY: number;
+    tint: number;
+  }) {
+    if (this._isAnimationPlaying) return;
+    const { x, y, rotation, alpha, scaleX, scaleY, tint } = params;
+    this.setPosition(x, y);
+    this.setRotation(rotation);
+    this.setAlpha(alpha);
+    this.setScale(scaleX, scaleY);
+    this._progressBar.setTint(tint);
+  }
+
+  public set isAnimationPlaying(value: boolean) {
+    this._isAnimationPlaying = value;
+  }
+
+  public get bar() {
+    return this._progressBar;
+  }
+}
+
 class Button extends GameObjects.Container {
   private _image: GameObjects.Image;
   private _background: GameObjects.Arc;
   private _tween: Tweens.Tween | undefined;
   private _container: GameObjects.Container;
+  private _isAnimationPlaying: boolean = false;
+
   constructor(
     scene: Game,
     container: GameObjects.Container,
@@ -416,7 +548,7 @@ class Button extends GameObjects.Container {
     ).setAlpha(0);
 
     this._image.setInteractive(this._background, (area, x, y, _obj) =>
-      this.isInovokeable(x, y, area),
+      this.isInvokeable(x, y, area),
     );
     this.add(this._image);
     this.add(this._background);
@@ -431,6 +563,24 @@ class Button extends GameObjects.Container {
       this._image.x + this._image.displayWidth / 2,
       this._image.y + this._image.displayHeight / 2,
     );
+  }
+
+  setAttach(params: {
+    x: number;
+    y: number;
+    rotation: number;
+    alpha: number;
+    scaleX: number;
+    scaleY: number;
+    tint: number;
+  }) {
+    if (this._isAnimationPlaying) return;
+    const { x, y, rotation, alpha, scaleX, scaleY, tint } = params;
+    this.setPosition(x, y);
+    this.setRotation(rotation);
+    this.setAlpha(alpha);
+    this.setScale(scaleX, scaleY);
+    this._image.setTint(tint);
   }
 
   public get image() {
@@ -449,11 +599,15 @@ class Button extends GameObjects.Container {
     this._tween = tween;
   }
 
-  isInovokeable(x: number, y: number, area: GameObjects.Arc = this._background) {
+  isInvokeable(x: number, y: number, area: GameObjects.Arc = this._background) {
     const refX = area.x + area.width / 2;
     const refY = area.y + area.height / 2;
     const radius = area.radius * 3;
     return radius ** 2 > (x - refX) ** 2 + (y - refY) ** 2;
+  }
+
+  public set isAnimationPlaying(value: boolean) {
+    this._isAnimationPlaying = value;
   }
 
   public get container() {
