@@ -1,4 +1,4 @@
-import { GameObjects, Renderer, Scene, Sound } from 'phaser';
+import { Cameras, GameObjects, Renderer, Scene, Sound } from 'phaser';
 import { EventBus } from '../EventBus';
 import {
   processIllustration,
@@ -59,7 +59,12 @@ export class Game extends Scene {
   private _bpmIndex: number = 0;
   private _lines: Line[];
   private _notes: (PlainNote | LongNote)[];
-  private _shaders: string[] | undefined;
+  private _shaders:
+    | {
+        key: string;
+        target: Cameras.Scene2D.Camera | GameObjects.RenderTexture;
+      }[]
+    | undefined;
   private _videos: Video[] | undefined;
   private _visible: boolean = true;
   private _timeout: number = 0;
@@ -250,12 +255,12 @@ export class Game extends Scene {
             asset.source = await loadText(asset.url, asset.key);
           }),
         );
-        this.initializeShaders();
       }
       this.load.audio('ending', `ending/LevelOver${this._levelType}.wav`);
       this.load.once('complete', async () => {
         this.createGifAnimations();
         this.initializeChart();
+        this.initializeShaders();
         this.preprocess();
         this.initializeHandlers();
         this.setupUI();
@@ -333,7 +338,7 @@ export class Game extends Scene {
     this._endingUI = new EndingUI(this);
     setTimeout(() => {
       this._endingUI.play();
-      this.cameras.main.resetPostPipeline();
+      this._shaders?.forEach((shader) => shader.target.resetPostPipeline());
       EventBus.emit('finished');
     }, 1000);
   }
@@ -378,9 +383,14 @@ export class Game extends Scene {
     if (this._status === GameStatus.FINISHED || this._status === GameStatus.DESTROYED) return;
     this._lines.forEach((line) => line.update(beat, time));
     this._notes.forEach((note) => note.updateJudgment(beat));
-    this._shaders?.forEach((shader) =>
-      (this.cameras.main.getPostPipeline(shader) as ShaderPipeline)?.update(beat, time),
-    );
+    // this._shaders?.forEach((shader) => {
+    //   if ('draw' in shader.target) {
+    //     (shader.target as GameObjects.RenderTexture)
+    //       .clear()
+    //       .draw(this._lines.map((line) => line.elements).flat());
+    //   }
+    //   (shader.target.getPostPipeline(shader.key) as ShaderPipeline)?.update(beat, time);
+    // });
     this._videos?.forEach((video) => video.update(beat, timeSec));
   }
 
@@ -546,19 +556,29 @@ export class Game extends Scene {
       if (!asset) {
         this._status = GameStatus.ERROR;
         alert(`Unable to locate external shader ${effect.shader.slice(6)}`);
-        return '';
+        return { key: '', target: this.cameras.main };
       }
       const key = `${effect.shader}-${i}`;
       (this.renderer as Renderer.WebGL.WebGLRenderer).pipelines.addPostPipeline(
         key,
         ShaderPipeline,
       );
-      this.cameras.main.setPostPipeline(key, {
+      effect.depth = 7;
+      let target: Cameras.Scene2D.Camera | GameObjects.RenderTexture;
+      if (effect.depth) {
+        target = this.add
+          .renderTexture(0, 0, this.sys.canvas.width, this.sys.canvas.height)
+          .setOrigin(0)
+          .setDepth(effect.depth);
+      } else {
+        target = this.cameras.main;
+      }
+      target.setPostPipeline(key, {
         scene: this,
         fragShader: asset.source,
         data: effect,
       });
-      return key;
+      return { key, target };
     });
   }
 

@@ -519,6 +519,15 @@ export class Line {
     return this._line.alpha;
   }
 
+  public get elements() {
+    return [this._flickContainer, this._tapContainer, this._dragContainer, this._holdContainer].map(
+      (e) => {
+        e.setVisible(false);
+        return e;
+      },
+    );
+  }
+
   setVisible(visible: boolean) {
     [
       !this._data.attachUI ? this._line : undefined,

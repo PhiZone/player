@@ -65,15 +65,19 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
   update(beat: number, time: number) {
     this.active = beat >= this._data.startBeat && beat < this._data.endBeat;
     if (!this.active) return;
-    this.set1f('time', time / 1000);
-    this.set2f('screenSize', this.renderer.width, this.renderer.height);
-    if (this._data.vars)
-      Object.entries(this._data.vars).forEach(([key, value]) => {
-        if (typeof value === 'number' || (Array.isArray(value) && typeof value[0] === 'number')) {
-          this.setUniform(key, value, beat);
-        }
-      });
-    this._animators.forEach((animator) => animator.update(beat));
+    try {
+      this.set1f('time', time / 1000);
+      this.set2f('screenSize', this.renderer.width, this.renderer.height);
+      if (this._data.vars)
+        Object.entries(this._data.vars).forEach(([key, value]) => {
+          if (typeof value === 'number' || (Array.isArray(value) && typeof value[0] === 'number')) {
+            this.setUniform(key, value, beat);
+          }
+        });
+      this._animators.forEach((animator) => animator.update(beat));
+    } catch (e) {
+      console.error(e);
+    }
   }
 
   setUniform(name: string, value: number | number[] | unknown, beat: number) {

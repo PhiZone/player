@@ -322,7 +322,7 @@ export interface ShaderEffect {
   endBeat: number;
   shader: string;
   global: boolean;
-  targets?: number[];
+  depth?: number;
   vars?: {
     [key: string]: Variable;
   };

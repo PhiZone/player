@@ -6,6 +6,7 @@ import { COMBO_TEXT, FONT_FAMILY } from '../constants';
 
 export class GameUI {
   private _scene: Game;
+  private _ui: GameObjects.Container;
   private _pause: Button;
   private _combo: UIComponent;
   private _comboText: UIComponent;
@@ -40,6 +41,7 @@ export class GameUI {
     this._scene = scene;
     const stats = scene.statistics.stats;
 
+    this._ui = scene.add.container().setDepth(8);
     this._pause = this.createButton(
       scene.w(this._positions[0][0]),
       scene.h(this._positions[0][1]),
@@ -139,7 +141,7 @@ export class GameUI {
       scene.p(this._fontSizes[6]),
     );
 
-    this._progressBar = new ProgressBar(scene);
+    this._progressBar = new ProgressBar(this);
     this._upperTargets = [
       this._pause,
       this._combo,
@@ -300,7 +302,8 @@ export class GameUI {
     fontSize?: number | undefined,
     textStyle?: Types.GameObjects.Text.TextStyle | undefined,
   ) {
-    const container = this._scene.add.container(x, y).setDepth(8);
+    const container = new GameObjects.Container(this._scene, x, y);
+    this._ui.add(container);
     const component = new UIComponent(
       this._scene,
       container,
@@ -326,7 +329,8 @@ export class GameUI {
     originY: number,
     texture: string,
   ) {
-    const container = this._scene.add.container(x, y).setDepth(8);
+    const container = new GameObjects.Container(this._scene, x, y);
+    this._ui.add(container);
     const button = new Button(
       this._scene,
       container,
@@ -386,6 +390,22 @@ export class GameUI {
   public get progressBar() {
     return this._progressBar;
   }
+
+  public get upperTargets() {
+    return this._upperTargets;
+  }
+
+  public get lowerTargets() {
+    return this._lowerTargets;
+  }
+
+  public get ui() {
+    return this._ui;
+  }
+
+  public get scene() {
+    return this._scene;
+  }
 }
 
 class UIComponent extends GameObjects.Container {
@@ -409,7 +429,6 @@ class UIComponent extends GameObjects.Container {
   ) {
     super(scene, x, y);
 
-    scene.add.existing(this);
     this._container = container;
     this._container.add(this);
     this._text = new GameObjects.Text(
@@ -474,12 +493,12 @@ class ProgressBar extends GameObjects.Container {
   private _progressBar: GameObjects.Image;
   private _isAnimationPlaying: boolean = false;
 
-  constructor(scene: Game) {
-    super(scene, 0, 0);
-    this._progressBar = new GameObjects.Image(scene, 0, 0, 'progress-bar').setOrigin(1, 0);
-    this.setDepth(8);
+  constructor(ui: GameUI) {
+    super(ui.scene, 0, 0);
+    this._progressBar = new GameObjects.Image(ui.scene, 0, 0, 'progress-bar').setOrigin(1, 0);
+    // this.setDepth(8);
     this.add(this._progressBar);
-    scene.add.existing(this);
+    ui.ui.add(this);
   }
 
   setAttach(params: {
