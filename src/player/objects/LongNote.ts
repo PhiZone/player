@@ -47,7 +47,7 @@ export class LongNote extends GameObjects.Container {
     scene.add.existing(this);
   }
 
-  update(beat: number, height: number) {
+  update(beat: number, height: number, visible = true) {
     this.setX(this._scene.p(this._xModifier * this._data.positionX));
     this.resize();
     if (this._beatJudged && beat < this._beatJudged) {
@@ -62,14 +62,14 @@ export class LongNote extends GameObjects.Container {
       this._head.setVisible(false);
       headDist = 0;
     } else {
-      this._head.setVisible(headDist >= 0);
+      this._head.setVisible(visible && headDist >= 0);
     }
     if (beat >= this._data.endBeat) {
       this._body.setVisible(false);
       this._tail.setVisible(false);
     } else {
-      this._body.setVisible(tailDist >= 0);
-      this._tail.setVisible(tailDist >= 0);
+      this._body.setVisible(visible && tailDist >= 0);
+      this._tail.setVisible(visible && tailDist >= 0);
     }
     this._head.setY(this._yModifier * headDist);
     this._body.setY(this._yModifier * Math.max(0, headDist));

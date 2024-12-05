@@ -182,7 +182,7 @@ export class Line {
     this.handleEventLayers(beat);
     this.updateParams();
     this._notes.forEach((note) => {
-      note.update(beat * this._data.bpmfactor, this._height);
+      note.update(beat * this._data.bpmfactor, this._height, this._opacity >= 0);
     });
   }
 

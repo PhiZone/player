@@ -78,15 +78,12 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
 
   setUniform(name: string, value: number | number[] | unknown, beat: number) {
     if (!value) return;
+    console.log(beat.toFixed(3), this._data.shader, name, value);
     if (Array.isArray(value)) {
-      console.log(beat.toFixed(3), this._data.shader, name, value);
       if (value.length === 2) this.set2f(name, value[0], value[1]);
       else if (value.length === 3) this.set3f(name, value[0], value[1], value[2]);
       else if (value.length === 4) this.set4f(name, value[0], value[1], value[2], value[3]);
-    } else if (typeof value === 'number') {
-      console.log(beat.toFixed(3), this._data.shader, name, value);
-      this.set1f(name, value);
-    }
+    } else if (typeof value === 'number') this.set1f(name, value);
   }
 
   correctRange(name: string, value: number[], force = false) {
