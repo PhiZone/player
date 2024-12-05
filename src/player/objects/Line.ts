@@ -520,12 +520,7 @@ export class Line {
   }
 
   public get elements() {
-    return [this._flickContainer, this._tapContainer, this._dragContainer, this._holdContainer].map(
-      (e) => {
-        e.setVisible(false);
-        return e;
-      },
-    );
+    return [this._flickContainer, this._tapContainer, this._dragContainer, this._holdContainer];
   }
 
   setVisible(visible: boolean) {

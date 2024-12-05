@@ -383,14 +383,14 @@ export class Game extends Scene {
     if (this._status === GameStatus.FINISHED || this._status === GameStatus.DESTROYED) return;
     this._lines.forEach((line) => line.update(beat, time));
     this._notes.forEach((note) => note.updateJudgment(beat));
-    // this._shaders?.forEach((shader) => {
-    //   if ('draw' in shader.target) {
-    //     (shader.target as GameObjects.RenderTexture)
-    //       .clear()
-    //       .draw(this._lines.map((line) => line.elements).flat());
-    //   }
-    //   (shader.target.getPostPipeline(shader.key) as ShaderPipeline)?.update(beat, time);
-    // });
+    this._shaders?.forEach((shader) => {
+      if ('draw' in shader.target) {
+        (shader.target as GameObjects.RenderTexture)
+          .clear()
+          .draw(this._lines.map((line) => line.elements.map((e) => e.setVisible(false))).flat());
+      }
+      (shader.target.getPostPipeline(shader.key) as ShaderPipeline)?.update(beat, time);
+    });
     this._videos?.forEach((video) => video.update(beat, timeSec));
   }
 
