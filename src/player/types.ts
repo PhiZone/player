@@ -72,7 +72,7 @@ export interface JudgeLine {
   Name: string;
   Texture: string;
   alphaControl: AlphaControl[];
-  anchor: number[];
+  anchor?: number[];
   bpmfactor: number;
   eventLayers: (EventLayer | null)[];
   extended?: Extended;
