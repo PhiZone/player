@@ -58,7 +58,7 @@
           data-tip="Perfect ({preferences.perfectJudgment}ms)"
           style:width="{preferences.perfectJudgment / 3.5}%"
         >
-          <progress value="1" max="1" class="progress progress-warning" />
+          <progress value="1" max="1" class="progress progress-warning"></progress>
         </div>
         <div
           class="tooltip rounded-lg {preferences.goodJudgment < 40
@@ -67,7 +67,7 @@
           data-tip="Good ({preferences.goodJudgment}ms)"
           style:width="{(preferences.goodJudgment - preferences.perfectJudgment) / 3.5}%"
         >
-          <progress value="1" max="1" class="progress progress-info" />
+          <progress value="1" max="1" class="progress progress-info"></progress>
         </div>
         <div
           class="tooltip rounded-lg {preferences.goodJudgment < 25
@@ -76,7 +76,7 @@
           data-tip="Bad ({badJudgment}ms)"
           style:width="{(badJudgment - preferences.goodJudgment) / 3.5}%"
         >
-          <progress value="1" max="1" class="progress progress-error" />
+          <progress value="1" max="1" class="progress progress-error"></progress>
         </div>
         <div
           class="tooltip rounded-lg {preferences.goodJudgment > 225
@@ -85,7 +85,7 @@
           data-tip="Miss / Incoming"
           style:width="{100 - badJudgment / 3.5}%"
         >
-          <progress value="0" max="1" class="progress" />
+          <progress value="0" max="1" class="progress"></progress>
         </div>
       </div>
       <div class="form-control">

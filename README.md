@@ -62,7 +62,7 @@ Similar to a video player, the program includes intuitive keyboard controls on a
 | Better input detections                    | 0.0.2   | Especially for Flicks                                                         |                           | 输入检测优化            |
 | Recording mode                             | 0.0.2   |                                                                               | 🚧 Working                | 录制模式                |
 | Basic support for the extended event layer | 0.0.3   | Excluding GIF events & incline events                                         | ✅ Done                   | 扩展事件层的基本适配    |
-| Cross-platform distribution                | 0.0.3   | Plan to reference [this blog](https://nsarrazin.com/blog/sveltekit-universal) |                           | 跨平台分发              |
+| Cross-platform distribution                | 0.0.3   | Plan to reference [this blog](https://nsarrazin.com/blog/sveltekit-universal) | 🚧 Working                | 跨平台分发              |
 | Support for Phira `extra.json`             | 0.0.4   | Including shaders                                                             | 🛠️ Tests required         | Phira `extra.json` 适配 |
 | Support for `attachUI`                     | 0.0.4   |                                                                               | ✅ Done                   | UI 绑定适配             |
 | Support for Bézier easings                 | 0.0.4   |                                                                               |                           | 贝塞尔缓动适配          |

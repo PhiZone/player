@@ -422,7 +422,7 @@
             <div
               class="flex flex-col justify-center rounded-full overflow-hidden bg-blue-600 text-xs text-white text-center whitespace-nowrap transition duration-500 dark:bg-blue-500"
               style="width: {progress * 100}%"
-            />
+            ></div>
           </div>
         </div>
         <div
