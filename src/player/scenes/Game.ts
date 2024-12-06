@@ -419,7 +419,7 @@ export class Game extends Scene {
       this.sys.canvas.width / 2,
       this.sys.canvas.height / 2,
       'illustration-background',
-    );
+    ).setDepth(0);
     this.register(this._background);
     if (!SUPPORTS_CANVAS_BLUR) {
       this._background.preFX?.addBlur(
@@ -577,13 +577,22 @@ export class Game extends Scene {
         key,
         ShaderPipeline,
       );
-      effect.targetRange = {
-        minZIndex: 3,
-        maxZIndex: 7,
-        exclusive: true,
-      };
       let target: Cameras.Scene2D.Camera | GameObjects.Container;
-      if (effect.targetRange) {
+      if (effect.global) {
+        target = this.cameras.main;
+        target.setPostPipeline(key, {
+          scene: this,
+          fragShader: asset.source,
+          data: effect,
+        });
+      } else {
+        if (!effect.targetRange) {
+          effect.targetRange = {
+            minZIndex: 0,
+            maxZIndex: 8,
+            exclusive: false,
+          };
+        }
         target = new GameObjects.Container(this).setDepth(effect.targetRange.minZIndex);
         this.register(target, effect.targetRange.maxZIndex);
         target.setPostPipeline(key, {
@@ -592,20 +601,13 @@ export class Game extends Scene {
           data: effect,
           target,
         });
-      } else {
-        target = this.cameras.main;
-        target.setPostPipeline(key, {
-          scene: this,
-          fragShader: asset.source,
-          data: effect,
-        });
       }
       return { key, target };
     });
   }
 
   async initializeVideos() {
-    if (!this._extra?.videos) return;
+    if (!this._extra?.videos || this._extra.videos.length === 0) return;
 
     EventBus.emit('loading-detail', 'Initializing videos');
 

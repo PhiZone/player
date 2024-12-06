@@ -67,6 +67,8 @@ const start = (parent: string, sceneConfig: Config | null) => {
     }
   }
   const game = new Game({ ...config, parent });
+  // @ts-expect-error - globalThis is not defined in TypeScript
+  globalThis.__PHASER_GAME__ = game;
   game.scene.start('MainGame');
   return game;
 };

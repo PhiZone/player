@@ -101,19 +101,21 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
       (!this._targets || this._targets?.some((target) => !target.occupied[this.name]))
     ) {
       const range = this._data.targetRange;
-      this._targets = this._scene.objects.filter((o) => {
-        if (Object.keys(o.occupied).some((key) => o.occupied[key])) return false;
-        if (o.upperDepth) {
-          if ((o.object as GameObjects.Container).list.length === 0) return false;
-          if (range.exclusive) {
-            return o.depth >= range.minZIndex && o.upperDepth <= range.maxZIndex;
+      this._targets = this._scene.objects
+        .filter((o) => {
+          if (Object.keys(o.occupied).some((key) => o.occupied[key])) return false;
+          if (o.upperDepth) {
+            if ((o.object as GameObjects.Container).list.length === 0) return false;
+            if (range.exclusive) {
+              return o.depth >= range.minZIndex && o.upperDepth <= range.maxZIndex;
+            } else {
+              return o.upperDepth > range.minZIndex && o.depth < range.maxZIndex;
+            }
           } else {
-            return o.upperDepth > range.minZIndex && o.depth < range.maxZIndex;
+            return o.depth >= range.minZIndex && o.depth < range.maxZIndex;
           }
-        } else {
-          return o.depth >= range.minZIndex && o.depth < range.maxZIndex;
-        }
-      });
+        })
+        .sort((a, b) => a.depth - b.depth);
       console.log('Adding targets to', this.name);
       this._targets.forEach((target) => {
         target.occupied[this.name] = true;

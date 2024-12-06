@@ -326,7 +326,7 @@ export interface ShaderEffect {
   targetRange?: {
     minZIndex: number;
     maxZIndex: number;
-    exclusive: boolean;
+    exclusive?: boolean;
   };
   vars?: {
     [key: string]: Variable;
