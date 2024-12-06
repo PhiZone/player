@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "phizone-player",
+  "productName": "PhiZone Player",
   "version": "0.0.1",
   "identifier": "cn.phizone.player",
   "build": {

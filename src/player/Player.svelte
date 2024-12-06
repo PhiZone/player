@@ -99,6 +99,7 @@
 
     EventBus.on('current-scene-ready', (scene: GameScene) => {
       clearTimeout(timeout);
+      stillLoading = false;
       gameRef.scene = scene;
       status = scene.status;
       duration = scene.song.duration;
@@ -233,14 +234,17 @@
         <button
           class="btn btn-outline border-2 btn-lg btn-circle trans"
           on:click={() => {
-            if (!config || config.newTab) {
+            if (
+              !config ||
+              (!('__TAURI_INTERNALS__' in window && config.fullscreen) && config.newTab)
+            ) {
               window.close();
             } else {
               goto('/');
             }
           }}
         >
-          {#if !config || config.newTab}
+          {#if !config || (!('__TAURI_INTERNALS__' in window && config.fullscreen) && config.newTab)}
             <i class="fa-solid fa-xmark fa-xl"></i>
           {:else}
             <i class="fa-solid fa-house fa-xl"></i>
@@ -333,14 +337,14 @@
     class:opacity-100={status === GameStatus.FINISHED || stillLoading}
     class:pointer-events-none={status !== GameStatus.FINISHED && !stillLoading}
     on:click={() => {
-      if (!config || config.newTab) {
+      if (!config || (!('__TAURI_INTERNALS__' in window && config.fullscreen) && config.newTab)) {
         window.close();
       } else {
         goto('/');
       }
     }}
   >
-    {#if !config || config.newTab}
+    {#if !config || (!('__TAURI_INTERNALS__' in window && config.fullscreen) && config.newTab)}
       <i class="fa-solid fa-xmark fa-xl"></i>
     {:else}
       <i class="fa-solid fa-house fa-xl"></i>
