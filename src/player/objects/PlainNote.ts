@@ -33,7 +33,7 @@ export class PlainNote extends GameObjects.Image {
     scene.add.existing(this);
   }
 
-  update(beat: number, height: number) {
+  update(beat: number, height: number, visible = true) {
     this.setX(this._scene.p(this._xModifier * this._data.positionX));
     this.resize();
     if (this._beatJudged && beat < this._beatJudged) {
@@ -55,7 +55,7 @@ export class PlainNote extends GameObjects.Image {
         }
       }
     } else if (this._judgmentType === JudgmentType.UNJUDGED) {
-      this.setVisible(dist >= 0);
+      this.setVisible(visible && dist >= 0);
     }
   }
 

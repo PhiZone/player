@@ -82,20 +82,21 @@ export class Line {
           fontFamily: FONT_FAMILY,
           fontSize: 60,
           color: '#ffffff',
-          align: 'center',
+          align: 'left',
         }).setOrigin(0.5)
       : this._hasGifTexture
         ? new GameObjects.Sprite(scene, 0, 0, `asset-${lineData.Texture}`).play(
             `asset-${lineData.Texture}`,
           )
         : new GameObjects.Image(scene, 0, 0, `asset-${lineData.Texture}`);
-    this._line.setVisible(!this._data.attachUI);
+    this._line.setVisible(!this._data.attachUI || this._hasText);
     this._line.setScale(
       this._scene.p(1) * (this._scaleX ?? 1),
       this._scene.p(1) * (this._scaleY ?? 1),
     ); // previously 1.0125 (according to the official definition that a line is 3 times as wide as the screen)
     this._line.setDepth(2 + precedence);
     if (!this._hasCustomTexture) this._line.setTint(getLineColor(scene));
+    if (this._data.anchor) this._line.setOrigin(this._data.anchor[0], 1 - this._data.anchor[1]);
 
     this._holdContainer = this.createContainer(3);
     this._dragContainer = this.createContainer(4);
@@ -182,7 +183,7 @@ export class Line {
     this.handleEventLayers(beat);
     this.updateParams();
     this._notes.forEach((note) => {
-      note.update(beat * this._data.bpmfactor, this._height);
+      note.update(beat * this._data.bpmfactor, this._height, this._opacity >= 0);
     });
   }
 
@@ -237,11 +238,11 @@ export class Line {
           return;
         }
         case 'combonumber': {
-          this._scene.gameUI.combo.setAttach(params);
+          this._scene.gameUI.combo.setAttach(params, true);
           return;
         }
         case 'combo': {
-          this._scene.gameUI.comboText.setAttach(params);
+          this._scene.gameUI.comboText.setAttach(params, true);
           return;
         }
         case 'score': {

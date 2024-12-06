@@ -11,6 +11,7 @@ export interface Config {
   record: boolean;
   autostart: boolean;
   newTab: boolean;
+  fullscreen: boolean;
 }
 
 export interface Resources {
@@ -72,7 +73,7 @@ export interface JudgeLine {
   Name: string;
   Texture: string;
   alphaControl: AlphaControl[];
-  anchor: number[];
+  anchor?: number[];
   bpmfactor: number;
   eventLayers: (EventLayer | null)[];
   extended?: Extended;

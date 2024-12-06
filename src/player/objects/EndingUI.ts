@@ -23,7 +23,7 @@ export class EndingUI extends GameObjects.Container {
   private _early: DataBoard;
   private _late: DataBoard;
   private _tweening: boolean = true;
-  private _timer: number | undefined;
+  private _timer: NodeJS.Timeout | undefined;
 
   constructor(scene: Game) {
     super(scene, scene.w(0), scene.h(-500) + scene.d(0.41));

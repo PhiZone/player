@@ -89,7 +89,7 @@ export class GameUI {
       this._scene.p(this._offsets[2][1]),
       0.5,
       0,
-      'COMBO',
+      COMBO_TEXT,
       scene.p(this._fontSizes[2]),
     );
 
@@ -454,18 +454,45 @@ class UIComponent extends GameObjects.Container {
     this._text.setText(text);
   }
 
-  setAttach(params: {
-    x: number;
-    y: number;
-    rotation: number;
-    alpha: number;
-    scaleX: number;
-    scaleY: number;
-    tint: number;
-  }) {
+  setAttach(
+    params: {
+      x: number;
+      y: number;
+      rotation: number;
+      alpha: number;
+      scaleX: number;
+      scaleY: number;
+      tint: number;
+    },
+    fromCenter = false,
+  ) {
     if (this._isAnimationPlaying) return;
     const { x, y, rotation, alpha, scaleX, scaleY, tint } = params;
-    this.setPosition(x, y);
+    if (fromCenter) {
+      const deltaX =
+        2 *
+        (this._text.y +
+          -this._text.displayHeight * this._text.originY +
+          this._text.displayHeight / 2) *
+        Math.sin(rotation / 2) *
+        Math.sin((Math.PI - rotation) / 2);
+      this.setPosition(
+        x +
+          deltaX +
+          (this._text.x +
+            -this._text.displayWidth * this._text.originX +
+            this._text.displayWidth / 2) *
+            (scaleX - 1),
+        y +
+          deltaX / Math.tan((Math.PI - rotation) / 2) -
+          (this._text.y +
+            -this._text.displayHeight * this._text.originY +
+            this._text.displayHeight / 2) *
+            (scaleY - 1),
+      );
+    } else {
+      this.setPosition(x, y);
+    }
     this.setRotation(rotation);
     this.setAlpha(alpha);
     this.setScale(scaleX, scaleY);
