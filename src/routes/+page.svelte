@@ -4,7 +4,7 @@
   import { onMount } from 'svelte';
   import queryString from 'query-string';
   import { fileTypeFromBlob } from 'file-type';
-  import type { Metadata, RecorderOptions, RpeJson } from '../player/types';
+  import type { Config, Metadata, RecorderOptions, RpeJson } from '../player/types';
   import { clamp, inferLevelType, isZip } from '../player/utils';
   import PreferencesModal from '$lib/components/Preferences.svelte';
   import { goto } from '$app/navigation';
@@ -54,11 +54,15 @@
     noteSize: 1,
     perfectJudgment: 80,
     simultaneousNoteHint: true,
+  };
+  let toggles = {
     autostart: false,
     autoplay: false,
     practice: false,
+    adjustOffset: false,
     record: false,
     newTab: false,
+    fullscreen: true,
   };
   let recorderOptions: RecorderOptions = {
     frameRate: 60,
@@ -82,14 +86,18 @@
   }[] = [];
   let chartBundles: ChartBundle[] = [];
 
-  let timeouts: number[] = [];
+  let timeouts: NodeJS.Timeout[] = [];
 
   onMount(() => {
     directoryInput.webkitdirectory = true;
     const pref = localStorage.getItem('preferences');
+    const tgs = localStorage.getItem('toggles');
     const rec = localStorage.getItem('recorderOptions');
     if (pref) {
       preferences = JSON.parse(pref);
+    }
+    if (tgs) {
+      toggles = JSON.parse(tgs);
     }
     if (rec) {
       recorderOptions = JSON.parse(rec);
@@ -216,7 +224,13 @@
     await Promise.all(
       files.map(async (file, i) => {
         const id = Date.now() + i;
-        const mimeType = (await fileTypeFromBlob(file))?.mime.toString() ?? mime.getType(file.name);
+        let mimeType: string | null = null;
+        try {
+          mimeType = (await fileTypeFromBlob(file))?.mime.toString() ?? mime.getType(file.name);
+        } catch (e) {
+          console.error(e);
+          mimeType = mime.getType(file.name);
+        }
         const type = getFileType(mimeType, file.name);
         if (mimeType === 'application/json') {
           try {
@@ -764,11 +778,11 @@
                     type="checkbox"
                     class="transition border-gray-200 rounded text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
                     aria-describedby="autoplay-description"
-                    checked={preferences.autoplay}
+                    checked={toggles.autoplay}
                     on:input={(e) => {
-                      preferences.autoplay = e.currentTarget.checked;
-                      if (preferences.autoplay) {
-                        preferences.practice = false;
+                      toggles.autoplay = e.currentTarget.checked;
+                      if (toggles.autoplay) {
+                        toggles.practice = false;
                       }
                     }}
                   />
@@ -793,15 +807,11 @@
                     type="checkbox"
                     class="transition border-gray-200 rounded text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
                     aria-describedby="practice-description"
-                    bind:checked={preferences.practice}
-                    disabled={preferences.autoplay}
+                    bind:checked={toggles.practice}
+                    disabled={toggles.autoplay}
                   />
                 </div>
-                <label
-                  for="practice"
-                  class="ms-3 transition"
-                  class:opacity-50={preferences.autoplay}
-                >
+                <label for="practice" class="ms-3 transition" class:opacity-50={toggles.autoplay}>
                   <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
                     Practice
                   </span>
@@ -822,7 +832,7 @@
                       type="checkbox"
                       class="transition border-gray-200 rounded text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
                       aria-describedby="record-description"
-                      bind:checked={preferences.record}
+                      bind:checked={toggles.record}
                     />
                   </div>
                   <label for="record" class="ms-3">
@@ -977,7 +987,7 @@
                     type="checkbox"
                     class="transition border-gray-200 rounded text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
                     aria-describedby="autostart-description"
-                    bind:checked={preferences.autostart}
+                    bind:checked={toggles.autostart}
                   />
                 </div>
                 <label for="autostart" class="ms-3">
@@ -992,6 +1002,31 @@
                   </span>
                 </label>
               </div>
+              <!-- {#if '__TAURI_INTERNALS__' in window}
+                <div class="relative flex items-start">
+                  <div class="flex items-center h-5 mt-1">
+                    <input
+                      id="fullscreen"
+                      name="fullscreen"
+                      type="checkbox"
+                      class="transition border-gray-200 rounded text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
+                      aria-describedby="fullscreen-description"
+                      bind:checked={toggles.fullscreen}
+                    />
+                  </div>
+                  <label for="fullscreen" class="ms-3">
+                    <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
+                      Fullscreen
+                    </span>
+                    <span
+                      id="fullscreen-description"
+                      class="block text-sm text-gray-600 dark:text-neutral-500"
+                    >
+                      The player will be opened in fullscreen.
+                    </span>
+                  </label>
+                </div>
+              {:else} -->
               <div class="relative flex items-start">
                 <div class="flex items-center h-5 mt-1">
                   <input
@@ -1000,7 +1035,7 @@
                     type="checkbox"
                     class="transition border-gray-200 rounded text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
                     aria-describedby="newtab-description"
-                    bind:checked={preferences.newTab}
+                    bind:checked={toggles.newTab}
                   />
                 </div>
                 <label for="newtab" class="ms-3">
@@ -1015,6 +1050,7 @@
                   </span>
                 </label>
               </div>
+              <!-- {/if} -->
             </div>
             <div class="flex gap-2">
               <PreferencesModal bind:preferences class="w-1/2" />
@@ -1022,7 +1058,8 @@
                 class="w-1/2 inline-flex justify-center items-center gap-x-3 text-center bg-gradient-to-tl from-blue-500 via-violet-500 to-fuchsia-500 dark:from-blue-700 dark:via-violet-700 dark:to-fuchsia-700 text-white text-sm font-medium rounded-md focus:outline-none py-3 px-4 transition-all duration-300 bg-size-200 bg-pos-0 hover:bg-pos-100"
                 on:click={() => {
                   localStorage.setItem('preferences', JSON.stringify(preferences));
-                  if (preferences.record) {
+                  localStorage.setItem('toggles', JSON.stringify(toggles));
+                  if (toggles.record) {
                     localStorage.setItem('recorderOptions', JSON.stringify(recorderOptions));
                     if (overrideResolution) {
                       recorderOptions.overrideResolution = [
@@ -1048,6 +1085,7 @@
                       assets: assetsIncluded.map((asset) => getURL(asset.file)),
                       ...currentBundle.metadata,
                       ...preferences,
+                      ...toggles,
                       ...recorderOptions,
                     },
                     {
@@ -1057,11 +1095,41 @@
                       sort: false,
                     },
                   );
-                  if (preferences.newTab) {
-                    window.open(`/play?${params}`);
+                  let url = '/play';
+                  if (params.length <= 15360) {
+                    url = `/play?${params}`;
                   } else {
-                    goto(`/play?${params}`);
+                    const config: Config = {
+                      resources: {
+                        song:
+                          getURL(audioFiles.find((file) => file.id === currentBundle.song)?.file) ??
+                          '',
+                        chart:
+                          getURL(
+                            chartFiles.find((file) => file.id === currentBundle.chart)?.file,
+                          ) ?? '',
+                        illustration:
+                          imageFiles.find((file) => file.id === currentBundle.illustration)?.url ??
+                          '',
+                        assetNames: assetsIncluded.map((asset) => asset.file.name),
+                        assetTypes: assetsIncluded.map((asset) => asset.type),
+                        assets: assetsIncluded.map((asset) => getURL(asset.file) ?? ''),
+                      },
+                      metadata: currentBundle.metadata,
+                      preferences,
+                      recorderOptions,
+                      ...toggles,
+                    };
+                    localStorage.setItem('player', JSON.stringify(config));
                   }
+                  if ('__TAURI_INTERNALS__' in window && toggles.fullscreen) {
+                    // TODO Command not found
+                    // getCurrentWindow().setFullscreen(true);
+                  } else if (toggles.newTab) {
+                    window.open(url);
+                    return;
+                  }
+                  goto(url);
                 }}
               >
                 Play

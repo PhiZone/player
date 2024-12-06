@@ -44,11 +44,12 @@ Similar to a video player, the program includes intuitive keyboard controls on a
 
 ## Commands
 
-| Command      | Description                                     |
-| ------------ | ----------------------------------------------- |
-| `pnpm i`     | Install project dependencies                    |
-| `pnpm dev`   | Launch a development web server                 |
-| `pnpm build` | Create a production build in the `build` folder |
+| Command            | Description                                      |
+| ------------------ | ------------------------------------------------ |
+| `pnpm i`           | Installs project dependencies                    |
+| `pnpm dev`         | Launches a development web server                |
+| `pnpm build`       | Creates a production build in the `build` folder |
+| `pnpm tauri build` | Creates a production build for Windows           |
 
 ## Development
 
@@ -65,9 +66,12 @@ Similar to a video player, the program includes intuitive keyboard controls on a
 | Cross-platform distribution                | 0.0.3   | Plan to reference [this blog](https://nsarrazin.com/blog/sveltekit-universal) | 🚧 Working                | 跨平台分发              |
 | Support for Phira `extra.json`             | 0.0.4   | Including shaders                                                             | 🛠️ Tests required         | Phira `extra.json` 适配 |
 | Support for `attachUI`                     | 0.0.4   |                                                                               | ✅ Done                   | UI 绑定适配             |
-| Support for Bézier easings                 | 0.0.4   |                                                                               |                           | 贝塞尔缓动适配          |
-| Alignment with official/RPE constants      | 0.0.5   | Hold tolerances, texture size units, etc.                                     |                           | 官/RPE 常数对齐         |
+| Support for anchors                        | 0.0.4   |                                                                               | ✅ Done                   | 锚点适配                |
+| Support for APNGs                          | 0.0.4   |                                                                               | 🚧 Working                | APNG 格式适配           |
+| Shader feature enhancements                | 0.0.5   |                                                                               | 🚧 Working                | 着色器功能增强          |
+| Support for Bézier easings                 | 0.0.5   |                                                                               |                           | 贝塞尔缓动适配          |
 | Offset adjustment mode                     | 0.0.5   |                                                                               |                           | 延迟调整模式            |
+| Alignment with official/RPE constants      | 0.0.6   | Hold tolerances, texture size units, etc.                                     |                           | 官/RPE 常数对齐         |
 | Full support for the extended event layer  | 0.0.6   | GIF events & incline events                                                   |                           | 扩展事件层的完全适配    |
 | Support for all note properties            | 0.0.7   |                                                                               |                           | 所有 Note 属性的适配    |
 | PhiZone integration                        | 0.0.8   |                                                                               |                           | PhiZone 集成            |

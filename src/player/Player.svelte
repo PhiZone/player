@@ -44,9 +44,9 @@
   let allowSeek = false;
   let progressBarHeld = false;
   let countdown = 0;
-  let counter = 0;
   let stillLoading = false;
-  let timeout = 0;
+  let counter: NodeJS.Timeout;
+  let timeout: NodeJS.Timeout;
 
   let videoRecorder: MediaRecorder | null = null;
   let audioRecorder: MediaRecorder | null = null;
@@ -132,6 +132,10 @@
   EventBus.on('resumed', () => {
     status = GameStatus.PLAYING;
     keyboardSeeking = false;
+  });
+
+  EventBus.on('error', () => {
+    stillLoading = true;
   });
 
   EventBus.on('finished', () => {

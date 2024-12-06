@@ -22,9 +22,9 @@
     "vite"
   ],
   "scripts": {
-    "dev": "vite --config vite/config.dev.mjs --host",
+    "dev": "vite --config vite/config.dev.mjs --host -- --max-http-header-size=4194304",
     "build": "vite build --config vite/config.prod.mjs",
-    "preview": "vite preview --outDir build --host",
+    "preview": "vite --max-http-header-size=16384 preview --outDir build --host -- --max-http-header-size=4194304",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "pret": "prettier --check ./**/*.{js,cjs,ts,html,css,svelte,md,json}",
@@ -41,7 +41,7 @@
     "@sveltejs/kit": "^2.9.0",
     "@sveltejs/vite-plugin-svelte": "^5.0.1",
     "@tailwindcss/forms": "^0.5.9",
-    "@tauri-apps/cli": "^2.1.0",
+    "@tauri-apps/cli": "2.0.0-rc.18",
     "@typescript-eslint/parser": "^8.17.0",
     "autoprefixer": "^10.4.20",
     "daisyui": "^4.12.14",
@@ -67,6 +67,7 @@
   "dependencies": {
     "@ffmpeg/ffmpeg": "^0.12.10",
     "@ffmpeg/util": "^0.12.1",
+    "@tauri-apps/api": "^2.0.1",
     "file-type": "^19.6.0",
     "gifuct-js": "^2.1.2",
     "jszip": "^3.10.1",

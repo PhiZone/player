@@ -206,7 +206,11 @@ export const getParams = (): Config | null => {
   const record = ['1', 'true'].some((v) => v == searchParams.get('record'));
   const autostart = ['1', 'true'].some((v) => v == searchParams.get('autostart'));
   const newTab = ['1', 'true'].some((v) => v == searchParams.get('newTab'));
-  if (!song || !chart || !illustration || assetNames.length < assets.length) return null;
+  const fullscreen = ['1', 'true'].some((v) => v == searchParams.get('fullscreen'));
+  if (!song || !chart || !illustration || assetNames.length < assets.length) {
+    const storageItem = localStorage.getItem('player');
+    return storageItem ? JSON.parse(storageItem) : null;
+  }
   return {
     resources: {
       song,
@@ -254,6 +258,7 @@ export const getParams = (): Config | null => {
     record,
     autostart,
     newTab,
+    fullscreen,
   };
 };
 
@@ -600,10 +605,14 @@ export const calculatePrecedences = (arr: number[]) => {
 
 export const getAudio = async (url: string): Promise<string> => {
   const originalAudio = await download(url, 'audio');
-  const type = (await fileTypeFromBlob(originalAudio))?.mime.toString() ?? '';
-  console.log('can play', type, '->', document.createElement('audio').canPlayType(type)); // TODO need testing
-  if (document.createElement('audio').canPlayType(type) !== '') {
-    return URL.createObjectURL(originalAudio);
+  try {
+    const type = (await fileTypeFromBlob(originalAudio))?.mime.toString() ?? '';
+    console.log('can play', type, '->', document.createElement('audio').canPlayType(type)); // TODO need testing
+    if (document.createElement('audio').canPlayType(type) !== '') {
+      return URL.createObjectURL(originalAudio);
+    }
+  } catch (e) {
+    console.error(e);
   }
 
   EventBus.emit('loading', 0);

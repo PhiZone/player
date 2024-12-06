@@ -62,7 +62,7 @@ export class Game extends Scene {
   private _shaders: string[] | undefined;
   private _videos: Video[] | undefined;
   private _visible: boolean = true;
-  private _timeout: number = 0;
+  private _timeout: NodeJS.Timeout;
 
   private _song: Sound.NoAudioSound | Sound.HTML5AudioSound | Sound.WebAudioSound;
   private _background: GameObjects.Image;
@@ -349,8 +349,12 @@ export class Game extends Scene {
       this._status === GameStatus.DESTROYED ||
       this._status === GameStatus.ERROR ||
       this._status === GameStatus.LOADING
-    )
+    ) {
+      if (this._status === GameStatus.ERROR) {
+        EventBus.emit('error');
+      }
       return;
+    }
     if (this._status === GameStatus.FINISHED) this._endingUI.update();
     this._pointerHandler.update(delta);
     if (this._visible) {

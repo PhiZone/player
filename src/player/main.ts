@@ -21,6 +21,7 @@ const start = (parent: string, sceneConfig: Config | null) => {
   if (sceneConfig) {
     localStorage.setItem('player', JSON.stringify(sceneConfig));
     if (
+      ('__TAURI_INTERNALS__' in window && navigator.maxTouchPoints > 0 && sceneConfig.fullscreen) ||
       sceneConfig.preferences.aspectRatio !== null ||
       (sceneConfig.record && sceneConfig.recorderOptions.overrideResolution !== null)
     ) {
@@ -31,6 +32,16 @@ const start = (parent: string, sceneConfig: Config | null) => {
       )
         sceneConfig.recorderOptions.overrideResolution = null;
       let dimensions: { width: number; height: number } = { width: 0, height: 0 };
+      if (
+        '__TAURI_INTERNALS__' in window &&
+        navigator.maxTouchPoints > 0 &&
+        sceneConfig.fullscreen
+      ) {
+        dimensions = {
+          width: window.screen.width * window.devicePixelRatio,
+          height: window.screen.height * window.devicePixelRatio,
+        };
+      }
       if (sceneConfig.preferences.aspectRatio !== null) {
         const ratio = sceneConfig.preferences.aspectRatio;
         dimensions = fit(
@@ -41,7 +52,7 @@ const start = (parent: string, sceneConfig: Config | null) => {
           true,
         );
       }
-      if (sceneConfig.recorderOptions.overrideResolution !== null) {
+      if (sceneConfig.record && sceneConfig.recorderOptions.overrideResolution !== null) {
         dimensions = {
           width: sceneConfig.recorderOptions.overrideResolution[0],
           height: sceneConfig.recorderOptions.overrideResolution[1],

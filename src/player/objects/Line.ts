@@ -238,11 +238,11 @@ export class Line {
           return;
         }
         case 'combonumber': {
-          this._scene.gameUI.combo.setAttach(params);
+          this._scene.gameUI.combo.setAttach(params, true);
           return;
         }
         case 'combo': {
-          this._scene.gameUI.comboText.setAttach(params);
+          this._scene.gameUI.comboText.setAttach(params, true);
           return;
         }
         case 'score': {
