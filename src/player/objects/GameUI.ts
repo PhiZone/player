@@ -6,7 +6,6 @@ import { COMBO_TEXT, FONT_FAMILY } from '../constants';
 
 export class GameUI {
   private _scene: Game;
-  private _ui: GameObjects.Container;
   private _pause: Button;
   private _combo: UIComponent;
   private _comboText: UIComponent;
@@ -41,7 +40,6 @@ export class GameUI {
     this._scene = scene;
     const stats = scene.statistics.stats;
 
-    this._ui = scene.add.container().setDepth(8);
     this._pause = this.createButton(
       scene.w(this._positions[0][0]),
       scene.h(this._positions[0][1]),
@@ -49,6 +47,7 @@ export class GameUI {
       this._scene.p(this._offsets[0][1]),
       0,
       0,
+      8,
       'pause',
     );
     this._pause.image.on('pointerup', () => {
@@ -78,6 +77,7 @@ export class GameUI {
       this._scene.p(this._offsets[1][1]),
       0.5,
       0,
+      9,
       stats.combo.toString(),
       scene.p(this._fontSizes[1]),
     );
@@ -89,6 +89,7 @@ export class GameUI {
       this._scene.p(this._offsets[2][1]),
       0.5,
       0,
+      10,
       COMBO_TEXT,
       scene.p(this._fontSizes[2]),
     );
@@ -100,6 +101,7 @@ export class GameUI {
       this._scene.p(this._offsets[3][1]),
       1,
       0,
+      11,
       pad(stats.displayScore, 7),
       scene.p(this._fontSizes[3]),
     );
@@ -111,6 +113,7 @@ export class GameUI {
       this._scene.p(this._offsets[4][1]),
       1,
       0,
+      12,
       `${stats.displayStdDev.toFixed(3)} ms · ${stats.accuracy.toLocaleString(undefined, {
         style: 'percent',
         minimumFractionDigits: 2,
@@ -126,6 +129,7 @@ export class GameUI {
       this._scene.p(this._offsets[5][1]),
       0,
       1,
+      14,
       scene.metadata.title ?? '',
       scene.p(this._fontSizes[5]),
     );
@@ -137,11 +141,12 @@ export class GameUI {
       this._scene.p(this._offsets[6][1]),
       1,
       1,
+      15,
       scene.metadata.level ?? '',
       scene.p(this._fontSizes[6]),
     );
 
-    this._progressBar = new ProgressBar(this);
+    this._progressBar = new ProgressBar(this, 13);
     this._upperTargets = [
       this._pause,
       this._combo,
@@ -298,12 +303,13 @@ export class GameUI {
     offsetY: number,
     originX: number,
     originY: number,
+    depth: number,
     text: string,
     fontSize?: number | undefined,
     textStyle?: Types.GameObjects.Text.TextStyle | undefined,
   ) {
-    const container = new GameObjects.Container(this._scene, x, y);
-    this._ui.add(container);
+    const container = new GameObjects.Container(this._scene, x, y).setDepth(depth);
+    this._scene.register(container);
     const component = new UIComponent(
       this._scene,
       container,
@@ -327,10 +333,11 @@ export class GameUI {
     offsetY: number,
     originX: number,
     originY: number,
+    depth: number,
     texture: string,
   ) {
-    const container = new GameObjects.Container(this._scene, x, y);
-    this._ui.add(container);
+    const container = new GameObjects.Container(this._scene, x, y).setDepth(depth);
+    this._scene.register(container);
     const button = new Button(
       this._scene,
       container,
@@ -397,10 +404,6 @@ export class GameUI {
 
   public get lowerTargets() {
     return this._lowerTargets;
-  }
-
-  public get ui() {
-    return this._ui;
   }
 
   public get scene() {
@@ -520,12 +523,12 @@ class ProgressBar extends GameObjects.Container {
   private _progressBar: GameObjects.Image;
   private _isAnimationPlaying: boolean = false;
 
-  constructor(ui: GameUI) {
-    super(ui.scene, 0, 0);
+  constructor(ui: GameUI, depth: number) {
+    super(ui.scene);
     this._progressBar = new GameObjects.Image(ui.scene, 0, 0, 'progress-bar').setOrigin(1, 0);
-    // this.setDepth(8);
+    this.setDepth(depth);
     this.add(this._progressBar);
-    ui.ui.add(this);
+    ui.scene.register(this);
   }
 
   setAttach(params: {

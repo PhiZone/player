@@ -1,3 +1,4 @@
+import { GameObjects } from 'phaser';
 import { HitEffects } from '../objects/HitEffects';
 import type { LongNote } from '../objects/LongNote';
 import type { PlainNote } from '../objects/PlainNote';
@@ -14,9 +15,12 @@ export class JudgmentHandler {
   private _miss: number = 0;
   private _judgmentCount: number = 0;
   private _judgmentDeltas: { delta: number; beat: number }[] = [];
+  private _hitEffectsContainer: GameObjects.Container;
 
   constructor(scene: Game) {
     this._scene = scene;
+    this._hitEffectsContainer = new GameObjects.Container(scene).setDepth(7);
+    this._scene.register(this._hitEffectsContainer);
   }
 
   hit(type: JudgmentType, delta: number, note: PlainNote) {
@@ -132,7 +136,9 @@ export class JudgmentHandler {
 
   createHitEffects(type: JudgmentType, note: PlainNote | LongNote) {
     const { x, y } = note.judgmentPosition;
-    new HitEffects(this._scene, x, y, type).hit(rgbToHex(note.note.tintHitEffects));
+    this._hitEffectsContainer.add(
+      new HitEffects(this._scene, x, y, type).hit(rgbToHex(note.note.tintHitEffects)),
+    );
   }
 
   createHitsound(note: PlainNote | LongNote) {

@@ -20,8 +20,6 @@ export class HitEffects extends GameObjects.Sprite {
     this.setScale(this._scene.p(HIT_EFFECTS_SIZE));
     this.setOrigin(0.5);
     this.setTint(this._color);
-    this.setDepth(7);
-    scene.add.existing(this);
   }
 
   hit(tint?: number) {
@@ -29,26 +27,28 @@ export class HitEffects extends GameObjects.Sprite {
       this.setTint(tint);
     }
     this.play('hit-effects');
-    Array(4)
-      .fill(null)
-      .forEach(() => this.particle(tint));
     this.once('animationcomplete', () => {
       this.destroy();
     });
+    return [
+      this,
+      ...Array(4)
+        .fill(null)
+        .map(() => this.particle(tint)),
+    ];
   }
 
   particle(tint?: number) {
-    const particle = this.scene.add
-      .rectangle(
-        this.x,
-        this.y,
-        this.scaleX * HIT_EFFECTS_PARTICLE_SIZE,
-        this.scaleY * HIT_EFFECTS_PARTICLE_SIZE,
-        tint ?? this._color,
-      )
+    const particle = new GameObjects.Rectangle(
+      this._scene,
+      this.x,
+      this.y,
+      this.scaleX * HIT_EFFECTS_PARTICLE_SIZE,
+      this.scaleY * HIT_EFFECTS_PARTICLE_SIZE,
+      tint ?? this._color,
+    )
       .setOrigin(0.5)
-      .setScale(0)
-      .setDepth(7);
+      .setScale(0);
     const range = this.scale * HIT_EFFECTS_PARTICLE_SPREAD_RANGE;
     this.scene.tweens.add({
       targets: particle,
@@ -83,5 +83,6 @@ export class HitEffects extends GameObjects.Sprite {
         particle.destroy();
       },
     });
+    return particle;
   }
 }

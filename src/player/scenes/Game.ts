@@ -62,12 +62,25 @@ export class Game extends Scene {
   private _shaders:
     | {
         key: string;
-        target: Cameras.Scene2D.Camera | GameObjects.RenderTexture;
+        target: Cameras.Scene2D.Camera | GameObjects.Container;
       }[]
     | undefined;
   private _videos: Video[] | undefined;
   private _visible: boolean = true;
   private _timeout: NodeJS.Timeout;
+
+  private _objects: {
+    object:
+      | GameObjects.Container
+      | GameObjects.Image
+      | GameObjects.Video
+      | GameObjects.Sprite
+      | GameObjects.Rectangle
+      | GameObjects.Text;
+    depth: number;
+    upperDepth?: number;
+    occupied: { [key: string]: boolean };
+  }[] = [];
 
   private _song: Sound.NoAudioSound | Sound.HTML5AudioSound | Sound.WebAudioSound;
   private _background: GameObjects.Image;
@@ -388,11 +401,6 @@ export class Game extends Scene {
     this._lines.forEach((line) => line.update(beat, time));
     this._notes.forEach((note) => note.updateJudgment(beat));
     this._shaders?.forEach((shader) => {
-      if ('draw' in shader.target) {
-        (shader.target as GameObjects.RenderTexture)
-          .clear()
-          .draw(this._lines.map((line) => line.elements.map((e) => e.setVisible(false))).flat());
-      }
       (shader.target.getPostPipeline(shader.key) as ShaderPipeline)?.update(beat, time);
     });
     this._videos?.forEach((video) => video.update(beat, timeSec));
@@ -406,11 +414,13 @@ export class Game extends Scene {
 
   createBackground() {
     EventBus.emit('loading-detail', 'Drawing background');
-    this._background = this.add.image(
+    this._background = new GameObjects.Image(
+      this,
       this.sys.canvas.width / 2,
       this.sys.canvas.height / 2,
       'illustration-background',
     );
+    this.register(this._background);
     if (!SUPPORTS_CANVAS_BLUR) {
       this._background.preFX?.addBlur(
         2,
@@ -567,21 +577,29 @@ export class Game extends Scene {
         key,
         ShaderPipeline,
       );
-      effect.depth = 7;
-      let target: Cameras.Scene2D.Camera | GameObjects.RenderTexture;
-      if (effect.depth) {
-        target = this.add
-          .renderTexture(0, 0, this.sys.canvas.width, this.sys.canvas.height)
-          .setOrigin(0)
-          .setDepth(effect.depth);
+      effect.targetRange = {
+        minZIndex: 3,
+        maxZIndex: 7,
+        exclusive: true,
+      };
+      let target: Cameras.Scene2D.Camera | GameObjects.Container;
+      if (effect.targetRange) {
+        target = new GameObjects.Container(this).setDepth(effect.targetRange.minZIndex);
+        this.register(target, effect.targetRange.maxZIndex);
+        target.setPostPipeline(key, {
+          scene: this,
+          fragShader: asset.source,
+          data: effect,
+          target,
+        });
       } else {
         target = this.cameras.main;
+        target.setPostPipeline(key, {
+          scene: this,
+          fragShader: asset.source,
+          data: effect,
+        });
       }
-      target.setPostPipeline(key, {
-        scene: this,
-        fragShader: asset.source,
-        data: effect,
-      });
       return { key, target };
     });
   }
@@ -599,6 +617,20 @@ export class Game extends Scene {
         }),
     );
     await signalHandler.wait();
+  }
+
+  register(
+    object:
+      | GameObjects.Container
+      | GameObjects.Image
+      | GameObjects.Video
+      | GameObjects.Sprite
+      | GameObjects.Rectangle
+      | GameObjects.Text,
+    upperDepth?: number,
+  ) {
+    this.add.existing(object);
+    this._objects.push({ object, depth: object.depth, upperDepth, occupied: {} });
   }
 
   w(width: number) {
@@ -707,5 +739,9 @@ export class Game extends Scene {
 
   public get practice() {
     return this._practice;
+  }
+
+  public get objects() {
+    return this._objects;
   }
 }

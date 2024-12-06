@@ -1,4 +1,4 @@
-import { Renderer } from 'phaser';
+import { GameObjects, Renderer } from 'phaser';
 import type { Game } from '../scenes/Game';
 import type { AnimatedVariable, ShaderEffect, VariableEvent } from '../types';
 import { getValue, processEvents, toBeats } from '../utils';
@@ -8,11 +8,31 @@ const DEFAULT_VALUE_REGEX = /uniform\s+(\w+)\s+(\w+);\s+\/\/\s+%([^%]+)%/g;
 export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
   private _scene: Game;
   private _data: ShaderEffect;
+  private _container: GameObjects.Container | undefined;
+  private _targets:
+    | {
+        object:
+          | GameObjects.Container
+          | GameObjects.Image
+          | GameObjects.Video
+          | GameObjects.Sprite
+          | GameObjects.Rectangle
+          | GameObjects.Text;
+        depth: number;
+        upperDepth?: number;
+        occupied: { [key: string]: boolean };
+      }[]
+    | undefined;
   private _animators: VariableAnimator[] = [];
 
   constructor(
     game: Phaser.Game,
-    postPipelineData: { scene: Game; fragShader: string; data: ShaderEffect },
+    postPipelineData: {
+      scene: Game;
+      fragShader: string;
+      data: ShaderEffect;
+      target?: GameObjects.Container;
+    },
   ) {
     postPipelineData.fragShader = postPipelineData.fragShader
       .replaceAll('uv', 'outTexCoord')
@@ -22,6 +42,7 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
     this._data = postPipelineData.data;
     this._data.startBeat = toBeats(this._data.start);
     this._data.endBeat = toBeats(this._data.end);
+    this._container = postPipelineData.target;
 
     [...postPipelineData.fragShader.matchAll(DEFAULT_VALUE_REGEX)].map((uniform) => {
       const type = uniform[1];
@@ -64,7 +85,53 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
 
   update(beat: number, time: number) {
     this.active = beat >= this._data.startBeat && beat < this._data.endBeat;
-    if (!this.active) return;
+    if (!this.active) {
+      if (this._targets?.some((target) => target.occupied[this.name])) {
+        console.log('Removing targets from', this.name);
+        this._container?.removeAll();
+        this._targets?.forEach((target) => {
+          target.occupied[this.name] = false;
+          // this._scene.add.existing(target.object);
+        });
+      }
+      return;
+    }
+    if (
+      this._data.targetRange &&
+      (!this._targets || this._targets?.some((target) => !target.occupied[this.name]))
+    ) {
+      const range = this._data.targetRange;
+      this._targets = this._scene.objects.filter((o) => {
+        if (Object.keys(o.occupied).some((key) => o.occupied[key])) return false;
+        if (o.upperDepth) {
+          if ((o.object as GameObjects.Container).list.length === 0) return false;
+          if (range.exclusive) {
+            return o.depth >= range.minZIndex && o.upperDepth <= range.maxZIndex;
+          } else {
+            return o.upperDepth > range.minZIndex && o.depth < range.maxZIndex;
+          }
+        } else {
+          return o.depth >= range.minZIndex && o.depth < range.maxZIndex;
+        }
+      });
+      console.log('Adding targets to', this.name);
+      this._targets.forEach((target) => {
+        target.occupied[this.name] = true;
+        this._container?.add(target.object);
+      });
+      console.log(this._targets);
+    }
+    if (!this.currentShader) {
+      console.warn(
+        `Shader ${this.name} is not loaded, even if it has ${this._container?.count('visible', true)} visible targets.`,
+      );
+      try {
+        this.set1f('time', time / 1000);
+      } catch (e) {
+        console.log('And thus we have expectedly caught', e);
+      }
+      return;
+    }
     try {
       this.set1f('time', time / 1000);
       this.set2f('screenSize', this.renderer.width, this.renderer.height);
@@ -82,7 +149,7 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
 
   setUniform(name: string, value: number | number[] | unknown, beat: number) {
     if (!value) return;
-    console.log(beat.toFixed(3), this._data.shader, name, value);
+    console.log(beat.toFixed(3), this.name, name, value);
     if (Array.isArray(value)) {
       if (value.length === 2) this.set2f(name, value[0], value[1]);
       else if (value.length === 3) this.set3f(name, value[0], value[1], value[2]);

@@ -323,7 +323,11 @@ export interface ShaderEffect {
   endBeat: number;
   shader: string;
   global: boolean;
-  depth?: number;
+  targetRange?: {
+    minZIndex: number;
+    maxZIndex: number;
+    exclusive: boolean;
+  };
   vars?: {
     [key: string]: Variable;
   };

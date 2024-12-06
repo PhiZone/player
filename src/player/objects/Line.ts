@@ -135,7 +135,7 @@ export class Line {
     // );
 
     this.setVisible(false);
-    scene.add.existing(this._line);
+    scene.register(this._line);
 
     this._data.eventLayers.forEach((layer) => {
       processEvents(layer?.alphaEvents);
@@ -289,7 +289,7 @@ export class Line {
   createContainer(depth: number) {
     const container = new GameObjects.Container(this._scene);
     container.setDepth(depth);
-    this._scene.add.existing(container);
+    this._scene.register(container);
     return container;
   }
 
@@ -521,7 +521,13 @@ export class Line {
   }
 
   public get elements() {
-    return [this._flickContainer, this._tapContainer, this._dragContainer, this._holdContainer];
+    return [
+      this._line,
+      this._holdContainer,
+      this._dragContainer,
+      this._tapContainer,
+      this._flickContainer,
+    ];
   }
 
   setVisible(visible: boolean) {

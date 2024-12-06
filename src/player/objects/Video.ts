@@ -34,7 +34,7 @@ export class Video extends GameObjects.Container {
       this._video.stop();
       this.add(this._video);
       this.add(this._overlay);
-      scene.add.existing(this);
+      scene.register(this);
       successCallback();
     });
   }
