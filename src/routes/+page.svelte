@@ -1002,8 +1002,8 @@
                   </span>
                 </label>
               </div>
-              <!-- {#if '__TAURI_INTERNALS__' in window}
-                <div class="relative flex items-start">
+              {#if '__TAURI_INTERNALS__' in window}
+                <!-- <div class="relative flex items-start">
                   <div class="flex items-center h-5 mt-1">
                     <input
                       id="fullscreen"
@@ -1025,32 +1025,32 @@
                       The player will be opened in fullscreen.
                     </span>
                   </label>
+                </div> -->
+              {:else}
+                <div class="relative flex items-start">
+                  <div class="flex items-center h-5 mt-1">
+                    <input
+                      id="newtab"
+                      name="newtab"
+                      type="checkbox"
+                      class="transition border-gray-200 rounded text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
+                      aria-describedby="newtab-description"
+                      bind:checked={toggles.newTab}
+                    />
+                  </div>
+                  <label for="newtab" class="ms-3">
+                    <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
+                      New tab
+                    </span>
+                    <span
+                      id="newtab-description"
+                      class="block text-sm text-gray-600 dark:text-neutral-500"
+                    >
+                      The player will be opened in a new tab.
+                    </span>
+                  </label>
                 </div>
-              {:else} -->
-              <div class="relative flex items-start">
-                <div class="flex items-center h-5 mt-1">
-                  <input
-                    id="newtab"
-                    name="newtab"
-                    type="checkbox"
-                    class="transition border-gray-200 rounded text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
-                    aria-describedby="newtab-description"
-                    bind:checked={toggles.newTab}
-                  />
-                </div>
-                <label for="newtab" class="ms-3">
-                  <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
-                    New tab
-                  </span>
-                  <span
-                    id="newtab-description"
-                    class="block text-sm text-gray-600 dark:text-neutral-500"
-                  >
-                    The player will be opened in a new tab.
-                  </span>
-                </label>
-              </div>
-              <!-- {/if} -->
+              {/if}
             </div>
             <div class="flex gap-2">
               <PreferencesModal bind:preferences class="w-1/2" />
