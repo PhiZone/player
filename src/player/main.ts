@@ -5,10 +5,11 @@ import { fit } from './utils';
 
 const config: Types.Core.GameConfig = {
   type: WEBGL,
-  width: window.screen.width * window.devicePixelRatio,
-  height: window.screen.height * window.devicePixelRatio,
+  width: window.innerWidth * window.devicePixelRatio,
+  height: window.innerHeight * window.devicePixelRatio,
   scale: {
-    mode: Scale.RESIZE,
+    mode: Scale.NONE,
+    autoCenter: Scale.CENTER_BOTH,
   },
   backgroundColor: '#000000',
   scene: [MainGame],
@@ -68,6 +69,14 @@ const start = (parent: string, sceneConfig: Config | null) => {
   }
   const game = new Game({ ...config, parent });
   game.scene.start('MainGame');
+  if (!config.scale || config.scale.mode === Scale.NONE) {
+    window.onresize = () => {
+      game.scale.resize(
+        window.innerWidth * window.devicePixelRatio,
+        window.innerHeight * window.devicePixelRatio,
+      );
+    };
+  }
   return game;
 };
 

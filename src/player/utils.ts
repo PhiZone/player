@@ -685,6 +685,11 @@ const convertGifToSpritesheet = (gifArrayBuffer: ArrayBuffer) => {
   // Parse the GIF
   const gif = parseGIF(gifArrayBuffer);
   const frames = decompressFrames(gif, true);
+  console.log(gif);
+
+  if (frames.length === 0) {
+    throw new Error('GIF has no frames');
+  }
 
   const frameDelays = frames.map((frame) => frame.delay || 10); // Default to 10ms if delay is missing
   const delayGCD = frameDelays.reduce((a, b) => gcd(a, b));
@@ -692,52 +697,144 @@ const convertGifToSpritesheet = (gifArrayBuffer: ArrayBuffer) => {
   // Calculate the inherent frameRate in frames per second
   const frameRate = 1000 / delayGCD; // Delays are in milliseconds
 
-  // Normalize the frames based on the GCD
-  const normalizedFrames: ImageData[] = [];
-  for (const frame of frames) {
-    const repeatCount = frame.delay / delayGCD;
-    for (let i = 0; i < repeatCount; i++) {
-      const canvas = document.createElement('canvas');
-      canvas.width = frame.dims.width;
-      canvas.height = frame.dims.height;
-      const ctx = canvas.getContext('2d')!;
-
-      // Create an ImageData object from the frame's patch
-      const imageData = new ImageData(
-        new Uint8ClampedArray(frame.patch),
-        frame.dims.width,
-        frame.dims.height,
-      );
-      ctx.putImageData(imageData, 0, 0);
-
-      normalizedFrames.push(imageData);
-    }
-  }
-
-  const frameCount = normalizedFrames.length;
-
   // Calculate dimensions of the spritesheet
   const spriteSize = frames[0].dims;
-  const spritesheetWidth = Math.ceil(Math.sqrt(frameCount));
-  const spritesheetHeight = Math.ceil(frameCount / spritesheetWidth);
+  const spritesheetWidth = Math.ceil(Math.sqrt(frames.length)) * spriteSize.width;
+  const spritesheetHeight =
+    Math.ceil(frames.length / Math.ceil(Math.sqrt(frames.length))) * spriteSize.height;
+
+  // Create an intermediate canvas for rendering frames
+  const intermediateCanvas = document.createElement('canvas');
+  intermediateCanvas.width = spriteSize.width;
+  intermediateCanvas.height = spriteSize.height;
+  const intermediateCtx = intermediateCanvas.getContext('2d')!;
 
   // Create a canvas for the spritesheet
   const spritesheetCanvas = document.createElement('canvas');
-  spritesheetCanvas.width = spritesheetWidth * spriteSize.width;
-  spritesheetCanvas.height = spritesheetHeight * spriteSize.height;
-  const ctx = spritesheetCanvas.getContext('2d')!;
+  spritesheetCanvas.width = spritesheetWidth;
+  spritesheetCanvas.height = spritesheetHeight;
+  const spritesheetCtx = spritesheetCanvas.getContext('2d')!;
 
-  // Draw the frames onto the spritesheet
-  normalizedFrames.forEach((frame, index) => {
-    const x = (index % spritesheetWidth) * spriteSize.width;
-    const y = Math.floor(index / spritesheetWidth) * spriteSize.height;
-    ctx.putImageData(frame, x, y);
+  let previousCanvasState: ImageData | null = null;
+  const backgroundColorIndex = gif.lsd.backgroundColorIndex; // Logical screen background color index
+  const globalPalette = gif.gct; // Global color table
+
+  // Convert palette index to RGBA color
+  const getRGBAColor = (palette: Uint8Array, index: number): [number, number, number, number] => {
+    if (index < 0 || index >= palette.length / 3) return [0, 0, 0, 0];
+    const r = palette[index * 3];
+    const g = palette[index * 3 + 1];
+    const b = palette[index * 3 + 2];
+    console.log('Getting color', r, g, b, 'from index', index);
+    return [r, g, b, 255]; // Fully opaque
+  };
+
+  // Clear intermediate canvas with a specified background color
+  const clearIntermediateCanvas = (
+    ctx: CanvasRenderingContext2D,
+    palette: Uint8Array,
+    bgColorIndex: number,
+  ) => {
+    const [r, g, b, a] = getRGBAColor(palette, bgColorIndex);
+    ctx.clearRect(0, 0, spriteSize.width, spriteSize.height);
+    console.log('Clearing frame area', r, g, b, a);
+    ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`;
+    ctx.fillRect(0, 0, spriteSize.width, spriteSize.height);
+  };
+
+  // Process each frame
+  frames.forEach((frame, index) => {
+    console.log(index, frame);
+    const p = frame.colorTable || globalPalette;
+    const palette = Uint8Array.from(p.map((value) => [value[0], value[1], value[2]]).flat());
+    console.log(frame.colorTable, globalPalette, p, palette);
+    const transparentIndex = frame.transparentIndex;
+
+    // Apply disposal methods
+    if (frame.disposalType === 2) {
+      // Clear the frame area to the background color
+      clearIntermediateCanvas(intermediateCtx, palette, backgroundColorIndex);
+    } else if (frame.disposalType === 3 && previousCanvasState) {
+      // Restore previous canvas state
+      console.log('Restoring previous canvas state');
+      intermediateCtx.putImageData(previousCanvasState, 0, 0);
+    }
+
+    // Save the current canvas state if the disposal type is 3
+    if (frame.disposalType === 3) {
+      console.log('Saving current canvas state');
+      previousCanvasState = intermediateCtx.getImageData(0, 0, spriteSize.width, spriteSize.height);
+    }
+
+    // Create ImageData from the frame patch
+    const patchImageData = new ImageData(frame.patch, frame.dims.width, frame.dims.height);
+
+    // Apply transparent pixels
+    if (transparentIndex !== null) {
+      const transparentColor = getRGBAColor(palette, transparentIndex);
+      for (let i = 0; i < patchImageData.data.length; i += 4) {
+        const r = patchImageData.data[i];
+        const g = patchImageData.data[i + 1];
+        const b = patchImageData.data[i + 2];
+        const a = patchImageData.data[i + 3];
+
+        if (
+          r === transparentColor[0] &&
+          g === transparentColor[1] &&
+          b === transparentColor[2] &&
+          a === transparentColor[3]
+        ) {
+          patchImageData.data[i + 3] = 0; // Make transparent
+        }
+      }
+    }
+
+    // Draw the patch onto the intermediate canvas
+    const patchCanvas = document.createElement('canvas');
+    patchCanvas.width = frame.dims.width;
+    patchCanvas.height = frame.dims.height;
+
+    const patchCtx = patchCanvas.getContext('2d')!;
+    patchCtx.putImageData(new ImageData(frame.patch, frame.dims.width, frame.dims.height), 0, 0);
+
+    // Draw onto the intermediate canvas
+    intermediateCtx.drawImage(
+      patchCanvas,
+      0,
+      0,
+      frame.dims.width,
+      frame.dims.height,
+      frame.dims.left,
+      frame.dims.top,
+      frame.dims.width,
+      frame.dims.height,
+    );
+    intermediateCanvas.toBlob((e) => {
+      if (e) console.log(URL.createObjectURL(e));
+    });
+
+    // Calculate spritesheet position
+    const x = (index % Math.ceil(spritesheetWidth / spriteSize.width)) * spriteSize.width;
+    const y =
+      Math.floor(index / Math.ceil(spritesheetWidth / spriteSize.width)) * spriteSize.height;
+
+    // Draw the intermediate canvas onto the spritesheet
+    spritesheetCtx.drawImage(
+      intermediateCanvas,
+      0,
+      0,
+      spriteSize.width,
+      spriteSize.height,
+      x,
+      y,
+      spriteSize.width,
+      spriteSize.height,
+    );
   });
 
-  // Return the spritesheet and metadata
   return {
     spritesheet: spritesheetCanvas,
-    frameCount,
+    frameCount: frames.length,
     frameSize: { frameWidth: spriteSize.width, frameHeight: spriteSize.height },
     frameRate,
     repeat: -1,
