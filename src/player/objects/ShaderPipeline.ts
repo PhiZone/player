@@ -78,7 +78,7 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
 
   setUniform(name: string, value: number | number[] | unknown, beat: number) {
     if (!value) return;
-    console.log(beat.toFixed(3), this._data.shader, name, value);
+    console.debug(beat.toFixed(3), this._data.shader, name, value);
     if (Array.isArray(value)) {
       if (value.length === 2) this.set2f(name, value[0], value[1]);
       else if (value.length === 3) this.set3f(name, value[0], value[1], value[2]);

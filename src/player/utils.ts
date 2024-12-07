@@ -18,10 +18,10 @@ import { EventBus } from './EventBus';
 import { getFFmpeg, loadFFmpeg } from './ffmpeg';
 import type { Game } from './scenes/Game';
 import { ENDING_ILLUSTRATION_CORNER_RADIUS } from './constants';
-import { parseGIF, decompressFrames } from 'gifuct-js';
+import { parseGIF, decompressFrames, type ParsedFrame } from 'gifuct-js';
 import { gcd } from 'mathjs';
 import { fileTypeFromBlob, fileTypeFromBuffer } from 'file-type';
-import parseAPNG from 'apng-js';
+import parseAPNG, { Frame } from 'apng-js';
 
 const easingFunctions: ((x: number) => number)[] = [
   (x) => x,
@@ -680,22 +680,27 @@ export const outputRecording = async (
   URL.revokeObjectURL(url);
 };
 
-// expect issues
+// TODO expect minor issues
+// backgroundColorIndex unimplemented
 const convertGifToSpritesheet = (gifArrayBuffer: ArrayBuffer) => {
-  // Parse the GIF
   const gif = parseGIF(gifArrayBuffer);
-  const frames = decompressFrames(gif, true);
-  console.log(gif);
+  const originalFrames = decompressFrames(gif, true);
+  console.log(gif, originalFrames);
 
-  if (frames.length === 0) {
+  if (originalFrames.length === 0) {
     throw new Error('GIF has no frames');
   }
 
-  const frameDelays = frames.map((frame) => frame.delay || 10); // Default to 10ms if delay is missing
+  const frameDelays = originalFrames.map((frame) => frame.delay || 10); // Default to 10ms if delay is missing
   const delayGCD = frameDelays.reduce((a, b) => gcd(a, b));
 
   // Calculate the inherent frameRate in frames per second
   const frameRate = 1000 / delayGCD; // Delays are in milliseconds
+
+  const frames: ParsedFrame[] = [];
+  originalFrames.forEach((frame) => {
+    frames.push(...Array(frame.delay / delayGCD).fill(frame));
+  });
 
   // Calculate dimensions of the spritesheet
   const spriteSize = frames[0].dims;
@@ -716,7 +721,7 @@ const convertGifToSpritesheet = (gifArrayBuffer: ArrayBuffer) => {
   const spritesheetCtx = spritesheetCanvas.getContext('2d')!;
 
   let previousCanvasState: ImageData | null = null;
-  const backgroundColorIndex = gif.lsd.backgroundColorIndex; // Logical screen background color index
+  // const backgroundColorIndex = gif.lsd.backgroundColorIndex; // Logical screen background color index
   const globalPalette = gif.gct; // Global color table
 
   // Convert palette index to RGBA color
@@ -725,44 +730,39 @@ const convertGifToSpritesheet = (gifArrayBuffer: ArrayBuffer) => {
     const r = palette[index * 3];
     const g = palette[index * 3 + 1];
     const b = palette[index * 3 + 2];
-    console.log('Getting color', r, g, b, 'from index', index);
     return [r, g, b, 255]; // Fully opaque
   };
 
   // Clear intermediate canvas with a specified background color
   const clearIntermediateCanvas = (
     ctx: CanvasRenderingContext2D,
-    palette: Uint8Array,
-    bgColorIndex: number,
+    // palette: Uint8Array,
+    // bgColorIndex: number,
   ) => {
-    const [r, g, b, a] = getRGBAColor(palette, bgColorIndex);
+    // const [r, g, b, a] = getRGBAColor(palette, bgColorIndex);
     ctx.clearRect(0, 0, spriteSize.width, spriteSize.height);
-    console.log('Clearing frame area', r, g, b, a);
-    ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`;
-    ctx.fillRect(0, 0, spriteSize.width, spriteSize.height);
+    // console.log('Clearing frame area', r, g, b, a);
+    // ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`;
+    // ctx.fillRect(0, 0, spriteSize.width, spriteSize.height);
   };
 
   // Process each frame
   frames.forEach((frame, index) => {
-    console.log(index, frame);
     const p = frame.colorTable || globalPalette;
     const palette = Uint8Array.from(p.map((value) => [value[0], value[1], value[2]]).flat());
-    console.log(frame.colorTable, globalPalette, p, palette);
     const transparentIndex = frame.transparentIndex;
 
     // Apply disposal methods
     if (frame.disposalType === 2) {
       // Clear the frame area to the background color
-      clearIntermediateCanvas(intermediateCtx, palette, backgroundColorIndex);
+      clearIntermediateCanvas(intermediateCtx /*, palette, backgroundColorIndex*/);
     } else if (frame.disposalType === 3 && previousCanvasState) {
       // Restore previous canvas state
-      console.log('Restoring previous canvas state');
       intermediateCtx.putImageData(previousCanvasState, 0, 0);
     }
 
     // Save the current canvas state if the disposal type is 3
     if (frame.disposalType === 3) {
-      console.log('Saving current canvas state');
       previousCanvasState = intermediateCtx.getImageData(0, 0, spriteSize.width, spriteSize.height);
     }
 
@@ -809,9 +809,6 @@ const convertGifToSpritesheet = (gifArrayBuffer: ArrayBuffer) => {
       frame.dims.width,
       frame.dims.height,
     );
-    intermediateCanvas.toBlob((e) => {
-      if (e) console.log(URL.createObjectURL(e));
-    });
 
     // Calculate spritesheet position
     const x = (index % Math.ceil(spritesheetWidth / spriteSize.width)) * spriteSize.width;
@@ -860,6 +857,11 @@ const convertApngToSpritesheet = async (buffer: ArrayBuffer) => {
   const delayGCD = frameDelays.reduce((a, b) => gcd(a, b));
   const frameRate = 1000 / delayGCD;
 
+  const frames: Frame[] = [];
+  apng.frames.forEach((frame) => {
+    frames.push(...Array(frame.delay / delayGCD).fill(frame));
+  });
+
   // Create a canvas for intermediate rendering
   const intermediateCanvas = document.createElement('canvas');
   intermediateCanvas.width = spriteSize.width;
@@ -877,8 +879,8 @@ const convertApngToSpritesheet = async (buffer: ArrayBuffer) => {
   let previousCanvasState: ImageData | null = null;
 
   // Process each frame, considering blend and dispose modes
-  for (let i = 0; i < apng.frames.length; i++) {
-    const frame = apng.frames[i];
+  for (let i = 0; i < frames.length; i++) {
+    const frame = frames[i];
     if (!frame.imageData) continue;
 
     // Save the current canvas state if needed for later restoration
@@ -922,7 +924,7 @@ const convertApngToSpritesheet = async (buffer: ArrayBuffer) => {
 
   return {
     spritesheet: spritesheetCanvas,
-    frameCount: apng.frames.length,
+    frameCount: frames.length,
     frameSize: { frameWidth: spriteSize.width, frameHeight: spriteSize.height },
     frameRate,
     repeat: apng.numPlays > 0 ? apng.numPlays : -1,
