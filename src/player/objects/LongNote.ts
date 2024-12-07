@@ -62,20 +62,24 @@ export class LongNote extends GameObjects.Container {
       this._head.setVisible(false);
       headDist = 0;
     } else {
-      this._head.setVisible(visible && headDist >= 0);
+      this._head.setVisible(visible && (headDist >= 0 || !this._line.data.isCover));
     }
     if (beat >= this._data.endBeat) {
       this._body.setVisible(false);
       this._tail.setVisible(false);
     } else {
-      this._body.setVisible(visible && tailDist >= 0);
-      this._tail.setVisible(visible && tailDist >= 0);
+      this._body.setVisible(visible && (tailDist >= 0 || !this._line.data.isCover));
+      this._tail.setVisible(visible && (tailDist >= 0 || !this._line.data.isCover));
     }
     this._head.setY(this._yModifier * headDist);
-    this._body.setY(this._yModifier * Math.max(0, headDist));
+    this._body.setY(this._yModifier * (this._line.data.isCover ? Math.max(0, headDist) : headDist));
     this._tail.setY(this._yModifier * tailDist);
     this._body.scaleY =
-      (-this._yModifier * Math.max(0, tailDist - Math.max(0, headDist))) / this._bodyHeight;
+      (-this._yModifier *
+        (this._line.data.isCover
+          ? Math.max(0, tailDist - Math.max(0, headDist))
+          : tailDist - headDist)) /
+      this._bodyHeight;
     if (this._data.isFake) {
       if (this._judgmentType !== JudgmentType.PASSED && beat >= this._data.endBeat)
         this._judgmentType = JudgmentType.PASSED;

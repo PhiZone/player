@@ -55,7 +55,7 @@ export class PlainNote extends GameObjects.Image {
         }
       }
     } else if (this._judgmentType === JudgmentType.UNJUDGED) {
-      this.setVisible(visible && dist >= 0);
+      this.setVisible(visible && (dist >= 0 || !this._line.data.isCover));
     }
   }
 
