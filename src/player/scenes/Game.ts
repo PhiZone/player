@@ -297,11 +297,12 @@ export class Game extends Scene {
   start() {
     if (this._status === GameStatus.ERROR) return;
     this._status = GameStatus.PLAYING;
-    this.update(0, 0);
-    this._gameUI.in();
     this._timeout = setTimeout(() => {
       this._song.play();
     }, 1000);
+    this.update(0, 0);
+    this._gameUI.in();
+    this._objects.sort((a, b) => a.depth - b.depth);
     this.game.events.on('hidden', () => {
       this._visible = false;
       if (this._status !== GameStatus.FINISHED) this.pause();
