@@ -53,30 +53,30 @@ Similar to a video player, the program includes intuitive keyboard controls on a
 
 ## Development
 
-| Feature                                    | Version | Remark                                                                        | Status/Progress                   | 功能                    |
-| ------------------------------------------ | ------- | ----------------------------------------------------------------------------- | --------------------------------- | ----------------------- |
-| Basic RPE support                          | 0.0.1   |                                                                               | ✅ Done                           | 基本 RPE 适配           |
-| Support for custom line textures           | 0.0.1   |                                                                               | ⚠️ Issues expected (GIFs)         | 判定线自定义贴图适配    |
-| Support for flipping modes                 | 0.0.1   |                                                                               | ✅ Done                           | 镜像模式适配            |
-| Support for custom hit sounds              | 0.0.1   |                                                                               | ✅ Done                           | 自定义打击音效适配      |
-| Support for `zOrder`                       | 0.0.1   |                                                                               | ✅ Done                           | Z 轴排序适配            |
-| Better input detections                    | 0.0.2   | Especially for Flicks                                                         |                                   | 输入检测优化            |
-| Recording mode                             | 0.0.2   |                                                                               | 🚧 Working                        | 录制模式                |
-| Basic support for the extended event layer | 0.0.3   | Excluding GIF events & incline events                                         | ✅ Done                           | 扩展事件层的基本适配    |
-| Cross-platform distribution                | 0.0.3   | Plan to reference [this blog](https://nsarrazin.com/blog/sveltekit-universal) | 🚧 Working                        | 跨平台分发              |
-| Support for Phira `extra.json`             | 0.0.4   | Including shaders                                                             | 🛠️ Tests required                 | Phira `extra.json` 适配 |
-| Support for `attachUI`                     | 0.0.4   |                                                                               | ✅ Done                           | UI 绑定适配             |
-| Support for anchors                        | 0.0.4   |                                                                               | ✅ Done                           | 锚点适配                |
-| Support for APNGs                          | 0.0.4   |                                                                               | ⚠️ Issues expected (same as GIFs) | APNG 格式适配           |
-| Shader feature enhancements                | 0.0.5   |                                                                               | 🚧 Working                        | 着色器功能增强          |
-| Support for Bézier easings                 | 0.0.5   |                                                                               |                                   | 贝塞尔缓动适配          |
-| Offset adjustment mode                     | 0.0.5   |                                                                               |                                   | 延迟调整模式            |
-| Alignment with official/RPE constants      | 0.0.6   | Hold tolerances, texture size units, etc.                                     |                                   | 官/RPE 常数对齐         |
-| Full support for the extended event layer  | 0.0.6   | GIF events & incline events                                                   |                                   | 扩展事件层的完全适配    |
-| Support for all note properties            | 0.0.7   |                                                                               |                                   | 所有 Note 属性的适配    |
-| PhiZone integration                        | 0.0.8   |                                                                               |                                   | PhiZone 集成            |
-| Full RPE support                           | 0.1.0   |                                                                               |                                   | 完全 RPE 适配           |
-| Basic PE support                           | 0.1.1   |                                                                               |                                   | 基本 PE 适配            |
+| Feature                                    | Version | Remark                                                                        | Status/Progress           | 功能                    |
+| ------------------------------------------ | ------- | ----------------------------------------------------------------------------- | ------------------------- | ----------------------- |
+| Basic RPE support                          | 0.0.1   |                                                                               | ✅ Done                   | 基本 RPE 适配           |
+| Support for custom line textures           | 0.0.1   |                                                                               | ⚠️ Issues expected (GIFs) | 判定线自定义贴图适配    |
+| Support for flipping modes                 | 0.0.1   |                                                                               | ✅ Done                   | 镜像模式适配            |
+| Support for custom hit sounds              | 0.0.1   |                                                                               | ✅ Done                   | 自定义打击音效适配      |
+| Support for `zOrder`                       | 0.0.1   |                                                                               | ✅ Done                   | Z 轴排序适配            |
+| Better input detections                    | 0.0.2   | Especially for Flicks                                                         |                           | 输入检测优化            |
+| Recording mode                             | 0.0.2   |                                                                               | 🚧 Working                | 录制模式                |
+| Basic support for the extended event layer | 0.0.3   | Excluding GIF events & incline events                                         | ✅ Done                   | 扩展事件层的基本适配    |
+| Cross-platform distribution                | 0.0.3   | Plan to reference [this blog](https://nsarrazin.com/blog/sveltekit-universal) | 🚧 Working                | 跨平台分发              |
+| Support for Phira `extra.json`             | 0.0.4   | Including shaders                                                             | 🛠️ Tests required         | Phira `extra.json` 适配 |
+| Support for `attachUI`                     | 0.0.4   |                                                                               | ✅ Done                   | UI 绑定适配             |
+| Support for anchors                        | 0.0.4   |                                                                               | ✅ Done                   | 锚点适配                |
+| Support for APNGs                          | 0.0.4   |                                                                               | ✅ Done                   | APNG 格式适配           |
+| Shader feature enhancements                | 0.0.5   |                                                                               | 🚧 Working                | 着色器功能增强          |
+| Support for Bézier easings                 | 0.0.5   |                                                                               |                           | 贝塞尔缓动适配          |
+| Offset adjustment mode                     | 0.0.5   |                                                                               |                           | 延迟调整模式            |
+| Alignment with official/RPE constants      | 0.0.6   | Hold tolerances, texture size units, etc.                                     |                           | 官/RPE 常数对齐         |
+| Full support for the extended event layer  | 0.0.6   | GIF events & incline events                                                   |                           | 扩展事件层的完全适配    |
+| Support for all note properties            | 0.0.7   |                                                                               |                           | 所有 Note 属性的适配    |
+| PhiZone integration                        | 0.0.8   |                                                                               |                           | PhiZone 集成            |
+| Full RPE support                           | 0.1.0   |                                                                               |                           | 完全 RPE 适配           |
+| Basic PE support                           | 0.1.1   |                                                                               |                           | 基本 PE 适配            |
 
 A version is reached whenever at least one feature from this version and all features from the previous versions are marked as `✅ Done`.
 

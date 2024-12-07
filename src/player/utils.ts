@@ -22,7 +22,6 @@ import { parseGIF, decompressFrames } from 'gifuct-js';
 import { gcd } from 'mathjs';
 import { fileTypeFromBlob, fileTypeFromBuffer } from 'file-type';
 import parseAPNG from 'apng-js';
-import { SignalHandler } from './handlers/SignalHandler';
 
 const easingFunctions: ((x: number) => number)[] = [
   (x) => x,
@@ -755,39 +754,75 @@ const convertApngToSpritesheet = async (buffer: ArrayBuffer) => {
     throw new Error('APNG has no frames');
   }
 
-  // Calculate dimensions of the spritesheet
   const spriteSize = { width: apng.width, height: apng.height };
-  const spritesheetWidth = Math.ceil(Math.sqrt(apng.frames.length));
-  const spritesheetHeight = Math.ceil(apng.frames.length / spritesheetWidth);
+  const spritesheetWidth = Math.ceil(Math.sqrt(apng.frames.length)) * spriteSize.width;
+  const spritesheetHeight =
+    Math.ceil(apng.frames.length / Math.ceil(Math.sqrt(apng.frames.length))) * spriteSize.height;
 
-  const frameDelays = apng.frames.map((frame) => frame.delay || 10); // Default to 10ms if delay is missing
+  const frameDelays = apng.frames.map((frame) => frame.delay || 10);
   const delayGCD = frameDelays.reduce((a, b) => gcd(a, b));
+  const frameRate = 1000 / delayGCD;
 
-  // Calculate the inherent frameRate in frames per second
-  const frameRate = 1000 / delayGCD; // Delays are in milliseconds
+  // Create a canvas for intermediate rendering
+  const intermediateCanvas = document.createElement('canvas');
+  intermediateCanvas.width = spriteSize.width;
+  intermediateCanvas.height = spriteSize.height;
+  const intermediateCtx = intermediateCanvas.getContext('2d')!;
 
-  // Create a canvas for the spritesheet
+  // Create the spritesheet canvas
   const spritesheetCanvas = document.createElement('canvas');
-  spritesheetCanvas.width = spritesheetWidth * spriteSize.width;
-  spritesheetCanvas.height = spritesheetHeight * spriteSize.height;
-  const ctx = spritesheetCanvas.getContext('2d')!;
+  spritesheetCanvas.width = spritesheetWidth;
+  spritesheetCanvas.height = spritesheetHeight;
+  const spritesheetCtx = spritesheetCanvas.getContext('2d')!;
 
-  const signalHandler = new SignalHandler(apng.frames.length);
+  // Helper function to load images from blobs
+  // Store the previous canvas state for APNG_DISPOSE_OP_PREVIOUS
+  let previousCanvasState: ImageData | null = null;
 
-  // Draw the frames onto the spritesheet
-  apng.frames.forEach((frame, index) => {
-    if (frame.imageData == null) return;
-    const x = (index % spritesheetWidth) * spriteSize.width;
-    const y = Math.floor(index / spritesheetWidth) * spriteSize.height;
-    const image = new Image();
-    image.src = URL.createObjectURL(frame.imageData);
-    image.onload = () => {
-      ctx.drawImage(image, x, y);
-      signalHandler.emit();
-    };
-  });
+  // Process each frame, considering blend and dispose modes
+  for (let i = 0; i < apng.frames.length; i++) {
+    const frame = apng.frames[i];
+    if (!frame.imageData) continue;
+    console.log(frame);
 
-  await signalHandler.wait();
+    // Save the current canvas state if needed for later restoration
+    if (frame.disposeOp === 2) {
+      previousCanvasState = intermediateCtx.getImageData(0, 0, spriteSize.width, spriteSize.height);
+    }
+
+    // Draw current frame to the intermediate canvas
+    const img = await createImageFromBlob(frame.imageData);
+
+    if (frame.blendOp === 0) {
+      // APNG_BLEND_OP_SOURCE: Clear canvas before drawing
+      intermediateCtx.clearRect(0, 0, spriteSize.width, spriteSize.height);
+    }
+    intermediateCtx.drawImage(img, frame.left, frame.top);
+
+    // Copy intermediate canvas to the spritesheet at the correct location
+    const x = (i % Math.ceil(spritesheetWidth / spriteSize.width)) * spriteSize.width;
+    const y = Math.floor(i / Math.ceil(spritesheetWidth / spriteSize.width)) * spriteSize.height;
+    spritesheetCtx.drawImage(
+      intermediateCanvas,
+      0,
+      0,
+      spriteSize.width,
+      spriteSize.height,
+      x,
+      y,
+      spriteSize.width,
+      spriteSize.height,
+    );
+
+    // Handle dispose mode
+    if (frame.disposeOp === 1) {
+      // APNG_DISPOSE_OP_BACKGROUND: Clear affected frame area
+      intermediateCtx.clearRect(frame.left, frame.top, frame.width, frame.height);
+    } else if (frame.disposeOp === 2 && previousCanvasState) {
+      // APNG_DISPOSE_OP_PREVIOUS: Restore the previous canvas state
+      intermediateCtx.putImageData(previousCanvasState, 0, 0);
+    }
+  }
 
   return {
     spritesheet: spritesheetCanvas,
@@ -797,6 +832,13 @@ const convertApngToSpritesheet = async (buffer: ArrayBuffer) => {
     repeat: apng.numPlays > 0 ? apng.numPlays : -1,
   };
 };
+
+const createImageFromBlob = (blob: Blob) =>
+  new Promise<HTMLImageElement>((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.src = URL.createObjectURL(blob);
+  });
 
 export const getSpritesheet = async (url: string, isGif = false) => {
   const resp = await download(url, 'image');
