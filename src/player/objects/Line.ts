@@ -35,7 +35,7 @@ export class Line {
   private _noteMask: GameObjects.Graphics | null = null;
   private _notes: (PlainNote | LongNote)[] = [];
   private _hasCustomTexture: boolean = false;
-  private _hasGifTexture: boolean = false;
+  private _hasAnimatedTexture: boolean = false;
   private _hasText: boolean = false;
   private _xModifier: 1 | -1 = 1;
   private _yModifier: 1 | -1 = 1;
@@ -76,7 +76,9 @@ export class Line {
     this._data = lineData;
     this._hasText = (this._data.extended?.textEvents?.length ?? 0) > 0;
     this._hasCustomTexture = this._hasText || lineData.Texture !== 'line.png';
-    this._hasGifTexture = lineData.Texture.toLowerCase().endsWith('.gif');
+    this._hasAnimatedTexture = ['.gif', '.apng'].some((e) =>
+      lineData.Texture.toLowerCase().endsWith(e),
+    );
     this._line = this._hasText
       ? new GameObjects.Text(scene, 0, 0, this._text ?? '', {
           fontFamily: FONT_FAMILY,
@@ -84,7 +86,7 @@ export class Line {
           color: '#ffffff',
           align: 'left',
         }).setOrigin(0.5)
-      : this._hasGifTexture
+      : this._hasAnimatedTexture
         ? new GameObjects.Sprite(scene, 0, 0, `asset-${lineData.Texture}`).play(
             `asset-${lineData.Texture}`,
           )

@@ -68,6 +68,7 @@
     "@ffmpeg/ffmpeg": "^0.12.10",
     "@ffmpeg/util": "^0.12.1",
     "@tauri-apps/api": "^2.0.1",
+    "apng-js": "^1.1.4",
     "file-type": "^19.6.0",
     "gifuct-js": "^2.1.2",
     "jszip": "^3.10.1",

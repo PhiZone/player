@@ -21,6 +21,8 @@ import { ENDING_ILLUSTRATION_CORNER_RADIUS } from './constants';
 import { parseGIF, decompressFrames } from 'gifuct-js';
 import { gcd } from 'mathjs';
 import { fileTypeFromBlob, fileTypeFromBuffer } from 'file-type';
+import parseAPNG from 'apng-js';
+import { SignalHandler } from './handlers/SignalHandler';
 
 const easingFunctions: ((x: number) => number)[] = [
   (x) => x,
@@ -680,14 +682,7 @@ export const outputRecording = async (
 };
 
 // expect issues
-const convertGifToSpritesheet = (
-  gifArrayBuffer: ArrayBuffer,
-): {
-  spritesheet: HTMLCanvasElement;
-  frameCount: number;
-  frameSize: { frameWidth: number; frameHeight: number }; // Dimensions of a single frame
-  frameRate: number; // Calculated from delays
-} => {
+const convertGifToSpritesheet = (gifArrayBuffer: ArrayBuffer) => {
   // Parse the GIF
   const gif = parseGIF(gifArrayBuffer);
   const frames = decompressFrames(gif, true);
@@ -746,11 +741,65 @@ const convertGifToSpritesheet = (
     frameCount,
     frameSize: { frameWidth: spriteSize.width, frameHeight: spriteSize.height },
     frameRate,
+    repeat: -1,
   };
 };
 
-export const getGif = async (url: string) => {
-  const gif = await download(url, 'image');
-  const gifArrayBuffer = await gif.arrayBuffer();
-  return convertGifToSpritesheet(gifArrayBuffer);
+const convertApngToSpritesheet = async (buffer: ArrayBuffer) => {
+  const apng = parseAPNG(buffer);
+  if (apng instanceof Error) {
+    throw apng;
+  }
+
+  if (apng.frames.length === 0) {
+    throw new Error('APNG has no frames');
+  }
+
+  // Calculate dimensions of the spritesheet
+  const spriteSize = { width: apng.width, height: apng.height };
+  const spritesheetWidth = Math.ceil(Math.sqrt(apng.frames.length));
+  const spritesheetHeight = Math.ceil(apng.frames.length / spritesheetWidth);
+
+  const frameDelays = apng.frames.map((frame) => frame.delay || 10); // Default to 10ms if delay is missing
+  const delayGCD = frameDelays.reduce((a, b) => gcd(a, b));
+
+  // Calculate the inherent frameRate in frames per second
+  const frameRate = 1000 / delayGCD; // Delays are in milliseconds
+
+  // Create a canvas for the spritesheet
+  const spritesheetCanvas = document.createElement('canvas');
+  spritesheetCanvas.width = spritesheetWidth * spriteSize.width;
+  spritesheetCanvas.height = spritesheetHeight * spriteSize.height;
+  const ctx = spritesheetCanvas.getContext('2d')!;
+
+  const signalHandler = new SignalHandler(apng.frames.length);
+
+  // Draw the frames onto the spritesheet
+  apng.frames.forEach((frame, index) => {
+    if (frame.imageData == null) return;
+    const x = (index % spritesheetWidth) * spriteSize.width;
+    const y = Math.floor(index / spritesheetWidth) * spriteSize.height;
+    const image = new Image();
+    image.src = URL.createObjectURL(frame.imageData);
+    image.onload = () => {
+      ctx.drawImage(image, x, y);
+      signalHandler.emit();
+    };
+  });
+
+  await signalHandler.wait();
+
+  return {
+    spritesheet: spritesheetCanvas,
+    frameCount: apng.frames.length,
+    frameSize: { frameWidth: spriteSize.width, frameHeight: spriteSize.height },
+    frameRate,
+    repeat: apng.numPlays > 0 ? apng.numPlays : -1,
+  };
+};
+
+export const getSpritesheet = async (url: string, isGif = false) => {
+  const resp = await download(url, 'image');
+  const buffer = await resp.arrayBuffer();
+  return isGif ? convertGifToSpritesheet(buffer) : convertApngToSpritesheet(buffer);
 };

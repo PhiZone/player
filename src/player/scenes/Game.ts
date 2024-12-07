@@ -9,9 +9,9 @@ import {
   getAudio,
   inferLevelType,
   SUPPORTS_CANVAS_BLUR,
-  getGif,
   calculatePrecedences,
   loadText,
+  getSpritesheet,
 } from '../utils';
 import { GameStatus, type Bpm, type Config, type PhiraExtra, type RpeJson } from '../types';
 import { Line } from '../objects/Line';
@@ -38,7 +38,14 @@ export class Game extends Scene {
   private _illustrationUrl: string;
   private _extraUrl: string | undefined;
   private _extra: PhiraExtra | undefined;
-  private _gifAssets: { key: string; url: string; frameCount?: number; frameRate?: number }[] = [];
+  private _animatedAssets: {
+    key: string;
+    url: string;
+    isGif: boolean;
+    frameCount?: number;
+    frameRate?: number;
+    repeat?: number;
+  }[] = [];
   private _audioAssets: { key: string; url: string }[] = [];
   private _shaderAssets: { key: string; url: string; source?: string }[] = [];
 
@@ -172,7 +179,10 @@ export class Game extends Scene {
       const name = assetNames[i];
       const key = `asset-${name}`;
       if (assetTypes[i] === 0)
-        if (name.toLowerCase().endsWith('.gif')) this._gifAssets.push({ key, url: asset });
+        if (name.toLowerCase().endsWith('.gif'))
+          this._animatedAssets.push({ key, url: asset, isGif: true });
+        else if (name.toLowerCase().endsWith('.apng'))
+          this._animatedAssets.push({ key, url: asset, isGif: false });
         else this.load.image(key, asset);
       else if (assetTypes[i] === 1) this._audioAssets.push({ key, url: asset });
       else if (assetTypes[i] === 2) this.load.video(key, asset, true);
@@ -201,14 +211,12 @@ export class Game extends Scene {
       this.load.image('illustration-cropped', cropped);
       this.load.audio('song', await getAudio(this._songUrl));
       await Promise.all([
-        ...this._gifAssets.map(async (asset) => {
-          const spritesheet = await getGif(asset.url);
-          console.log(
-            spritesheet.frameSize,
-            spritesheet.frameCount,
-            spritesheet.frameRate,
-            spritesheet.spritesheet.toDataURL(),
-          );
+        ...this._animatedAssets.map(async (asset) => {
+          const spritesheet = await getSpritesheet(asset.url, asset.isGif);
+          console.log(spritesheet.frameSize, spritesheet.frameCount, spritesheet.frameRate);
+          spritesheet.spritesheet.toBlob((e) => {
+            if (e) console.log(URL.createObjectURL(e));
+          });
           this.load.spritesheet(
             asset.key,
             spritesheet.spritesheet.toDataURL(),
@@ -216,6 +224,7 @@ export class Game extends Scene {
           );
           asset.frameCount = spritesheet.frameCount;
           asset.frameRate = spritesheet.frameRate;
+          asset.repeat = spritesheet.repeat;
         }),
         ...this._audioAssets.map(async (asset) =>
           this.load.audio(asset.key, await getAudio(asset.url)),
@@ -254,7 +263,7 @@ export class Game extends Scene {
       }
       this.load.audio('ending', `ending/LevelOver${this._levelType}.wav`);
       this.load.once('complete', async () => {
-        this.createGifAnimations();
+        this.createTextureAnimations();
         this.initializeChart();
         this.preprocess();
         this.initializeHandlers();
@@ -524,8 +533,8 @@ export class Game extends Scene {
     });
   }
 
-  createGifAnimations() {
-    this._gifAssets.forEach((asset) => {
+  createTextureAnimations() {
+    this._animatedAssets.forEach((asset) => {
       this.anims.create({
         key: asset.key,
         frames: this.anims.generateFrameNumbers(asset.key, {
@@ -533,7 +542,7 @@ export class Game extends Scene {
           end: asset.frameCount ? asset.frameCount - 1 : 0,
         }),
         frameRate: asset.frameRate,
-        repeat: -1,
+        repeat: asset.repeat,
       });
     });
   }
