@@ -13,7 +13,15 @@ import {
   calculatePrecedences,
   loadText,
 } from '../utils';
-import { GameStatus, type Bpm, type Config, type PhiraExtra, type RpeJson } from '../types';
+import {
+  GameStatus,
+  type Bpm,
+  type Config,
+  type GameObject,
+  type PhiraExtra,
+  type RegisteredObject,
+  type RpeJson,
+} from '../types';
 import { Line } from '../objects/Line';
 import type { LongNote } from '../objects/LongNote';
 import type { PlainNote } from '../objects/PlainNote';
@@ -62,25 +70,14 @@ export class Game extends Scene {
   private _shaders:
     | {
         key: string;
-        target: Cameras.Scene2D.Camera | GameObjects.Container;
+        target: Cameras.Scene2D.Camera | RegisteredObject;
       }[]
     | undefined;
   private _videos: Video[] | undefined;
   private _visible: boolean = true;
   private _timeout: NodeJS.Timeout;
 
-  private _objects: {
-    object:
-      | GameObjects.Container
-      | GameObjects.Image
-      | GameObjects.Video
-      | GameObjects.Sprite
-      | GameObjects.Rectangle
-      | GameObjects.Text;
-    depth: number;
-    upperDepth?: number;
-    occupied: { [key: string]: boolean };
-  }[] = [];
+  private _objects: RegisteredObject[] = [];
 
   private _song: Sound.NoAudioSound | Sound.HTML5AudioSound | Sound.WebAudioSound;
   private _background: GameObjects.Image;
@@ -352,7 +349,11 @@ export class Game extends Scene {
     this._endingUI = new EndingUI(this);
     setTimeout(() => {
       this._endingUI.play();
-      this._shaders?.forEach((shader) => shader.target.resetPostPipeline());
+      this._shaders?.forEach((shader) =>
+        'object' in shader.target
+          ? shader.target.object.resetPostPipeline()
+          : shader.target.resetPostPipeline(),
+      );
       EventBus.emit('finished');
     }, 1000);
   }
@@ -402,7 +403,11 @@ export class Game extends Scene {
     this._lines.forEach((line) => line.update(beat, time));
     this._notes.forEach((note) => note.updateJudgment(beat));
     this._shaders?.forEach((shader) => {
-      (shader.target.getPostPipeline(shader.key) as ShaderPipeline)?.update(beat, time);
+      (
+        ('object' in shader.target
+          ? shader.target.object.getPostPipeline(shader.key)
+          : shader.target.getPostPipeline(shader.key)) as ShaderPipeline
+      )?.update(beat, time);
     });
     this._videos?.forEach((video) => video.update(beat, timeSec));
   }
@@ -578,7 +583,7 @@ export class Game extends Scene {
         key,
         ShaderPipeline,
       );
-      let target: Cameras.Scene2D.Camera | GameObjects.Container;
+      let target;
       if (effect.global) {
         target = this.cameras.main;
         target.setPostPipeline(key, {
@@ -594,9 +599,11 @@ export class Game extends Scene {
             exclusive: false,
           };
         }
-        target = new GameObjects.Container(this).setDepth(effect.targetRange.minZIndex);
-        this.register(target, effect.targetRange.maxZIndex);
-        target.setPostPipeline(key, {
+        target = this.register(
+          new GameObjects.Container(this).setDepth(effect.targetRange.minZIndex),
+          effect.targetRange.maxZIndex,
+        );
+        target.object.setPostPipeline(key, {
           scene: this,
           fragShader: asset.source,
           data: effect,
@@ -622,18 +629,11 @@ export class Game extends Scene {
     await signalHandler.wait();
   }
 
-  register(
-    object:
-      | GameObjects.Container
-      | GameObjects.Image
-      | GameObjects.Video
-      | GameObjects.Sprite
-      | GameObjects.Rectangle
-      | GameObjects.Text,
-    upperDepth?: number,
-  ) {
+  register(object: GameObject, upperDepth?: number) {
     this.add.existing(object);
-    this._objects.push({ object, depth: object.depth, upperDepth, occupied: {} });
+    const entry = { object, depth: object.depth, upperDepth, occupied: {} };
+    this._objects.push(entry);
+    return entry;
   }
 
   w(width: number) {

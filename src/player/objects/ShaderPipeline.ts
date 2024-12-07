@@ -1,6 +1,6 @@
 import { GameObjects, Renderer } from 'phaser';
 import type { Game } from '../scenes/Game';
-import type { AnimatedVariable, ShaderEffect, VariableEvent } from '../types';
+import type { AnimatedVariable, RegisteredObject, ShaderEffect, VariableEvent } from '../types';
 import { getValue, processEvents, toBeats } from '../utils';
 
 const DEFAULT_VALUE_REGEX = /uniform\s+(\w+)\s+(\w+);\s+\/\/\s+%([^%]+)%/g;
@@ -8,21 +8,15 @@ const DEFAULT_VALUE_REGEX = /uniform\s+(\w+)\s+(\w+);\s+\/\/\s+%([^%]+)%/g;
 export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
   private _scene: Game;
   private _data: ShaderEffect;
-  private _container: GameObjects.Container | undefined;
-  private _targets:
+  private _container:
     | {
-        object:
-          | GameObjects.Container
-          | GameObjects.Image
-          | GameObjects.Video
-          | GameObjects.Sprite
-          | GameObjects.Rectangle
-          | GameObjects.Text;
+        object: GameObjects.Container;
         depth: number;
-        upperDepth?: number;
+        upperDepth: number;
         occupied: { [key: string]: boolean };
-      }[]
+      }
     | undefined;
+  private _targets: RegisteredObject[] | undefined;
   private _animators: VariableAnimator[] = [];
 
   constructor(
@@ -31,7 +25,12 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
       scene: Game;
       fragShader: string;
       data: ShaderEffect;
-      target?: GameObjects.Container;
+      target?: {
+        object: GameObjects.Container;
+        depth: number;
+        upperDepth: number;
+        occupied: { [key: string]: boolean };
+      };
     },
   ) {
     postPipelineData.fragShader = postPipelineData.fragShader
@@ -86,10 +85,16 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
   update(beat: number, time: number) {
     this.active = beat >= this._data.startBeat && beat < this._data.endBeat;
     if (!this.active) {
-      if (this._targets?.some((target) => target.occupied[this.name])) {
+      if (
+        this._container &&
+        this._targets?.some((target) => target.occupied[this.name]) &&
+        !Object.keys(this._container.occupied)
+          .filter((key) => key !== this.name)
+          .some((key) => this._container!.occupied[key])
+      ) {
         console.log('Removing targets from', this.name);
-        this._container?.removeAll();
-        this._targets?.forEach((target) => {
+        this._container.object.removeAll();
+        this._targets.forEach((target) => {
           target.occupied[this.name] = false;
           // this._scene.add.existing(target.object);
         });
@@ -119,13 +124,13 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
       console.log('Adding targets to', this.name);
       this._targets.forEach((target) => {
         target.occupied[this.name] = true;
-        this._container?.add(target.object);
+        this._container?.object.add(target.object);
       });
       console.log(this._targets);
     }
     if (!this.currentShader) {
       console.warn(
-        `Shader ${this.name} is not loaded, even if it has ${this._container?.count('visible', true)} visible targets.`,
+        `Shader ${this.name} is not loaded, even if it has ${this._container?.object.count('visible', true)} visible targets.`,
       );
       try {
         this.set1f('time', time / 1000);
