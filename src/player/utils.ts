@@ -783,7 +783,6 @@ const convertApngToSpritesheet = async (buffer: ArrayBuffer) => {
   for (let i = 0; i < apng.frames.length; i++) {
     const frame = apng.frames[i];
     if (!frame.imageData) continue;
-    console.log(frame);
 
     // Save the current canvas state if needed for later restoration
     if (frame.disposeOp === 2) {

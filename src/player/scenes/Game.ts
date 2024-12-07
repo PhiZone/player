@@ -387,14 +387,14 @@ export class Game extends Scene {
     terminateFFmpeg();
   }
 
-  updateChart(beat: number, timeSec: number, time: number) {
+  updateChart(beat: number, songTime: number, gameTime: number) {
     if (this._status === GameStatus.FINISHED || this._status === GameStatus.DESTROYED) return;
-    this._lines.forEach((line) => line.update(beat, time));
+    this._lines.forEach((line) => line.update(beat, songTime, gameTime));
     this._notes.forEach((note) => note.updateJudgment(beat));
     this._shaders?.forEach((shader) =>
-      (this.cameras.main.getPostPipeline(shader) as ShaderPipeline)?.update(beat, time),
+      (this.cameras.main.getPostPipeline(shader) as ShaderPipeline)?.update(beat, songTime),
     );
-    this._videos?.forEach((video) => video.update(beat, timeSec));
+    this._videos?.forEach((video) => video.update(beat, songTime));
   }
 
   createAudio() {

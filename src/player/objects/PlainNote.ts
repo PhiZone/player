@@ -11,6 +11,7 @@ export class PlainNote extends GameObjects.Image {
   private _line: Line;
   private _xModifier: 1 | -1 = 1;
   private _yModifier: 1 | -1;
+  private _hitTime: number;
   private _targetHeight: number = 0;
   private _judgmentType: JudgmentType = JudgmentType.UNJUDGED;
   private _beatJudged: number | undefined = undefined;
@@ -22,6 +23,7 @@ export class PlainNote extends GameObjects.Image {
     this._scene = scene;
     this._data = data;
     this._yModifier = data.above === 1 ? -1 : 1;
+    this._hitTime = getTimeSec(scene.bpmList, data.startBeat);
     this.setOrigin(0.5);
     this.resize();
     this.setAlpha(data.alpha / 255);
@@ -33,7 +35,7 @@ export class PlainNote extends GameObjects.Image {
     scene.add.existing(this);
   }
 
-  update(beat: number, height: number, visible = true) {
+  update(beat: number, songTime: number, height: number, visible = true) {
     this.setX(this._scene.p(this._xModifier * this._data.positionX));
     this.resize();
     if (this._beatJudged && beat < this._beatJudged) {
@@ -55,16 +57,18 @@ export class PlainNote extends GameObjects.Image {
         }
       }
     } else if (this._judgmentType === JudgmentType.UNJUDGED) {
-      this.setVisible(visible && (dist >= 0 || !this._line.data.isCover));
+      this.setVisible(
+        visible &&
+          songTime >= this._hitTime - this._data.visibleTime &&
+          (dist >= 0 || !this._line.data.isCover),
+      );
     }
   }
 
   updateJudgment(beat: number) {
     beat *= this._line.data.bpmfactor;
     if (this._judgmentType === JudgmentType.UNJUDGED) {
-      const deltaSec =
-        getTimeSec(this._scene.bpmList, beat) -
-        getTimeSec(this._scene.bpmList, this._data.startBeat);
+      const deltaSec = getTimeSec(this._scene.bpmList, beat) - this._hitTime;
       const delta = deltaSec * 1000;
       const { perfectJudgment, goodJudgment } = this._scene.preferences;
       const badJudgment = goodJudgment * 1.125;

@@ -15,6 +15,7 @@ export class LongNote extends GameObjects.Container {
   private _body: GameObjects.Image;
   private _tail: GameObjects.Image;
   private _bodyHeight: number;
+  private _hitTime: number;
   private _targetHeadHeight: number = 0;
   private _targetTailHeight: number = 0;
   private _judgmentType: JudgmentType = JudgmentType.UNJUDGED;
@@ -37,6 +38,7 @@ export class LongNote extends GameObjects.Container {
     this._tail.setOrigin(0.5, 1);
     this.resize();
     this._bodyHeight = this._body.texture.getSourceImage().height;
+    this._hitTime = getTimeSec(scene.bpmList, data.startBeat);
 
     this.add([this._head, this._body, this._tail]);
 
@@ -47,7 +49,7 @@ export class LongNote extends GameObjects.Container {
     scene.add.existing(this);
   }
 
-  update(beat: number, height: number, visible = true) {
+  update(beat: number, songTime: number, height: number, visible = true) {
     this.setX(this._scene.p(this._xModifier * this._data.positionX));
     this.resize();
     if (this._beatJudged && beat < this._beatJudged) {
@@ -62,14 +64,22 @@ export class LongNote extends GameObjects.Container {
       this._head.setVisible(false);
       headDist = 0;
     } else {
-      this._head.setVisible(visible && (headDist >= 0 || !this._line.data.isCover));
+      this._head.setVisible(
+        visible &&
+          songTime >= this._hitTime - this._data.visibleTime &&
+          (headDist >= 0 || !this._line.data.isCover),
+      );
     }
     if (beat >= this._data.endBeat) {
       this._body.setVisible(false);
       this._tail.setVisible(false);
     } else {
-      this._body.setVisible(visible && (tailDist >= 0 || !this._line.data.isCover));
-      this._tail.setVisible(visible && (tailDist >= 0 || !this._line.data.isCover));
+      const vis =
+        visible &&
+        songTime >= this._hitTime - this._data.visibleTime &&
+        (tailDist >= 0 || !this._line.data.isCover);
+      this._body.setVisible(vis);
+      this._tail.setVisible(vis);
     }
     this._head.setY(this._yModifier * headDist);
     this._body.setY(this._yModifier * (this._line.data.isCover ? Math.max(0, headDist) : headDist));
@@ -90,9 +100,7 @@ export class LongNote extends GameObjects.Container {
 
   updateJudgment(beat: number) {
     if (this._tempJudgmentType === JudgmentType.UNJUDGED) {
-      const deltaSec =
-        getTimeSec(this._scene.bpmList, beat) -
-        getTimeSec(this._scene.bpmList, this._data.startBeat);
+      const deltaSec = getTimeSec(this._scene.bpmList, beat) - this._hitTime;
       const delta = deltaSec * 1000;
       const { perfectJudgment, goodJudgment } = this._scene.preferences;
       if (beat >= this._data.startBeat) {

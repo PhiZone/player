@@ -178,14 +178,14 @@ export class Line {
     }
   }
 
-  update(beat: number, time: number) {
-    if (time == this._lastUpdate) return;
-    this._lastUpdate = time;
-    this._parent?.update(beat, time);
+  update(beat: number, songTime: number, gameTime: number) {
+    if (gameTime == this._lastUpdate) return;
+    this._lastUpdate = gameTime;
+    this._parent?.update(beat, songTime, gameTime);
     this.handleEventLayers(beat);
     this.updateParams();
     this._notes.forEach((note) => {
-      note.update(beat * this._data.bpmfactor, this._height, this._opacity >= 0);
+      note.update(beat * this._data.bpmfactor, songTime, this._height, this._opacity >= 0);
     });
   }
 
