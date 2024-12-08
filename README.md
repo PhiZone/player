@@ -13,7 +13,7 @@ This project is made possible by:
 
 ## Introduction
 
-Much of this program resembles any other Phigros chart player/simulator, and thus we'll only cover some unique features in this section.
+Much of this program resembles any other Phigros chart player/simulator, so this section will focus solely on its unique features.
 
 ### User-friendly landing page
 
@@ -21,7 +21,14 @@ Designed with [Preline UI](https://preline.co) and [daisyUI](https://daisyui.com
 
 Choose either some files (or .zip/.pez archives) or an entire folder, and chart bundles will be automatically detected according to Re: PhiEdit (or RPE) metadata files (typically named `info.txt`) in which a chart, a song, and an illustration are specified. Any other files that fail to be recognized, which are most likely multimedia that will be referenced by the chart, or the `extra.json` from Phira, will be presented in the assets.
 
-### Original line & note properties
+### Keyboard controls for autoplay
+
+Similar to a video player, the program includes intuitive keyboard controls on autoplay mode:
+
+- Pause/Resume: Press <kbd>Space</kbd> to toggle.
+- Rewind/Forward: Use <kbd>←</kbd> / <kbd>→</kbd> to jump 5 seconds, or <kbd>⇧ Shift</kbd>+<kbd>←</kbd> / <kbd>⇧ Shift</kbd>+<kbd>→</kbd> for precise 0.1-second adjustments.
+
+### Chart enhancements
 
 Aside from adding support for RPE features, we've also designed some original properties for judgment lines & notes.
 
@@ -31,12 +38,48 @@ Aside from adding support for RPE features, we've also designed some original pr
 | `tint`           | [R, G, B], as seen in `colorEvents`; `null` | `"tint": [255, 0, 0]`           | Belongs to a note. Sets the tint for the note.                             |
 | `tintHitEffects` | [R, G, B], as seen in `colorEvents`; `null` | `"tintHitEffects": [255, 0, 0]` | Belongs to a note. Sets the tint for the hit effects of the note.          |
 
-### Keyboard controls for autoplay
+### Shader enhancements
 
-Similar to a video player, the program includes intuitive keyboard controls on autoplay mode:
+Except for WebGL's incompatibilities with newer versions of GLSL, the program supports not only all the shader features defined by `extra.json` from Phira, but also one original addition to the standard: **target range**.
 
-- Pause/Resume: Press <kbd>Space</kbd> to toggle.
-- Rewind/Forward: Use <kbd>←</kbd> / <kbd>→</kbd> to jump 5 seconds, or <kbd>⇧ Shift</kbd>+<kbd>←</kbd> / <kbd>⇧ Shift</kbd>+<kbd>→</kbd> for precise 0.1-second adjustments.
+A target range defines a list of depth-adjacent game objects that a shader event is applied to. It consists of the following properties:
+
+| Property    | Type               | Description                                                                                                                                                        |
+| ----------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `minZIndex` | number             | Defines the minimum Z index (depth) of this range. Inclusive.                                                                                                      |
+| `maxZIndex` | number             | Defines the maximum Z index (depth) of this range. Exclusive.                                                                                                      |
+| `exclusive` | boolean (optional) | Determines whether this range should exclude the range of another active shader event when the two ranges intersect but this range is not a superset of the other. |
+
+One thing to note is that a single object cannot be rendered in parallel by two or more shaders. However, a set of targets from one shader event can be safely contained within the targets of another shader event. This leads to the concept of the `exclusive` property - it determines whether or not to "swallow" another set of objects when it intersects with but is not a subset of the current.
+
+The Z index (depth) defines the order in which game objects are rendered. The lower the value, the earlier they are rendered.
+
+| Z index (depth) | Object(s)                                                                  |
+| --------------- | -------------------------------------------------------------------------- |
+| 0               | Illustration                                                               |
+| 1               | Background video, if present                                               |
+| [2, 3)          | Judgment lines, the order of which are determined by their `zOrder` values |
+| 3               | Hold notes                                                                 |
+| 4               | Drag notes                                                                 |
+| 5               | Tap notes                                                                  |
+| 6               | Flick notes                                                                |
+| 7               | Hit effects                                                                |
+| 8               | Pause button                                                               |
+| 9               | Combo counter                                                              |
+| 10              | Text beneath the combo counter                                             |
+| 11              | Score                                                                      |
+| 12              | Std deviation & accuracy                                                   |
+| 13              | Progress bar                                                               |
+| 14              | Song title                                                                 |
+| 15              | Level name & difficulty                                                    |
+
+The Z indexes of judgment lines are calculated based on their `zOrder` values ([code here](https://github.com/PhiZone/player/blob/ed8a6119a28c8594d372aacb8e1da12fdce6d692/src/player/utils.ts#L595)). Simply put, the values are mapped onto [0, 1) and made equally spaced, and then get added by 2 to become the Z indexes. See examples below.
+
+| `zOrder`      | Z index              |
+| ------------- | -------------------- |
+| 0, 10, 20, 30 | 2, 2.25, 2.5, 2.75   |
+| 1, 2, 114514  | 2, 2.3333, 2.6667    |
+| 127, 0, 0, 1  | 2.6667, 2, 2, 2.3333 |
 
 ## Requirements
 
@@ -49,7 +92,7 @@ Similar to a video player, the program includes intuitive keyboard controls on a
 | `pnpm i`           | Installs project dependencies                    |
 | `pnpm dev`         | Launches a development web server                |
 | `pnpm build`       | Creates a production build in the `build` folder |
-| `pnpm tauri build` | Creates a production build for Windows           |
+| `pnpm tauri build` | Creates a production build for desktop           |
 
 ## Development
 
@@ -68,7 +111,7 @@ Similar to a video player, the program includes intuitive keyboard controls on a
 | Support for `attachUI`                     | 0.0.4   |                                                                               | ✅ Done           | UI 绑定适配             |
 | Support for anchors                        | 0.0.4   |                                                                               | ✅ Done           | 锚点适配                |
 | Support for APNGs                          | 0.0.4   |                                                                               | ✅ Done           | APNG 格式适配           |
-| Shader feature enhancements                | 0.0.5   |                                                                               | 🚧 Working        | 着色器功能增强          |
+| Shader feature enhancements                | 0.0.5   |                                                                               | ✅ Done           | 着色器功能增强          |
 | Support for Bézier easings                 | 0.0.5   |                                                                               |                   | 贝塞尔缓动适配          |
 | Offset adjustment mode                     | 0.0.5   |                                                                               |                   | 延迟调整模式            |
 | Alignment with official/RPE constants      | 0.0.6   | Hold tolerances, texture size units, etc.                                     |                   | 官/RPE 常数对齐         |
