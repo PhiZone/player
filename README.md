@@ -84,7 +84,7 @@ The Z indexes of judgment lines are calculated based on their `zOrder` values ([
 | 1, 2, 5, 6, 114514 | 2, 2.2, 2.4, 2.6, 2.8 |
 
 <details>
-  <summary>Click to show an example of <code>extra.json</code> incorporating <strong>target ranges</strong>.</summary>
+  <summary>Click to show an example of <code>extra.json</code> incorporating target ranges.</summary>
 
 ```jsonc
 {
