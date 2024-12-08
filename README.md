@@ -75,11 +75,11 @@ The Z index (depth) defines the order in which game objects are rendered. The lo
 
 The Z indexes of judgment lines are calculated based on their `zOrder` values ([code here](https://github.com/PhiZone/player/blob/ed8a6119a28c8594d372aacb8e1da12fdce6d692/src/player/utils.ts#L595)). Simply put, the values are mapped onto [0, 1) and made equally spaced, and then get added by 2 to become the Z indexes. See examples below.
 
-| `zOrder`      | Z index              |
-| ------------- | -------------------- |
-| 0, 10, 20, 30 | 2, 2.25, 2.5, 2.75   |
-| 1, 2, 114514  | 2, 2.3333, 2.6667    |
-| 127, 0, 0, 1  | 2.6667, 2, 2, 2.3333 |
+| `zOrder`           | Z index               |
+| ------------------ | --------------------- |
+| 0, 10, 20, 30      | 2, 2.25, 2.5, 2.75    |
+| 127, 0, 0, 1       | 2.6667, 2, 2, 2.3333  |
+| 1, 2, 5, 6, 114514 | 2, 2.2, 2.4, 2.6, 2.8 |
 
 ## Requirements
 
