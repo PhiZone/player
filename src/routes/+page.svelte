@@ -8,6 +8,7 @@
   import { clamp, inferLevelType, isZip } from '../player/utils';
   import PreferencesModal from '$lib/components/Preferences.svelte';
   import { goto } from '$app/navigation';
+    import { Capacitor } from '@capacitor/core';
 
   interface FileEntry {
     id: number;
@@ -23,7 +24,7 @@
     metadata: Metadata;
   }
 
-  const VERSION = '0.0.1';
+  const VERSION = '0.0.2';
   const REPO_LINK = 'https://github.com/PhiZone/player';
 
   let showCollapse = false;
@@ -1036,7 +1037,7 @@
                     </span>
                   </label>
                 </div> -->
-              {:else}
+              {:else if Capacitor.getPlatform() === 'web'}
                 <div class="relative flex items-start">
                   <div class="flex items-center h-5 mt-1">
                     <input
@@ -1096,7 +1097,7 @@
                       ...currentBundle.metadata,
                       ...preferences,
                       ...toggles,
-                      ...recorderOptions,
+                      ...(toggles.record ? recorderOptions : []),
                     },
                     {
                       arrayFormat: 'none',
@@ -1135,7 +1136,7 @@
                   if ('__TAURI_INTERNALS__' in window && toggles.fullscreen) {
                     // TODO Command not found
                     // getCurrentWindow().setFullscreen(true);
-                  } else if (toggles.newTab) {
+                  } else if (Capacitor.getPlatform() === 'web' && toggles.newTab) {
                     window.open(url);
                     return;
                   }

@@ -23,6 +23,8 @@ import { gcd } from 'mathjs';
 import { fileTypeFromBlob } from 'file-type';
 import parseAPNG, { Frame } from 'apng-js';
 import { fixWebmDuration } from '@fix-webm-duration/fix';
+import { AndroidFullScreen } from '@awesome-cordova-plugins/android-full-screen';
+import { Capacitor } from '@capacitor/core';
 
 const easingFunctions: ((x: number) => number)[] = [
   (x) => x,
@@ -146,6 +148,14 @@ const testCanvasBlur = () => {
 };
 
 export const SUPPORTS_CANVAS_BLUR = testCanvasBlur(); // something only Apple can do
+
+export const setFullscreen = () => {
+  if (Capacitor.getPlatform() === 'android') {
+    AndroidFullScreen.isImmersiveModeSupported()
+      .then(() => AndroidFullScreen.immersiveMode())
+      .catch(console.warn);
+  }
+};
 
 export const inferLevelType = (level: string | null): 0 | 1 | 2 | 3 => {
   if (!level) return 2;

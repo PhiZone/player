@@ -97,11 +97,11 @@ The Z indexes of judgment lines are calculated based on their `zOrder` values ([
       "global": false,
       "targetRange": {
         "minZIndex": 3,
-        "maxZIndex": 4
+        "maxZIndex": 4,
       }, // Hold notes
       "vars": {
         // ...
-      }
+      },
     },
     {
       "start": [293, 0, 1],
@@ -110,11 +110,11 @@ The Z indexes of judgment lines are calculated based on their `zOrder` values ([
       "global": false,
       "targetRange": {
         "minZIndex": 8,
-        "maxZIndex": 16
+        "maxZIndex": 16,
       }, // The entire UI
       "vars": {
         // ...
-      }
+      },
     },
     {
       "start": [66, 0, 1],
@@ -124,9 +124,9 @@ The Z indexes of judgment lines are calculated based on their `zOrder` values ([
       // targetRange is optional
       "vars": {
         // ...
-      }
-    }
-  ]
+      },
+    },
+  ],
 }
 ```
 
@@ -157,8 +157,7 @@ Notice that there are two events that share the same shader code. This is a work
 | Support for custom hit sounds              | 0.0.1   |                                                                               | ✅ Done           | 自定义打击音效适配      |
 | Support for `zOrder`                       | 0.0.1   |                                                                               | ✅ Done           | Z 轴排序适配            |
 | Better input detections                    | 0.0.2   | Especially for Flicks                                                         |                   | 输入检测优化            |
-| Recording mode                             | 0.0.2   |                                                                               | 🚧 Working        | 录制模式                |
-| Basic support for the extended event layer | 0.0.3   | Excluding GIF events & incline events                                         | ✅ Done           | 扩展事件层的基本适配    |
+| Basic support for the extended event layer | 0.0.2   | Excluding GIF events & incline events                                         | ✅ Done           | 扩展事件层的基本适配    |
 | Cross-platform distribution                | 0.0.3   | Plan to reference [this blog](https://nsarrazin.com/blog/sveltekit-universal) | 🚧 Working        | 跨平台分发              |
 | Support for Phira `extra.json`             | 0.0.4   | Including shaders                                                             | 🛠️ Tests required | Phira `extra.json` 适配 |
 | Support for `attachUI`                     | 0.0.4   |                                                                               | ✅ Done           | UI 绑定适配             |
@@ -169,6 +168,7 @@ Notice that there are two events that share the same shader code. This is a work
 | Offset adjustment mode                     | 0.0.5   |                                                                               |                   | 延迟调整模式            |
 | Alignment with official/RPE constants      | 0.0.6   | Hold tolerances, texture size units, etc.                                     |                   | 官/RPE 常数对齐         |
 | Full support for the extended event layer  | 0.0.6   | GIF events & incline events                                                   |                   | 扩展事件层的完全适配    |
+| Recording mode                             | 0.0.7   |                                                                               | ⏳ Postponed      | 录制模式                |
 | Support for all note properties            | 0.0.7   |                                                                               |                   | 所有 Note 属性的适配    |
 | PhiZone integration                        | 0.0.8   |                                                                               |                   | PhiZone 集成            |
 | Full RPE support                           | 0.1.0   |                                                                               |                   | 完全 RPE 适配           |
