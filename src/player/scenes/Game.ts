@@ -23,7 +23,7 @@ import { PointerHandler } from '../handlers/PointerHandler';
 import { KeyboardHandler } from '../handlers/KeyboardHandler';
 import { JudgmentHandler } from '../handlers/JudgmentHandler';
 import { StatisticsHandler } from '../handlers/StatisticsHandler';
-import { loadFFmpeg, terminateFFmpeg } from '../ffmpeg';
+import { terminateFFmpeg } from '../ffmpeg';
 import { ShaderPipeline } from '../objects/ShaderPipeline';
 import { Video } from '../objects/Video';
 import { SignalHandler } from '../handlers/SignalHandler';
@@ -169,10 +169,6 @@ export class Game extends Scene {
 
     if (new window.AudioContext().state === 'suspended') {
       this._autostart = false;
-    }
-
-    if (this._record) {
-      loadFFmpeg();
     }
 
     assets.forEach((asset, i) => {
@@ -339,7 +335,7 @@ export class Game extends Scene {
     this._status = GameStatus.FINISHED;
     this._gameUI.out();
     this._lines.forEach((line) => line.setVisible(false));
-    this._endingUI = new EndingUI(this);
+    this._endingUI = new EndingUI(this, this._data.recorderOptions.endingLoopsToRecord);
     setTimeout(() => {
       this._endingUI.play();
       this.cameras.main.resetPostPipeline();

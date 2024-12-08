@@ -12,7 +12,7 @@ import {
   JudgmentType,
   type Bpm,
   type Config,
-  type RecorderOptions,
+  // type RecorderOptions,
 } from './types';
 import { EventBus } from './EventBus';
 import { getFFmpeg, loadFFmpeg } from './ffmpeg';
@@ -20,8 +20,9 @@ import type { Game } from './scenes/Game';
 import { ENDING_ILLUSTRATION_CORNER_RADIUS } from './constants';
 import { parseGIF, decompressFrames, type ParsedFrame } from 'gifuct-js';
 import { gcd } from 'mathjs';
-import { fileTypeFromBlob, fileTypeFromBuffer } from 'file-type';
+import { fileTypeFromBlob } from 'file-type';
 import parseAPNG, { Frame } from 'apng-js';
+import { fixWebmDuration } from '@fix-webm-duration/fix';
 
 const easingFunctions: ((x: number) => number)[] = [
   (x) => x,
@@ -196,9 +197,9 @@ export const getParams = (): Config | null => {
   const overrideResolution: number[] | null = searchParams
     .getAll('overrideResolution')
     .map((v) => parseInt(v));
-  const videoCodec = searchParams.get('videoCodec') ?? 'H.264';
+  const endingLoopsToRecord = parseFloat(searchParams.get('endingLoopsToRecord') ?? '1');
+  const outputFormat = searchParams.get('outputFormat') ?? 'mp4';
   const videoBitrate = parseInt(searchParams.get('videoBitrate') ?? '6000');
-  const audioCodec = searchParams.get('audioCodec') ?? 'AAC';
   const audioBitrate = parseInt(searchParams.get('audioBitrate') ?? '320');
 
   const autoplay = ['1', 'true'].some((v) => v == searchParams.get('autoplay'));
@@ -248,9 +249,9 @@ export const getParams = (): Config | null => {
       frameRate,
       overrideResolution:
         overrideResolution.length >= 2 ? [overrideResolution[0], overrideResolution[1]] : null,
-      videoCodec,
+      endingLoopsToRecord,
+      outputFormat,
       videoBitrate,
-      audioCodec,
       audioBitrate,
     },
     autoplay,
@@ -623,10 +624,7 @@ export const getAudio = async (url: string): Promise<string> => {
   });
   if (!ffmpeg.loaded) {
     EventBus.emit('loading-detail', 'Loading FFmpeg');
-    await loadFFmpeg(({ url, received, total }) => {
-      EventBus.emit('loading', clamp(received / total, 0, 1));
-      EventBus.emit('loading-detail', `Downloading ${url.toString().split('/').pop()}`);
-    });
+    await loadFFmpeg();
   }
   EventBus.emit('loading-detail', 'Processing audio');
   await ffmpeg.writeFile('input', await fetchFile(originalAudio));
@@ -638,44 +636,63 @@ export const getAudio = async (url: string): Promise<string> => {
 export const outputRecording = async (
   video: Blob,
   audio: Blob,
-  recorderOptions: RecorderOptions,
+  duration: number,
+  // recorderOptions: RecorderOptions,
 ) => {
-  const ffmpeg = getFFmpeg();
-  ffmpeg.on('progress', (progress) => {
-    EventBus.emit('recording-processing', clamp(progress.progress, 0, 1));
-  });
-  if (!ffmpeg.loaded) {
-    EventBus.emit('recording-processing-detail', 'Loading FFmpeg');
-    await loadFFmpeg(({ url, received, total }) => {
-      EventBus.emit('recording-processing', clamp(received / total, 0, 1));
-      EventBus.emit(
-        'recording-processing-detail',
-        `Downloading ${url.toString().split('/').pop()}`,
-      );
-    });
-  }
-  EventBus.emit('recording-processing-detail', 'Processing video');
-  await ffmpeg.writeFile('video', await fetchFile(video));
-  await ffmpeg.writeFile('audio', await fetchFile(audio));
-  await ffmpeg.exec([
-    '-i',
-    'video',
-    '-i',
-    'audio',
-    '-c:v',
-    recorderOptions.videoCodec,
-    '-b:v',
-    recorderOptions.videoBitrate.toString(),
-    '-c:a',
-    recorderOptions.audioCodec,
-    ...(recorderOptions.audioBitrate ? ['-b:a', recorderOptions.audioBitrate.toString()] : []),
-    'output',
-  ]);
-  const data = await ffmpeg.readFile('output');
-  const url = URL.createObjectURL(new Blob([(data as Uint8Array).buffer]));
+  video = await fixWebmDuration(video, duration);
+  audio = await fixWebmDuration(audio, duration);
+  triggerDownload(video, 'recording.webm');
+  triggerDownload(audio, 'recording.opus');
+  // const outputFile = `output.${recorderOptions.outputFormat.toLowerCase()}`;
+  // const ffmpeg = getFFmpeg();
+  // ffmpeg.on('progress', (progress) => {
+  //   EventBus.emit('recording-processing', clamp(progress.progress, 0, 1));
+  //   console.log(clamp(progress.progress, 0, 1));
+  // });
+  // if (!ffmpeg.loaded) {
+  //   console.log('loading ffmpeg');
+  //   EventBus.emit('recording-processing-detail', 'Loading FFmpeg');
+  //   await loadFFmpeg(({ url, received, total }) => {
+  //     EventBus.emit('recording-processing', clamp(received / total, 0, 1));
+  //     console.log(clamp(received / total, 0, 1));
+  //     EventBus.emit(
+  //       'recording-processing-detail',
+  //       `Downloading ${url.toString().split('/').pop()}`,
+  //     );
+  //   });
+  // }
+  // EventBus.emit('recording-processing-detail', 'Processing video');
+  // await ffmpeg.writeFile('video', await fetchFile(video));
+  // await ffmpeg.writeFile('audio', await fetchFile(audio));
+  // ffmpeg.on('log', (e) => {
+  //   console.log(e);
+  // });
+  // await ffmpeg.exec([
+  //   '-i',
+  //   'video',
+  //   '-i',
+  //   'audio',
+  //   '-b:v',
+  //   (recorderOptions.videoBitrate * 1000).toString(),
+  //   ...(recorderOptions.audioBitrate
+  //     ? ['-b:a', (recorderOptions.audioBitrate * 1000).toString()]
+  //     : []),
+  //   '-r',
+  //   recorderOptions.frameRate.toString(),
+  //   outputFile,
+  // ]);
+  // const data = await ffmpeg.readFile(outputFile);
+  // triggerDownload(
+  //   new Blob([(data as Uint8Array).buffer]),
+  //   `recording.${recorderOptions.outputFormat.toLowerCase()}`,
+  // );
+};
+
+export const triggerDownload = (blob: Blob, name: string) => {
+  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `recording.${(await fileTypeFromBuffer(data as Uint8Array))?.ext ?? 'mp4'}`;
+  a.download = name;
   a.click();
   URL.revokeObjectURL(url);
 };

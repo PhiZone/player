@@ -22,9 +22,9 @@
     "vite"
   ],
   "scripts": {
-    "dev": "vite --config vite/config.dev.mjs --host -- --max-http-header-size=4194304",
+    "dev": "vite --config vite/config.dev.mjs --host",
     "build": "vite build --config vite/config.prod.mjs",
-    "preview": "vite --max-http-header-size=16384 preview --outDir build --host -- --max-http-header-size=4194304",
+    "preview": "vite preview --outDir build --host",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "pret": "prettier --check ./**/*.{js,cjs,ts,html,css,svelte,md,json}",
@@ -67,6 +67,7 @@
   "dependencies": {
     "@ffmpeg/ffmpeg": "^0.12.10",
     "@ffmpeg/util": "^0.12.1",
+    "@fix-webm-duration/fix": "^1.0.1",
     "@tauri-apps/api": "^2.0.1",
     "apng-js": "^1.1.4",
     "file-type": "^19.6.0",

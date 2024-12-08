@@ -67,9 +67,9 @@
   let recorderOptions: RecorderOptions = {
     frameRate: 60,
     overrideResolution: [1620, 1080],
-    videoCodec: 'libx264',
+    endingLoopsToRecord: 1,
+    outputFormat: 'mp4',
     videoBitrate: 6000,
-    audioCodec: 'aac',
     audioBitrate: 320,
   };
   let recorderResolutionWidth = 1620;
@@ -852,6 +852,8 @@
                       class="block text-sm text-gray-600 dark:text-neutral-500"
                     >
                       The canvas will be recorded and saved as a video file.
+                      <br />
+                      Note that this feature is still work in progress.
                     </span>
                   </label>
                 </div>
@@ -919,14 +921,20 @@
                       </div>
                       <div>
                         <span class="block text-sm font-medium mb-1 dark:text-white">
-                          Video codec
+                          Output format
                         </span>
                         <div class="relative">
                           <input
                             type="text"
-                            bind:value={recorderOptions.videoCodec}
+                            value="webm"
+                            disabled
                             class="py-3 px-4 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
                           />
+                          <!-- <input
+                            type="text"
+                            bind:value={recorderOptions.outputFormat}
+                            class="py-3 px-4 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                          /> -->
                         </div>
                       </div>
                       <div class="sm:col-span-2 md:col-span-1 lg:col-span-2">
@@ -948,12 +956,14 @@
                       </div>
                       <div>
                         <span class="block text-sm font-medium mb-1 dark:text-white">
-                          Audio codec
+                          Ending loops
                         </span>
                         <div class="relative">
                           <input
-                            type="text"
-                            bind:value={recorderOptions.audioCodec}
+                            type="number"
+                            min={0}
+                            step={0.1}
+                            bind:value={recorderOptions.endingLoopsToRecord}
                             class="py-3 px-4 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
                           />
                         </div>

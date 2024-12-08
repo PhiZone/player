@@ -51,9 +51,9 @@ export interface Preferences {
 export interface RecorderOptions {
   frameRate: number;
   overrideResolution: [number, number] | null;
-  videoCodec: string;
+  endingLoopsToRecord: number;
+  outputFormat: string;
   videoBitrate: number;
-  audioCodec: string;
   audioBitrate?: number | undefined;
 }
 

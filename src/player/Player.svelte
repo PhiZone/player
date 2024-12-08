@@ -48,6 +48,7 @@
   let counter: NodeJS.Timeout;
   let timeout: NodeJS.Timeout;
 
+  let gameStart: number;
   let videoRecorder: MediaRecorder | null = null;
   let audioRecorder: MediaRecorder | null = null;
   let video: Blob;
@@ -62,6 +63,8 @@
 
     if (config.record) {
       const videoStream = gameRef.game.canvas.captureStream();
+      const peerConnection = new RTCPeerConnection();
+      videoStream.getTracks().forEach((track) => peerConnection.addTrack(track, videoStream));
       videoRecorder = new MediaRecorder(videoStream, {
         mimeType: 'video/webm; codecs=vp9',
         videoBitsPerSecond: config.recorderOptions.videoBitrate * 1000,
@@ -69,11 +72,17 @@
       videoRecorder.ondataavailable = (e) => {
         video = e.data;
         if (audio) {
-          outputRecording(video, audio, config.recorderOptions);
+          outputRecording(
+            video,
+            audio,
+            Date.now() - gameStart,
+            // config.recorderOptions,
+          );
         }
       };
       if ('context' in gameRef.game.sound) {
         const audioDest = gameRef.game.sound.context.createMediaStreamDestination();
+        gameRef.game.sound.destination.connect(audioDest);
         audioRecorder = new MediaRecorder(audioDest.stream, {
           mimeType: 'audio/webm; codecs=opus',
           audioBitsPerSecond: config.recorderOptions.audioBitrate
@@ -83,7 +92,12 @@
         audioRecorder.ondataavailable = (e) => {
           audio = e.data;
           if (video) {
-            outputRecording(video, audio, config.recorderOptions);
+            outputRecording(
+              video,
+              audio,
+              Date.now() - gameStart,
+              // config.recorderOptions,
+            );
           }
         };
       }
@@ -113,6 +127,7 @@
       });
       videoRecorder?.start();
       audioRecorder?.start();
+      gameStart = Date.now();
 
       if (currentActiveScene) {
         currentActiveScene(scene);

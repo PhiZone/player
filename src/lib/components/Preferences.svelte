@@ -446,6 +446,11 @@
             <option {value}>{value}</option>
           {/each}
         </select>
+        <span
+          class="py-3 px-2 inline-flex items-center min-w-fit border border-gray-200 text-sm text-gray-500 -ms-px w-auto first:rounded-s-lg mt-0 first:ms-0 first:rounded-se-none last:rounded-es-none last:rounded-e-lg bg-base-100 dark:border-neutral-700 dark:text-neutral-400"
+        >
+          :
+        </span>
         <select
           id="aspect_ratio_2"
           name="aspectRatio2"
