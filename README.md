@@ -42,13 +42,15 @@ Aside from adding support for RPE features, we've also designed some original pr
 
 Except for WebGL's incompatibilities with newer versions of GLSL, the program supports not only all the shader features defined by `extra.json` from Phira, but also one original addition to the standard: **target range**.
 
-A target range defines a list of depth-adjacent game objects that a shader event is applied to. It consists of the following properties:
+A target range defines a list of depth-adjacent (next to each other on the Z axis) game objects that a shader event is applied to. It belongs directly to a shader event (as the optional `targetRange` property) and consists of the following properties:
 
-| Property    | Type               | Description                                                                                                                                                        |
-| ----------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `minZIndex` | Number             | Defines the minimum Z index (depth) of this range. Inclusive.                                                                                                      |
-| `maxZIndex` | Number             | Defines the maximum Z index (depth) of this range. Exclusive.                                                                                                      |
-| `exclusive` | Boolean (optional) | Determines whether this range should exclude the range of another active shader event when the two ranges intersect but this range is not a superset of the other. |
+| Property               | Type    | Description                                                                                                                                                                             |
+| ---------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `minZIndex`            | Number  | Defines the minimum Z index (depth) of this range. Inclusive.                                                                                                                           |
+| `maxZIndex`            | Number  | Defines the maximum Z index (depth) of this range. Exclusive.                                                                                                                           |
+| `exclusive` (optional) | Boolean | Determines whether this range should exclude the range of another active shader event when the two ranges intersect but this range is not a superset of the other. Defaults to `false`. |
+
+If the `global` property of a shader event is set to `true`, then its `targetRange` will not function.
 
 One thing to note is that a single object cannot be rendered in parallel by two or more shaders. However, a set of targets from one shader event can be safely contained within the targets of another shader event. This leads to the concept of the `exclusive` property - it determines whether or not to "swallow" another set of objects when it intersects with but is not a subset of the current.
 
@@ -73,13 +75,64 @@ The Z index (depth) defines the order in which game objects are rendered. The lo
 | 14              | Song title                                                                 |
 | 15              | Level name & difficulty                                                    |
 
-The Z indexes of judgment lines are calculated based on their `zOrder` values ([code here](https://github.com/PhiZone/player/blob/ed8a6119a28c8594d372aacb8e1da12fdce6d692/src/player/utils.ts#L595)). Simply put, the values are mapped onto [0, 1) and made equally spaced, and then get added by 2 to become the Z indexes. See examples below.
+The Z indexes of judgment lines are calculated based on their `zOrder` values ([code here](https://github.com/PhiZone/player/blob/ed8a6119a28c8594d372aacb8e1da12fdce6d692/src/player/utils.ts#L595)). Simply put, the values are mapped onto [0, 1) and made equally spaced, and then get added by 2 to become Z indexes. See examples below.
 
 | `zOrder`           | Z index               |
 | ------------------ | --------------------- |
 | 0, 10, 20, 30      | 2, 2.25, 2.5, 2.75    |
 | 127, 0, 0, 1       | 2.6667, 2, 2, 2.3333  |
 | 1, 2, 5, 6, 114514 | 2, 2.2, 2.4, 2.6, 2.8 |
+
+<details>
+  <summary>Click to show an example of <code>extra.json</code> incorporating <strong>target ranges</strong>.</summary>
+
+```json
+{
+  // ...
+  "effects": [
+    {
+      "start": [293, 0, 1],
+      "end": [300, 0, 1],
+      "shader": "/example.glsl",
+      "global": false,
+      "targetRange": {
+        "minZIndex": 3,
+        "maxZIndex": 4
+      }, // Hold notes
+      "vars": {
+        // ...
+      }
+    },
+    {
+      "start": [293, 0, 1],
+      "end": [463, 0, 1],
+      "shader": "/example.glsl",
+      "global": false,
+      "targetRange": {
+        "minZIndex": 8,
+        "maxZIndex": 16
+      }, // The entire UI
+      "vars": {
+        // ...
+      }
+    },
+    {
+      "start": [66, 0, 1],
+      "end": [296, 0, 1],
+      "shader": "/another-example.glsl",
+      "global": true,
+      // targetRange is optional
+      "vars": {
+        // ...
+      }
+    }
+  ]
+}
+```
+
+Notice that there are two events that share the same shader code. This is a workaround when you want to apply the same shader to objects that are not adjacent on the Z axis.
+
+</details>
 
 ## Requirements
 
