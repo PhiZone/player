@@ -1,4 +1,4 @@
-import { GameObjects, Renderer, Scene, Sound } from 'phaser';
+import { Cameras, GameObjects, Renderer, Scene, Sound } from 'phaser';
 import { EventBus } from '../EventBus';
 import {
   processIllustration,
@@ -13,7 +13,15 @@ import {
   loadText,
   getSpritesheet,
 } from '../utils';
-import { GameStatus, type Bpm, type Config, type PhiraExtra, type RpeJson } from '../types';
+import {
+  GameStatus,
+  type Bpm,
+  type Config,
+  type GameObject,
+  type PhiraExtra,
+  type RegisteredObject,
+  type RpeJson,
+} from '../types';
 import { Line } from '../objects/Line';
 import type { LongNote } from '../objects/LongNote';
 import type { PlainNote } from '../objects/PlainNote';
@@ -66,10 +74,17 @@ export class Game extends Scene {
   private _bpmIndex: number = 0;
   private _lines: Line[];
   private _notes: (PlainNote | LongNote)[];
-  private _shaders: string[] | undefined;
+  private _shaders:
+    | {
+        key: string;
+        target: Cameras.Scene2D.Camera | RegisteredObject;
+      }[]
+    | undefined;
   private _videos: Video[] | undefined;
   private _visible: boolean = true;
   private _timeout: NodeJS.Timeout;
+
+  private _objects: RegisteredObject[] = [];
 
   private _song: Sound.NoAudioSound | Sound.HTML5AudioSound | Sound.WebAudioSound;
   private _background: GameObjects.Image;
@@ -255,12 +270,12 @@ export class Game extends Scene {
             asset.source = await loadText(asset.url, asset.key);
           }),
         );
-        this.initializeShaders();
       }
       this.load.audio('ending', `ending/LevelOver${this._levelType}.wav`);
       this.load.once('complete', async () => {
         this.createTextureAnimations();
         this.initializeChart();
+        this.initializeShaders();
         this.preprocess();
         this.initializeHandlers();
         this.setupUI();
@@ -284,11 +299,12 @@ export class Game extends Scene {
   start() {
     if (this._status === GameStatus.ERROR) return;
     this._status = GameStatus.PLAYING;
-    this.update(0, 0);
-    this._gameUI.in();
     this._timeout = setTimeout(() => {
       this._song.play();
     }, 1000);
+    this.update(0, 0);
+    this._gameUI.in();
+    this._objects.sort((a, b) => a.depth - b.depth);
     this.game.events.on('hidden', () => {
       this._visible = false;
       if (this._status !== GameStatus.FINISHED) this.pause();
@@ -338,7 +354,11 @@ export class Game extends Scene {
     this._endingUI = new EndingUI(this, this._data.recorderOptions.endingLoopsToRecord);
     setTimeout(() => {
       this._endingUI.play();
-      this.cameras.main.resetPostPipeline();
+      this._shaders?.forEach((shader) =>
+        'object' in shader.target
+          ? shader.target.object.resetPostPipeline()
+          : shader.target.resetPostPipeline(),
+      );
       EventBus.emit('finished');
     }, 1000);
   }
@@ -387,9 +407,13 @@ export class Game extends Scene {
     if (this._status === GameStatus.FINISHED || this._status === GameStatus.DESTROYED) return;
     this._lines.forEach((line) => line.update(beat, songTime, gameTime));
     this._notes.forEach((note) => note.updateJudgment(beat));
-    this._shaders?.forEach((shader) =>
-      (this.cameras.main.getPostPipeline(shader) as ShaderPipeline)?.update(beat, songTime),
-    );
+    this._shaders?.forEach((shader) => {
+      (
+        ('object' in shader.target
+          ? shader.target.object.getPostPipeline(shader.key)
+          : shader.target.getPostPipeline(shader.key)) as ShaderPipeline
+      )?.update(beat, songTime);
+    });
     this._videos?.forEach((video) => video.update(beat, songTime));
   }
 
@@ -401,11 +425,13 @@ export class Game extends Scene {
 
   createBackground() {
     EventBus.emit('loading-detail', 'Drawing background');
-    this._background = this.add.image(
+    this._background = new GameObjects.Image(
+      this,
       this.sys.canvas.width / 2,
       this.sys.canvas.height / 2,
       'illustration-background',
-    );
+    ).setDepth(0);
+    this.register(this._background);
     if (!SUPPORTS_CANVAS_BLUR) {
       this._background.preFX?.addBlur(
         2,
@@ -555,24 +581,46 @@ export class Game extends Scene {
       if (!asset) {
         this._status = GameStatus.ERROR;
         alert(`Unable to locate external shader ${effect.shader.slice(6)}`);
-        return '';
+        return { key: '', target: this.cameras.main };
       }
       const key = `${effect.shader}-${i}`;
       (this.renderer as Renderer.WebGL.WebGLRenderer).pipelines.addPostPipeline(
         key,
         ShaderPipeline,
       );
-      this.cameras.main.setPostPipeline(key, {
-        scene: this,
-        fragShader: asset.source,
-        data: effect,
-      });
-      return key;
+      let target;
+      if (effect.global) {
+        target = this.cameras.main;
+        target.setPostPipeline(key, {
+          scene: this,
+          fragShader: asset.source,
+          data: effect,
+        });
+      } else {
+        if (!effect.targetRange) {
+          effect.targetRange = {
+            minZIndex: 0,
+            maxZIndex: 8,
+            exclusive: false,
+          };
+        }
+        target = this.register(
+          new GameObjects.Container(this).setDepth(effect.targetRange.minZIndex),
+          effect.targetRange.maxZIndex,
+        );
+        target.object.setPostPipeline(key, {
+          scene: this,
+          fragShader: asset.source,
+          data: effect,
+          target,
+        });
+      }
+      return { key, target };
     });
   }
 
   async initializeVideos() {
-    if (!this._extra?.videos) return;
+    if (!this._extra?.videos || this._extra.videos.length === 0) return;
 
     EventBus.emit('loading-detail', 'Initializing videos');
 
@@ -584,6 +632,13 @@ export class Game extends Scene {
         }),
     );
     await signalHandler.wait();
+  }
+
+  register(object: GameObject, upperDepth?: number) {
+    this.add.existing(object);
+    const entry = { object, depth: object.depth, upperDepth, occupied: {} };
+    this._objects.push(entry);
+    return entry;
   }
 
   w(width: number) {
@@ -692,5 +747,9 @@ export class Game extends Scene {
 
   public get practice() {
     return this._practice;
+  }
+
+  public get objects() {
+    return this._objects;
   }
 }

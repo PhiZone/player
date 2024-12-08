@@ -31,8 +31,6 @@ export class PlainNote extends GameObjects.Image {
     if ([1, 2].includes(scene.preferences.chartFlipping)) {
       this._xModifier = -1;
     }
-
-    scene.add.existing(this);
   }
 
   update(beat: number, songTime: number, height: number, visible = true) {

@@ -1,4 +1,4 @@
-import type { Math } from 'phaser';
+import type { GameObjects, Math } from 'phaser';
 
 export interface Config {
   resources: Resources;
@@ -297,6 +297,21 @@ export enum Grade {
   AP,
 }
 
+export interface RegisteredObject {
+  object: GameObject;
+  depth: number;
+  upperDepth?: number;
+  occupied: { [key: string]: boolean };
+}
+
+export type GameObject =
+  | GameObjects.Container
+  | GameObjects.Image
+  | GameObjects.Video
+  | GameObjects.Sprite
+  | GameObjects.Rectangle
+  | GameObjects.Text;
+
 export interface PhiraExtra {
   bpm?: {
     time: [number, number, number];
@@ -323,7 +338,11 @@ export interface ShaderEffect {
   endBeat: number;
   shader: string;
   global: boolean;
-  targets?: number[];
+  targetRange?: {
+    minZIndex: number;
+    maxZIndex: number;
+    exclusive?: boolean;
+  };
   vars?: {
     [key: string]: Variable;
   };

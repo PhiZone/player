@@ -45,8 +45,6 @@ export class LongNote extends GameObjects.Container {
     if ([1, 2].includes(scene.preferences.chartFlipping)) {
       this._xModifier = -1;
     }
-
-    scene.add.existing(this);
   }
 
   update(beat: number, songTime: number, height: number, visible = true) {

@@ -34,13 +34,15 @@ export class Video extends GameObjects.Container {
       this._video.stop();
       this.add(this._video);
       this.add(this._overlay);
-      scene.add.existing(this);
+      scene.register(this);
       successCallback();
     });
   }
 
   update(beat: number, timeSec: number) {
-    this.setVisible(timeSec >= this._data.startTimeSec && timeSec < this._data.endTimeSec);
+    this.setVisible(
+      timeSec > 0 && timeSec >= this._data.startTimeSec && timeSec < this._data.endTimeSec,
+    );
     if (!this.visible) {
       this._video.stop();
     } else if (!this._video.isPlaying() && this._scene.song.isPlaying) {
