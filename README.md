@@ -46,9 +46,9 @@ A target range defines a list of depth-adjacent game objects that a shader event
 
 | Property    | Type               | Description                                                                                                                                                        |
 | ----------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `minZIndex` | number             | Defines the minimum Z index (depth) of this range. Inclusive.                                                                                                      |
-| `maxZIndex` | number             | Defines the maximum Z index (depth) of this range. Exclusive.                                                                                                      |
-| `exclusive` | boolean (optional) | Determines whether this range should exclude the range of another active shader event when the two ranges intersect but this range is not a superset of the other. |
+| `minZIndex` | Number             | Defines the minimum Z index (depth) of this range. Inclusive.                                                                                                      |
+| `maxZIndex` | Number             | Defines the maximum Z index (depth) of this range. Exclusive.                                                                                                      |
+| `exclusive` | Boolean (optional) | Determines whether this range should exclude the range of another active shader event when the two ranges intersect but this range is not a superset of the other. |
 
 One thing to note is that a single object cannot be rendered in parallel by two or more shaders. However, a set of targets from one shader event can be safely contained within the targets of another shader event. This leads to the concept of the `exclusive` property - it determines whether or not to "swallow" another set of objects when it intersects with but is not a subset of the current.
 
