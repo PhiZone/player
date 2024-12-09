@@ -25,6 +25,7 @@ import parseAPNG, { Frame } from 'apng-js';
 import { fixWebmDuration } from '@fix-webm-duration/fix';
 import { AndroidFullScreen } from '@awesome-cordova-plugins/android-full-screen';
 import { Capacitor } from '@capacitor/core';
+import 'context-filter-polyfill';
 
 const easingFunctions: ((x: number) => number)[] = [
   (x) => x,
@@ -110,44 +111,6 @@ const download = async (url: string, name?: string) => {
 
   return new Blob(chunks);
 };
-
-const testCanvasBlur = () => {
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-
-  if (!ctx) {
-    return false;
-  }
-
-  canvas.width = 2;
-  canvas.height = 1;
-
-  const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
-  gradient.addColorStop(0, 'black');
-  gradient.addColorStop(1, 'white');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  const originalPixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-
-  try {
-    ctx.filter = 'blur(1px)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-  } catch {
-    return false;
-  }
-
-  const blurredPixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-
-  for (let i = 0; i < blurredPixels.length; i++) {
-    if (blurredPixels[i] !== originalPixels[i]) {
-      return true;
-    }
-  }
-  return false;
-};
-
-export const SUPPORTS_CANVAS_BLUR = testCanvasBlur(); // something only Apple can do
 
 export const setFullscreen = () => {
   if (Capacitor.getPlatform() === 'android') {
@@ -318,7 +281,7 @@ export const processIllustration = (
 
         canvas.width = img.width;
         canvas.height = img.height;
-        if (SUPPORTS_CANVAS_BLUR) ctx.filter = `blur(${blurAmount}px)`;
+        ctx.filter = `blur(${blurAmount}px)`;
         ctx.drawImage(img, 0, 0);
         ctx.fillStyle = `rgba(0, 0, 0, ${1 - luminance})`;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -326,7 +289,7 @@ export const processIllustration = (
 
         canvas.width = cropWidth;
         canvas.height = cropHeight;
-        if (SUPPORTS_CANVAS_BLUR) ctx.filter = 'none';
+        ctx.filter = 'none';
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         const radius = (ENDING_ILLUSTRATION_CORNER_RADIUS * canvas.height) / 200;

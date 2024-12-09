@@ -8,7 +8,6 @@ import {
   fit,
   getAudio,
   inferLevelType,
-  SUPPORTS_CANVAS_BLUR,
   calculatePrecedences,
   loadText,
   getSpritesheet,
@@ -432,16 +431,6 @@ export class Game extends Scene {
       'illustration-background',
     ).setDepth(0);
     this.register(this._background);
-    if (!SUPPORTS_CANVAS_BLUR) {
-      this._background.preFX?.addBlur(
-        2,
-        8 * this._data.preferences.backgroundBlur,
-        8 * this._data.preferences.backgroundBlur,
-        1,
-        0xffffff,
-        24 * this._data.preferences.backgroundBlur,
-      );
-    }
     this.positionBackground(this._background);
   }
 
