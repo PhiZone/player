@@ -23,7 +23,7 @@
   ],
   "scripts": {
     "dev": "vite --config vite/config.dev.mjs --host",
-    "build": "vite build --config vite/config.prod.mjs",
+    "build": "vite build --config vite/config.prod.mjs && pnpm cap copy",
     "preview": "vite preview --outDir build --host",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
