@@ -28,6 +28,12 @@ Similar to a video player, the program includes intuitive keyboard controls on a
 - Pause/Resume: Press <kbd>Space</kbd> to toggle.
 - Rewind/Forward: Use <kbd>←</kbd> / <kbd>→</kbd> to jump 5 seconds, or <kbd>⇧ Shift</kbd>+<kbd>←</kbd> / <kbd>⇧ Shift</kbd>+<kbd>→</kbd> for precise 0.1-second adjustments.
 
+### APNG support
+
+Animated PNGs are an excellent alternative to GIFs, offering enhanced color fidelity and the support of an 8-bit alpha channel for smoother transparency effects.
+
+While there hasn't been support for GIF events, APNGs are planned to act exactly the same as GIFs.
+
 ### Chart enhancements
 
 Aside from adding support for RPE features, we've also designed some original properties for judgment lines & notes.
