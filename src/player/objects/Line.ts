@@ -97,7 +97,7 @@ export class Line {
       this._scene.p(1) * (this._scaleY ?? 1),
     ); // previously 1.0125 (according to the official definition that a line is 3 times as wide as the screen)
     this._line.setDepth(2 + precedence);
-    if (!this._hasCustomTexture) this._line.setTint(getLineColor(scene));
+    if (!this._hasCustomTexture && !this._data.attachUI) this._line.setTint(getLineColor(scene));
     if (this._data.anchor) this._line.setOrigin(this._data.anchor[0], 1 - this._data.anchor[1]);
 
     this._holdContainer = this.createContainer(3);
@@ -207,7 +207,8 @@ export class Line {
     );
     if (this._hasText) (this._line as GameObjects.Text).setText(this._text ?? '');
     if (this._color) this._line.setTint(rgbToHex(this._color));
-    else if (!this._hasCustomTexture) this._line.setTint(getLineColor(this._scene));
+    else if (!this._hasCustomTexture && !this._data.attachUI)
+      this._line.setTint(getLineColor(this._scene));
     const { x, y } = this.getPosition();
     const rotation =
       (this._rotationModifier * this._rotation + this._rotationOffset) * (Math.PI / 180);
