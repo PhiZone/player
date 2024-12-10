@@ -161,16 +161,17 @@ export class GameUI {
 
   update() {
     const metadata = this._scene.metadata;
-    const stats = this._scene.statistics.stats;
 
-    this._combo.setText(stats.combo.toString());
-    this._comboText.setText(COMBO_TEXT);
-    this._score.setText(pad(stats.displayScore, 7));
+    this._combo.setText(this._scene.statistics.combo.toString());
+    this._score.setText(pad(Math.round(this._scene.statistics.displayScore), 7));
     this._accuracy.setText(
-      `${stats.displayStdDev.toFixed(3)} ms · ${stats.accuracy.toLocaleString(undefined, {
-        style: 'percent',
-        minimumFractionDigits: 2,
-      })}`,
+      `${this._scene.statistics.displayStdDev.toFixed(3)} ms · ${this._scene.statistics.accuracy.toLocaleString(
+        undefined,
+        {
+          style: 'percent',
+          minimumFractionDigits: 2,
+        },
+      )}`,
     );
     this._songTitle.setText(metadata.title ?? '');
     this._level.setText(metadata.level ?? '');

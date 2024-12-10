@@ -5,10 +5,10 @@
   import queryString from 'query-string';
   import { fileTypeFromBlob } from 'file-type';
   import type { Config, Metadata, RecorderOptions, RpeJson } from '../player/types';
-  import { clamp, inferLevelType, isZip } from '../player/utils';
+  import { clamp, inferLevelType, IS_WEBKIT, isZip } from '../player/utils';
   import PreferencesModal from '$lib/components/Preferences.svelte';
   import { goto } from '$app/navigation';
-    import { Capacitor } from '@capacitor/core';
+  import { Capacitor } from '@capacitor/core';
 
   interface FileEntry {
     id: number;
@@ -382,7 +382,9 @@
             <input
               type="file"
               multiple
-              accept=".pez,.yml,.yaml,.shader,.glsl,.frag,.fsh,.fs,application/zip,application/json,image/*,video/*,audio/*,text/*"
+              accept={IS_WEBKIT
+                ? null
+                : '.pez,.yml,.yaml,.shader,.glsl,.frag,.fsh,.fs,application/zip,application/json,image/*,video/*,audio/*,text/*'}
               class="file-input file-input-bordered w-full max-w-xs file:btn dark:file:btn-neutral file:no-animation border-gray-200 rounded-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 dark:border-neutral-700 dark:text-neutral-300 dark:focus:ring-neutral-600"
               on:input={async (e) => {
                 const files = e.currentTarget.files;

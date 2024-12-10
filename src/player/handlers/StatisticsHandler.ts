@@ -26,43 +26,19 @@ export class StatisticsHandler {
     this._maxCombo = Array(this._scene.numberOfNotes).fill(0);
   }
 
-  updateStat(delta: number) {
+  updateDisplay(delta: number) {
     if (this._scene.numberOfNotes === 0) {
       this._score = 1_000_000;
       this._displayScore = 0;
       this._accuracy = 1;
       return;
     }
-    const good = this._judgment.goodEarly + this._judgment.goodLate;
-    this._score = Math.round(
-      (9e5 * this._judgment.perfect +
-        585e3 * good +
-        1e5 * this._maxCombo[this._judgment.judgmentCount]) /
-        this._scene.numberOfNotes,
-    );
     const displayScoreDiff = this._score - this._displayScore;
-    this._displayScore += (displayScoreDiff * delta) / 50;
-    this._accuracy =
-      this._judgment.judgmentCount === 0
-        ? 1
-        : (this._judgment.perfect + 0.65 * good) / this._judgment.judgmentCount;
-    if (this._judgment.judgmentDeltas.length > 1)
-      this._stdDev =
-        Number(
-          std(
-            this._judgment.judgmentDeltas.map((v) => v.delta),
-            'uncorrected',
-          ),
-        ) * 1000;
-    else this._stdDev = 0;
+    this._displayScore += displayScoreDiff * Math.min(delta / 50, 1);
+    // this._displayScore = this._score;
     const displayStdDevDiff = this._stdDev - this._displayStdDev;
-    this._displayStdDev += (displayStdDevDiff * delta) / 50;
-    this._fcApStatus =
-      this._judgment.bad + this._judgment.miss > 0
-        ? FcApStatus.NONE
-        : good > 0
-          ? FcApStatus.FC
-          : FcApStatus.AP;
+    this._displayStdDev += displayStdDevDiff * Math.min(delta / 50, 1);
+    // this._displayStdDev = this._stdDev;
   }
 
   updateRecords() {
@@ -85,6 +61,33 @@ export class StatisticsHandler {
     }
     this._comboIndex = this._judgment.judgmentCount;
     this._judgment.rewindDeltas(this._scene.beat);
+
+    const good = this._judgment.goodEarly + this._judgment.goodLate;
+    this._score = Math.round(
+      (9e5 * this._judgment.perfect +
+        585e3 * good +
+        1e5 * this._maxCombo[this._judgment.judgmentCount]) /
+        this._scene.numberOfNotes,
+    );
+    this._accuracy =
+      this._judgment.judgmentCount === 0
+        ? 1
+        : (this._judgment.perfect + 0.65 * good) / this._judgment.judgmentCount;
+    if (this._judgment.judgmentDeltas.length > 1)
+      this._stdDev =
+        Number(
+          std(
+            this._judgment.judgmentDeltas.map((v) => v.delta),
+            'uncorrected',
+          ),
+        ) * 1000;
+    else this._stdDev = 0;
+    this._fcApStatus =
+      this._judgment.bad + this._judgment.miss > 0
+        ? FcApStatus.NONE
+        : good > 0
+          ? FcApStatus.FC
+          : FcApStatus.AP;
   }
 
   public get stats() {
@@ -123,6 +126,18 @@ export class StatisticsHandler {
 
   public get combo() {
     return this._combo;
+  }
+
+  public get displayScore() {
+    return this._displayScore;
+  }
+
+  public get accuracy() {
+    return this._accuracy;
+  }
+
+  public get displayStdDev() {
+    return this._displayStdDev;
   }
 
   public set combo(combo: number) {

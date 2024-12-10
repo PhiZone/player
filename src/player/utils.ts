@@ -112,6 +112,8 @@ const download = async (url: string, name?: string) => {
   return new Blob(chunks);
 };
 
+export const IS_WEBKIT = 'webkitRequestAnimationFrame' in window;
+
 export const setFullscreen = () => {
   if (Capacitor.getPlatform() === 'android') {
     AndroidFullScreen.isImmersiveModeSupported()
@@ -547,6 +549,10 @@ export const pad = (num: number, size: number) => {
   while (numStr.length < size) numStr = '0' + numStr;
   return numStr;
 };
+
+// const paddings = Array(7)
+//   .fill('')
+//   .map((_, i) => Array(i).fill(0).join(''));
 
 export const position = (
   array: { x: number; actualWidth: number }[],

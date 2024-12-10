@@ -390,7 +390,7 @@ export class Game extends Scene {
       this._status === GameStatus.FINISHED ? this._song.duration : this._song.seek,
     );
     this.updateChart(this.beat, this.timeSec, time);
-    this.statistics.updateStat(delta);
+    this.statistics.updateDisplay(delta);
   }
 
   destroy() {

@@ -9,7 +9,7 @@ const config: Types.Core.GameConfig = {
   width: window.innerWidth * window.devicePixelRatio,
   height: window.innerHeight * window.devicePixelRatio,
   scale: {
-    mode: Scale.ENVELOP,
+    mode: Scale.EXPAND,
     autoCenter: Scale.CENTER_BOTH,
   },
   backgroundColor: '#000000',
@@ -72,7 +72,7 @@ const start = (parent: string, sceneConfig: Config | null) => {
   // @ts-expect-error - globalThis is not defined in TypeScript
   globalThis.__PHASER_GAME__ = game;
   game.scene.start('MainGame');
-  if (!config.scale || config.scale.mode === Scale.ENVELOP) {
+  if (!config.scale || config.scale.mode === Scale.EXPAND) {
     window.onresize = () => {
       game.scale.resize(
         window.innerWidth * window.devicePixelRatio,
