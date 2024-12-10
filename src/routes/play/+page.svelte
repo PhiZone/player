@@ -6,6 +6,6 @@
   let config = getParams();
 </script>
 
-<div class="w-full h-screen overflow-hidden flex flex-col justify-center items-center">
+<div data-theme="night" class="w-full h-screen overflow-hidden flex flex-col justify-center items-center">
   <Player bind:gameRef {config} />
 </div>
