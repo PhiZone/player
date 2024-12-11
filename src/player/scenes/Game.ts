@@ -126,6 +126,8 @@ export class Game extends Scene {
     });
     this.load.setPath('game');
 
+    this.load.bitmapFont('Outfit', 'fonts/Outfit.png', 'fonts/Outfit.fnt');
+
     this.load.svg('pause', 'Pause.svg', { width: 128, height: 128 });
     this.load.image('progress-bar', 'Progress.png');
 
