@@ -6,7 +6,7 @@ export const COMBO_TEXT = 'COMBO';
 /*
     The size of hit effects.
 */
-export const HIT_EFFECTS_SIZE = 1;
+export const HIT_EFFECTS_SIZE = 1.2;
 
 /*
     The size of hit effects particles, which will be scaled by HIT_EFFECTS_SIZE.

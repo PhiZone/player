@@ -4,6 +4,7 @@ import { FONT_FAMILY } from '../constants';
 import type { Grade } from '../types';
 import { pad, position } from '../utils';
 import { EventBus } from '../EventBus';
+import { Capacitor } from '@capacitor/core';
 
 export class EndingUI extends GameObjects.Container {
   private _scene: Game;
@@ -211,7 +212,7 @@ export class EndingUI extends GameObjects.Container {
       (this._loopsToRecord * 192e3) / 7,
     );
     this._tweening = true;
-    this._grade.preFX?.addShine(7 / 6, 1, 3, false);
+    if (Capacitor.getPlatform() !== 'android') this._grade.preFX?.addShine(7 / 6, 1, 3, false);
 
     // Overlay (to dim the background)
     this._scene.tweens.add({
