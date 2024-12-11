@@ -367,10 +367,10 @@ export const getLineColor = (scene: Game): number => {
 export const getJudgmentColor = (type: JudgmentType): number => {
   switch (type) {
     case JudgmentType.PERFECT:
-      return 0xffffa9;
+      return 0xffeda2;
     case JudgmentType.GOOD_EARLY:
     case JudgmentType.GOOD_LATE:
-      return 0xc0f4ff;
+      return 0xb6e1ff;
     case JudgmentType.BAD:
       return 0x6b3b3a;
     default:
