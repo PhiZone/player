@@ -146,41 +146,45 @@ Notice that there are two events that share the same shader code. This is a work
 
 ## Commands
 
-| Command            | Description                                      |
-| ------------------ | ------------------------------------------------ |
-| `pnpm i`           | Installs project dependencies                    |
-| `pnpm dev`         | Launches a development web server                |
-| `pnpm build`       | Creates a production build in the `build` folder |
-| `pnpm tauri build` | Creates a production build for desktop           |
+| Command                 | Description                                                                                |
+| ----------------------- | ------------------------------------------------------------------------------------------ |
+| `pnpm i`                | Installs project dependencies                                                              |
+| `pnpm dev`              | Launches a development web server                                                          |
+| `pnpm build`            | Creates a production build in the `build` folder and copies it to Android and iOS projects |
+| `pnpm tauri build`      | Creates a production build for desktop platforms                                           |
+| `pnpm cap open android` | Opens the Android project in Android Studio                                                |
+| `pnpm cap open ios`     | Opens the iOS project in Xcode                                                             |
 
 ## Development
 
-| Feature                                    | Version | Remark                                                                        | Status/Progress   | 功能                    |
-| ------------------------------------------ | ------- | ----------------------------------------------------------------------------- | ----------------- | ----------------------- |
-| Basic RPE support                          | 0.0.1   |                                                                               | ✅ Done           | 基本 RPE 适配           |
-| Support for custom line textures           | 0.0.1   |                                                                               | ✅ Done           | 判定线自定义贴图适配    |
-| Support for flipping modes                 | 0.0.1   |                                                                               | ✅ Done           | 镜像模式适配            |
-| Support for custom hit sounds              | 0.0.1   |                                                                               | ✅ Done           | 自定义打击音效适配      |
-| Support for `zOrder`                       | 0.0.1   |                                                                               | ✅ Done           | Z 轴排序适配            |
-| Basic support for the extended event layer | 0.0.2   | Excluding GIF events & incline events                                         | ✅ Done           | 扩展事件层的基本适配    |
-| Cross-platform distribution                | 0.0.3   | Plan to reference [this blog](https://nsarrazin.com/blog/sveltekit-universal) | 🚧 Working        | 跨平台分发              |
-| Better input detections                    | 0.0.3   | Especially for Flicks                                                         | 🚧 Working        | 输入检测优化            |
-| Support for Phira `extra.json`             | 0.0.4   | Including shaders                                                             | 🛠️ Tests required | Phira `extra.json` 适配 |
-| Support for `attachUI`                     | 0.0.4   |                                                                               | ✅ Done           | UI 绑定适配             |
-| Support for anchors                        | 0.0.4   |                                                                               | ✅ Done           | 锚点适配                |
-| Support for APNGs                          | 0.0.4   |                                                                               | ✅ Done           | APNG 格式适配           |
-| Shader feature enhancements                | 0.0.5   |                                                                               | ✅ Done           | 着色器功能增强          |
-| Support for Bézier easings                 | 0.0.5   |                                                                               | ✅ Done           | 贝塞尔缓动适配          |
-| Offset adjustment mode                     | 0.0.5   |                                                                               |                   | 延迟调整模式            |
-| Alignment with official/RPE constants      | 0.0.6   | Hold tolerances, texture size units, etc.                                     |                   | 官/RPE 常数对齐         |
-| Full support for the extended event layer  | 0.0.6   | GIF events & incline events                                                   |                   | 扩展事件层的完全适配    |
-| Recording mode                             | 0.0.7   |                                                                               | ⏳ Postponed      | 录制模式                |
-| Support for all note properties            | 0.0.7   |                                                                               |                   | 所有 Note 属性的适配    |
-| Note property enhancements                 | 0.0.8   |                                                                               |                   | Note 属性增强           |
-| Full RPE support                           | 0.1.0   |                                                                               |                   | 完全 RPE 适配           |
-| Basic PE support                           | 0.1.1   |                                                                               |                   | 基本 PE 适配            |
-| Customizable resource pack                 | 0.1.2   |                                                                               |                   | 可自定义资源包          |
-| PhiZone integration                        | 0.2.0   |                                                                               |                   | PhiZone 集成            |
+| Feature                                    | Version | Remark                                                                        | Status/Progress     | 功能                    |
+| ------------------------------------------ | ------- | ----------------------------------------------------------------------------- | ------------------- | ----------------------- |
+| Basic RPE support                          | 0.0.1   |                                                                               | ✅ Done             | 基本 RPE 适配           |
+| Support for custom line textures           | 0.0.1   |                                                                               | ✅ Done             | 判定线自定义贴图适配    |
+| Support for flipping modes                 | 0.0.1   |                                                                               | ✅ Done             | 镜像模式适配            |
+| Support for custom hit sounds              | 0.0.1   |                                                                               | ✅ Done             | 自定义打击音效适配      |
+| Support for `zOrder`                       | 0.0.1   |                                                                               | ✅ Done             | Z 轴排序适配            |
+| Basic support for the extended event layer | 0.0.2   | Excluding GIF events & incline events                                         | ✅ Done             | 扩展事件层的基本适配    |
+| Cross-platform distribution                | 0.0.3   | Plan to reference [this blog](https://nsarrazin.com/blog/sveltekit-universal) | 🚧 Working          | 跨平台分发              |
+| Better input detections                    | 0.0.3   | Especially for Flicks                                                         | ✅ Done             | 输入检测优化            |
+| Support for Phira `extra.json`             | 0.0.4   | Including shaders                                                             | ✅ Done<sup>1</sup> | Phira `extra.json` 适配 |
+| Support for `attachUI`                     | 0.0.4   |                                                                               | ✅ Done             | UI 绑定适配             |
+| Support for anchors                        | 0.0.4   |                                                                               | ✅ Done             | 锚点适配                |
+| Support for APNGs                          | 0.0.4   |                                                                               | ✅ Done             | APNG 格式适配           |
+| Shader feature enhancements                | 0.0.5   |                                                                               | ✅ Done             | 着色器功能增强          |
+| Support for Bézier easings                 | 0.0.5   |                                                                               | ✅ Done             | 贝塞尔缓动适配          |
+| Offset adjustment mode                     | 0.0.5   |                                                                               |                     | 延迟调整模式            |
+| Alignment with official/RPE constants      | 0.0.6   | Hold tolerances, texture size units, etc.                                     |                     | 官/RPE 常数对齐         |
+| Full support for the extended event layer  | 0.0.6   | GIF events & incline events                                                   |                     | 扩展事件层的完全适配    |
+| Recording mode                             | 0.0.7   |                                                                               | ⏳ Postponed        | 录制模式                |
+| Support for all note properties            | 0.0.7   |                                                                               |                     | 所有 Note 属性的适配    |
+| Note property enhancements                 | 0.0.8   |                                                                               |                     | Note 属性增强           |
+| Full RPE support                           | 0.1.0   |                                                                               |                     | 完全 RPE 适配           |
+| Basic PE support                           | 0.1.1   |                                                                               |                     | 基本 PE 适配            |
+| Customizable resource pack                 | 0.1.2   |                                                                               |                     | 可自定义资源包          |
+| PhiZone integration                        | 0.2.0   |                                                                               |                     | PhiZone 集成            |
+
+1. Support for fragment shaders is partial, due to WebGL relying on an older version of GLSL.
 
 A version is reached whenever at least one feature from this version and all features from the previous versions are marked as `✅ Done`. A version is released only when all features from this version and the previous versions are marked as `✅ Done`.
 
@@ -190,65 +194,78 @@ Game assets are stored in `./static/game`. A tree view of the folder is as follo
 
 ```
 game
-│  HitEffects.png
-│  line.png
-│  Pause.svg
-│  Progress.png
+│   HitEffects.png
+│   line.png
+│   Pause.svg
+│   Progress.png
 │
-├─ending
-│      GradeHit.wav
-│      LevelOver0.wav
-│      LevelOver1.wav
-│      LevelOver2.wav
-│      LevelOver3.wav
-│      LevelOver4.wav
+├───ending
+│       GradeHit.wav
+│       LevelOver0.wav
+│       LevelOver1.wav
+│       LevelOver2.wav
+│       LevelOver3.wav
+│       LevelOver4.wav
 │
-├─grades
-│      .gitkeep
-│      A.png
-│      B.png
-│      C.png
-│      F.png
-│      Phi.png
-│      S.png
-│      V-FC.png
-│      V.png
+├───fonts
+│   └───Outfit
+│           OFL.txt
+│           Outfit.fnt
+│           Outfit.png
 │
-├─hitsounds
-│      .gitkeep
-│      Drag.wav
-│      Flick.wav
-│      Tap.wav
+├───grades
+│       .gitkeep
+│       A.png
+│       B.png
+│       C.png
+│       F.png
+│       Phi.png
+│       S.png
+│       V-FC.png
+│       V.png
 │
-├─notes
-│      .gitkeep
-│      Drag.png
-│      DragHL.png
-│      Flick.png
-│      FlickHL.png
-│      Hold.png
-│      HoldEnd.png
-│      HoldEndHL.png
-│      HoldHead.png
-│      HoldHeadHL.png
-│      HoldHL.png
-│      Tap.png
-│      TapHL.png
+├───hitsounds
+│       .gitkeep
+│       Drag.wav
+│       Flick.wav
+│       Tap.wav
 │
-└─shaders
+├───notes
+│       .gitkeep
+│       Drag.png
+│       DragHL.png
+│       Flick.png
+│       FlickHL.png
+│       Hold.png
+│       HoldEnd.png
+│       HoldEndHL.png
+│       HoldHead.png
+│       HoldHeadHL.png
+│       HoldHL.png
+│       Tap.png
+│       TapHL.png
+│
+└───shaders
         chromatic.glsl
-        circle_blur.glsl
+        circleBlur.glsl
         fisheye.glsl
         glitch.glsl
         grayscale.glsl
         noise.glsl
         pixel.glsl
-        radial_blur.glsl
+        radialBlur.glsl
         shockwave.glsl
         vignette.glsl
 ```
 
-According to [a statement from Pigeon Games](https://www.bilibili.com/opus/624904779363026292), assets from Phigros are copyrighted, and their appearance in other software is legally prohibited. This restriction applies to all assets in this folder except for all shaders (`shaders/*`, the majority of which are licensed under MIT/CC0, with a few exceptions from [ShaderToy](https://www.shadertoy.com) licensed under the default [CC BY-NC-SA 3.0](https://creativecommons.org/licenses/by-nc-sa/3.0/) license specified by the site), `Pause.svg` (by Font Awesome, licensed under [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/)) and `ending/GradeHit.wav` (by Naptie with sound effects on [Pixabay](https://pixabay.com), licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)). If you wish to run this program on your own, please be sure to append the missing assets as aforementioned.
+According to [a statement from Pigeon Games](https://www.bilibili.com/opus/624904779363026292), assets from Phigros are copyrighted, and their appearance in other software is legally prohibited. This restriction applies to all assets in this folder except for:
+
+- all shaders (`shaders/*`, the majority of which are licensed under MIT/CC0, with a few exceptions from [ShaderToy](https://www.shadertoy.com) licensed under the default [CC BY-NC-SA 3.0](https://creativecommons.org/licenses/by-nc-sa/3.0/) license specified by the site);
+- all fonts (`fonts/**`, licenses presented in `OFL.txt` in each font folder);
+- `Pause.svg` (by Font Awesome, licensed under [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/));
+- and `ending/GradeHit.wav` (by Naptie with sound effects on [Pixabay](https://pixabay.com), licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)).
+
+If you wish to run this program on your own, please be sure to append the missing assets as aforementioned.
 
 ## Deployments
 
