@@ -164,7 +164,7 @@ Notice that there are two events that share the same shader code. This is a work
 | Support for `zOrder`                       | 0.0.1   |                                                                               | ✅ Done           | Z 轴排序适配            |
 | Basic support for the extended event layer | 0.0.2   | Excluding GIF events & incline events                                         | ✅ Done           | 扩展事件层的基本适配    |
 | Cross-platform distribution                | 0.0.3   | Plan to reference [this blog](https://nsarrazin.com/blog/sveltekit-universal) | 🚧 Working        | 跨平台分发              |
-| Better input detections                    | 0.0.3   | Especially for Flicks                                                         |                   | 输入检测优化            |
+| Better input detections                    | 0.0.3   | Especially for Flicks                                                         | 🚧 Working        | 输入检测优化            |
 | Support for Phira `extra.json`             | 0.0.4   | Including shaders                                                             | 🛠️ Tests required | Phira `extra.json` 适配 |
 | Support for `attachUI`                     | 0.0.4   |                                                                               | ✅ Done           | UI 绑定适配             |
 | Support for anchors                        | 0.0.4   |                                                                               | ✅ Done           | 锚点适配                |
