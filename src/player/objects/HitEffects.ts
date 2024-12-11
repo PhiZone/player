@@ -17,7 +17,7 @@ export class HitEffects extends GameObjects.Sprite {
 
     this._scene = scene;
     this._color = getJudgmentColor(type);
-    this.setScale(this._scene.p(HIT_EFFECTS_SIZE));
+    this.setScale(this._scene.p(HIT_EFFECTS_SIZE * this._scene.preferences.noteSize));
     this.setOrigin(0.5);
     this.setTint(this._color);
   }

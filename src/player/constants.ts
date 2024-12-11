@@ -4,9 +4,9 @@
 export const COMBO_TEXT = 'COMBO';
 
 /*
-    The size of hit effects.
+    The size of hit effects, which will be scaled by the note size from the preferences.
 */
-export const HIT_EFFECTS_SIZE = 1.2;
+export const HIT_EFFECTS_SIZE = 1.1;
 
 /*
     The size of hit effects particles, which will be scaled by HIT_EFFECTS_SIZE.
