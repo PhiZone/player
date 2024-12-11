@@ -27,7 +27,7 @@ export const FONT_FAMILY = 'Outfit';
 /*
     The base size of notes, which will be scaled by the note size from the preferences.
 */
-export const NOTE_BASE_SIZE = 0.16;
+export const NOTE_BASE_SIZE = 0.18;
 
 /*
     Minimum velocity (in chart pixels per second) required to Perfect a Flick note.
@@ -48,7 +48,7 @@ export const HOLD_TAIL_TOLERANCE = 100;
     Maximum distance (in chart pixels) between the projections of the input and a note along
     the judgment line allowed to hit the note.
 */
-export const JUDGMENT_THRESHOLD = 200;
+export const JUDGMENT_THRESHOLD = 120;
 
 /*
     The radius (in percentage) of rounded corners of the illustration on the ending scene.

@@ -492,27 +492,29 @@ export class Game extends Scene {
       .sort((a, b) => a.note.startBeat - b.note.startBeat);
     this._notes = notes
       .filter((note) => !note.note.isFake)
-      .sort((a, b) => a.note.startBeat - b.note.startBeat);
+      .sort((a, b) =>
+        a.note.startBeat === b.note.startBeat
+          ? a.note.type - b.note.type
+          : a.note.startBeat - b.note.startBeat,
+      );
     this._numberOfNotes = this._notes.length;
-    if (this._data.preferences.simultaneousNoteHint) {
-      const moments: number[][] = [];
-      let lastMoment = [-Infinity, 0, 0];
-      notes.forEach((note) => {
-        const cur = note.note.startTime;
-        if (isEqual(cur, lastMoment) && !isEqual(cur, moments.at(-1))) {
-          moments.push(cur);
-        } else {
-          lastMoment = cur;
-        }
-      });
-      moments.forEach((moment) => {
-        notes
-          .filter((note) => isEqual(note.note.startTime, moment))
-          .forEach((note) => {
-            note.setHighlight(true);
-          });
-      });
-    }
+    const moments: number[][] = [];
+    let lastMoment = [-Infinity, 0, 0];
+    notes.forEach((note) => {
+      const cur = note.note.startTime;
+      if (isEqual(cur, lastMoment) && !isEqual(cur, moments.at(-1))) {
+        moments.push(cur);
+      } else {
+        lastMoment = cur;
+      }
+    });
+    moments.forEach((moment) => {
+      notes
+        .filter((note) => isEqual(note.note.startTime, moment))
+        .forEach((note) => {
+          note.setHighlight(this._data.preferences.simultaneousNoteHint);
+        });
+    });
     this._lines
       .filter((line) => line.data.father != -1)
       .forEach((line) => {
@@ -672,6 +674,10 @@ export class Game extends Scene {
 
   public get statistics() {
     return this._statisticsHandler;
+  }
+
+  public get notes() {
+    return this._notes;
   }
 
   public get numberOfNotes() {

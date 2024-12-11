@@ -173,7 +173,6 @@ export class Line {
           note.setHeight(this.calculateHeight(data.startBeat));
         }
         this.addNote(note);
-        note.setLine(this);
       });
     }
   }
@@ -485,6 +484,7 @@ export class Line {
   }
 
   addNote(note: PlainNote | LongNote) {
+    note.line = this;
     this._notes.push(note);
     [this._tapContainer, this._holdContainer, this._flickContainer, this._dragContainer][
       note.note.type - 1

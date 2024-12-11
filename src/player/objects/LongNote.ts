@@ -23,6 +23,7 @@ export class LongNote extends GameObjects.Container {
   private _tempJudgmentType: JudgmentType = JudgmentType.UNJUDGED;
   private _beatTempJudged: number | undefined = undefined;
   private _lastInputBeat: number = 0;
+  private _consumeTap: boolean = true;
 
   constructor(scene: Game, data: Note, x: number = 0, y: number = 0, highlight: boolean = false) {
     super(scene, x, y);
@@ -220,16 +221,20 @@ export class LongNote extends GameObjects.Container {
     return this._beatTempJudged;
   }
 
+  public get consumeTap() {
+    return this._consumeTap;
+  }
+
+  public set consumeTap(consumeTap: boolean) {
+    this._consumeTap = consumeTap;
+  }
+
   public get line() {
     return this._line;
   }
 
-  setLine(line: Line) {
+  public set line(line: Line) {
     this._line = line;
-  }
-
-  get(key: string) {
-    return this._data[key as keyof Note];
   }
 
   public get note() {

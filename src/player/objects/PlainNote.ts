@@ -16,6 +16,7 @@ export class PlainNote extends GameObjects.Image {
   private _judgmentType: JudgmentType = JudgmentType.UNJUDGED;
   private _beatJudged: number | undefined = undefined;
   private _pendingPerfect: boolean = false;
+  private _consumeTap: boolean = true;
 
   constructor(scene: Game, data: Note, x: number = 0, y: number = 0, highlight: boolean = false) {
     super(scene, x, y, `${data.type}${highlight ? '-hl' : ''}`);
@@ -73,6 +74,9 @@ export class PlainNote extends GameObjects.Image {
       const progress = clamp(delta / goodJudgment, 0, 1);
       this.setAlpha((this._data.alpha / 255) * (1 - progress));
       if (beat >= this._data.startBeat) {
+        if (this._data.type === 3) {
+          this._consumeTap = false;
+        }
         if (this._scene.autoplay || this._pendingPerfect) {
           this._scene.judgment.hit(JudgmentType.PERFECT, deltaSec, this);
           this._pendingPerfect = false;
@@ -87,13 +91,20 @@ export class PlainNote extends GameObjects.Image {
       const isFlick = this._data.type === 3;
       if (Math.abs(delta) <= (isTap ? badJudgment : goodJudgment)) {
         const input = isTap
-          ? this._scene.pointer.findTap(
+          ? !!this._scene.pointer.findTap(
               this,
-              this._scene.timeSec - (isTap ? badJudgment : goodJudgment) / 1000,
-              this._scene.timeSec + goodJudgment / 1000,
+              this._scene.timeSec - badJudgment / 1000,
+              this._scene.timeSec + badJudgment / 1000,
             )
           : this._scene.pointer.findDrag(this, isFlick);
         if (!input) return;
+        if (!isTap && this._consumeTap) {
+          this._scene.pointer.findTap(
+            this,
+            this._scene.timeSec - goodJudgment / 1000,
+            this._scene.timeSec + goodJudgment / 1000,
+          );
+        }
         if (isTap && delta < -goodJudgment) {
           this._scene.judgment.hit(JudgmentType.BAD, deltaSec, this);
         } else if (delta < -perfectJudgment) {
@@ -155,16 +166,20 @@ export class PlainNote extends GameObjects.Image {
     return this._beatJudged;
   }
 
+  public get consumeTap() {
+    return this._consumeTap;
+  }
+
+  public set consumeTap(consumeTap: boolean) {
+    this._consumeTap = consumeTap;
+  }
+
   public get line() {
     return this._line;
   }
 
-  setLine(line: Line) {
+  public set line(line: Line) {
     this._line = line;
-  }
-
-  get(key: string) {
-    return this._data[key as keyof Note];
   }
 
   public get note() {

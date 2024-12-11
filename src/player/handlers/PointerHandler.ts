@@ -43,18 +43,18 @@ export class PointerHandler {
       velocityConsumed: null,
       distance: Infinity,
     });
-    this._scene.tweens.add({
-      targets: [
-        this._scene.add.circle(position.x, position.y, 36, 0x1cd6ce).setDepth(100),
-        this._scene.add
-          .text(position.x, position.y, (pointer.id % 100).toString(), { fontSize: 24 })
-          .setOrigin(0.5, 0.5)
-          .setDepth(101),
-      ],
-      alpha: 0,
-      ease: 'Cubic.easeIn',
-      duration: 200,
-    });
+    // this._scene.tweens.add({
+    //   targets: [
+    //     this._scene.add.circle(position.x, position.y, 36, 0x1cd6ce).setDepth(100),
+    //     this._scene.add
+    //       .text(position.x, position.y, (pointer.id % 100).toString(), { fontSize: 24 })
+    //       .setOrigin(0.5, 0.5)
+    //       .setDepth(101),
+    //   ],
+    //   alpha: 0,
+    //   ease: 'Cubic.easeIn',
+    //   duration: 200,
+    // });
   }
 
   updateMove(pointer: Input.Pointer) {
@@ -78,25 +78,25 @@ export class PointerHandler {
     this._pointerDrags[index].position = position;
     this._pointerDrags[index].velocity =
       velocityMagnitude >= FLICK_VELOCTY_THRESHOLD ? velocity : Phaser.Math.Vector2.ZERO;
-    this._scene.tweens.add({
-      targets: [
-        this._scene.add
-          .circle(
-            position.x,
-            position.y,
-            36,
-            velocityMagnitude >= FLICK_VELOCTY_THRESHOLD ? 0xd61c4e : 0xfedb39,
-          )
-          .setDepth(100),
-        this._scene.add
-          .text(position.x, position.y, velocityMagnitude.toFixed(1), { fontSize: 24 })
-          .setOrigin(0.5, 0.5)
-          .setDepth(100),
-      ],
-      alpha: 0,
-      ease: 'Cubic.easeIn',
-      duration: 50,
-    });
+    // this._scene.tweens.add({
+    //   targets: [
+    //     this._scene.add
+    //       .circle(
+    //         position.x,
+    //         position.y,
+    //         36,
+    //         velocityMagnitude >= FLICK_VELOCTY_THRESHOLD ? 0xd61c4e : 0xfedb39,
+    //       )
+    //       .setDepth(100),
+    //     this._scene.add
+    //       .text(position.x, position.y, velocityMagnitude.toFixed(1), { fontSize: 24 })
+    //       .setOrigin(0.5, 0.5)
+    //       .setDepth(100),
+    //   ],
+    //   alpha: 0,
+    //   ease: 'Cubic.easeIn',
+    //   duration: 50,
+    // });
     if (
       velocityMagnitude < FLICK_VELOCTY_THRESHOLD ||
       (this._pointerDrags[index].velocityConsumed &&
@@ -142,7 +142,7 @@ export class PointerHandler {
     });
     const tap = taps
       .filter((input) => input.distance <= this._scene.p(JUDGMENT_THRESHOLD))
-      .sort((a, b) => a.spaceTimeDistance - b.spaceTimeDistance)[0];
+      .sort((a, b) => a.distance - b.distance)[0];
     if (tap) this.consumeTap(tap.id);
     return tap;
   }
@@ -190,20 +190,20 @@ export class PointerHandler {
 
   removePointer(pointer: Input.Pointer) {
     if (this._scene.autoplay || this._scene.status !== GameStatus.PLAYING) return;
-    this._scene.tweens.add({
-      targets: [
-        this._scene.add.circle(pointer.position.x, pointer.position.y, 36, 0x2f628c).setDepth(100),
-        this._scene.add
-          .text(pointer.position.x, pointer.position.y, (pointer.id % 100).toString(), {
-            fontSize: 24,
-          })
-          .setOrigin(0.5, 0.5)
-          .setDepth(101),
-      ],
-      alpha: 0,
-      ease: 'Cubic.easeIn',
-      duration: 200,
-    });
+    // this._scene.tweens.add({
+    //   targets: [
+    //     this._scene.add.circle(pointer.position.x, pointer.position.y, 36, 0x2f628c).setDepth(100),
+    //     this._scene.add
+    //       .text(pointer.position.x, pointer.position.y, (pointer.id % 100).toString(), {
+    //         fontSize: 24,
+    //       })
+    //       .setOrigin(0.5, 0.5)
+    //       .setDepth(101),
+    //   ],
+    //   alpha: 0,
+    //   ease: 'Cubic.easeIn',
+    //   duration: 200,
+    // });
     this._pointerTaps = this._pointerTaps.filter((input) => input.id !== pointer.id);
     this._pointerDrags = this._pointerDrags.filter((input) => input.id !== pointer.id);
   }
