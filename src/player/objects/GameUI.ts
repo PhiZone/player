@@ -80,6 +80,7 @@ export class GameUI {
       9,
       stats.combo.toString(),
       scene.p(this._fontSizes[1]),
+      'Outfit',
     );
 
     this._comboText = this.createComponent(
@@ -104,6 +105,7 @@ export class GameUI {
       11,
       pad(stats.displayScore, 7),
       scene.p(this._fontSizes[3]),
+      'Outfit',
     );
 
     this._accuracy = this.createComponent(
@@ -119,6 +121,7 @@ export class GameUI {
         minimumFractionDigits: 2,
       })}`,
       scene.p(this._fontSizes[4]),
+      'Outfit',
     );
     this._accuracy.text.setAlpha(0.7);
 
@@ -307,6 +310,7 @@ export class GameUI {
     depth: number,
     text: string,
     fontSize?: number | undefined,
+    bitmapFont?: string | undefined,
     textStyle?: Types.GameObjects.Text.TextStyle | undefined,
   ) {
     const container = new GameObjects.Container(this._scene, x, y).setDepth(depth);
@@ -321,6 +325,7 @@ export class GameUI {
       originX,
       originY,
       text,
+      bitmapFont,
       fontSize,
       textStyle,
     );
@@ -413,7 +418,7 @@ export class GameUI {
 }
 
 class UIComponent extends GameObjects.Container {
-  private _text: GameObjects.Text;
+  private _text: GameObjects.Text | GameObjects.BitmapText;
   private _background: GameObjects.Graphics;
   private _container: GameObjects.Container;
   private _isAnimationPlaying: boolean = false;
@@ -428,6 +433,7 @@ class UIComponent extends GameObjects.Container {
     originX: number,
     originY: number,
     text: string,
+    bitmapFont?: string | undefined,
     fontSize?: number | undefined,
     textStyle?: Types.GameObjects.Text.TextStyle | undefined,
   ) {
@@ -435,18 +441,27 @@ class UIComponent extends GameObjects.Container {
 
     this._container = container;
     this._container.add(this);
-    this._text = new GameObjects.Text(
-      scene,
-      offsetX,
-      offsetY,
-      text,
-      textStyle ?? {
-        fontFamily: FONT_FAMILY,
-        fontSize: fontSize ?? 32,
-        color: '#ffffff',
-        align: 'center',
-      },
-    ).setOrigin(originX, originY);
+    this._text = bitmapFont
+      ? new GameObjects.BitmapText(
+          scene,
+          offsetX,
+          offsetY,
+          bitmapFont,
+          text,
+          fontSize ?? 32,
+        ).setOrigin(originX, originY)
+      : new GameObjects.Text(
+          scene,
+          offsetX,
+          offsetY,
+          text,
+          textStyle ?? {
+            fontFamily: FONT_FAMILY,
+            fontSize: fontSize ?? 32,
+            color: '#ffffff',
+            align: 'center',
+          },
+        ).setOrigin(originX, originY);
 
     this._background = new GameObjects.Graphics(scene);
 
