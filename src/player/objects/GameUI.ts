@@ -163,21 +163,21 @@ export class GameUI {
   }
 
   update() {
-    // const metadata = this._scene.metadata;
+    const metadata = this._scene.metadata;
 
-    // this._combo.setText(this._scene.statistics.combo.toString());
-    // this._score.setText(pad(Math.round(this._scene.statistics.displayScore), 7));
-    // this._accuracy.setText(
-    //   `${this._scene.statistics.displayStdDev.toFixed(3)} ms · ${this._scene.statistics.accuracy.toLocaleString(
-    //     undefined,
-    //     {
-    //       style: 'percent',
-    //       minimumFractionDigits: 2,
-    //     },
-    //   )}`,
-    // );
-    // this._songTitle.setText(metadata.title ?? '');
-    // this._level.setText(metadata.level ?? '');
+    this._combo.setText(this._scene.statistics.combo.toString());
+    this._score.setText(pad(Math.round(this._scene.statistics.displayScore), 7));
+    this._accuracy.setText(
+      `${this._scene.statistics.displayStdDev.toFixed(3)} ms · ${this._scene.statistics.accuracy.toLocaleString(
+        undefined,
+        {
+          style: 'percent',
+          minimumFractionDigits: 2,
+        },
+      )}`,
+    );
+    this._songTitle.setText(metadata.title ?? '');
+    this._level.setText(metadata.level ?? '');
 
     [
       this._pause,
