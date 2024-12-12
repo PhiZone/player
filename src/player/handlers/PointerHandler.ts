@@ -1,16 +1,13 @@
-import { dot } from 'mathjs';
 import type { Input } from 'phaser';
 import { FLICK_VELOCTY_THRESHOLD, JUDGMENT_THRESHOLD } from '../constants';
-import type { Line } from '../objects/Line';
 import type { LongNote } from '../objects/LongNote';
 import type { PlainNote } from '../objects/PlainNote';
 import type { Game } from '../scenes/Game';
-import { GameStatus, type PointerTap, type PointerDrag } from '../types';
-import { getTimeSec } from '../utils';
+import { GameStatus, type PointerDrag } from '../types';
+import { getJudgmentPosition } from '../utils';
 
 export class PointerHandler {
   private _scene: Game;
-  private _pointerTaps: PointerTap[] = [];
   private _pointerDrags: PointerDrag[] = [];
 
   constructor(scene: Game) {
@@ -28,13 +25,13 @@ export class PointerHandler {
     )
       return;
     const position = new Phaser.Math.Vector2(pointer.x, pointer.y);
-    this._pointerTaps.push({
+    const tap = {
       id: pointer.id,
       time: this._scene.timeSec,
       position,
       distance: Infinity,
       spaceTimeDistance: Infinity,
-    });
+    };
     this._pointerDrags.push({
       id: pointer.id,
       time: this._scene.timeSec,
@@ -55,6 +52,7 @@ export class PointerHandler {
     //   ease: 'Cubic.easeIn',
     //   duration: 200,
     // });
+    this._scene.judgment.judgeTap(tap);
   }
 
   updateMove(pointer: Input.Pointer) {
@@ -115,7 +113,7 @@ export class PointerHandler {
         input.velocity = Phaser.Math.Vector2.ZERO;
         input.velocityConsumed = null;
       });
-    this.pointerTaps
+    this._pointerDrags
       .map((input) => this._scene.input.manager.pointers.at(input.id))
       .forEach((pointer) => {
         if (!pointer || pointer.isDown) return;
@@ -123,52 +121,13 @@ export class PointerHandler {
       });
   }
 
-  findTap(note: PlainNote | LongNote, rangeEarliest: number, rangeLatest: number) {
-    const notePosition = note.judgmentPosition;
-    const taps = this._pointerTaps.filter(
-      (input) => input.time >= rangeEarliest && input.time <= rangeLatest,
-    );
-    taps.forEach((input) => {
-      input.distance =
-        (Phaser.Math.Distance.BetweenPoints(
-          notePosition,
-          this.getJudgmentPosition(input, note.line),
-        ) *
-          1350) /
-        this._scene.sys.canvas.width;
-      input.spaceTimeDistance =
-        input.distance ** 2 +
-        ((input.time - getTimeSec(this._scene.bpmList, note.note.startBeat)) * 100) ** 2;
-    });
-    const tap = taps
-      .filter((input) => input.distance <= this._scene.p(JUDGMENT_THRESHOLD))
-      .sort((a, b) => a.distance - b.distance)[0];
-    if (tap) this.consumeTap(tap.id);
-    return tap;
-  }
-
   findDrag(note: PlainNote | LongNote, requireVelocity: boolean = false) {
     const notePosition = note.judgmentPosition;
     this._pointerDrags.forEach((input) => {
       input.distance = Phaser.Math.Distance.BetweenPoints(
         notePosition,
-        this.getJudgmentPosition(input, note.line),
+        getJudgmentPosition(input, note.line),
       );
-      this._scene.tweens.add({
-        targets: this._scene.add
-          .line(
-            0,
-            0,
-            notePosition.x,
-            notePosition.y,
-            this.getJudgmentPosition(input, note.line).x,
-            this.getJudgmentPosition(input, note.line).y,
-          )
-          .setDepth(100),
-        alpha: 0,
-        ease: 'Cubic.easeIn',
-        duration: 200,
-      });
     });
     const drag = this._pointerDrags
       .filter((input) => {
@@ -182,10 +141,6 @@ export class PointerHandler {
       .sort((a, b) => a.distance - b.distance)[0];
     if (drag && requireVelocity) this.consumeDrag(drag.id);
     return drag;
-  }
-
-  consumeTap(id: number) {
-    this._pointerTaps = this._pointerTaps.filter((input) => input.id !== id);
   }
 
   removePointer(pointer: Input.Pointer) {
@@ -204,7 +159,6 @@ export class PointerHandler {
     //   ease: 'Cubic.easeIn',
     //   duration: 200,
     // });
-    this._pointerTaps = this._pointerTaps.filter((input) => input.id !== pointer.id);
     this._pointerDrags = this._pointerDrags.filter((input) => input.id !== pointer.id);
   }
 
@@ -212,18 +166,6 @@ export class PointerHandler {
     const index = this._pointerDrags.findIndex((input) => input.id === id);
     this._pointerDrags[index].velocityConsumed = this._pointerDrags[index].velocity.clone();
   }
-
-  getJudgmentPosition(input: PointerTap | PointerDrag, line: Line) {
-    const vector = line.vector;
-    vector.scale(dot([input.position.x - line.x, input.position.y - line.y], [vector.x, vector.y]));
-    vector.add(new Phaser.Math.Vector2(line.x, line.y));
-    return vector;
-  }
-
-  public get pointerTaps() {
-    return this._pointerTaps;
-  }
-
   public get pointerDrags() {
     return this._pointerDrags;
   }

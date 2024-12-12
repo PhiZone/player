@@ -2,7 +2,7 @@ import { GameObjects } from 'phaser';
 import { JudgmentType, type Note } from '../types';
 import type { Game } from '../scenes/Game';
 import type { Line } from './Line';
-import { getTimeSec } from '../utils';
+import { getTimeSec, rgbToHex } from '../utils';
 import { HOLD_BODY_TOLERANCE, HOLD_TAIL_TOLERANCE, NOTE_BASE_SIZE } from '../constants';
 
 export class LongNote extends GameObjects.Container {
@@ -23,6 +23,7 @@ export class LongNote extends GameObjects.Container {
   private _tempJudgmentType: JudgmentType = JudgmentType.UNJUDGED;
   private _beatTempJudged: number | undefined = undefined;
   private _lastInputBeat: number = 0;
+  private _hasTapInput: boolean = false;
   private _consumeTap: boolean = true;
 
   constructor(scene: Game, data: Note, x: number = 0, y: number = 0, highlight: boolean = false) {
@@ -38,6 +39,10 @@ export class LongNote extends GameObjects.Container {
     this._body.setOrigin(0.5, 1);
     this._tail.setOrigin(0.5, 1);
     this.resize();
+    this.setAlpha(data.alpha / 255);
+    if (data.tint) {
+      this.setTint(rgbToHex(data.tint));
+    }
     this._bodyHeight = this._body.texture.getSourceImage().height;
     this._hitTime = getTimeSec(scene.bpmList, data.startBeat);
 
@@ -113,12 +118,7 @@ export class LongNote extends GameObjects.Container {
         }
       }
       if (delta >= -goodJudgment && delta <= goodJudgment) {
-        const input = this._scene.pointer.findTap(
-          this,
-          this._scene.timeSec - goodJudgment / 1000,
-          this._scene.timeSec + goodJudgment / 1000,
-        );
-        if (!input) return;
+        if (!this._hasTapInput) return;
         if (delta < -perfectJudgment) {
           this._scene.judgment.hold(JudgmentType.GOOD_EARLY, deltaSec, this);
         } else if (delta <= perfectJudgment) {
@@ -156,6 +156,12 @@ export class LongNote extends GameObjects.Container {
     this._body.setTexture(`2${highlight ? '-hl' : ''}`);
     this._tail.setTexture(`2-t${highlight ? '-hl' : ''}`);
     this._bodyHeight = this._body.texture.getSourceImage().height;
+  }
+
+  setTint(tint: number | undefined) {
+    this._head.setTint(tint);
+    this._body.setTint(tint);
+    this._tail.setTint(tint);
   }
 
   setHeadHeight(height: number) {
@@ -206,6 +212,18 @@ export class LongNote extends GameObjects.Container {
 
   public get beatJudged() {
     return this._beatJudged;
+  }
+
+  public get hitTime() {
+    return this._hitTime;
+  }
+
+  public get hasTapInput() {
+    return this._hasTapInput;
+  }
+
+  public set hasTapInput(hasTapInput: boolean) {
+    this._hasTapInput = hasTapInput;
   }
 
   public get tempJudgmentType() {

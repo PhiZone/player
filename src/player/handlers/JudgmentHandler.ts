@@ -3,8 +3,9 @@ import { HitEffects } from '../objects/HitEffects';
 import type { LongNote } from '../objects/LongNote';
 import type { PlainNote } from '../objects/PlainNote';
 import type { Game } from '../scenes/Game';
-import { JudgmentType, GameStatus } from '../types';
-import { isPerfectOrGood, getJudgmentColor, rgbToHex } from '../utils';
+import { JudgmentType, GameStatus, type PointerTap } from '../types';
+import { isPerfectOrGood, getJudgmentColor, rgbToHex, getJudgmentPosition } from '../utils';
+import { JUDGMENT_THRESHOLD } from '../constants';
 
 export class JudgmentHandler {
   private _scene: Game;
@@ -14,6 +15,7 @@ export class JudgmentHandler {
   private _bad: number = 0;
   private _miss: number = 0;
   private _judgmentCount: number = 0;
+  private _judgmentIndex: number = 0;
   private _judgmentDeltas: { delta: number; beat: number }[] = [];
   private _hitEffectsContainer: GameObjects.Container;
 
@@ -158,6 +160,93 @@ export class JudgmentHandler {
 
   reset() {
     this._judgmentDeltas = [];
+  }
+
+  judgeTap(input?: PointerTap) {
+    const currentTimeSec = this._scene.timeSec;
+    const { goodJudgment } = this._scene.preferences;
+    const badJudgment = goodJudgment * 1.125;
+    const threshold = this._scene.p(JUDGMENT_THRESHOLD);
+    while (
+      this._judgmentIndex > 0 &&
+      this._scene.notes[this._judgmentIndex].hitTime >= currentTimeSec - badJudgment / 1000
+    ) {
+      this._judgmentIndex--;
+    }
+    while (this._scene.notes[this._judgmentIndex].hitTime < currentTimeSec - badJudgment / 1000) {
+      this._judgmentIndex++;
+    }
+    let nearestNote: PlainNote | LongNote | undefined = undefined;
+    let minBeat: number = Infinity;
+    let minDistance: number = Infinity;
+    for (
+      let i = this._judgmentIndex, note = this._scene.notes[i];
+      note.hitTime <= currentTimeSec + (note.note.type === 1 ? badJudgment : goodJudgment) / 1000;
+      note = this._scene.notes[++i]
+    ) {
+      if (!note.consumeTap || note.hasTapInput || note.judgmentType !== JudgmentType.UNJUDGED) {
+        continue;
+      }
+      const distance = input
+        ? (Phaser.Math.Distance.BetweenPoints(
+            note.judgmentPosition,
+            getJudgmentPosition(input, note.line),
+          ) *
+            1350) /
+          this._scene.sys.canvas.width
+        : Infinity;
+      if (distance > threshold) {
+        note.setTint(0xff0000);
+        if (input) {
+          this._scene.tweens.add({
+            targets: [
+              this._scene.add
+                .circle(
+                  getJudgmentPosition(input, note.line).x,
+                  getJudgmentPosition(input, note.line).y,
+                  36,
+                  0xff0000,
+                )
+                .setAlpha(0.9)
+                .setDepth(100),
+            ],
+            alpha: 0,
+            duration: 500,
+          });
+        }
+        continue;
+      }
+      if (input) {
+        this._scene.tweens.add({
+          targets: [
+            this._scene.add
+              .circle(
+                getJudgmentPosition(input, note.line).x,
+                getJudgmentPosition(input, note.line).y,
+                36,
+                0x00ff00,
+              )
+              .setAlpha(0.9)
+              .setDepth(100),
+          ],
+          alpha: 0,
+          duration: 500,
+        });
+      }
+      if (
+        minBeat > note.note.startBeat ||
+        (minBeat === note.note.startBeat && minDistance > distance)
+      ) {
+        nearestNote = note;
+        minBeat = note.note.startBeat;
+        minDistance = distance;
+        note.setTint(0x0000ff);
+      }
+    }
+    if (nearestNote) {
+      nearestNote.hasTapInput = true;
+      nearestNote.setTint(0x00ff00);
+    }
   }
 
   public get perfect() {

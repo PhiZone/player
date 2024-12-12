@@ -16,6 +16,7 @@ export class PlainNote extends GameObjects.Image {
   private _judgmentType: JudgmentType = JudgmentType.UNJUDGED;
   private _beatJudged: number | undefined = undefined;
   private _pendingPerfect: boolean = false;
+  private _hasTapInput: boolean = false;
   private _consumeTap: boolean = true;
 
   constructor(scene: Game, data: Note, x: number = 0, y: number = 0, highlight: boolean = false) {
@@ -28,6 +29,9 @@ export class PlainNote extends GameObjects.Image {
     this.setOrigin(0.5);
     this.resize();
     this.setAlpha(data.alpha / 255);
+    if (data.tint) {
+      this.setTint(rgbToHex(data.tint));
+    }
 
     if ([1, 2].includes(scene.preferences.chartFlipping)) {
       this._xModifier = -1;
@@ -43,9 +47,6 @@ export class PlainNote extends GameObjects.Image {
     const dist = this._scene.d((this._targetHeight - height) * this._data.speed);
     if (this._judgmentType !== JudgmentType.BAD) {
       this.setY(this._yModifier * dist);
-      if (this._data.tint) {
-        this.setTint(rgbToHex(this._data.tint));
-      }
     }
     if (beat >= this._data.startBeat) {
       if (this._data.isFake) {
@@ -89,22 +90,23 @@ export class PlainNote extends GameObjects.Image {
       }
       const isTap = this._data.type === 1;
       const isFlick = this._data.type === 3;
-      if (Math.abs(delta) <= (isTap ? badJudgment : goodJudgment)) {
-        const input = isTap
-          ? !!this._scene.pointer.findTap(
-              this,
-              this._scene.timeSec - badJudgment / 1000,
-              this._scene.timeSec + badJudgment / 1000,
-            )
-          : this._scene.pointer.findDrag(this, isFlick);
-        if (!input) return;
-        if (!isTap && this._consumeTap) {
-          this._scene.pointer.findTap(
-            this,
-            this._scene.timeSec - goodJudgment / 1000,
-            this._scene.timeSec + goodJudgment / 1000,
-          );
-        }
+      if (!this._pendingPerfect && Math.abs(delta) <= (isTap ? badJudgment : goodJudgment)) {
+        // const input = isTap
+        //   ? !!this._scene.pointer.findTap(
+        //       this,
+        //       this._scene.timeSec - badJudgment / 1000,
+        //       this._scene.timeSec + badJudgment / 1000,
+        //     )
+        //   : this._scene.pointer.findDrag(this, isFlick);
+        if (isTap && !this._hasTapInput) return;
+        if (!this._scene.pointer.findDrag(this, isFlick)) return;
+        // if (!isTap && this._consumeTap) {
+        //   this._scene.pointer.findTap(
+        //     this,
+        //     this._scene.timeSec - goodJudgment / 1000,
+        //     this._scene.timeSec + goodJudgment / 1000,
+        //   );
+        // }
         if (isTap && delta < -goodJudgment) {
           this._scene.judgment.hit(JudgmentType.BAD, deltaSec, this);
         } else if (delta < -perfectJudgment) {
@@ -164,6 +166,18 @@ export class PlainNote extends GameObjects.Image {
 
   public get beatJudged() {
     return this._beatJudged;
+  }
+
+  public get hitTime() {
+    return this._hitTime;
+  }
+
+  public get hasTapInput() {
+    return this._hasTapInput;
+  }
+
+  public set hasTapInput(hasTapInput: boolean) {
+    this._hasTapInput = hasTapInput;
   }
 
   public get consumeTap() {
