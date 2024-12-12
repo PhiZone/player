@@ -6,6 +6,7 @@ import type { Game } from '../scenes/Game';
 import { JudgmentType, GameStatus, type PointerTap } from '../types';
 import { isPerfectOrGood, getJudgmentColor, rgbToHex, getJudgmentPosition } from '../utils';
 import { JUDGMENT_THRESHOLD } from '../constants';
+import { equal } from 'mathjs';
 
 export class JudgmentHandler {
   private _scene: Game;
@@ -179,6 +180,7 @@ export class JudgmentHandler {
     let nearestNote: PlainNote | LongNote | undefined = undefined;
     let minBeat: number = Infinity;
     let minDistance: number = Infinity;
+    let minType: number = Infinity;
     for (
       let i = this._judgmentIndex, note = this._scene.notes[i];
       note.hitTime <= currentTimeSec + (note.note.type === 1 ? badJudgment : goodJudgment) / 1000;
@@ -196,7 +198,6 @@ export class JudgmentHandler {
           this._scene.sys.canvas.width
         : Infinity;
       if (distance > threshold) {
-        note.setTint(0xff0000);
         if (input) {
           this._scene.tweens.add({
             targets: [
@@ -235,11 +236,15 @@ export class JudgmentHandler {
       }
       if (
         minBeat > note.note.startBeat ||
-        (minBeat === note.note.startBeat && minDistance > distance)
+        (equal(minBeat, note.note.startBeat) && minDistance > distance) ||
+        (equal(minBeat, note.note.startBeat) &&
+          equal(minDistance, distance) &&
+          minType > note.note.type)
       ) {
         nearestNote = note;
         minBeat = note.note.startBeat;
         minDistance = distance;
+        minType = note.note.type;
         note.setTint(0x0000ff);
       }
     }
