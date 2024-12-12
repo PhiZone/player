@@ -5,10 +5,13 @@
   import queryString from 'query-string';
   import { fileTypeFromBlob } from 'file-type';
   import type { Config, Metadata, RecorderOptions, RpeJson } from '../player/types';
-  import { clamp, inferLevelType, IS_WEBKIT, isZip } from '../player/utils';
+  import { clamp, fit, inferLevelType, IS_SAFARI, isZip } from '../player/utils';
   import PreferencesModal from '$lib/components/Preferences.svelte';
   import { goto } from '$app/navigation';
   import { Capacitor } from '@capacitor/core';
+  import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+  import { PhysicalPosition, PhysicalSize } from '@tauri-apps/api/dpi';
+  import { currentMonitor, type Monitor } from '@tauri-apps/api/window';
 
   interface FileEntry {
     id: number;
@@ -24,13 +27,14 @@
     metadata: Metadata;
   }
 
-  const VERSION = '0.0.2';
+  const VERSION = '0.0.3';
   const REPO_LINK = 'https://github.com/PhiZone/player';
 
   let showCollapse = false;
   let showRecorderCollapse = false;
   let overrideResolution = false;
   let directoryInput: HTMLInputElement;
+  let monitor: Monitor | null = null;
 
   let progress = -1;
   let progressDetail = '';
@@ -63,7 +67,6 @@
     adjustOffset: false,
     record: false,
     newTab: false,
-    fullscreen: true,
   };
   let recorderOptions: RecorderOptions = {
     frameRate: 60,
@@ -89,7 +92,7 @@
 
   let timeouts: NodeJS.Timeout[] = [];
 
-  onMount(() => {
+  onMount(async () => {
     directoryInput.webkitdirectory = true;
     const pref = localStorage.getItem('preferences');
     const tgs = localStorage.getItem('toggles');
@@ -382,7 +385,7 @@
             <input
               type="file"
               multiple
-              accept={IS_WEBKIT
+              accept={IS_SAFARI
                 ? null
                 : '.pez,.yml,.yaml,.shader,.glsl,.frag,.fsh,.fs,application/zip,application/json,image/*,video/*,audio/*,text/*'}
               class="file-input file-input-bordered w-full max-w-xs file:btn dark:file:btn-neutral file:no-animation border-gray-200 rounded-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 dark:border-neutral-700 dark:text-neutral-300 dark:focus:ring-neutral-600"
@@ -1015,31 +1018,7 @@
                   </span>
                 </label>
               </div>
-              {#if '__TAURI_INTERNALS__' in window}
-                <!-- <div class="relative flex items-start">
-                  <div class="flex items-center h-5 mt-1">
-                    <input
-                      id="fullscreen"
-                      name="fullscreen"
-                      type="checkbox"
-                      class="transition border-gray-200 rounded text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
-                      aria-describedby="fullscreen-description"
-                      bind:checked={toggles.fullscreen}
-                    />
-                  </div>
-                  <label for="fullscreen" class="ms-3">
-                    <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
-                      Fullscreen
-                    </span>
-                    <span
-                      id="fullscreen-description"
-                      class="block text-sm text-gray-600 dark:text-neutral-500"
-                    >
-                      The player will be opened in fullscreen.
-                    </span>
-                  </label>
-                </div> -->
-              {:else if Capacitor.getPlatform() === 'web'}
+              {#if Capacitor.getPlatform() === 'web'}
                 <div class="relative flex items-start">
                   <div class="flex items-center h-5 mt-1">
                     <input
@@ -1069,6 +1048,11 @@
               <PreferencesModal bind:preferences class="w-1/2" />
               <button
                 class="w-1/2 inline-flex justify-center items-center gap-x-3 text-center bg-gradient-to-tl from-blue-500 via-violet-500 to-fuchsia-500 dark:from-blue-700 dark:via-violet-700 dark:to-fuchsia-700 text-white text-sm font-medium rounded-md focus:outline-none py-3 px-4 transition-all duration-300 bg-size-200 bg-pos-0 hover:bg-pos-100"
+                on:pointerenter={async () => {
+                  if ('__TAURI_INTERNALS__' in window) {
+                    monitor = await currentMonitor();
+                  }
+                }}
                 on:click={() => {
                   localStorage.setItem('preferences', JSON.stringify(preferences));
                   localStorage.setItem('toggles', JSON.stringify(toggles));
@@ -1135,10 +1119,42 @@
                     };
                     localStorage.setItem('player', JSON.stringify(config));
                   }
-                  if ('__TAURI_INTERNALS__' in window && toggles.fullscreen) {
-                    // TODO Command not found
-                    // getCurrentWindow().setFullscreen(true);
-                  } else if (Capacitor.getPlatform() === 'web' && toggles.newTab) {
+                  if (Capacitor.getPlatform() === 'web' && toggles.newTab) {
+                    if ('__TAURI_INTERNALS__' in window) {
+                      const webview = new WebviewWindow(`player-${Date.now()}`, {
+                        url,
+                      });
+                      webview.once('tauri://created', () => {
+                        if (monitor) {
+                          const factor = 0.8;
+                          let { width, height } = preferences.aspectRatio
+                            ? fit(
+                                preferences.aspectRatio[0],
+                                preferences.aspectRatio[1],
+                                monitor.size.width,
+                                monitor.size.height,
+                                true,
+                              )
+                            : {
+                                width: monitor.size.width,
+                                height: monitor.size.height,
+                              };
+                          width = width * factor;
+                          height = height * factor;
+                          webview.setPosition(
+                            new PhysicalPosition(
+                              Math.round(monitor.position.x + (monitor.size.width - width) / 2),
+                              Math.round(monitor.position.y + (monitor.size.height - height) / 2),
+                            ),
+                          );
+                          webview.setSize(new PhysicalSize(Math.round(width), Math.round(height)));
+                        }
+                      });
+                      webview.once('tauri://error', (e) => {
+                        console.error(e);
+                      });
+                      return;
+                    }
                     window.open(url);
                     return;
                   }

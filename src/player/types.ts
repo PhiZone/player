@@ -11,7 +11,6 @@ export interface Config {
   record: boolean;
   autostart: boolean;
   newTab: boolean;
-  fullscreen: boolean;
 }
 
 export interface Resources {

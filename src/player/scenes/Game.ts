@@ -325,7 +325,7 @@ export class Game extends Scene {
   }
 
   pause(emittedBySpace: boolean = false) {
-    if (this._status === GameStatus.ERROR) return;
+    if (this._status === GameStatus.ERROR || !this._song.isPlaying) return;
     clearTimeout(this._timeout);
     this._status = GameStatus.PAUSED;
     this._song.pause();

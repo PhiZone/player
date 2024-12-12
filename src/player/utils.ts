@@ -116,7 +116,7 @@ const download = async (url: string, name?: string) => {
   return new Blob(chunks);
 };
 
-export const IS_WEBKIT = 'webkitRequestAnimationFrame' in window;
+export const IS_SAFARI = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
 export const setFullscreen = () => {
   if (Capacitor.getPlatform() === 'android') {
@@ -187,7 +187,6 @@ export const getParams = (): Config | null => {
   const record = ['1', 'true'].some((v) => v == searchParams.get('record'));
   const autostart = ['1', 'true'].some((v) => v == searchParams.get('autostart'));
   const newTab = ['1', 'true'].some((v) => v == searchParams.get('newTab'));
-  const fullscreen = ['1', 'true'].some((v) => v == searchParams.get('fullscreen'));
   if (!song || !chart || !illustration || assetNames.length < assets.length) {
     const storageItem = localStorage.getItem('player');
     return storageItem ? JSON.parse(storageItem) : null;
@@ -239,7 +238,6 @@ export const getParams = (): Config | null => {
     record,
     autostart,
     newTab,
-    fullscreen,
   };
 };
 
@@ -626,7 +624,9 @@ export const getAudio = async (url: string): Promise<string> => {
   await ffmpeg.writeFile('input', await fetchFile(originalAudio));
   await ffmpeg.exec(['-i', 'input', '-f', 'wav', 'output']);
   const data = await ffmpeg.readFile('output');
-  return URL.createObjectURL(new Blob([(data as Uint8Array).buffer], { type: 'audio/wav' }));
+  return URL.createObjectURL(
+    new Blob([(data as Uint8Array).buffer as ArrayBuffer], { type: 'audio/wav' }),
+  );
 };
 
 export const outputRecording = async (

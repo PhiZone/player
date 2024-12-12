@@ -21,12 +21,14 @@ Designed with [Preline UI](https://preline.co) and [daisyUI](https://daisyui.com
 
 Choose either some files (or .zip/.pez archives) or an entire folder, and chart bundles will be automatically detected according to Re: PhiEdit (or RPE) metadata files (typically named `info.txt`) in which a chart, a song, and an illustration are specified. Any other files that fail to be recognized, which are most likely multimedia that will be referenced by the chart, or the `extra.json` from Phira, will be presented in the assets.
 
-### Keyboard controls for autoplay
+### Innovative keyboard controls
 
-Similar to a video player, the program includes intuitive keyboard controls on autoplay mode:
+Similar to a video player, the program includes handy keyboard controls on autoplay mode:
 
 - Pause/Resume: Press <kbd>Space</kbd> to toggle.
 - Rewind/Forward: Use <kbd>←</kbd> / <kbd>→</kbd> to jump 5 seconds, or <kbd>⇧ Shift</kbd>+<kbd>←</kbd> / <kbd>⇧ Shift</kbd>+<kbd>→</kbd> for precise 0.1-second adjustments.
+
+Besides, <kbd>ESC</kbd> is always available to pause with the pause screen.
 
 ### APNG support
 
@@ -184,7 +186,7 @@ Notice that there are two events that share the same shader code. This is a work
 | Customizable resource pack                 | 0.1.2   |                                                                               |                     | 可自定义资源包          |
 | PhiZone integration                        | 0.2.0   |                                                                               |                     | PhiZone 集成            |
 
-1. Support for fragment shaders is partial, due to WebGL relying on an older version of GLSL.
+<sup>1</sup> Support for fragment shaders is partial, due to WebGL relying on an older version of GLSL.
 
 A version is reached whenever at least one feature from this version and all features from the previous versions are marked as `✅ Done`. A version is released only when all features from this version and the previous versions are marked as `✅ Done`.
 

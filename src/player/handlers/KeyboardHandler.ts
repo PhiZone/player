@@ -15,6 +15,7 @@ export class KeyboardHandler {
       this._scene.input.keyboard?.on('keydown-SHIFT', this.handleShiftDown, this);
       this._scene.input.keyboard?.on('keyup-SHIFT', this.handleShiftUp, this);
     }
+    this._scene.input.keyboard?.on('keyup-ESC', this.handleEscapeUp, this);
   }
 
   handleSpaceDown() {
@@ -46,5 +47,13 @@ export class KeyboardHandler {
 
   handleShiftUp() {
     this._increment = 5;
+  }
+
+  handleEscapeUp() {
+    if (this._scene.status === GameStatus.PLAYING) {
+      this._scene.pause();
+    } else if (this._scene.status === GameStatus.PAUSED) {
+      this._scene.resume();
+    }
   }
 }

@@ -194,6 +194,9 @@ export class LongNote extends GameObjects.Container {
     this._beatJudged = undefined;
     this.setAlpha(this._data.alpha / 255);
     this.clearTint();
+    if (this._data.tint) {
+      this.setTint(rgbToHex(this._data.tint));
+    }
   }
 
   resetTemp() {
