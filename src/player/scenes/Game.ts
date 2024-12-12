@@ -329,7 +329,7 @@ export class Game extends Scene {
 
   resume() {
     if (this._status === GameStatus.ERROR) return;
-    this.updateChart(this.beat, Date.now(), this.bpm);
+    this.updateChart(this.beat, this.timeSec, Date.now());
     this._status = GameStatus.PLAYING;
     this._song.resume();
     this._videos?.forEach((video) => video.resume());
@@ -407,7 +407,7 @@ export class Game extends Scene {
   updateChart(beat: number, songTime: number, gameTime: number) {
     if (this._status === GameStatus.FINISHED || this._status === GameStatus.DESTROYED) return;
     this._lines.forEach((line) => line.update(beat, songTime, gameTime));
-    this._notes.forEach((note) => note.updateJudgment(beat));
+    this._notes.forEach((note) => note.updateJudgment(beat, songTime));
     this._shaders?.forEach((shader) => {
       (
         ('object' in shader.target

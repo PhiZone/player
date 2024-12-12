@@ -182,9 +182,10 @@ export class JudgmentHandler {
     let minDistance: number = Infinity;
     let minType: number = Infinity;
     for (
-      let i = this._judgmentIndex, note = this._scene.notes[i];
+      let i = this._judgmentIndex, note: PlainNote | LongNote | undefined = this._scene.notes[i];
+      note &&
       note.hitTime <= currentTimeSec + (note.note.type === 1 ? badJudgment : goodJudgment) / 1000;
-      note = this._scene.notes[++i]
+      note = this._scene.notes.at(++i)
     ) {
       if (!note.consumeTap || note.hasTapInput || note.judgmentType !== JudgmentType.UNJUDGED) {
         continue;

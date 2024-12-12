@@ -102,9 +102,10 @@ export class LongNote extends GameObjects.Container {
     }
   }
 
-  updateJudgment(beat: number) {
+  updateJudgment(beat: number, songTime: number) {
+    beat *= this._line.data.bpmfactor;
     if (this._tempJudgmentType === JudgmentType.UNJUDGED) {
-      const deltaSec = getTimeSec(this._scene.bpmList, beat) - this._hitTime;
+      const deltaSec = songTime - this._hitTime;
       const delta = deltaSec * 1000;
       const { perfectJudgment, goodJudgment } = this._scene.preferences;
       if (beat >= this._data.startBeat) {
@@ -127,6 +128,7 @@ export class LongNote extends GameObjects.Container {
           this._scene.judgment.hold(JudgmentType.GOOD_LATE, deltaSec, this);
         }
         this._lastInputBeat = beat;
+        this._hasTapInput = false;
       }
     } else if (this._judgmentType === JudgmentType.UNJUDGED) {
       if (!this._scene.autoplay) {
@@ -164,6 +166,12 @@ export class LongNote extends GameObjects.Container {
     this._tail.setTint(tint);
   }
 
+  clearTint() {
+    this._head.clearTint();
+    this._body.clearTint();
+    this._tail.clearTint();
+  }
+
   setHeadHeight(height: number) {
     this._targetHeadHeight = height;
   }
@@ -183,6 +191,7 @@ export class LongNote extends GameObjects.Container {
     this._judgmentType = JudgmentType.UNJUDGED;
     this._beatJudged = undefined;
     this.setAlpha(this._data.alpha / 255);
+    this.clearTint();
   }
 
   resetTemp() {
@@ -241,10 +250,6 @@ export class LongNote extends GameObjects.Container {
 
   public get consumeTap() {
     return this._consumeTap;
-  }
-
-  public set consumeTap(consumeTap: boolean) {
-    this._consumeTap = consumeTap;
   }
 
   public get line() {

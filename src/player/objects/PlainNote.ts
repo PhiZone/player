@@ -65,19 +65,16 @@ export class PlainNote extends GameObjects.Image {
     }
   }
 
-  updateJudgment(beat: number) {
+  updateJudgment(beat: number, songTime: number) {
     beat *= this._line.data.bpmfactor;
     if (this._judgmentType === JudgmentType.UNJUDGED) {
-      const deltaSec = getTimeSec(this._scene.bpmList, beat) - this._hitTime;
+      const deltaSec = songTime - this._hitTime;
       const delta = deltaSec * 1000;
       const { perfectJudgment, goodJudgment } = this._scene.preferences;
       const badJudgment = goodJudgment * 1.125;
       const progress = clamp(delta / goodJudgment, 0, 1);
       this.setAlpha((this._data.alpha / 255) * (1 - progress));
       if (beat >= this._data.startBeat) {
-        if (this._data.type === 3) {
-          this._consumeTap = false;
-        }
         if (this._scene.autoplay || this._pendingPerfect) {
           this._scene.judgment.hit(JudgmentType.PERFECT, deltaSec, this);
           this._pendingPerfect = false;
@@ -88,25 +85,12 @@ export class PlainNote extends GameObjects.Image {
           return;
         }
       }
+      this._consumeTap = beat < this._data.startBeat || this._data.type !== 4;
       const isTap = this._data.type === 1;
       const isFlick = this._data.type === 3;
       if (!this._pendingPerfect && Math.abs(delta) <= (isTap ? badJudgment : goodJudgment)) {
-        // const input = isTap
-        //   ? !!this._scene.pointer.findTap(
-        //       this,
-        //       this._scene.timeSec - badJudgment / 1000,
-        //       this._scene.timeSec + badJudgment / 1000,
-        //     )
-        //   : this._scene.pointer.findDrag(this, isFlick);
         if (isTap && !this._hasTapInput) return;
         if (!this._scene.pointer.findDrag(this, isFlick)) return;
-        // if (!isTap && this._consumeTap) {
-        //   this._scene.pointer.findTap(
-        //     this,
-        //     this._scene.timeSec - goodJudgment / 1000,
-        //     this._scene.timeSec + goodJudgment / 1000,
-        //   );
-        // }
         if (isTap && delta < -goodJudgment) {
           this._scene.judgment.hit(JudgmentType.BAD, deltaSec, this);
         } else if (delta < -perfectJudgment) {
@@ -124,6 +108,7 @@ export class PlainNote extends GameObjects.Image {
         } else {
           this._scene.judgment.hit(JudgmentType.BAD, deltaSec, this);
         }
+        this._hasTapInput = false;
       }
     }
   }
@@ -182,10 +167,6 @@ export class PlainNote extends GameObjects.Image {
 
   public get consumeTap() {
     return this._consumeTap;
-  }
-
-  public set consumeTap(consumeTap: boolean) {
-    this._consumeTap = consumeTap;
   }
 
   public get line() {
