@@ -14,16 +14,15 @@ export class StatisticsHandler {
   private _displayStdDev: number = 0;
   private _combo: number = 0;
   private _comboRecords: (number | undefined)[];
-  private _comboIndex: number = 0;
 
   private _judgment: JudgmentHandler;
 
   constructor(scene: Game) {
     this._scene = scene;
     this._judgment = scene.judgment;
-    this._comboRecords = Array(this._scene.numberOfNotes).fill(undefined);
+    this._comboRecords = Array(this._scene.numberOfNotes + 1).fill(undefined);
     this._comboRecords[0] = 0;
-    this._maxCombo = Array(this._scene.numberOfNotes).fill(0);
+    this._maxCombo = Array(this._scene.numberOfNotes + 1).fill(0);
   }
 
   updateDisplay(delta: number) {
@@ -35,33 +34,28 @@ export class StatisticsHandler {
     }
     const displayScoreDiff = this._score - this._displayScore;
     this._displayScore += displayScoreDiff * Math.min(delta / 50, 1);
-    // this._displayScore = this._score;
     const displayStdDevDiff = this._stdDev - this._displayStdDev;
     this._displayStdDev += displayStdDevDiff * Math.min(delta / 50, 1);
-    // this._displayStdDev = this._stdDev;
   }
 
-  updateRecords() {
-    const currentCombo = this._comboRecords[this._judgment.judgmentCount];
-    if (currentCombo === undefined) {
-      for (let i = this._comboIndex + 1; i < this._judgment.judgmentCount; i++) {
-        this._comboRecords[i] = this._comboRecords[this._comboIndex];
-        this._maxCombo[i] = this._maxCombo[this._comboIndex];
+  updateRecords(rewind = false) {
+    if (rewind) {
+      this._combo = this._comboRecords[this._judgment.judgmentCount] ?? 0;
+      for (let i = this._judgment.judgmentCount + 1; i <= this._scene.numberOfNotes; i++) {
+        this._comboRecords[i] = undefined;
       }
+      this._judgment.rewindDeltas(this._scene.beat);
+    } else {
       this._comboRecords[this._judgment.judgmentCount] = this._combo;
       this._maxCombo[this._judgment.judgmentCount] = Math.max(
         this._combo,
         this._judgment.judgmentCount === 0 ? 0 : this._maxCombo[this._judgment.judgmentCount - 1],
       );
-    } else {
-      this._combo = currentCombo;
-      for (let i = this._judgment.judgmentCount + 1; i < this._scene.numberOfNotes; i++) {
-        this._comboRecords[i] = undefined;
-      }
     }
-    this._comboIndex = this._judgment.judgmentCount;
-    this._judgment.rewindDeltas(this._scene.beat);
+    this.updateStats();
+  }
 
+  updateStats() {
     const good = this._judgment.goodEarly + this._judgment.goodLate;
     this._score = Math.round(
       (9e5 * this._judgment.perfect +

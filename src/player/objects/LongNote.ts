@@ -1,5 +1,5 @@
 import { GameObjects } from 'phaser';
-import { JudgmentType, type Note } from '../types';
+import { GameStatus, JudgmentType, type Note } from '../types';
 import type { Game } from '../scenes/Game';
 import type { Line } from './Line';
 import { getTimeSec, rgbToHex } from '../utils';
@@ -138,9 +138,11 @@ export class LongNote extends GameObjects.Container {
         } else if (
           getTimeSec(this._scene.bpmList, beat) -
             getTimeSec(this._scene.bpmList, this._lastInputBeat) >
-          HOLD_BODY_TOLERANCE / 1000
+            HOLD_BODY_TOLERANCE / 1000 ||
+          this._scene.status === GameStatus.SEEKING
         ) {
           this._scene.judgment.judge(JudgmentType.MISS, this);
+          return;
         }
       }
       if (

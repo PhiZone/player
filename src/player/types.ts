@@ -265,6 +265,7 @@ export enum GameStatus {
   READY,
   ERROR,
   PLAYING,
+  SEEKING,
   PAUSED,
   FINISHED,
   DESTROYED,

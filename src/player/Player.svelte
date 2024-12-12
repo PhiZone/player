@@ -231,7 +231,7 @@
       </div>
     {/if}
     <button
-      class="btn btn-outline border-2 btn-lg text-2xl w-fit"
+      class="btn btn-outline border-2 btn-lg rounded-full text-2xl w-fit"
       on:click={() => {
         setTimeout(() => {
           showStart = false;
@@ -347,24 +347,42 @@
 {/if}
 
 {#if timeSec === duration}
-  <button
-    class="absolute bottom-5 right-5 btn btn-outline border-2 btn-lg btn-circle opacity-0 transition"
+  <div
+    class="absolute bottom-5 right-5 opacity-0 trans flex flex-col gap-4"
     class:opacity-100={status === GameStatus.FINISHED || stillLoading}
     class:pointer-events-none={status !== GameStatus.FINISHED && !stillLoading}
-    on:click={() => {
-      if (!config || (!('__TAURI_INTERNALS__' in window && config.fullscreen) && config.newTab)) {
-        window.close();
-      } else {
-        goto('/');
-      }
-    }}
   >
-    {#if !config || (!('__TAURI_INTERNALS__' in window && config.fullscreen) && config.newTab)}
-      <i class="fa-solid fa-xmark fa-xl"></i>
-    {:else}
-      <i class="fa-solid fa-house fa-xl"></i>
-    {/if}
-  </button>
+    <button
+      class="btn btn-outline border-2 btn-lg btn-circle"
+      aria-label="Restart"
+      on:click={() => {
+        status = GameStatus.PLAYING;
+        gameRef.scene?.restart();
+      }}
+    >
+      <i class="fa-solid fa-arrow-rotate-right fa-xl"></i>
+    </button>
+    <button
+      class="btn btn-outline border-2 btn-lg btn-circle"
+      aria-label={!config ||
+      (!('__TAURI_INTERNALS__' in window && config.fullscreen) && config.newTab)
+        ? 'Close'
+        : 'Home'}
+      on:click={() => {
+        if (!config || (!('__TAURI_INTERNALS__' in window && config.fullscreen) && config.newTab)) {
+          window.close();
+        } else {
+          goto('/');
+        }
+      }}
+    >
+      {#if !config || (!('__TAURI_INTERNALS__' in window && config.fullscreen) && config.newTab)}
+        <i class="fa-solid fa-xmark fa-xl"></i>
+      {:else}
+        <i class="fa-solid fa-house fa-xl"></i>
+      {/if}
+    </button>
+  </div>
 {/if}
 
 <div id="player"></div>

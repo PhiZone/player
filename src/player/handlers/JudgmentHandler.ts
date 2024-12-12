@@ -110,7 +110,7 @@ export class JudgmentHandler {
         break;
     }
     this.countJudgments();
-    this._scene.statistics.updateRecords();
+    this._scene.statistics.updateRecords(true);
     note.reset();
   }
 
@@ -174,7 +174,10 @@ export class JudgmentHandler {
     ) {
       this._judgmentIndex--;
     }
-    while (this._scene.notes[this._judgmentIndex].hitTime < currentTimeSec - badJudgment / 1000) {
+    while (
+      this._judgmentIndex < this._scene.numberOfNotes &&
+      this._scene.notes[this._judgmentIndex].hitTime < currentTimeSec - badJudgment / 1000
+    ) {
       this._judgmentIndex++;
     }
     let nearestNote: PlainNote | LongNote | undefined = undefined;
@@ -182,7 +185,7 @@ export class JudgmentHandler {
     let minDistance: number = Infinity;
     let minType: number = Infinity;
     for (
-      let i = this._judgmentIndex, note: PlainNote | LongNote | undefined = this._scene.notes[i];
+      let i = this._judgmentIndex, note: PlainNote | LongNote | undefined = this._scene.notes.at(i);
       note &&
       note.hitTime <= currentTimeSec + (note.note.type === 1 ? badJudgment : goodJudgment) / 1000;
       note = this._scene.notes.at(++i)
@@ -226,7 +229,7 @@ export class JudgmentHandler {
                 getJudgmentPosition(input, note.line).x,
                 getJudgmentPosition(input, note.line).y,
                 36,
-                0x00ff00,
+                0x0077ff,
               )
               .setAlpha(0.9)
               .setDepth(100),
@@ -246,12 +249,29 @@ export class JudgmentHandler {
         minBeat = note.note.startBeat;
         minDistance = distance;
         minType = note.note.type;
-        note.setTint(0x0000ff);
+        note.setTint(0x0077ff);
       }
     }
     if (nearestNote) {
       nearestNote.hasTapInput = true;
       nearestNote.setTint(0x00ff00);
+      if (input) {
+        this._scene.tweens.add({
+          targets: [
+            this._scene.add
+              .circle(
+                getJudgmentPosition(input, nearestNote.line).x,
+                getJudgmentPosition(input, nearestNote.line).y,
+                36,
+                0x00ff00,
+              )
+              .setAlpha(0.9)
+              .setDepth(100),
+          ],
+          alpha: 0,
+          duration: 500,
+        });
+      }
     }
   }
 

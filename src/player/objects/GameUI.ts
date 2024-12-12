@@ -163,8 +163,6 @@ export class GameUI {
   }
 
   update() {
-    const metadata = this._scene.metadata;
-
     this._combo.setText(this._scene.statistics.combo.toString());
     this._score.setText(pad(Math.round(this._scene.statistics.displayScore), 7));
     this._accuracy.setText(
@@ -176,8 +174,8 @@ export class GameUI {
         },
       )}`,
     );
-    this._songTitle.setText(metadata.title ?? '');
-    this._level.setText(metadata.level ?? '');
+    this._songTitle.setText(this._scene.metadata.title ?? '');
+    this._level.setText(this._scene.metadata.level ?? '');
 
     [
       this._pause,
@@ -247,6 +245,7 @@ export class GameUI {
       onStart: (tween) => {
         tween.targets.forEach((o) => {
           const target = o as Button | ProgressBar | UIComponent;
+          target.setVisible(true);
           target.isAnimationPlaying = true;
         });
       },
@@ -295,6 +294,7 @@ export class GameUI {
           const target = o as Button | ProgressBar | UIComponent;
           target.setVisible(false);
           target.isAnimationPlaying = false;
+          target.y = 0;
         });
       });
     });
