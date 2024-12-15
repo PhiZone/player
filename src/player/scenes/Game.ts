@@ -595,6 +595,7 @@ export class Game extends Scene {
     if (!this._extra) return;
 
     EventBus.emit('loading-detail', 'Initializing shaders');
+    const missing: string[] = [];
     this._shaders = this._extra.effects.map((effect, i) => {
       effect.shader = effect.shader.startsWith('/')
         ? `asset-${effect.shader.slice(1)}`
@@ -602,7 +603,10 @@ export class Game extends Scene {
       const asset = this._shaderAssets.find((asset) => asset.key === effect.shader);
       if (!asset) {
         this._status = GameStatus.ERROR;
-        alert(`Unable to locate external shader ${effect.shader.slice(6)}`);
+        if (!missing.includes(effect.shader)) {
+          missing.push(effect.shader);
+          alert(`Unable to locate external shader ${effect.shader.slice(6)}`);
+        }
         return undefined;
       }
       const key = `${effect.shader}-${i}`;

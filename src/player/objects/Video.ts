@@ -24,6 +24,12 @@ export class Video extends GameObjects.Container {
       scene.sys.canvas.height,
       0x000000,
     );
+    if (Array.isArray(data.alpha)) {
+      this._alphaAnimator = new VariableAnimator(data.alpha);
+    }
+    if (Array.isArray(data.dim)) {
+      this._dimAnimator = new VariableAnimator(data.dim);
+    }
     this.setDepth(1);
     this._video.play();
     this._video.on('metadata', () => {

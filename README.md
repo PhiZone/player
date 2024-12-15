@@ -175,7 +175,8 @@ Notice that there are two events that share the same shader code. This is a work
 | Support for APNGs                          | 0.0.4   |                                                                               | ✅ Done             | APNG 格式适配           |
 | Shader feature enhancements                | 0.0.5   |                                                                               | ✅ Done             | 着色器功能增强          |
 | Support for Bézier easings                 | 0.0.5   |                                                                               | ✅ Done             | 贝塞尔缓动适配          |
-| Offset adjustment mode                     | 0.0.5   |                                                                               |                     | 延迟调整模式            |
+| Video feature enhancements                 | 0.0.5   |                                                                               | 🚧 Working          | 视频功能增强            |
+| Offset adjustment mode                     | 0.0.6   |                                                                               |                     | 延迟调整模式            |
 | Alignment with official/RPE constants      | 0.0.6   | Hold tolerances, texture size units, etc.                                     |                     | 官/RPE 常数对齐         |
 | Full support for the extended event layer  | 0.0.6   | GIF events & incline events                                                   |                     | 扩展事件层的完全适配    |
 | Recording mode                             | 0.0.7   |                                                                               | ⏳ Postponed        | 录制模式                |

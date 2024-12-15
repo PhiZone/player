@@ -329,6 +329,11 @@ export interface Video {
   scale: 'cropCenter' | 'inside' | 'fit';
   alpha: AnimatedVariable | number;
   dim: AnimatedVariable | number;
+  attach?: {
+    line: number;
+    scaleX?: number;
+    scaleY?: number;
+  };
 }
 
 export interface ShaderEffect {

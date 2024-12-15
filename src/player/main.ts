@@ -82,19 +82,21 @@ const start = (parent: string, sceneConfig: Config | null) => {
   game.scene.start('MainGame');
   if (!config.scale || config.scale.mode === Scale.EXPAND) {
     if (isTauri) {
-      getCurrentWebviewWindow().onResized((_) => {
+      getCurrentWebviewWindow().onResized((payload) => {
+        console.log(payload);
         game.scale.resize(
           window.innerWidth * window.devicePixelRatio,
           window.innerHeight * window.devicePixelRatio,
         );
       });
     } else {
-      window.onresize = () => {
+      new ResizeObserver((size) => {
+        console.log(size);
         game.scale.resize(
-          window.innerWidth * window.devicePixelRatio,
-          window.innerHeight * window.devicePixelRatio,
+          size[0].contentBoxSize[0].inlineSize,
+          size[0].contentBoxSize[0].blockSize,
         );
-      };
+      }).observe(document.getElementById(parent)!);
     }
   }
   return game;

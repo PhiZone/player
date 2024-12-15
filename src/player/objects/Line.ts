@@ -86,11 +86,12 @@ export class Line {
           color: '#ffffff',
           align: 'left',
         }).setOrigin(0.5)
-      : this._hasAnimatedTexture
+      : this._hasAnimatedTexture && this._scene.textures.exists(`asset-${lineData.Texture}`)
         ? new GameObjects.Sprite(scene, 0, 0, `asset-${lineData.Texture}`).play(
             `asset-${lineData.Texture}`,
           )
-        : new GameObjects.Image(scene, 0, 0, `asset-${lineData.Texture}`);
+        : new GameObjects.Image(scene, 0, 0, this.getLineTexture(`asset-${lineData.Texture}`));
+
     this._line.setVisible(!this._data.attachUI || this._hasText);
     this._line.setScale(
       this._scene.p(1) * (this._scaleX ?? 1),
@@ -493,6 +494,10 @@ export class Line {
 
   setParent(parent: Line) {
     this._parent = parent;
+  }
+
+  getLineTexture(key: string) {
+    return this._scene.textures.exists(key) ? key : 'asset-line.png';
   }
 
   public get notes() {
