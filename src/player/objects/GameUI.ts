@@ -473,7 +473,7 @@ class UIComponent extends GameObjects.Container {
     this._text.setText(text);
   }
 
-  setAttach(
+  updateAttach(
     params: {
       x: number;
       y: number;

@@ -21,6 +21,7 @@ import {
 import type { Game } from '../scenes/Game';
 import { FONT_FAMILY } from '../constants';
 import { dot } from 'mathjs';
+import type { Video } from './Video';
 
 export class Line {
   private _scene: Game;
@@ -34,6 +35,7 @@ export class Line {
   private _holdContainer: GameObjects.Container;
   private _noteMask: GameObjects.Graphics | null = null;
   private _notes: (PlainNote | LongNote)[] = [];
+  private _hasAttach: boolean = false;
   private _hasCustomTexture: boolean = false;
   private _hasAnimatedTexture: boolean = false;
   private _hasText: boolean = false;
@@ -68,6 +70,8 @@ export class Line {
   private _text: string | undefined = undefined;
   private _height: number = 0;
 
+  private _attachedVideos: Video[] = [];
+
   private _lastUpdate: number = -Infinity;
 
   constructor(scene: Game, lineData: JudgeLine, num: number, precedence: number) {
@@ -92,13 +96,14 @@ export class Line {
           )
         : new GameObjects.Image(scene, 0, 0, this.getLineTexture(`asset-${lineData.Texture}`));
 
-    this._line.setVisible(!this._data.attachUI || this._hasText);
+    this._hasAttach = this._data.attachUI !== undefined;
     this._line.setScale(
       this._scene.p(1) * (this._scaleX ?? 1),
       this._scene.p(1) * (this._scaleY ?? 1),
     ); // previously 1.0125 (according to the official definition that a line is 3 times as wide as the screen)
     this._line.setDepth(2 + precedence);
-    if (!this._hasCustomTexture && !this._data.attachUI) this._line.setTint(getLineColor(scene));
+    this._line.setVisible(!this._hasAttach || this._hasText);
+    if (!this._hasCustomTexture && !this._hasAttach) this._line.setTint(getLineColor(scene));
     if (this._data.anchor) this._line.setOrigin(this._data.anchor[0], 1 - this._data.anchor[1]);
 
     this._holdContainer = this.createContainer(3);
@@ -207,7 +212,7 @@ export class Line {
     );
     if (this._hasText) (this._line as GameObjects.Text).setText(this._text ?? '');
     if (this._color) this._line.setTint(rgbToHex(this._color));
-    else if (!this._hasCustomTexture && !this._data.attachUI)
+    else if (!this._hasCustomTexture && !this._hasAttach)
       this._line.setTint(getLineColor(this._scene));
     const { x, y } = this.getPosition();
     const rotation =
@@ -225,32 +230,49 @@ export class Line {
       },
     );
     this.updateMask();
+    this.updateAttachments();
+  }
+
+  updateAttachments() {
+    const params = {
+      x: this._line.x - this._scene.sys.canvas.width / 2,
+      y: this._line.y - this._scene.sys.canvas.height / 2,
+      rotation: this._line.rotation,
+      alpha: this._line.alpha,
+      scaleX: this._scaleX ?? 1,
+      scaleY: this._scaleY ?? 1,
+      tint: this._line.tint,
+    };
+    this.updateUIAttachments(params);
+    this.updateAttachedVideos(params);
+  }
+
+  updateUIAttachments(params: {
+    x: number;
+    y: number;
+    rotation: number;
+    alpha: number;
+    scaleX: number;
+    scaleY: number;
+    tint: number;
+  }) {
     if (this._data.attachUI) {
-      const params = {
-        x: this._line.x - this._scene.sys.canvas.width / 2,
-        y: this._line.y - this._scene.sys.canvas.height / 2,
-        rotation: this._line.rotation,
-        alpha: this._line.alpha,
-        scaleX: this._scaleX ?? 1,
-        scaleY: this._scaleY ?? 1,
-        tint: this._line.tint,
-      };
       switch (this._data.attachUI) {
         case 'pause': {
           this._scene.gameUI.pause.setAttach(params);
           return;
         }
         case 'combonumber': {
-          this._scene.gameUI.combo.setAttach(params, true);
+          this._scene.gameUI.combo.updateAttach(params, true);
           return;
         }
         case 'combo': {
-          this._scene.gameUI.comboText.setAttach(params, true);
+          this._scene.gameUI.comboText.updateAttach(params, true);
           return;
         }
         case 'score': {
-          this._scene.gameUI.score.setAttach(params);
-          this._scene.gameUI.accuracy.setAttach(params);
+          this._scene.gameUI.score.updateAttach(params);
+          this._scene.gameUI.accuracy.updateAttach(params);
           return;
         }
         case 'bar': {
@@ -258,15 +280,29 @@ export class Line {
           return;
         }
         case 'name': {
-          this._scene.gameUI.songTitle.setAttach(params);
+          this._scene.gameUI.songTitle.updateAttach(params);
           return;
         }
         case 'level': {
-          this._scene.gameUI.level.setAttach(params);
+          this._scene.gameUI.level.updateAttach(params);
           return;
         }
       }
     }
+  }
+
+  updateAttachedVideos(params: {
+    x: number;
+    y: number;
+    rotation: number;
+    alpha: number;
+    scaleX: number;
+    scaleY: number;
+    tint: number;
+  }) {
+    this._attachedVideos.forEach((video) => {
+      video.updateAttach({ ...params, width: this._line.displayWidth });
+    });
   }
 
   getPosition() {
@@ -500,6 +536,13 @@ export class Line {
     return this._scene.textures.exists(key) ? key : 'asset-line.png';
   }
 
+  attachVideo(video: Video) {
+    this._attachedVideos.push(video);
+    this._hasAttach = true;
+    this._line.clearTint();
+    this._line.setVisible(this._hasText);
+  }
+
   public get notes() {
     return this._notes;
   }
@@ -540,7 +583,7 @@ export class Line {
 
   setVisible(visible: boolean) {
     [
-      !this._data.attachUI ? this._line : undefined,
+      !this._hasAttach ? this._line : undefined,
       this._flickContainer,
       this._tapContainer,
       this._dragContainer,

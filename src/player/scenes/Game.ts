@@ -470,8 +470,9 @@ export class Game extends Scene {
     mode: 'envelop' | 'fit' | 'stretch' = 'envelop',
     refWidth?: number,
     refHeight?: number,
+    scaleOnly = false,
   ) {
-    object.setPosition(this.sys.canvas.width / 2, this.sys.canvas.height / 2);
+    if (!scaleOnly) object.setPosition(this.sys.canvas.width / 2, this.sys.canvas.height / 2);
     refWidth ??= this.sys.canvas.width;
     refHeight ??= this.sys.canvas.height;
     const dimensions =
@@ -709,6 +710,10 @@ export class Game extends Scene {
 
   public get statistics() {
     return this._statisticsHandler;
+  }
+
+  public get lines() {
+    return this._lines;
   }
 
   public get notes() {

@@ -329,10 +329,15 @@ export interface Video {
   scale: 'cropCenter' | 'inside' | 'fit';
   alpha: AnimatedVariable | number;
   dim: AnimatedVariable | number;
+  zIndex?: number;
   attach?: {
     line: number;
-    scaleX?: number;
-    scaleY?: number;
+    positionXFactor?: number;
+    positionYFactor?: number;
+    rotationFactor?: number;
+    alphaFactor?: number;
+    scaleXMode?: number;
+    scaleYMode?: number;
   };
 }
 
