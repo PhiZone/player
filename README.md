@@ -171,14 +171,14 @@ Notice that there are two events that share the same shader code. This is a work
 
 ## Commands
 
-| Command                 | Description                                                                                |
-| ----------------------- | ------------------------------------------------------------------------------------------ |
-| `pnpm i`                | Installs project dependencies                                                              |
-| `pnpm dev`              | Launches a development web server                                                          |
-| `pnpm build`            | Creates a production build in the `build` folder and copies it to Android and iOS projects |
-| `pnpm tauri build`      | Creates a production build for desktop platforms                                           |
-| `pnpm cap open android` | Opens the Android project in Android Studio                                                |
-| `pnpm cap open ios`     | Opens the iOS project in Xcode                                                             |
+| Command        | Description                                                                                |
+| -------------- | ------------------------------------------------------------------------------------------ |
+| `pnpm i`       | Installs project dependencies                                                              |
+| `pnpm dev`     | Launches a development web server                                                          |
+| `pnpm build`   | Creates a production build in the `build` folder and copies it to Android and iOS projects |
+| `pnpm desktop` | Creates a production build for desktop platforms                                           |
+| `pnpm android` | Opens the Android project in Android Studio                                                |
+| `pnpm ios`     | Opens the iOS project in Xcode                                                             |
 
 ## Development
 

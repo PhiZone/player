@@ -28,7 +28,10 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "pret": "prettier --check ./**/*.{js,cjs,ts,html,css,svelte,md,json}",
-    "pret:fix": "prettier --write ./**/*.{js,cjs,ts,html,css,svelte,md,json}"
+    "pret:fix": "prettier --write ./**/*.{js,cjs,ts,html,css,svelte,md,json}",
+    "desktop": "tauri build",
+    "android": "pnpm cap open android",
+    "ios": "pnpm cap open ios"
   },
   "devDependencies": {
     "@capacitor/android": "^6.2.0",
