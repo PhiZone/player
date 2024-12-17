@@ -351,7 +351,7 @@ export class Game extends Scene {
     this._song.pause();
     if (this._endingUI) this._endingUI.destroy();
     this._gameUI.in();
-    this.setSeek(0);
+    this._song.setSeek(0);
     this._judgmentHandler.reset();
     this._lines.forEach((line) => line.setVisible(true));
     this.initializeShaders();
@@ -370,6 +370,12 @@ export class Game extends Scene {
     this._gameUI.out();
     this._lines.forEach((line) => line.setVisible(false));
     this._endingUI = new EndingUI(this, this._data.recorderOptions.endingLoopsToRecord);
+    this.tweens.add({
+      targets: this._videos,
+      alpha: 0,
+      duration: 1000,
+      ease: 'Sine.easeIn',
+    });
     setTimeout(() => {
       this._endingUI.play();
       this._shaders?.forEach((shader) => {

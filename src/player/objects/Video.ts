@@ -57,7 +57,7 @@ export class Video extends GameObjects.Container {
 
   update(beat: number, timeSec: number) {
     this.setVisible(
-      timeSec > 0 && timeSec >= this._data.startTimeSec && timeSec < this._data.endTimeSec,
+      timeSec >= 0 && timeSec >= this._data.startTimeSec && timeSec < this._data.endTimeSec,
     );
     if (!this.visible) {
       this._video.stop();

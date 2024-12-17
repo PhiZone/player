@@ -91,7 +91,6 @@ const start = (parent: string, sceneConfig: Config | null) => {
       });
     } else {
       new ResizeObserver((size) => {
-        console.log(size);
         game.scale.resize(
           size[0].contentBoxSize[0].inlineSize,
           size[0].contentBoxSize[0].blockSize,
