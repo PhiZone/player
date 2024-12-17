@@ -87,6 +87,13 @@ export class Video extends GameObjects.Container {
     }
   }
 
+  destroy() {
+    this._video.destroy();
+    this._overlay.destroy();
+    this._mask?.destroy();
+    super.destroy();
+  }
+
   pause() {
     this._video.pause();
   }

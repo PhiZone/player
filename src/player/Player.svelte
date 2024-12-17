@@ -16,6 +16,7 @@
   import { convertTime, getParams, outputRecording } from './utils';
   import { goto } from '$app/navigation';
   import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
+  import { ProgressBarStatus } from '@tauri-apps/api/window';
 
   export let gameRef: GameReference;
 
@@ -138,6 +139,15 @@
 
   EventBus.on('update', (t: number) => {
     timeSec = t;
+    if ('__TAURI_INTERNALS__' in window) {
+      if (t < duration) {
+        getCurrentWebviewWindow().setProgressBar({
+          status:
+            status === GameStatus.PLAYING ? ProgressBarStatus.Normal : ProgressBarStatus.Paused,
+          progress: Math.round((t * 100) / duration),
+        });
+      }
+    }
   });
 
   EventBus.on('paused', (emittedBySpace: boolean) => {
@@ -146,9 +156,10 @@
     keyboardSeeking = emittedBySpace;
   });
 
-  EventBus.on('resumed', () => {
+  EventBus.on('started', () => {
     status = GameStatus.PLAYING;
     keyboardSeeking = false;
+    stillLoading = false;
   });
 
   EventBus.on('error', () => {
@@ -157,6 +168,11 @@
 
   EventBus.on('finished', () => {
     status = GameStatus.FINISHED;
+    if ('__TAURI_INTERNALS__' in window) {
+      getCurrentWebviewWindow().setProgressBar({
+        status: ProgressBarStatus.None,
+      });
+    }
   });
 
   EventBus.on('recording-stop', () => {
@@ -258,7 +274,6 @@
         setTimeout(() => {
           showStart = false;
         }, 500);
-        status = GameStatus.PLAYING;
         gameRef.scene?.start();
       }}
     >
@@ -281,7 +296,7 @@
             setTimeout(() => {
               showPause = false;
             }, 500);
-            status = GameStatus.PLAYING;
+            status = GameStatus.LOADING;
             gameRef.scene?.restart();
           }}
         >
@@ -362,16 +377,18 @@
     class:opacity-100={status === GameStatus.FINISHED || stillLoading}
     class:pointer-events-none={status !== GameStatus.FINISHED && !stillLoading}
   >
-    <button
-      class="btn btn-outline border-2 btn-lg btn-circle"
-      aria-label="Restart"
-      on:click={() => {
-        status = GameStatus.PLAYING;
-        gameRef.scene?.restart();
-      }}
-    >
-      <i class="fa-solid fa-arrow-rotate-right fa-xl"></i>
-    </button>
+    {#if status === GameStatus.FINISHED}
+      <button
+        class="btn btn-outline border-2 btn-lg btn-circle"
+        aria-label="Restart"
+        on:click={() => {
+          status = GameStatus.LOADING;
+          gameRef.scene?.restart();
+        }}
+      >
+        <i class="fa-solid fa-arrow-rotate-right fa-xl"></i>
+      </button>
+    {/if}
     <button
       class="btn btn-outline border-2 btn-lg btn-circle"
       aria-label={!config || config.newTab ? 'Close' : 'Home'}

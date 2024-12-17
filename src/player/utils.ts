@@ -27,9 +27,9 @@ import parseAPNG, { Frame } from 'apng-js';
 import { fixWebmDuration } from '@fix-webm-duration/fix';
 import { AndroidFullScreen } from '@awesome-cordova-plugins/android-full-screen';
 import { Capacitor } from '@capacitor/core';
-import 'context-filter-polyfill';
 import bezier from 'bezier-easing';
 import type { Line } from './objects/Line';
+import 'context-filter-polyfill';
 
 const easingFunctions: ((x: number) => number)[] = [
   (x) => x,

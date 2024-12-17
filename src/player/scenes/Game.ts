@@ -264,14 +264,17 @@ export class Game extends Scene {
           alert('Failed to load extra.json.');
           return;
         }
-        this._extra.effects
-          .filter((e) => !e.shader.startsWith('/'))
-          .forEach((effect) => {
+        this._extra.effects.forEach((effect) => {
+          if (effect.shader.startsWith('/')) {
+            effect.shader = `asset-${effect.shader.slice(1)}`;
+          } else {
             this._shaderAssets.push({
               key: `intsh-${effect.shader}`,
               url: '/game/shaders/' + effect.shader + '.glsl',
             });
-          });
+            effect.shader = `intsh-${effect.shader}`;
+          }
+        });
         await Promise.all(
           this._shaderAssets.map(async (asset) => {
             asset.source = await loadText(asset.url, asset.key);
@@ -312,6 +315,7 @@ export class Game extends Scene {
     this.update(0, 0);
     this._gameUI.in();
     this._objects.sort((a, b) => a.depth - b.depth);
+    EventBus.emit('started');
     this.game.events.on('hidden', () => {
       this._visible = false;
       if (this._status !== GameStatus.FINISHED) this.pause();
@@ -339,34 +343,25 @@ export class Game extends Scene {
     this._status = GameStatus.PLAYING;
     this._song.resume();
     this._videos?.forEach((video) => video.resume());
-    EventBus.emit('resumed');
+    EventBus.emit('started');
   }
 
-  restart() {
+  async restart() {
     if (this._status === GameStatus.ERROR) return;
-    this._status = GameStatus.PLAYING;
     this._song.pause();
     if (this._endingUI) this._endingUI.destroy();
     this._gameUI.in();
     this.setSeek(0);
     this._judgmentHandler.reset();
     this._lines.forEach((line) => line.setVisible(true));
-    this._shaders?.forEach((shader) => {
-      if (!shader) return;
-      const asset = this._shaderAssets.find((asset) => asset.key === shader.effect.shader)!;
-      ('object' in shader.target ? shader.target.object : shader.target).setPostPipeline(
-        shader.key,
-        {
-          scene: this,
-          fragShader: asset.source,
-          data: shader.effect,
-          target: shader.target,
-        },
-      );
-    });
+    this.initializeShaders();
+    await this.initializeVideos();
     this._timeout = setTimeout(() => {
       this._song.play();
     }, 1000);
+    this._status = GameStatus.PLAYING;
+    this._objects.sort((a, b) => a.depth - b.depth);
+    EventBus.emit('started');
   }
 
   end() {
@@ -381,6 +376,7 @@ export class Game extends Scene {
         if (!shader) return;
         ('object' in shader.target ? shader.target.object : shader.target).resetPostPipeline();
       });
+      this._videos?.forEach((video) => video.destroy());
       EventBus.emit('finished');
     }, 1000);
   }
@@ -598,9 +594,6 @@ export class Game extends Scene {
     EventBus.emit('loading-detail', 'Initializing shaders');
     const missing: string[] = [];
     this._shaders = this._extra.effects.map((effect, i) => {
-      effect.shader = effect.shader.startsWith('/')
-        ? `asset-${effect.shader.slice(1)}`
-        : `intsh-${effect.shader}`;
       const asset = this._shaderAssets.find((asset) => asset.key === effect.shader);
       if (!asset) {
         this._status = GameStatus.ERROR;
