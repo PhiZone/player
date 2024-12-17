@@ -11,6 +11,7 @@ export class Video extends GameObjects.Container {
   private _mask: GameObjects.Graphics | null = null;
   private _alphaAnimator: VariableAnimator;
   private _dimAnimator: VariableAnimator;
+  private _ready: boolean = false;
 
   constructor(scene: Game, data: VideoType, successCallback: () => void) {
     super(scene, 0, 0);
@@ -51,11 +52,13 @@ export class Video extends GameObjects.Container {
       this.add(this._video);
       this.add(this._overlay);
       scene.register(this);
+      this._ready = true;
       successCallback();
     });
   }
 
   update(beat: number, timeSec: number) {
+    if (!this._ready) return;
     this.setVisible(
       timeSec >= 0 && timeSec >= this._data.startTimeSec && timeSec < this._data.endTimeSec,
     );

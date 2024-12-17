@@ -94,7 +94,7 @@ export class Game extends Scene {
   private _song: Sound.NoAudioSound | Sound.HTML5AudioSound | Sound.WebAudioSound;
   private _background: GameObjects.Image;
   private _gameUI: GameUI;
-  private _endingUI: EndingUI;
+  private _endingUI?: EndingUI;
 
   private _pointerHandler: PointerHandler;
   private _keyboardHandler: KeyboardHandler;
@@ -306,15 +306,45 @@ export class Game extends Scene {
     load();
   }
 
+  in() {
+    this._gameUI.in();
+    const targets = [...this._lines.map((l) => l.elements).flat(), ...(this._videos ?? [])];
+    targets.forEach((target) => target.setAlpha(0));
+    this.tweens.add({
+      targets,
+      alpha: 1,
+      duration: 1000,
+      ease: 'Sine.easeOut',
+    });
+  }
+
+  out() {
+    this._gameUI.out();
+    this.tweens.add({
+      targets: [...this._lines.map((l) => l.elements).flat(), ...(this._videos ?? [])],
+      alpha: 0,
+      duration: 1000,
+      ease: 'Sine.easeIn',
+    });
+  }
+
+  resetShadersAndVideos() {
+    this._shaders?.forEach((shader) => {
+      if (!shader) return;
+      ('object' in shader.target ? shader.target.object : shader.target).resetPostPipeline();
+    });
+    this._videos?.forEach((video) => video.destroy());
+  }
+
   start() {
     if (this._status === GameStatus.ERROR) return;
     this._status = GameStatus.PLAYING;
+    this._objects.sort((a, b) => a.depth - b.depth);
+    this.update(0, 0);
+    this.in();
     this._timeout = setTimeout(() => {
       this._song.play();
     }, 1000);
-    this.update(0, 0);
-    this._gameUI.in();
-    this._objects.sort((a, b) => a.depth - b.depth);
     EventBus.emit('started');
     this.game.events.on('hidden', () => {
       this._visible = false;
@@ -348,14 +378,16 @@ export class Game extends Scene {
 
   async restart() {
     if (this._status === GameStatus.ERROR) return;
+    this._status = GameStatus.LOADING;
     this._song.pause();
-    if (this._endingUI) this._endingUI.destroy();
-    this._gameUI.in();
-    this._song.setSeek(0);
     this._judgmentHandler.reset();
-    this._lines.forEach((line) => line.setVisible(true));
+    this._song.setSeek(0);
+    this._endingUI?.destroy();
+    this.resetShadersAndVideos();
     this.initializeShaders();
     await this.initializeVideos();
+    this._objects.sort((a, b) => a.depth - b.depth);
+    this.in();
     this._timeout = setTimeout(() => {
       this._song.play();
     }, 1000);
@@ -367,22 +399,11 @@ export class Game extends Scene {
   end() {
     if (this._status === GameStatus.ERROR) return;
     this._status = GameStatus.FINISHED;
-    this._gameUI.out();
-    this._lines.forEach((line) => line.setVisible(false));
+    this.out();
     this._endingUI = new EndingUI(this, this._data.recorderOptions.endingLoopsToRecord);
-    this.tweens.add({
-      targets: this._videos,
-      alpha: 0,
-      duration: 1000,
-      ease: 'Sine.easeIn',
-    });
     setTimeout(() => {
-      this._endingUI.play();
-      this._shaders?.forEach((shader) => {
-        if (!shader) return;
-        ('object' in shader.target ? shader.target.object : shader.target).resetPostPipeline();
-      });
-      this._videos?.forEach((video) => video.destroy());
+      this.resetShadersAndVideos();
+      this._endingUI!.play();
       EventBus.emit('finished');
     }, 1000);
   }
@@ -405,7 +426,7 @@ export class Game extends Scene {
       }
       return;
     }
-    if (this._status === GameStatus.FINISHED) this._endingUI.update();
+    if (this._endingUI) this._endingUI.update();
     const status = this._status;
     if (this._isSeeking) this._status = GameStatus.SEEKING;
     this._pointerHandler.update(delta);
