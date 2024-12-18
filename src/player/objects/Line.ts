@@ -96,7 +96,7 @@ export class Line {
           )
         : new GameObjects.Image(scene, 0, 0, this.getLineTexture(`asset-${lineData.Texture}`));
 
-    this._hasAttach = this._data.attachUI !== undefined;
+    this._hasAttach = !!this._data.attachUI;
     this._line.setScale(
       this._scene.p(1) * (this._scaleX ?? 1),
       this._scene.p(1) * (this._scaleY ?? 1),
@@ -365,7 +365,12 @@ export class Line {
     } = this.handleExtendedEventLayer(beat * this._data.bpmfactor, 0));
   }
 
-  handleSpeed(beat: number, layerIndex: number, events: SpeedEvent[] | undefined, cur: number[]) {
+  handleSpeed(
+    beat: number,
+    layerIndex: number,
+    events: SpeedEvent[] | null | undefined,
+    cur: number[],
+  ) {
     while (cur.length < layerIndex + 1) {
       cur.push(0);
     }
@@ -401,7 +406,7 @@ export class Line {
   handleEvent(
     beat: number,
     layerIndex: number,
-    events: (Event | ColorEvent | GifEvent | TextEvent)[] | undefined,
+    events: (Event | ColorEvent | GifEvent | TextEvent)[] | null | undefined,
     cur: number[],
   ) {
     while (cur.length < layerIndex + 1) {

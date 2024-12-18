@@ -521,6 +521,15 @@ export class Game extends Scene {
       this._levelType = inferLevelType(chart.META.level);
     }
 
+    EventBus.emit('metadata', {
+      title: this._title,
+      composer: this._composer,
+      charter: this._charter,
+      illustrator: this._illustrator,
+      levelType: this._levelType,
+      level: this._level,
+    });
+
     let lastBpm = 0;
     let lastBeat = 0;
     let lastTimeSec = 0;

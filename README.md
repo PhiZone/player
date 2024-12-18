@@ -71,38 +71,38 @@ The z indexes of judgment lines are calculated based on their `zOrder` values ([
 
 Aside from adding support for RPE features, we've also designed some original properties for judgment lines & notes.
 
-| Property         | Values                                      | Example                         | Description                                                           |
-| ---------------- | ------------------------------------------- | ------------------------------- | --------------------------------------------------------------------- |
-| `scaleOnNotes`   | `0`: none; `1`: scale; `2`: clip            | `"scaleOnNotes": 2`             | Belongs to a judgment line. Decides how `scaleX` events affect notes. |
-| `tint`           | [R, G, B], as seen in `colorEvents`; `null` | `"tint": [255, 0, 0]`           | Belongs to a note. Sets the tint for the note.                        |
-| `tintHitEffects` | [R, G, B], as seen in `colorEvents`; `null` | `"tintHitEffects": [255, 0, 0]` | Belongs to a note. Sets the tint for the hit effects of the note.     |
+| Property         | Values                                      | Example                         | Description                                                                            |
+| ---------------- | ------------------------------------------- | ------------------------------- | -------------------------------------------------------------------------------------- |
+| `scaleOnNotes`   | `0`: none; `1`: scale; `2`: clip            | `"scaleOnNotes": 2`             | Belongs to a judgment line. Decides how `scaleX` events affect notes. Defaults to `0`. |
+| `tint`           | [R, G, B], as seen in `colorEvents`; `null` | `"tint": [255, 0, 0]`           | Belongs to a note. Sets the tint for the note. Defaults to `null`.                     |
+| `tintHitEffects` | [R, G, B], as seen in `colorEvents`; `null` | `"tintHitEffects": [255, 0, 0]` | Belongs to a note. Sets the tint for the hit effects of the note. Defaults to `null`.  |
 
 ### Video enhancements
 
 Support for videos in `extra.json` gets extended with the following new properties for each entry in the `videos` list:
 
-| Property | Type   | Description                                                                |
-| -------- | ------ | -------------------------------------------------------------------------- |
-| `zIndex` | Number | Determines the z index for this video. Defaults to `1`.                    |
-| `attach` | Object | Attaches this video to a judgment line, if present. See below for details. |
+| Property | Type   | Description                                                                                 |
+| -------- | ------ | ------------------------------------------------------------------------------------------- |
+| `zIndex` | Number | Determines the z index for this video. Defaults to `1`.                                     |
+| `attach` | Object | Attaches this video to a judgment line, if this property is present. See below for details. |
 
 Properties residing in the `attach` object:
 
-| Property                     | Type   | Description                                                                                                                      |
-| ---------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| `line`                       | Number | Determines which line this video is attached to.                                                                                 |
-| `positionXFactor` (optional) | Number | Multiplied by the x position of the line, determines the x position of this video.                                               |
-| `positionYFactor` (optional) | Number | Multiplied by the y position of the line, determines the y position of this video.                                               |
-| `rotationFactor` (optional)  | Number | Multiplied by the rotation of the line, determines the rotation of this video.                                                   |
-| `alphaFactor` (optional)     | Number | Multiplied by the alpha of the line, determines the alpha of this video, together with the `alpha` property of the video itself. |
-| `scaleXMode` (optional)      | Number | Determines how `scaleX` events of the line affect this video. Values same as in `scaleOnNotes`.                                  |
-| `scaleYMode` (optional)      | Number | Determines how `scaleY` events of the line affect this video. Values same as in `scaleOnNotes`.                                  |
+| Property                     | Type   | Description                                                                                                                                       |
+| ---------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `line`                       | Number | Determines which line this video is attached to.                                                                                                  |
+| `positionXFactor` (optional) | Number | Multiplied by the x position of the line, determines the x position of this video. Defaults to `1`.                                               |
+| `positionYFactor` (optional) | Number | Multiplied by the y position of the line, determines the y position of this video. Defaults to `1`.                                               |
+| `rotationFactor` (optional)  | Number | Multiplied by the rotation of the line, determines the rotation of this video. Defaults to `1`.                                                   |
+| `alphaFactor` (optional)     | Number | Multiplied by the alpha of the line, determines the alpha of this video, together with the `alpha` property of the video itself. Defaults to `1`. |
+| `scaleXMode` (optional)      | Number | Determines how `scaleX` events of the line affect this video. Values same as in `scaleOnNotes`. Defaults to `0`.                                  |
+| `scaleYMode` (optional)      | Number | Determines how `scaleY` events of the line affect this video. Values same as in `scaleOnNotes`. Defaults to `0`.                                  |
 
 ### Shader enhancements
 
 Except for WebGL's incompatibilities with newer versions of GLSL, the program supports not only all the shader features defined by `extra.json`, but also one original addition to the standard: **target range**.
 
-A target range defines a list of depth-adjacent (next to each other on the Z axis) game objects that a shader event is applied to. It belongs directly to a shader event (as the optional `targetRange` property) and consists of the following properties:
+A target range defines a list of depth-adjacent (next to each other on the z axis) game objects that a shader event is applied to. It belongs directly to a shader event (as the optional `targetRange` property) and consists of the following properties:
 
 | Property               | Type    | Description                                                                                                                                                                             |
 | ---------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -161,7 +161,7 @@ One thing to note is that a single object cannot be rendered in parallel by two 
 }
 ```
 
-Notice that there are two events that share the same shader code. This is a workaround when you want to apply the same shader to objects that are not adjacent on the Z axis.
+Notice that there are two events that share the same shader code. This is a workaround when you want to apply the same shader to objects that are not adjacent on the z axis.
 
 </details>
 

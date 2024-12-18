@@ -5,6 +5,7 @@ import { fit } from './utils';
 import { Capacitor } from '@capacitor/core';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { EventBus } from './EventBus';
 
 const config: Types.Core.GameConfig = {
   type: WEBGL,
@@ -66,14 +67,20 @@ const start = (parent: string, sceneConfig: Config | null) => {
         autoCenter: Scale.CENTER_BOTH,
       };
     }
-    if (isTauri) {
-      getCurrentWindow().setTitle(
-        `${sceneConfig.metadata.title} [${
-          sceneConfig.metadata.level !== null && sceneConfig.metadata.difficulty !== null
-            ? `${sceneConfig.metadata.level} ${sceneConfig.metadata.difficulty?.toFixed(0)}`
-            : sceneConfig.metadata.level
-        }]`,
-      );
+    if (isTauri && sceneConfig.newTab) {
+      if (sceneConfig.metadata.title && sceneConfig.metadata.level) {
+        getCurrentWindow().setTitle(
+          `${sceneConfig.metadata.title} [${
+            sceneConfig.metadata.level !== null && sceneConfig.metadata.difficulty !== null
+              ? `${sceneConfig.metadata.level} ${sceneConfig.metadata.difficulty?.toFixed(0)}`
+              : sceneConfig.metadata.level
+          }]`,
+        );
+      } else {
+        EventBus.on('metadata', (metadata: { title: string; level: string }) => {
+          getCurrentWindow().setTitle(`${metadata.title} [${metadata.level}]`);
+        });
+      }
     }
   }
   const game = new Game({ ...config, parent });

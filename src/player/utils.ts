@@ -116,8 +116,6 @@ const download = async (url: string, name?: string) => {
   return new Blob(chunks);
 };
 
-export const IS_SAFARI = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-
 export const setFullscreen = () => {
   if (Capacitor.getPlatform() === 'android') {
     AndroidFullScreen.isImmersiveModeSupported()
@@ -138,8 +136,8 @@ export const inferLevelType = (level: string | null): 0 | 1 | 2 | 3 => {
   return 2;
 };
 
-export const getParams = (): Config | null => {
-  const searchParams = get(page).url.searchParams;
+export const getParams = (url?: string, loadFromStorage = true): Config | null => {
+  const searchParams = (url ? new URL(url) : get(page).url).searchParams;
   const song = searchParams.get('song');
   const chart = searchParams.get('chart');
   const illustration = searchParams.get('illustration');
@@ -188,6 +186,7 @@ export const getParams = (): Config | null => {
   const autostart = ['1', 'true'].some((v) => v == searchParams.get('autostart'));
   const newTab = ['1', 'true'].some((v) => v == searchParams.get('newTab'));
   if (!song || !chart || !illustration || assetNames.length < assets.length) {
+    if (!loadFromStorage) return null;
     const storageItem = localStorage.getItem('player');
     return storageItem ? JSON.parse(storageItem) : null;
   }
@@ -328,7 +327,10 @@ export const processIllustration = (
   });
 
 export const processEvents = (
-  events: (Event | SpeedEvent | ColorEvent | GifEvent | TextEvent | VariableEvent)[] | undefined,
+  events:
+    | (Event | SpeedEvent | ColorEvent | GifEvent | TextEvent | VariableEvent)[]
+    | null
+    | undefined,
 ): void => {
   events?.forEach((event) => {
     event.startBeat = toBeats(event.startTime);

@@ -26,7 +26,7 @@
 
   config ??= getParams();
   if (!config) {
-    goto('/');
+    goto('__TAURI_INTERNALS__' in window ? `/?t=${Date.now()}` : '/');
   }
 
   let progress = 0;
@@ -36,8 +36,11 @@
   let duration = 0;
   let timeSec = 0;
 
-  let title: string | null = null;
-  let level: string | null = null;
+  let title: string | null = config?.metadata.title ?? null;
+  let level: string | null =
+    config && config.metadata.level !== null && config.metadata.difficulty !== null
+      ? `${config.metadata.level} ${config.metadata.difficulty?.toFixed(0)}`
+      : (config?.metadata.level ?? null);
   let credits: string[] = [];
 
   let showStart = false;
@@ -138,9 +141,8 @@
   });
 
   EventBus.on('update', (t: number) => {
-    timeSec = t;
     if ('__TAURI_INTERNALS__' in window) {
-      if (t < duration) {
+      if (t < duration && t !== timeSec) {
         getCurrentWebviewWindow().setProgressBar({
           status:
             status === GameStatus.PLAYING ? ProgressBarStatus.Normal : ProgressBarStatus.Paused,
@@ -148,6 +150,7 @@
         });
       }
     }
+    timeSec = t;
   });
 
   EventBus.on('paused', (emittedBySpace: boolean) => {
@@ -188,24 +191,27 @@
   });
 
   const exit = () => {
+    const isTauri = '__TAURI_INTERNALS__' in window;
+    if (isTauri) {
+      getCurrentWebviewWindow().setProgressBar({
+        status: ProgressBarStatus.None,
+      });
+    }
     if (!config || config.newTab) {
-      if ('__TAURI_INTERNALS__' in window) {
+      if (isTauri) {
         getCurrentWebviewWindow().close();
       } else {
         window.close();
       }
     } else {
-      goto('/');
+      goto(isTauri ? `/?t=${Date.now()}` : '/');
     }
   };
 </script>
 
 <svelte:head>
   <title>
-    {config?.metadata.title} [{config?.metadata.level !== null &&
-    config?.metadata.difficulty !== null
-      ? `${config?.metadata.level} ${config?.metadata.difficulty?.toFixed(0)}`
-      : config?.metadata.level}] | PhiZone Player
+    {title} [{level}] | PhiZone Player
   </title>
 </svelte:head>
 

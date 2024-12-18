@@ -1,17 +1,19 @@
 <script lang="ts">
   import JSZip from 'jszip';
   import mime from 'mime/lite';
-  import { onMount } from 'svelte';
+  import { getContext, onMount, setContext } from 'svelte';
   import queryString from 'query-string';
   import { fileTypeFromBlob } from 'file-type';
-  import type { Config, Metadata, RecorderOptions, RpeJson } from '../player/types';
-  import { clamp, fit, inferLevelType, IS_SAFARI, isZip } from '../player/utils';
+  import type { Config, Metadata, Preferences, RecorderOptions, RpeJson } from '../player/types';
+  import { clamp, fit, getParams, inferLevelType, isZip } from '../player/utils';
   import PreferencesModal from '$lib/components/Preferences.svelte';
   import { goto } from '$app/navigation';
   import { Capacitor } from '@capacitor/core';
   import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
   import { PhysicalPosition, PhysicalSize } from '@tauri-apps/api/dpi';
   import { currentMonitor, type Monitor } from '@tauri-apps/api/window';
+  import { getCurrent, onOpenUrl } from '@tauri-apps/plugin-deep-link';
+  import { page } from '$app/stores';
 
   interface FileEntry {
     id: number;
@@ -46,7 +48,7 @@
   let selectedIllustration = -1;
   let selectedBundle = -1;
   let currentBundle: ChartBundle;
-  let preferences = {
+  let preferences: Preferences = {
     aspectRatio: null,
     backgroundBlur: 1,
     backgroundLuminance: 0.5,
@@ -94,27 +96,44 @@
 
   onMount(async () => {
     directoryInput.webkitdirectory = true;
-    const pref = localStorage.getItem('preferences');
-    const tgs = localStorage.getItem('toggles');
-    const rec = localStorage.getItem('recorderOptions');
-    if (pref) {
-      preferences = JSON.parse(pref);
-    }
-    if (tgs) {
-      toggles = JSON.parse(tgs);
-    }
-    if (rec) {
-      recorderOptions = JSON.parse(rec);
-      if (recorderOptions.overrideResolution && recorderOptions.overrideResolution.length === 2) {
-        overrideResolution = true;
-        recorderResolutionWidth = recorderOptions.overrideResolution[0];
-        recorderResolutionHeight = recorderOptions.overrideResolution[1];
+
+    const params = getParams(
+      $page.params.t || !('__TAURI_INTERNALS__' in window)
+        ? undefined
+        : (await getCurrent())?.at(0),
+      false,
+    );
+    let pref, tgs, rec;
+
+    if (params) {
+      handleParams(params);
+    } else {
+      pref = localStorage.getItem('preferences');
+      tgs = localStorage.getItem('toggles');
+      rec = localStorage.getItem('recorderOptions');
+
+      if (pref) preferences = JSON.parse(pref);
+      if (tgs) toggles = JSON.parse(tgs);
+      if (rec) recorderOptions = JSON.parse(rec);
+
+      if ('__TAURI_INTERNALS__' in window) {
+        onOpenUrl((urls) => {
+          const params = getParams(urls[0], false);
+          if (params) handleParams(params);
+        });
       }
+    }
+
+    if (recorderOptions.overrideResolution && recorderOptions.overrideResolution.length === 2) {
+      overrideResolution = true;
+      recorderResolutionWidth = recorderOptions.overrideResolution[0];
+      recorderResolutionHeight = recorderOptions.overrideResolution[1];
     }
   });
 
   const shareId = (a: FileEntry, b: FileEntry) =>
     a.file.name.split('.').slice(0, -1).join('.') === b.file.name.split('.').slice(0, -1).join('.');
+
   const isIncluded = (name: string) =>
     !name.toLowerCase().startsWith('autosave') && name !== 'createTime.txt';
 
@@ -317,7 +336,77 @@
     var i = size == 0 ? 0 : clamp(Math.floor(Math.log(size) / Math.log(1024)), 0, 4);
     return +(size / Math.pow(1024, i)).toFixed(2) * 1 + ' ' + ['B', 'KiB', 'MiB', 'GiB', 'TiB'][i];
   };
+
+  const handleParams = (params: Config) => {
+    localStorage.setItem('player', JSON.stringify(params));
+    preferences = params.preferences;
+    recorderOptions = params.recorderOptions;
+    toggles = {
+      autostart: params.autostart,
+      autoplay: params.autoplay,
+      practice: params.practice,
+      adjustOffset: params.adjustOffset,
+      record: params.record,
+      newTab: params.newTab,
+    };
+    start(
+      `/play?${queryString.stringify(params, {
+        arrayFormat: 'none',
+        skipEmptyString: true,
+        skipNull: true,
+        sort: false,
+      })}`,
+    );
+  };
+
+  const start = async (url: string) => {
+    if (Capacitor.getPlatform() === 'web' && toggles.newTab) {
+      if ('__TAURI_INTERNALS__' in window) {
+        monitor = await currentMonitor();
+        const webview = new WebviewWindow(`player-${Date.now()}`, {
+          url,
+        });
+        webview.once('tauri://created', () => {
+          if (monitor) {
+            const factor = 0.8;
+            let { width, height } = preferences.aspectRatio
+              ? fit(
+                  preferences.aspectRatio[0],
+                  preferences.aspectRatio[1],
+                  monitor.size.width,
+                  monitor.size.height,
+                  true,
+                )
+              : {
+                  width: monitor.size.width,
+                  height: monitor.size.height,
+                };
+            width = width * factor;
+            height = height * factor;
+            webview.setPosition(
+              new PhysicalPosition(
+                Math.round(monitor.position.x + (monitor.size.width - width) / 2),
+                Math.round(monitor.position.y + (monitor.size.height - height) / 2),
+              ),
+            );
+            webview.setSize(new PhysicalSize(Math.round(width), Math.round(height)));
+          }
+        });
+        webview.once('tauri://error', (e) => {
+          console.error(e);
+        });
+        return;
+      }
+      window.open(url);
+      return;
+    }
+    goto(url);
+  };
 </script>
+
+<svelte:head>
+  <title>PhiZone Player</title>
+</svelte:head>
 
 <div
   class="relative overflow-hidden before:absolute before:top-0 before:start-1/2 before:bg-[url('/landing/polygon-bg-element.svg')] dark:before:bg-[url('/landing/polygon-bg-element-dark.svg')] before:bg-no-repeat before:bg-top before:bg-cover before:size-full before:-z-[1] before:transform before:-translate-x-1/2"
@@ -385,7 +474,7 @@
             <input
               type="file"
               multiple
-              accept={IS_SAFARI
+              accept={Capacitor.getPlatform() === 'ios'
                 ? null
                 : '.pez,.yml,.yaml,.shader,.glsl,.frag,.fsh,.fs,application/zip,application/json,image/*,video/*,audio/*,text/*'}
               class="file-input file-input-bordered w-full max-w-xs file:btn dark:file:btn-neutral file:no-animation border-gray-200 rounded-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 dark:border-neutral-700 dark:text-neutral-300 dark:focus:ring-neutral-600"
@@ -1048,11 +1137,6 @@
               <PreferencesModal bind:preferences class="w-1/2" />
               <button
                 class="w-1/2 inline-flex justify-center items-center gap-x-3 text-center bg-gradient-to-tl from-blue-500 via-violet-500 to-fuchsia-500 dark:from-blue-700 dark:via-violet-700 dark:to-fuchsia-700 text-white text-sm font-medium rounded-md focus:outline-none py-3 px-4 transition-all duration-300 bg-size-200 bg-pos-0 hover:bg-pos-100"
-                on:pointerenter={async () => {
-                  if ('__TAURI_INTERNALS__' in window) {
-                    monitor = await currentMonitor();
-                  }
-                }}
                 on:click={() => {
                   localStorage.setItem('preferences', JSON.stringify(preferences));
                   localStorage.setItem('toggles', JSON.stringify(toggles));
@@ -1119,46 +1203,7 @@
                     };
                     localStorage.setItem('player', JSON.stringify(config));
                   }
-                  if (Capacitor.getPlatform() === 'web' && toggles.newTab) {
-                    if ('__TAURI_INTERNALS__' in window) {
-                      const webview = new WebviewWindow(`player-${Date.now()}`, {
-                        url,
-                      });
-                      webview.once('tauri://created', () => {
-                        if (monitor) {
-                          const factor = 0.8;
-                          let { width, height } = preferences.aspectRatio
-                            ? fit(
-                                preferences.aspectRatio[0],
-                                preferences.aspectRatio[1],
-                                monitor.size.width,
-                                monitor.size.height,
-                                true,
-                              )
-                            : {
-                                width: monitor.size.width,
-                                height: monitor.size.height,
-                              };
-                          width = width * factor;
-                          height = height * factor;
-                          webview.setPosition(
-                            new PhysicalPosition(
-                              Math.round(monitor.position.x + (monitor.size.width - width) / 2),
-                              Math.round(monitor.position.y + (monitor.size.height - height) / 2),
-                            ),
-                          );
-                          webview.setSize(new PhysicalSize(Math.round(width), Math.round(height)));
-                        }
-                      });
-                      webview.once('tauri://error', (e) => {
-                        console.error(e);
-                      });
-                      return;
-                    }
-                    window.open(url);
-                    return;
-                  }
-                  goto(url);
+                  start(url);
                 }}
               >
                 Play
