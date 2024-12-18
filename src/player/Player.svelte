@@ -211,7 +211,7 @@
 
 <svelte:head>
   <title>
-    {title} [{level}] | PhiZone Player
+    {title && level ? `${title} [${level}] | PhiZone Player` : 'PhiZone Player'}
   </title>
 </svelte:head>
 

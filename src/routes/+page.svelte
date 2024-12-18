@@ -115,19 +115,19 @@
       if (pref) preferences = JSON.parse(pref);
       if (tgs) toggles = JSON.parse(tgs);
       if (rec) recorderOptions = JSON.parse(rec);
-
-      if ('__TAURI_INTERNALS__' in window) {
-        onOpenUrl((urls) => {
-          const params = getParams(urls[0], false);
-          if (params) handleParams(params);
-        });
-      }
     }
 
     if (recorderOptions.overrideResolution && recorderOptions.overrideResolution.length === 2) {
       overrideResolution = true;
       recorderResolutionWidth = recorderOptions.overrideResolution[0];
       recorderResolutionHeight = recorderOptions.overrideResolution[1];
+    }
+
+    if ('__TAURI_INTERNALS__' in window) {
+      onOpenUrl((urls) => {
+        const params = getParams(urls[0], false);
+        if (params) handleParams(params);
+      });
     }
   });
 
@@ -367,6 +367,7 @@
           url,
         });
         webview.once('tauri://created', () => {
+          webview.setTitle('PhiZone Player');
           if (monitor) {
             const factor = 0.8;
             let { width, height } = preferences.aspectRatio
