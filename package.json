@@ -84,6 +84,7 @@
     "mathjs": "^14.0.0",
     "mime": "^4.0.4",
     "phaser": "^3.87.0",
-    "query-string": "^9.1.1"
+    "query-string": "^9.1.1",
+    "wavesurfer.js": "^7.8.11"
   }
 }

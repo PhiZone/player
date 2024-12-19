@@ -64,11 +64,13 @@ export class Game extends Scene {
   private _levelType: 0 | 1 | 2 | 3 | 4;
   private _level: string | null;
   private _offset: number;
+  private _chartOffset: number;
   private _bpmList: Bpm[];
   private _numberOfNotes: number;
   private _autoplay = false;
   private _practice = false;
   private _autostart = false;
+  private _adjustOffset = false;
   private _record = false;
 
   private _bpmIndex: number = 0;
@@ -188,6 +190,7 @@ export class Game extends Scene {
     this._autoplay = this._data.autoplay;
     this._practice = this._data.practice;
     this._autostart = this._data.autostart;
+    this._adjustOffset = this._data.adjustOffset;
 
     if (new window.AudioContext().state === 'suspended') {
       this._autostart = false;
@@ -299,6 +302,13 @@ export class Game extends Scene {
         }
         this._lines.forEach((line) => line.setVisible(true));
         this._gameUI.setVisible(true);
+        if (this._adjustOffset) {
+          EventBus.on('offset-adjusted', (offset: number) => {
+            this._chartOffset = offset;
+            this._chart.META.offset = offset;
+            this._offset = this._chartOffset + this._data.preferences.chartOffset;
+          });
+        }
         EventBus.emit('current-scene-ready', this);
       });
       this.load.start();
@@ -309,7 +319,9 @@ export class Game extends Scene {
   in() {
     this._gameUI.in();
     const targets = [...this._lines.map((l) => l.elements).flat(), ...(this._videos ?? [])];
-    targets.forEach((target) => target.setAlpha(0));
+    targets.forEach((target) => {
+      target.alpha = 0;
+    });
     this.tweens.add({
       targets,
       alpha: 1,
@@ -340,7 +352,7 @@ export class Game extends Scene {
     if (this._status === GameStatus.ERROR) return;
     this._status = GameStatus.PLAYING;
     this._objects.sort((a, b) => a.depth - b.depth);
-    this.update(0, 0);
+    this.updateChart(this.beat, this.timeSec, Date.now());
     this.in();
     this._timeout = setTimeout(() => {
       this._song.play();
@@ -400,7 +412,9 @@ export class Game extends Scene {
     if (this._status === GameStatus.ERROR) return;
     this._status = GameStatus.FINISHED;
     this.out();
-    this._endingUI = new EndingUI(this, this._data.recorderOptions.endingLoopsToRecord);
+    setTimeout(() => {
+      this._endingUI = new EndingUI(this, this._data.recorderOptions.endingLoopsToRecord);
+    }, 500);
     setTimeout(() => {
       this.resetShadersAndVideos();
       this._endingUI!.play();
@@ -509,7 +523,8 @@ export class Game extends Scene {
   initializeChart() {
     EventBus.emit('loading-detail', 'Initializing chart');
     const chart = this._chart;
-    this._offset = chart.META.offset + this._data.preferences.chartOffset;
+    this._chartOffset = chart.META.offset;
+    this._offset = this._chartOffset + this._data.preferences.chartOffset;
     this._bpmList = chart.BPMList;
 
     if (!this._title) this._title = chart.META.name;
@@ -797,12 +812,24 @@ export class Game extends Scene {
     return this._bpmList;
   }
 
+  public get chart() {
+    return this._chart;
+  }
+
   public get song() {
     return this._song;
   }
 
+  public get songUrl() {
+    return this._songUrl;
+  }
+
   public get status() {
     return this._status;
+  }
+
+  public get chartOffset() {
+    return this._chartOffset;
   }
 
   public get autoplay() {
@@ -811,6 +838,10 @@ export class Game extends Scene {
 
   public get practice() {
     return this._practice;
+  }
+
+  public get adjustOffset() {
+    return this._adjustOffset;
   }
 
   public get objects() {

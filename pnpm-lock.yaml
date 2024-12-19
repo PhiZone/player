@@ -59,6 +59,9 @@ importers:
       query-string:
         specifier: ^9.1.1
         version: 9.1.1
+      wavesurfer.js:
+        specifier: ^7.8.11
+        version: 7.8.11
     devDependencies:
       '@capacitor/android':
         specifier: ^6.2.0
@@ -2300,6 +2303,9 @@ packages:
     peerDependencies:
       eslint: '>=6.0.0'
 
+  wavesurfer.js@7.8.11:
+    resolution: {integrity: sha512-bZs7A0vtTVOhuPoDGOXVevAIm+KVYBGwddjL9AeOS7kp/oPcVH9hQWQyR2rBAAfN6s0BKI+EdPEalkNaOmkA6A==}
+
   which@2.0.2:
     resolution: {integrity: sha512-BLI3Tl1TW3Pvl70l3yq3Y64i+awpwXqsGBYWkkqMtnbXgrMD+yj7rhW0kuEDxzJaYXGjEW5ogapKNMEKNMjibA==}
     engines: {node: '>= 8'}
@@ -4465,6 +4471,8 @@ snapshots:
       semver: 7.6.3
     transitivePeerDependencies:
       - supports-color
+
+  wavesurfer.js@7.8.11: {}
 
   which@2.0.2:
     dependencies:

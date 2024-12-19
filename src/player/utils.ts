@@ -528,6 +528,30 @@ export const getBeat = (bpmList: Bpm[], timeSec: number): number => {
   return curBpm.startBeat + ((timeSec - curBpm.startTimeSec) / 60) * curBpm.bpm;
 };
 
+export function findPredominantBpm(bpmList: Bpm[], endTimeSec: number) {
+  const bpmDurations: Map<number, number> = new Map();
+
+  for (let i = 0; i < bpmList.length; i++) {
+    const currentBpm = bpmList[i];
+    const startTime = currentBpm.startTimeSec;
+    const endTime = i + 1 < bpmList.length ? bpmList[i + 1].startTimeSec : endTimeSec;
+
+    bpmDurations.set(currentBpm.bpm, (bpmDurations.get(currentBpm.bpm) || 0) + endTime - startTime);
+  }
+
+  let predominantBpm = { bpm: 0, duration: 0 };
+  for (const [bpm, duration] of bpmDurations) {
+    if (
+      duration > predominantBpm.duration ||
+      (duration === predominantBpm.duration && bpm > predominantBpm.bpm)
+    ) {
+      predominantBpm = { bpm, duration };
+    }
+  }
+
+  return predominantBpm.bpm;
+}
+
 export const isPerfectOrGood = (type: JudgmentType) => {
   return (
     type === JudgmentType.PERFECT ||

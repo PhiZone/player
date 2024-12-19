@@ -27,7 +27,11 @@ export class JudgmentHandler {
   }
 
   hit(type: JudgmentType, delta: number, note: PlainNote) {
-    if (this._scene.status === GameStatus.PLAYING) {
+    delta /= this._scene.song.rate;
+    if (
+      this._scene.status === GameStatus.PLAYING &&
+      (!this._scene.autoplay || Math.abs(delta) < 1e-1)
+    ) {
       if (isPerfectOrGood(type)) {
         this.createHitsound(note);
         this.createHitEffects(type, note);
@@ -115,8 +119,12 @@ export class JudgmentHandler {
   }
 
   hold(type: JudgmentType, delta: number, note: LongNote) {
+    delta /= this._scene.song.rate;
     const beat = this._scene.beat;
-    if (this._scene.status === GameStatus.PLAYING) {
+    if (
+      this._scene.status === GameStatus.PLAYING &&
+      (!this._scene.autoplay || Math.abs(delta) < 1e-1)
+    ) {
       this.createHitsound(note);
       this.createHitEffects(type, note);
       const timer = setInterval(() => {

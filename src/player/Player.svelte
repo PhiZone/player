@@ -10,13 +10,16 @@
 
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
+  import { goto } from '$app/navigation';
   import start from './main';
   import { EventBus } from './EventBus';
   import { GameStatus, type Config } from './types';
-  import { convertTime, getParams, outputRecording } from './utils';
-  import { goto } from '$app/navigation';
+  import { convertTime, findPredominantBpm, getParams, getTimeSec, outputRecording } from './utils';
   import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
   import { ProgressBarStatus } from '@tauri-apps/api/window';
+  import WaveSurfer, { type WaveSurferOptions } from 'wavesurfer.js';
+  import Minimap from 'wavesurfer.js/dist/plugins/minimap.esm.js';
+  import Regions from 'wavesurfer.js/dist/plugins/regions.esm.js';
 
   export let gameRef: GameReference;
 
@@ -46,8 +49,11 @@
   let showStart = false;
   let showPause = false;
   let keyboardSeeking = false;
-  let allowSeek = false;
+  let allowSeek = true;
+  let enableOffsetHelper = true;
+  let offset = 0;
   let progressBarHeld = false;
+  let pausedByBar = false;
   let countdown = 0;
   let stillLoading = false;
   let counter: NodeJS.Timeout;
@@ -58,6 +64,17 @@
   let audioRecorder: MediaRecorder | null = null;
   let video: Blob;
   let audio: Blob;
+
+  let offsetHelperElement: HTMLDivElement;
+  let waveformElement: HTMLDivElement;
+  let minimapElement: HTMLDivElement;
+  let offsetElement: HTMLDivElement;
+  let wavesurferOptions:
+    | (Omit<WaveSurferOptions, 'minPxPerSec'> & { minPxPerSec: number })
+    | undefined;
+  let wavesurfer: WaveSurfer | undefined;
+  let regions: Regions | undefined;
+  let isOffsetAdjustedChartExported = true;
 
   onMount(() => {
     if (!config) return;
@@ -122,14 +139,53 @@
       gameRef.scene = scene;
       status = scene.status;
       duration = scene.song.duration;
+      offset = scene.chartOffset;
       showStart = status === GameStatus.READY;
       allowSeek = scene.autoplay || scene.practice;
+      enableOffsetHelper = scene.adjustOffset;
       const metadata = scene.metadata;
       title = metadata.title;
       level = metadata.level;
       [metadata.composer, metadata.charter, metadata.illustrator].forEach((credit) => {
         credits.push(credit ?? '');
       });
+
+      if (enableOffsetHelper) {
+        regions = Regions.create();
+        wavesurferOptions = {
+          container: waveformElement,
+          height: 'auto' as const,
+          width: offsetHelperElement.clientWidth - offsetElement.offsetWidth - 8,
+          waveColor: '#eee',
+          progressColor: '#999',
+          minPxPerSec: (200 * findPredominantBpm(scene.bpmList, duration)) / 60,
+          hideScrollbar: true,
+          autoCenter: false,
+          url: scene.songUrl,
+          plugins: [
+            regions,
+            Minimap.create({
+              container: minimapElement,
+              height: 16,
+              waveColor: '#aaa',
+              progressColor: '#666',
+            }),
+          ],
+        };
+        wavesurfer = WaveSurfer.create(wavesurferOptions);
+        wavesurfer.on('ready', () => {
+          updateMarkers();
+        });
+        wavesurfer.on('interaction', (t) => {
+          gameRef.scene?.setSeek(Math.max(0, t));
+        });
+        new ResizeObserver((_) => {
+          wavesurferOptions!.width =
+            offsetHelperElement.clientWidth - offsetElement.offsetWidth - 8;
+          wavesurfer!.setOptions(wavesurferOptions!);
+        }).observe(offsetHelperElement);
+      }
+
       videoRecorder?.start();
       audioRecorder?.start();
       gameStart = Date.now();
@@ -138,49 +194,55 @@
         currentActiveScene(scene);
       }
     });
-  });
 
-  EventBus.on('update', (t: number) => {
-    if ('__TAURI_INTERNALS__' in window) {
-      if (t < duration && t !== timeSec) {
+    EventBus.on('update', (t: number) => {
+      if (t !== timeSec) {
+        if ('__TAURI_INTERNALS__' in window) {
+          if (t < duration) {
+            getCurrentWebviewWindow().setProgressBar({
+              status:
+                status === GameStatus.PLAYING ? ProgressBarStatus.Normal : ProgressBarStatus.Paused,
+              progress: Math.round((t * 100) / duration),
+            });
+          }
+        }
+        wavesurfer?.setTime(t);
+        if (t === duration && enableOffsetHelper && !isOffsetAdjustedChartExported) {
+          exportOffsetAdjustedChart();
+        }
+      }
+      timeSec = t;
+    });
+
+    EventBus.on('paused', (emittedBySpace: boolean) => {
+      status = GameStatus.PAUSED;
+      showPause = !emittedBySpace;
+      keyboardSeeking = emittedBySpace;
+    });
+
+    EventBus.on('started', () => {
+      status = GameStatus.PLAYING;
+      keyboardSeeking = false;
+      stillLoading = false;
+    });
+
+    EventBus.on('error', () => {
+      stillLoading = true;
+    });
+
+    EventBus.on('finished', () => {
+      status = GameStatus.FINISHED;
+      if ('__TAURI_INTERNALS__' in window) {
         getCurrentWebviewWindow().setProgressBar({
-          status:
-            status === GameStatus.PLAYING ? ProgressBarStatus.Normal : ProgressBarStatus.Paused,
-          progress: Math.round((t * 100) / duration),
+          status: ProgressBarStatus.None,
         });
       }
-    }
-    timeSec = t;
-  });
+    });
 
-  EventBus.on('paused', (emittedBySpace: boolean) => {
-    status = GameStatus.PAUSED;
-    showPause = !emittedBySpace;
-    keyboardSeeking = emittedBySpace;
-  });
-
-  EventBus.on('started', () => {
-    status = GameStatus.PLAYING;
-    keyboardSeeking = false;
-    stillLoading = false;
-  });
-
-  EventBus.on('error', () => {
-    stillLoading = true;
-  });
-
-  EventBus.on('finished', () => {
-    status = GameStatus.FINISHED;
-    if ('__TAURI_INTERNALS__' in window) {
-      getCurrentWebviewWindow().setProgressBar({
-        status: ProgressBarStatus.None,
-      });
-    }
-  });
-
-  EventBus.on('recording-stop', () => {
-    videoRecorder?.stop();
-    audioRecorder?.stop();
+    EventBus.on('recording-stop', () => {
+      videoRecorder?.stop();
+      audioRecorder?.stop();
+    });
   });
 
   onDestroy(() => {
@@ -206,6 +268,60 @@
     } else {
       goto(isTauri ? `/?t=${Date.now()}` : '/');
     }
+  };
+
+  const updateMarkers = () => {
+    if (regions && gameRef.scene) {
+      regions.clearRegions();
+      const bpmList = gameRef.scene.bpmList;
+      const priorities = [0, 3, 1, 2, 4];
+      [...gameRef.scene.notes]
+        .sort((a, b) =>
+          a.note.type === b.note.type
+            ? a.note.startBeat - b.note.startBeat
+            : priorities[a.note.type] - priorities[b.note.type],
+        )
+        .forEach((note) => {
+          regions?.addRegion({
+            start: getTimeSec(bpmList, note.note.startBeat) + offset / 1000,
+            end:
+              note.note.type === 2
+                ? getTimeSec(bpmList, note.note.endBeat) + offset / 1000
+                : undefined,
+            color:
+              note.note.type === 1
+                ? 'rgba(10, 195, 255, 0.5)'
+                : note.note.type === 2
+                  ? 'rgba(153, 231, 253, 0.5)'
+                  : note.note.type === 3
+                    ? 'rgba(254, 67, 101, 0.5)'
+                    : 'rgba(240, 237, 105, 0.5)',
+            drag: false,
+            resize: false,
+          });
+        });
+    }
+  };
+
+  const exportOffsetAdjustedChart = () => {
+    const content = JSON.stringify(gameRef.scene?.chart, (key, value) => {
+      if (
+        key === 'startBeat' ||
+        key === 'endBeat' ||
+        key === 'startTimeSec' ||
+        key === 'endTimeSec'
+      ) {
+        return undefined;
+      }
+      return value;
+    });
+    const blob = new Blob([content], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.download = `${title} [${level}] (offset ${offset >= 0 ? '+' : '-'}${Math.abs(offset)}).json`;
+    link.href = URL.createObjectURL(blob);
+    link.click();
+    URL.revokeObjectURL(link.href);
+    isOffsetAdjustedChartExported = true;
   };
 </script>
 
@@ -338,42 +454,196 @@
 
 {#if allowSeek}
   <div
-    class="absolute bottom-5 px-4 py-2 w-[75vw] flex items-center opacity-0 trans rounded-full"
-    class:opacity-50={(keyboardSeeking || showPause) &&
+    class="absolute bottom-5 px-4 py-2 w-[75vw] flex flex-col gap-4 opacity-0 trans {enableOffsetHelper
+      ? 'rounded-3xl'
+      : 'rounded-full'}"
+    class:opacity-50={!enableOffsetHelper &&
+      (keyboardSeeking || showPause) &&
       status !== GameStatus.PLAYING &&
+      status !== GameStatus.LOADING &&
+      status !== GameStatus.READY &&
       status !== GameStatus.FINISHED}
-    class:hover:opacity-100={(keyboardSeeking || showPause) &&
-      status !== GameStatus.PLAYING &&
+    class:opacity-100={enableOffsetHelper &&
+      status !== GameStatus.LOADING &&
+      status !== GameStatus.READY &&
+      status !== GameStatus.FINISHED}
+    class:hover:opacity-100={(enableOffsetHelper ||
+      ((keyboardSeeking || showPause) && status !== GameStatus.PLAYING)) &&
+      status !== GameStatus.LOADING &&
+      status !== GameStatus.READY &&
       status !== GameStatus.FINISHED}
     class:backdrop-blur-2xl={progressBarHeld}
     class:backdrop-brightness-75={progressBarHeld}
-    class:pointer-events-none={status === GameStatus.PLAYING || status === GameStatus.FINISHED}
+    class:hover:backdrop-blur-2xl={enableOffsetHelper}
+    class:hover:backdrop-brightness-75={enableOffsetHelper}
+    class:hover:backdrop-brightness-50={enableOffsetHelper && status !== GameStatus.PLAYING}
+    class:pointer-events-none={(!enableOffsetHelper && status === GameStatus.PLAYING) ||
+      status === GameStatus.LOADING ||
+      status === GameStatus.READY ||
+      status === GameStatus.FINISHED}
   >
-    <span class="text-3xl min-w-24">{convertTime(timeSec, true)}</span>
-    <input
-      type="range"
-      min="0"
-      max={duration}
-      value={timeSec}
-      step="0.001"
-      class="range cursor-default"
-      class:hover:cursor-pointer={(keyboardSeeking || showPause) &&
-        status !== GameStatus.PLAYING &&
-        status !== GameStatus.FINISHED}
-      disabled={(!keyboardSeeking && !showPause) ||
-        status === GameStatus.PLAYING ||
-        status === GameStatus.FINISHED}
-      on:pointerdown={() => {
-        progressBarHeld = true;
+    {#if enableOffsetHelper}
+      <div class="flex gap-2 h-[10vh] justify-between items-center" bind:this={offsetHelperElement}>
+        <div class="flex flex-col h-full">
+          <div class="waveform-height" bind:this={waveformElement}></div>
+          <div class="h-4" bind:this={minimapElement}></div>
+        </div>
+        <div class="flex flex-col gap-2 items-center min-w-fit" bind:this={offsetElement}>
+          <span class="offset-text-size offset-without-ms">{offset.toFixed(0)}</span>
+          <span class="offset-text-size offset-with-ms">{offset.toFixed(0)} ms</span>
+          <div class="flex gap-2">
+            <div class="join rounded-full">
+              {#each Array(6) as _, i}
+                <button
+                  class="btn btn-sm btn-square btn-outline join-item"
+                  on:click={() => {
+                    offset += [-50, -10, -1, 1, 10, 50][i];
+                    isOffsetAdjustedChartExported = false;
+                    EventBus.emit('offset-adjusted', offset);
+                    updateMarkers();
+                  }}
+                  on:mousedown|preventDefault
+                >
+                  {#if i === 0}
+                    <i class="fa-solid fa-angles-left"></i>
+                  {:else if i === 1}
+                    <i class="fa-solid fa-angle-left"></i>
+                  {:else if i === 2}
+                    <i class="fa-solid fa-minus"></i>
+                  {:else if i === 3}
+                    <i class="fa-solid fa-plus"></i>
+                  {:else if i === 4}
+                    <i class="fa-solid fa-angle-right"></i>
+                  {:else if i === 5}
+                    <i class="fa-solid fa-angles-right"></i>
+                  {/if}
+                </button>
+              {/each}
+            </div>
+            <button
+              class="btn btn-sm btn-circle btn-outline"
+              aria-label="Export offset-adjusted chart"
+              on:click={() => {
+                exportOffsetAdjustedChart();
+              }}
+              on:mousedown|preventDefault
+            >
+              <i class="fa-solid fa-file-export"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    {/if}
+    <div class="flex items-center">
+      <span class="text-3xl min-w-24">{convertTime(timeSec, true)}</span>
+      <input
+        type="range"
+        min="0"
+        max={duration}
+        value={timeSec}
+        step="0.001"
+        class="range cursor-default"
+        class:hover:cursor-pointer={(keyboardSeeking || showPause) &&
+          status !== GameStatus.LOADING &&
+          status !== GameStatus.READY &&
+          status !== GameStatus.PLAYING &&
+          status !== GameStatus.FINISHED}
+        disabled={(!keyboardSeeking && !showPause) ||
+          status === GameStatus.LOADING ||
+          status === GameStatus.READY ||
+          status === GameStatus.PLAYING ||
+          status === GameStatus.FINISHED}
+        on:pointerdown={() => {
+          progressBarHeld = true;
+          if (!keyboardSeeking && !showPause) {
+            pausedByBar = true;
+            gameRef.scene?.pause(true);
+          }
+        }}
+        on:pointerup={() => {
+          progressBarHeld = false;
+          if (pausedByBar) {
+            pausedByBar = false;
+            gameRef.scene?.resume();
+          }
+        }}
+        on:input={(e) => {
+          gameRef.scene?.setSeek(Math.max(0, parseFloat(e.currentTarget.value)));
+        }}
+      />
+      <span class="text-3xl min-w-24 text-right">{convertTime(duration, true)}</span>
+    </div>
+  </div>
+  <div
+    class="absolute right-5 px-2 py-2 join join-vertical opacity-0 trans rounded-full backdrop-blur-lg hover:backdrop-blur-2xl hover:backdrop-brightness-75"
+    class:opacity-50={!enableOffsetHelper &&
+      (keyboardSeeking || showPause) &&
+      status !== GameStatus.PLAYING &&
+      status !== GameStatus.LOADING &&
+      status !== GameStatus.READY &&
+      status !== GameStatus.FINISHED}
+    class:opacity-100={enableOffsetHelper &&
+      status !== GameStatus.LOADING &&
+      status !== GameStatus.READY &&
+      status !== GameStatus.FINISHED}
+    class:hover:opacity-100={(enableOffsetHelper ||
+      ((keyboardSeeking || showPause) && status !== GameStatus.PLAYING)) &&
+      status !== GameStatus.LOADING &&
+      status !== GameStatus.READY &&
+      status !== GameStatus.FINISHED}
+    class:hover:backdrop-brightness-50={enableOffsetHelper && status !== GameStatus.PLAYING}
+    class:pointer-events-none={(!enableOffsetHelper && status === GameStatus.PLAYING) ||
+      status === GameStatus.LOADING ||
+      status === GameStatus.READY ||
+      status === GameStatus.FINISHED}
+  >
+    <button
+      class="btn btn-outline join-item"
+      aria-label="Speed up"
+      on:click={() => {
+        if (!gameRef.scene) return;
+        if (wavesurferOptions) wavesurferOptions.minPxPerSec *= gameRef.scene.song.rate;
+        gameRef.scene.song.rate = Math.min(9.9, gameRef.scene.song.rate + 0.1);
+        if (wavesurferOptions) {
+          wavesurferOptions.minPxPerSec /= gameRef.scene.song.rate;
+          wavesurfer?.setOptions(wavesurferOptions);
+        }
       }}
-      on:pointerup={() => {
-        progressBarHeld = false;
+      on:mousedown|preventDefault
+    >
+      <i class="fa-solid fa-plus fa-xl"></i>
+    </button>
+    <button
+      class="btn w-16 h-16 btn-outline join-item text-2xl whitespace-nowrap"
+      aria-label="Reset to normal speed"
+      on:click={() => {
+        if (!gameRef.scene) return;
+        if (wavesurferOptions) wavesurferOptions.minPxPerSec *= gameRef.scene.song.rate;
+        gameRef.scene.song.rate = 1;
+        if (wavesurferOptions) {
+          wavesurfer?.setOptions(wavesurferOptions);
+        }
       }}
-      on:input={(e) => {
-        gameRef.scene?.setSeek(Math.max(0, parseFloat(e.currentTarget.value)));
+      on:mousedown|preventDefault
+    >
+      × {gameRef.scene?.song.rate.toFixed(1)}
+    </button>
+    <button
+      class="btn btn-outline join-item"
+      aria-label="Speed down"
+      on:click={() => {
+        if (!gameRef.scene) return;
+        if (wavesurferOptions) wavesurferOptions.minPxPerSec *= gameRef.scene.song.rate;
+        gameRef.scene.song.rate = Math.max(0.1, gameRef.scene.song.rate - 0.1);
+        if (wavesurferOptions) {
+          wavesurferOptions.minPxPerSec /= gameRef.scene.song.rate;
+          wavesurfer?.setOptions(wavesurferOptions);
+        }
       }}
-    />
-    <span class="text-3xl min-w-24 text-right">{convertTime(duration, true)}</span>
+      on:mousedown|preventDefault
+    >
+      <i class="fa-solid fa-minus fa-xl"></i>
+    </button>
   </div>
 {/if}
 
@@ -415,5 +685,24 @@
   .trans {
     transition-timing-function: cubic-bezier(0.165, 0.84, 0.44, 1);
     @apply transition duration-300;
+  }
+  .waveform-height {
+    height: calc(100% - 16px);
+  }
+  .offset-text-size {
+    font-size: calc(9vh - 38px);
+    line-height: calc(9vh - 38px);
+  }
+  .offset-with-ms {
+    display: inline;
+    @media (min-height: 1080px) {
+      display: none;
+    }
+  }
+  .offset-without-ms {
+    display: none;
+    @media (min-height: 1080px) {
+      display: inline;
+    }
   }
 </style>

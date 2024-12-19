@@ -879,6 +879,8 @@
                       toggles.autoplay = e.currentTarget.checked;
                       if (toggles.autoplay) {
                         toggles.practice = false;
+                      } else {
+                        toggles.adjustOffset = false;
                       }
                     }}
                   />
@@ -892,6 +894,35 @@
                     class="block text-sm text-gray-600 dark:text-neutral-500"
                   >
                     Notes are automatically given Perfect judgments.
+                  </span>
+                </label>
+              </div>
+              <div class="relative flex items-start">
+                <div class="flex items-center h-5 mt-1">
+                  <input
+                    id="adjust-offset"
+                    name="adjust-offset"
+                    type="checkbox"
+                    class="transition border-gray-200 rounded text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
+                    aria-describedby="adjust-offset-description"
+                    bind:checked={toggles.adjustOffset}
+                    disabled={!toggles.autoplay}
+                  />
+                </div>
+                <label
+                  for="adjust-offset"
+                  class="ms-3 transition"
+                  class:opacity-50={!toggles.autoplay}
+                >
+                  <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
+                    Adjust offset
+                  </span>
+                  <span
+                    id="adjust-offset-description"
+                    class="block text-sm text-gray-600 dark:text-neutral-500"
+                  >
+                    Enables realtime chart offset adjustment. The displayed offset still accounts
+                    for the offset set in the preferences.
                   </span>
                 </label>
               </div>
