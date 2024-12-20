@@ -29,10 +29,7 @@ export class Line {
   private _data: JudgeLine;
   private _line: GameObjects.Image | GameObjects.Sprite | GameObjects.Text;
   private _parent: Line | null = null;
-  private _flickContainer: GameObjects.Container;
-  private _tapContainer: GameObjects.Container;
-  private _dragContainer: GameObjects.Container;
-  private _holdContainer: GameObjects.Container;
+  private _noteContainers: Record<number, GameObjects.Container> = {};
   private _noteMask: GameObjects.Graphics | null = null;
   private _notes: (PlainNote | LongNote)[] = [];
   private _hasAttach: boolean = false;
@@ -106,11 +103,6 @@ export class Line {
     if (!this._hasCustomTexture && !this._hasAttach) this._line.setTint(getLineColor(scene));
     if (this._data.anchor) this._line.setOrigin(this._data.anchor[0], 1 - this._data.anchor[1]);
 
-    this._holdContainer = this.createContainer(3);
-    this._dragContainer = this.createContainer(4);
-    this._tapContainer = this.createContainer(5);
-    this._flickContainer = this.createContainer(6);
-
     if (scene.preferences.chartFlipping & 1) {
       this._xModifier = -1;
       this._rotationModifier = -1;
@@ -119,15 +111,6 @@ export class Line {
       this._yModifier = -1;
       this._rotationModifier = (-1 * this._xModifier) as 1 | -1;
       this._rotationOffset = 180;
-    }
-
-    if (lineData.scaleOnNotes === 2) {
-      this._noteMask = new GameObjects.Graphics(scene);
-      const mask = this._noteMask.createGeometryMask();
-      this._holdContainer.setMask(mask);
-      this._dragContainer.setMask(mask);
-      this._tapContainer.setMask(mask);
-      this._flickContainer.setMask(mask);
     }
 
     // this._flickContainer.add(scene.add.rectangle(0, 0, 10, 10, 0x00ff00).setOrigin(0.5));
@@ -163,6 +146,11 @@ export class Line {
     }
 
     if (this._data.notes) {
+      // this._holdContainer = this.createContainer(3);
+      // this._dragContainer = this.createContainer(4);
+      // this._tapContainer = this.createContainer(5);
+      // this._flickContainer = this.createContainer(6);
+
       this._data.notes.forEach((note) => {
         note.startBeat = toBeats(note.startTime);
         note.endBeat = toBeats(note.endTime);
@@ -178,8 +166,16 @@ export class Line {
           note = new PlainNote(scene, data);
           note.setHeight(this.calculateHeight(data.startBeat));
         }
-        this.addNote(note);
+        this.addNote(note, this._noteContainers[note.zIndex] ?? this.createContainer(note.zIndex));
       });
+
+      if (lineData.scaleOnNotes === 2) {
+        this._noteMask = new GameObjects.Graphics(scene);
+        const mask = this._noteMask.createGeometryMask();
+        Object.values(this._noteContainers).forEach((container) => {
+          container.setMask(mask);
+        });
+      }
     }
   }
 
@@ -196,10 +192,9 @@ export class Line {
 
   destroy() {
     this._line.destroy();
-    this._flickContainer.destroy();
-    this._tapContainer.destroy();
-    this._dragContainer.destroy();
-    this._holdContainer.destroy();
+    Object.values(this._noteContainers).forEach((container) => {
+      container.destroy();
+    });
     this._notes.forEach((note) => {
       note.destroy();
     });
@@ -220,15 +215,13 @@ export class Line {
     this._line.setPosition(x, y);
     this._line.setRotation(rotation);
     this._line.setAlpha(this._opacity / 255);
-    [this._flickContainer, this._tapContainer, this._dragContainer, this._holdContainer].forEach(
-      (obj) => {
-        obj.setPosition(x, y);
-        obj.setRotation(rotation);
-        if (this._data.scaleOnNotes === 1) {
-          obj.setScale(this._scaleX ?? 1, 1);
-        }
-      },
-    );
+    Object.values(this._noteContainers).forEach((obj) => {
+      obj.setPosition(x, y);
+      obj.setRotation(rotation);
+      if (this._data.scaleOnNotes === 1) {
+        obj.setScale(this._scaleX ?? 1, 1);
+      }
+    });
     this.updateMask();
     this.updateAttachments();
   }
@@ -328,6 +321,7 @@ export class Line {
   createContainer(depth: number) {
     const container = new GameObjects.Container(this._scene);
     container.setDepth(depth);
+    this._noteContainers[depth] = container;
     this._scene.register(container);
     return container;
   }
@@ -525,12 +519,11 @@ export class Line {
     );
   }
 
-  addNote(note: PlainNote | LongNote) {
+  addNote(note: PlainNote | LongNote, container: GameObjects.Container) {
     note.line = this;
     this._notes.push(note);
-    [this._tapContainer, this._holdContainer, this._flickContainer, this._dragContainer][
-      note.note.type - 1
-    ].add(note);
+    container.add(note);
+    console.log(note.line._num, note.note.type, container.depth, note.note.startTime);
   }
 
   setParent(parent: Line) {
@@ -577,24 +570,14 @@ export class Line {
   }
 
   public get elements() {
-    return [
-      this._line,
-      this._holdContainer,
-      this._dragContainer,
-      this._tapContainer,
-      this._flickContainer,
-    ];
+    return [this._line, ...Object.values(this._noteContainers)];
   }
 
   setVisible(visible: boolean) {
-    [
-      !this._hasAttach ? this._line : undefined,
-      this._flickContainer,
-      this._tapContainer,
-      this._dragContainer,
-      this._holdContainer,
-    ].forEach((obj) => {
-      obj?.setVisible(visible);
-    });
+    [!this._hasAttach ? this._line : undefined, ...Object.values(this._noteContainers)].forEach(
+      (obj) => {
+        obj?.setVisible(visible);
+      },
+    );
   }
 }

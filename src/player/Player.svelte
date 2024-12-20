@@ -20,6 +20,7 @@
   import WaveSurfer, { type WaveSurferOptions } from 'wavesurfer.js';
   import Minimap from 'wavesurfer.js/dist/plugins/minimap.esm.js';
   import Regions from 'wavesurfer.js/dist/plugins/regions.esm.js';
+  import { NOTE_PRIORITIES } from './constants';
 
   export let gameRef: GameReference;
 
@@ -278,12 +279,11 @@
     if (regions && gameRef.scene) {
       regions.clearRegions();
       const bpmList = gameRef.scene.bpmList;
-      const priorities = [0, 3, 1, 2, 4];
       [...gameRef.scene.notes]
         .sort((a, b) =>
           a.note.type === b.note.type
             ? a.note.startBeat - b.note.startBeat
-            : priorities[a.note.type] - priorities[b.note.type],
+            : NOTE_PRIORITIES[a.note.type] - NOTE_PRIORITIES[b.note.type],
         )
         .forEach((note) => {
           regions?.addRegion({

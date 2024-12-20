@@ -18,12 +18,13 @@ export class JudgmentHandler {
   private _judgmentCount: number = 0;
   private _judgmentIndex: number = 0;
   private _judgmentDeltas: { delta: number; beat: number }[] = [];
-  private _hitEffectsContainer: GameObjects.Container;
+  private _hitEffectsContainers: Record<number, GameObjects.Container> = {};
 
   constructor(scene: Game) {
     this._scene = scene;
-    this._hitEffectsContainer = new GameObjects.Container(scene).setDepth(7);
-    this._scene.register(this._hitEffectsContainer);
+    scene.notes.forEach((note) => {
+      this.createHitEffectsContainer(note.note.zIndexHitEffects ?? 7);
+    });
   }
 
   hit(type: JudgmentType, delta: number, note: PlainNote) {
@@ -145,9 +146,17 @@ export class JudgmentHandler {
     note.setTempJudgment(type, beat);
   }
 
+  createHitEffectsContainer(depth: number) {
+    const container = new GameObjects.Container(this._scene);
+    container.setDepth(depth);
+    this._hitEffectsContainers[depth] = container;
+    this._scene.register(container);
+    return container;
+  }
+
   createHitEffects(type: JudgmentType, note: PlainNote | LongNote) {
     const { x, y } = note.judgmentPosition;
-    this._hitEffectsContainer.add(
+    this._hitEffectsContainers[note.note.zIndexHitEffects ?? 7].add(
       new HitEffects(this._scene, x, y, type).hit(rgbToHex(note.note.tintHitEffects)),
     );
   }

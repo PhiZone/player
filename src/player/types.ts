@@ -128,6 +128,8 @@ export interface Note {
   visibleTime: number;
   yOffset: number;
   hitsound?: string;
+  zIndex?: number;
+  zIndexHitEffects?: number;
   tint?: [number, number, number] | null;
   tintHitEffects?: [number, number, number] | null;
 }

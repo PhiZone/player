@@ -3,7 +3,7 @@ import { JudgmentType, type Note } from '../types';
 import { clamp, getTimeSec, rgbToHex } from '../utils';
 import type { Game } from '../scenes/Game';
 import type { Line } from './Line';
-import { NOTE_BASE_SIZE } from '../constants';
+import { NOTE_BASE_SIZE, NOTE_PRIORITIES } from '../constants';
 
 export class PlainNote extends GameObjects.Image {
   private _scene: Game;
@@ -170,6 +170,10 @@ export class PlainNote extends GameObjects.Image {
 
   public get consumeTap() {
     return this._consumeTap;
+  }
+
+  public get zIndex() {
+    return this._data.zIndex ?? NOTE_PRIORITIES[this._data.type] + 2;
   }
 
   public get line() {

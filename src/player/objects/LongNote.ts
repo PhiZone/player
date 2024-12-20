@@ -3,7 +3,12 @@ import { GameStatus, JudgmentType, type Note } from '../types';
 import type { Game } from '../scenes/Game';
 import type { Line } from './Line';
 import { getTimeSec, rgbToHex } from '../utils';
-import { HOLD_BODY_TOLERANCE, HOLD_TAIL_TOLERANCE, NOTE_BASE_SIZE } from '../constants';
+import {
+  HOLD_BODY_TOLERANCE,
+  HOLD_TAIL_TOLERANCE,
+  NOTE_BASE_SIZE,
+  NOTE_PRIORITIES,
+} from '../constants';
 
 export class LongNote extends GameObjects.Container {
   private _scene: Game;
@@ -255,6 +260,10 @@ export class LongNote extends GameObjects.Container {
 
   public get consumeTap() {
     return this._consumeTap;
+  }
+
+  public get zIndex() {
+    return this._data.zIndex ?? NOTE_PRIORITIES[this._data.type] + 2;
   }
 
   public get line() {
