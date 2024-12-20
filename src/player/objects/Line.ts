@@ -569,6 +569,10 @@ export class Line {
     return this._line.alpha;
   }
 
+  public get incline() {
+    return this._incline;
+  }
+
   public get elements() {
     return [this._line, ...Object.values(this._noteContainers)];
   }

@@ -67,16 +67,20 @@ export class LongNote extends GameObjects.Container {
     if (this._beatTempJudged && beat < this._beatTempJudged) {
       this.resetTemp();
     }
-    let headDist = this._scene.d((this._targetHeadHeight - height) * this._data.speed);
-    const tailDist = this._scene.d((this._targetTailHeight - height) * this._data.speed);
+    let headDist =
+      this._scene.d((this._targetHeadHeight - height) * this._data.speed) +
+      this._scene.o(-this._data.yOffset);
+    const tailDist =
+      this._scene.d((this._targetTailHeight - height) * this._data.speed) +
+      this._scene.o(-this._data.yOffset);
     if (beat >= this._data.startBeat) {
       this._head.setVisible(false);
-      headDist = 0;
+      headDist = this._scene.o(-this._data.yOffset);
     } else {
       this._head.setVisible(
         visible &&
           songTime >= this._hitTime - this._data.visibleTime &&
-          (headDist >= 0 || !this._line.data.isCover),
+          (headDist >= this._scene.o(-this._data.yOffset) || !this._line.data.isCover),
       );
     }
     if (beat >= this._data.endBeat) {
@@ -86,17 +90,22 @@ export class LongNote extends GameObjects.Container {
       const vis =
         visible &&
         songTime >= this._hitTime - this._data.visibleTime &&
-        (tailDist >= 0 || !this._line.data.isCover);
+        (tailDist >= this._scene.o(-this._data.yOffset) || !this._line.data.isCover);
       this._body.setVisible(vis);
       this._tail.setVisible(vis);
     }
     this._head.setY(this._yModifier * headDist);
-    this._body.setY(this._yModifier * (this._line.data.isCover ? Math.max(0, headDist) : headDist));
+    this._body.setY(
+      this._yModifier *
+        (this._line.data.isCover
+          ? Math.max(this._scene.o(-this._data.yOffset), headDist)
+          : headDist),
+    );
     this._tail.setY(this._yModifier * tailDist);
     this._body.scaleY =
       (-this._yModifier *
         (this._line.data.isCover
-          ? Math.max(0, tailDist - Math.max(0, headDist))
+          ? Math.max(0, tailDist - Math.max(this._scene.o(-this._data.yOffset), headDist))
           : tailDist - headDist)) /
       this._bodyHeight;
     if (this._data.isFake) {
