@@ -411,7 +411,7 @@ export class Line {
     layerIndex: number,
     events: (Event | ColorEvent | GifEvent | TextEvent)[] | null | undefined,
     cur: number[],
-    fillBetween = true,
+    fillInBetween = true,
   ) {
     while (cur.length < layerIndex + 1) {
       cur.push(0);
@@ -424,7 +424,7 @@ export class Line {
         cur[layerIndex]++;
       }
       if (
-        !fillBetween &&
+        !fillInBetween &&
         (beat <= events[cur[layerIndex]].startBeat || beat > events[cur[layerIndex]].endBeat)
       ) {
         return undefined;
