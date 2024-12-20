@@ -204,9 +204,9 @@ Notice that there are two events that share the same shader code. This is a work
 | Offset adjustment mode                     | 0.0.6   |                                                                               | ✅ Done             | 延迟调整模式            |
 | Full support for the extended event layer  | 0.0.6   | GIF events & incline events                                                   | ✅ Done             | 扩展事件层的完全适配    |
 | Recording mode                             | 0.0.7   |                                                                               | ⏳ Postponed        | 录制模式                |
-| Support for all note properties            | 0.0.7   |                                                                               | 🚧 Working          | 所有 Note 属性的适配    |
+| Support for all note properties            | 0.0.7   |                                                                               | ✅ Done             | 所有 Note 属性的适配    |
 | Alignment with official/RPE constants      | 0.0.8   | Hold tolerances, texture size units, etc.                                     |                     | 官/RPE 常数对齐         |
-| Full RPE support                           | 0.1.0   |                                                                               |                     | 完全 RPE 适配           |
+| Full RPE support                           | 0.1.0   |                                                                               | 🚧 Working          | 完全 RPE 适配           |
 | Basic PE support                           | 0.1.1   |                                                                               |                     | 基本 PE 适配            |
 | Customizable resource pack                 | 0.1.2   |                                                                               |                     | 可自定义资源包          |
 | PhiZone integration                        | 0.2.0   |                                                                               |                     | PhiZone 集成            |
