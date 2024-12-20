@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "PhiZone Player",
-  "version": "0.0.3",
+  "version": "0.0.6",
   "identifier": "cn.phizone.player",
   "build": {
     "frontendDist": "../build",
