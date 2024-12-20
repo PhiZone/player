@@ -64,9 +64,11 @@ export class Video extends GameObjects.Container {
     );
     if (!this.visible) {
       this._video.stop();
+      return;
     } else if (!this._video.isPlaying() && this._scene.song.isPlaying) {
       this._video.play();
     }
+    this._video.setPlaybackRate(this._scene.song.rate);
     if (typeof this._data.alpha === 'number') {
       this.setAlpha(this._data.alpha);
     } else {

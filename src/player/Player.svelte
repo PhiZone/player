@@ -139,7 +139,7 @@
       gameRef.scene = scene;
       status = scene.status;
       duration = scene.song.duration;
-      offset = scene.chartOffset;
+      offset = scene.chart.META.offset;
       showStart = status === GameStatus.READY;
       allowSeek = scene.autoplay || scene.practice;
       enableOffsetHelper = scene.adjustOffset;
@@ -151,14 +151,17 @@
       });
 
       if (enableOffsetHelper) {
+        const predominantBpm = findPredominantBpm(scene.bpmList, duration);
         regions = Regions.create();
         wavesurferOptions = {
           container: waveformElement,
           height: 'auto' as const,
           width: offsetHelperElement.clientWidth - offsetElement.offsetWidth - 8,
           waveColor: '#eee',
+          cursorColor: '#bbb',
           progressColor: '#999',
-          minPxPerSec: (200 * findPredominantBpm(scene.bpmList, duration)) / 60,
+          minPxPerSec: (200 * predominantBpm) / 60,
+          cursorWidth: 200 / 64,
           hideScrollbar: true,
           autoCenter: false,
           url: scene.songUrl,
@@ -168,6 +171,7 @@
               container: minimapElement,
               height: 16,
               waveColor: '#aaa',
+              cursorColor: '#888',
               progressColor: '#666',
             }),
           ],
@@ -285,9 +289,11 @@
           regions?.addRegion({
             start: getTimeSec(bpmList, note.note.startBeat) + offset / 1000,
             end:
-              note.note.type === 2
-                ? getTimeSec(bpmList, note.note.endBeat) + offset / 1000
-                : undefined,
+              getTimeSec(
+                bpmList,
+                note.note.type === 2 ? note.note.endBeat : note.note.startBeat + 1 / 64,
+              ) +
+              offset / 1000,
             color:
               note.note.type === 1
                 ? 'rgba(10, 195, 255, 0.5)'
@@ -317,7 +323,7 @@
     });
     const blob = new Blob([content], { type: 'application/json' });
     const link = document.createElement('a');
-    link.download = `${title} [${level}] (offset ${offset >= 0 ? '+' : '-'}${Math.abs(offset)}).json`;
+    link.download = `${title} [${level}] (offset ${offset >= 0 ? '+' : '-'}${Math.abs(offset).toFixed(0)}).json`;
     link.href = URL.createObjectURL(blob);
     link.click();
     URL.revokeObjectURL(link.href);
@@ -462,16 +468,19 @@
       status !== GameStatus.PLAYING &&
       status !== GameStatus.LOADING &&
       status !== GameStatus.READY &&
-      status !== GameStatus.FINISHED}
+      status !== GameStatus.FINISHED &&
+      !(timeSec === duration)}
     class:opacity-100={enableOffsetHelper &&
       status !== GameStatus.LOADING &&
       status !== GameStatus.READY &&
-      status !== GameStatus.FINISHED}
+      status !== GameStatus.FINISHED &&
+      !(status === GameStatus.PLAYING && timeSec === duration)}
     class:hover:opacity-100={(enableOffsetHelper ||
       ((keyboardSeeking || showPause) && status !== GameStatus.PLAYING)) &&
       status !== GameStatus.LOADING &&
       status !== GameStatus.READY &&
-      status !== GameStatus.FINISHED}
+      status !== GameStatus.FINISHED &&
+      !(status === GameStatus.PLAYING && timeSec === duration)}
     class:backdrop-blur-2xl={progressBarHeld}
     class:backdrop-brightness-75={progressBarHeld}
     class:hover:backdrop-blur-2xl={enableOffsetHelper}
@@ -480,17 +489,28 @@
     class:pointer-events-none={(!enableOffsetHelper && status === GameStatus.PLAYING) ||
       status === GameStatus.LOADING ||
       status === GameStatus.READY ||
-      status === GameStatus.FINISHED}
+      status === GameStatus.FINISHED ||
+      (status === GameStatus.PLAYING && timeSec === duration)}
   >
     {#if enableOffsetHelper}
       <div class="flex gap-2 h-[10vh] justify-between items-center" bind:this={offsetHelperElement}>
         <div class="flex flex-col h-full">
           <div class="waveform-height" bind:this={waveformElement}></div>
-          <div class="h-4" bind:this={minimapElement}></div>
+          <div
+            class="h-4"
+            bind:this={minimapElement}
+            on:pointerdown={() => {
+              gameRef.scene?.pause(true);
+            }}
+          ></div>
         </div>
         <div class="flex flex-col gap-2 items-center min-w-fit" bind:this={offsetElement}>
-          <span class="offset-text-size offset-without-ms">{offset.toFixed(0)}</span>
-          <span class="offset-text-size offset-with-ms">{offset.toFixed(0)} ms</span>
+          <span class="offset-text offset-without-ms">
+            {offset >= 0 ? '+' : '-'}{Math.abs(offset).toFixed(0)}
+          </span>
+          <span class="offset-text offset-with-ms">
+            {offset >= 0 ? '+' : '-'}{Math.abs(offset).toFixed(0)} ms
+          </span>
           <div class="flex gap-2">
             <div class="join rounded-full">
               {#each Array(6) as _, i}
@@ -547,12 +567,14 @@
           status !== GameStatus.LOADING &&
           status !== GameStatus.READY &&
           status !== GameStatus.PLAYING &&
-          status !== GameStatus.FINISHED}
+          status !== GameStatus.FINISHED &&
+          !(timeSec === duration)}
         disabled={(!keyboardSeeking && !showPause) ||
           status === GameStatus.LOADING ||
           status === GameStatus.READY ||
           status === GameStatus.PLAYING ||
-          status === GameStatus.FINISHED}
+          status === GameStatus.FINISHED ||
+          timeSec === duration}
         on:pointerdown={() => {
           progressBarHeld = true;
           if (!keyboardSeeking && !showPause) {
@@ -581,21 +603,25 @@
       status !== GameStatus.PLAYING &&
       status !== GameStatus.LOADING &&
       status !== GameStatus.READY &&
-      status !== GameStatus.FINISHED}
+      status !== GameStatus.FINISHED &&
+      !(timeSec === duration)}
     class:opacity-100={enableOffsetHelper &&
       status !== GameStatus.LOADING &&
       status !== GameStatus.READY &&
-      status !== GameStatus.FINISHED}
+      status !== GameStatus.FINISHED &&
+      !(status === GameStatus.PLAYING && timeSec === duration)}
     class:hover:opacity-100={(enableOffsetHelper ||
       ((keyboardSeeking || showPause) && status !== GameStatus.PLAYING)) &&
       status !== GameStatus.LOADING &&
       status !== GameStatus.READY &&
-      status !== GameStatus.FINISHED}
+      status !== GameStatus.FINISHED &&
+      !(status === GameStatus.PLAYING && timeSec === duration)}
     class:hover:backdrop-brightness-50={enableOffsetHelper && status !== GameStatus.PLAYING}
     class:pointer-events-none={(!enableOffsetHelper && status === GameStatus.PLAYING) ||
       status === GameStatus.LOADING ||
       status === GameStatus.READY ||
-      status === GameStatus.FINISHED}
+      status === GameStatus.FINISHED ||
+      (status === GameStatus.PLAYING && timeSec === duration)}
   >
     <button
       class="btn btn-outline join-item"
@@ -689,9 +715,10 @@
   .waveform-height {
     height: calc(100% - 16px);
   }
-  .offset-text-size {
+  .offset-text {
     font-size: calc(9vh - 38px);
     line-height: calc(9vh - 38px);
+    @apply font-bold;
   }
   .offset-with-ms {
     display: inline;
