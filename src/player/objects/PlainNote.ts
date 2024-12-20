@@ -98,7 +98,7 @@ export class PlainNote extends GameObjects.Image {
           return;
         }
       }
-      this._consumeTap = beat < this._data.startBeat || this._data.type !== 4;
+      this._consumeTap = beat <= this._data.startBeat || this._data.type !== 4;
       const isTap = this._data.type === 1;
       const isFlick = this._data.type === 3;
       if (!this._pendingPerfect && Math.abs(delta) <= (isTap ? badJudgment : goodJudgment)) {
@@ -151,7 +151,6 @@ export class PlainNote extends GameObjects.Image {
 
   public get judgmentPosition() {
     const y = this._yModifier * this._scene.o(-this._data.yOffset);
-    console.log(y);
     return {
       x: this._line.x + this.x * Math.cos(this._line.rotation) + y * Math.sin(this._line.rotation),
       y: this._line.y + this.x * Math.sin(this._line.rotation) + y * Math.cos(this._line.rotation),

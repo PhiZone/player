@@ -705,7 +705,7 @@
   </div>
 {/if}
 
-<div id="player"></div>
+<div id="player" class="w-full h-full"></div>
 
 <style lang="postcss">
   .trans {

@@ -83,7 +83,7 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
   }
 
   update(beat: number, time: number) {
-    this.active = beat >= this._data.startBeat && beat < this._data.endBeat;
+    this.active = beat > this._data.startBeat && beat <= this._data.endBeat;
     if (!this.active) {
       if (
         this._container &&

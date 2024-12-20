@@ -7,23 +7,26 @@ import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { EventBus } from './EventBus';
 
-const config: Types.Core.GameConfig = {
-  type: WEBGL,
-  width: window.innerWidth * window.devicePixelRatio,
-  height: window.innerHeight * window.devicePixelRatio,
-  scale: {
-    mode: Scale.EXPAND,
-    autoCenter: Scale.CENTER_BOTH,
-  },
-  backgroundColor: '#000000',
-  scene: [MainGame],
-  input: {
-    activePointers: 10,
-  },
-};
-
 const start = (parent: string, sceneConfig: Config | null) => {
+  const parentElement = document.getElementById(parent)!;
   const isTauri = '__TAURI_INTERNALS__' in window;
+
+  const config: Types.Core.GameConfig = {
+    type: WEBGL,
+    width: parentElement.clientWidth * window.devicePixelRatio,
+    height: parentElement.clientHeight * window.devicePixelRatio,
+    scale: {
+      mode: Scale.EXPAND,
+      autoCenter: Scale.CENTER_BOTH,
+    },
+    antialias: true,
+    backgroundColor: '#000000',
+    scene: [MainGame],
+    input: {
+      activePointers: 10,
+    },
+  };
+
   if (sceneConfig) {
     localStorage.setItem('player', JSON.stringify(sceneConfig));
     if (
@@ -89,20 +92,19 @@ const start = (parent: string, sceneConfig: Config | null) => {
   game.scene.start('MainGame');
   if (!config.scale || config.scale.mode === Scale.EXPAND) {
     if (isTauri) {
-      getCurrentWebviewWindow().onResized((payload) => {
-        console.log(payload);
+      getCurrentWebviewWindow().onResized((_) => {
         game.scale.resize(
-          window.innerWidth * window.devicePixelRatio,
-          window.innerHeight * window.devicePixelRatio,
+          parentElement.clientWidth * window.devicePixelRatio,
+          parentElement.clientHeight * window.devicePixelRatio,
         );
       });
     } else {
       new ResizeObserver((size) => {
         game.scale.resize(
-          size[0].contentBoxSize[0].inlineSize,
-          size[0].contentBoxSize[0].blockSize,
+          size[0].contentBoxSize[0].inlineSize * window.devicePixelRatio,
+          size[0].contentBoxSize[0].blockSize * window.devicePixelRatio,
         );
-      }).observe(document.getElementById(parent)!);
+      }).observe(parentElement);
     }
   }
   return game;

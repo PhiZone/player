@@ -206,7 +206,16 @@ export class Line {
       this._scene.p(1) * (this._scaleY ?? 1),
     );
     if (this._hasText) (this._line as GameObjects.Text).setText(this._text ?? '');
-    if (this._color) this._line.setTint(rgbToHex(this._color));
+    if (this._hasAnimatedTexture) {
+      const sprite = this._line as GameObjects.Sprite;
+      if (this._gif !== undefined && this._gif >= 0 && this._gif <= 1) {
+        sprite.anims.pause();
+        sprite.anims.setProgress(this._gif);
+      } else if (sprite.anims.isPaused) {
+        sprite.anims.resume();
+      }
+    }
+    if (this._color !== undefined) this._line.setTint(rgbToHex(this._color));
     else if (!this._hasCustomTexture && !this._hasAttach)
       this._line.setTint(getLineColor(this._scene));
     const { x, y } = this.getPosition();
@@ -402,6 +411,7 @@ export class Line {
     layerIndex: number,
     events: (Event | ColorEvent | GifEvent | TextEvent)[] | null | undefined,
     cur: number[],
+    fillBetween = true,
   ) {
     while (cur.length < layerIndex + 1) {
       cur.push(0);
@@ -414,11 +424,11 @@ export class Line {
         cur[layerIndex]++;
       }
       if (
-        typeof events[cur[layerIndex]].start === 'string' &&
-        beat < events[cur[layerIndex]].startBeat
+        !fillBetween &&
+        (beat <= events[cur[layerIndex]].startBeat || beat > events[cur[layerIndex]].endBeat)
       ) {
         return undefined;
-      } // shit code
+      }
       return getValue(beat, events[cur[layerIndex]]);
     } else {
       return undefined;
@@ -478,19 +488,23 @@ export class Line {
       color: this.handleEvent(beat, layerIndex, extended.colorEvents, this._curColor) as
         | number[]
         | undefined,
-      gif: this.handleEvent(beat, layerIndex, extended.gifEvents, this._curGif) as
+      gif: this.handleEvent(beat, layerIndex, extended.gifEvents, this._curGif, false) as
         | number
         | undefined,
-      incline: this.handleEvent(beat, layerIndex, extended.inclineEvents, this._curIncline) as
-        | number
-        | undefined,
+      incline: this.handleEvent(
+        beat,
+        layerIndex,
+        extended.inclineEvents,
+        this._curIncline,
+        false,
+      ) as number | undefined,
       scaleX: this.handleEvent(beat, layerIndex, extended.scaleXEvents, this._curScaleX) as
         | number
         | undefined,
       scaleY: this.handleEvent(beat, layerIndex, extended.scaleYEvents, this._curScaleY) as
         | number
         | undefined,
-      text: this.handleEvent(beat, layerIndex, extended.textEvents, this._curText) as
+      text: this.handleEvent(beat, layerIndex, extended.textEvents, this._curText, false) as
         | string
         | undefined,
     };
@@ -523,7 +537,6 @@ export class Line {
     note.line = this;
     this._notes.push(note);
     container.add(note);
-    console.log(note.line._num, note.note.type, container.depth, note.note.startTime);
   }
 
   setParent(parent: Line) {

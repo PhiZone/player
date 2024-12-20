@@ -73,7 +73,7 @@ export class LongNote extends GameObjects.Container {
     const tailDist =
       this._scene.d((this._targetTailHeight - height) * this._data.speed) +
       this._scene.o(-this._data.yOffset);
-    if (beat >= this._data.startBeat) {
+    if (beat > this._data.startBeat) {
       this._head.setVisible(false);
       headDist = this._scene.o(-this._data.yOffset);
     } else {
@@ -83,7 +83,7 @@ export class LongNote extends GameObjects.Container {
           (headDist >= this._scene.o(-this._data.yOffset) || !this._line.data.isCover),
       );
     }
-    if (beat >= this._data.endBeat) {
+    if (beat > this._data.endBeat) {
       this._body.setVisible(false);
       this._tail.setVisible(false);
     } else {
