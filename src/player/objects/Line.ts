@@ -209,10 +209,10 @@ export class Line {
     if (this._hasAnimatedTexture) {
       const sprite = this._line as GameObjects.Sprite;
       if (this._gif !== undefined && this._gif >= 0 && this._gif <= 1) {
-        sprite.anims.pause();
-        sprite.anims.setProgress(this._gif);
-      } else if (sprite.anims.isPaused) {
-        sprite.anims.resume();
+        sprite.anims?.pause();
+        sprite.anims?.setProgress(this._gif);
+      } else if (sprite.anims?.isPaused) {
+        sprite.anims?.resume();
       }
     }
     if (this._color !== undefined) this._line.setTint(rgbToHex(this._color));
@@ -504,7 +504,7 @@ export class Line {
       scaleY: this.handleEvent(beat, layerIndex, extended.scaleYEvents, this._curScaleY) as
         | number
         | undefined,
-      text: this.handleEvent(beat, layerIndex, extended.textEvents, this._curText, false) as
+      text: this.handleEvent(beat, layerIndex, extended.textEvents, this._curText) as
         | string
         | undefined,
     };

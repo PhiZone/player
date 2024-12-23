@@ -35,6 +35,7 @@ export class GameUI {
   private _fontSizes: number[] = [0, 60, 20, 50, 25, 32, 32];
   private _upperTargets: (Button | UIComponent | ProgressBar)[];
   private _lowerTargets: (Button | UIComponent | ProgressBar)[];
+  private _visible: boolean = false;
 
   constructor(scene: Game) {
     this._scene = scene;
@@ -163,6 +164,8 @@ export class GameUI {
   }
 
   update() {
+    this._combo.setVisible(this._visible && this._scene.statistics.combo >= 3);
+    this._comboText.setVisible(this._visible && this._scene.statistics.combo >= 3);
     this._combo.setText(this._scene.statistics.combo.toString());
     this._score.setText(pad(Math.round(this._scene.statistics.displayScore), 7));
     this._accuracy.setText(
@@ -213,14 +216,9 @@ export class GameUI {
   }
 
   destroy() {
-    this._pause.destroy();
-    this._combo.destroy();
-    this._comboText.destroy();
-    this._score.destroy();
-    this._accuracy.destroy();
-    this._songTitle.destroy();
-    this._level.destroy();
-    this._progressBar.destroy();
+    [...this._upperTargets, ...this._lowerTargets].forEach((o) => {
+      o.destroy();
+    });
   }
 
   in() {
@@ -243,9 +241,9 @@ export class GameUI {
       ease: 'Cubic.easeOut',
       duration: 1000,
       onStart: (tween) => {
+        this.setVisible(true);
         tween.targets.forEach((o) => {
           const target = o as Button | ProgressBar | UIComponent;
-          target.setVisible(true);
           target.isAnimationPlaying = true;
         });
       },
@@ -264,9 +262,7 @@ export class GameUI {
         (o) => o.y === 0 && o.rotation % (2 * Math.PI) === 0,
       )
     ) {
-      [...this._upperTargets, ...this._lowerTargets].forEach((o) => {
-        o.setVisible(false);
-      });
+      this.setVisible(false);
       return;
     }
     [
@@ -275,6 +271,9 @@ export class GameUI {
         y: this._scene.p(-100),
         ease: 'Cubic.easeIn',
         duration: 1000,
+        onComplete: () => {
+          this.setVisible(false);
+        },
       }),
       this._scene.tweens.add({
         targets: this._lowerTargets,
@@ -292,7 +291,6 @@ export class GameUI {
       tween.on('complete', () => {
         tween.targets.forEach((o) => {
           const target = o as Button | ProgressBar | UIComponent;
-          target.setVisible(false);
           target.isAnimationPlaying = false;
           target.y = 0;
         });
@@ -359,15 +357,8 @@ export class GameUI {
   }
 
   setVisible(visible: boolean) {
-    [
-      this._pause,
-      this._combo,
-      this._comboText,
-      this._score,
-      this._accuracy,
-      this._songTitle,
-      this._level,
-    ].forEach((obj) => {
+    this._visible = visible;
+    [...this._upperTargets, ...this._lowerTargets].forEach((obj) => {
       obj.setVisible(visible);
     });
   }

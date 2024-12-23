@@ -431,6 +431,17 @@ const calculateValue = (
     return start + (end - start) * progress;
   }
   if (typeof start === 'string' && typeof end === 'string') {
+    if (start.includes('%P%') && end.includes('%P%')) {
+      const startNumeric = parseFloat(start.replace('%P%', ''));
+      const endNumeric = parseFloat(end.replace('%P%', ''));
+      if (!isNaN(startNumeric) && !isNaN(endNumeric)) {
+        if (Number.isInteger(startNumeric) && Number.isInteger(endNumeric)) {
+          return Math.floor(startNumeric + (endNumeric - startNumeric) * progress).toString();
+        } else {
+          return (startNumeric + (endNumeric - startNumeric) * progress).toFixed(3);
+        }
+      }
+    }
     if (start.startsWith(end)) {
       return (
         end +
