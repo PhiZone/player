@@ -77,9 +77,9 @@ export class Line {
     this._data = lineData;
     this._hasText = (this._data.extended?.textEvents?.length ?? 0) > 0;
     this._hasCustomTexture = this._hasText || lineData.Texture !== 'line.png';
-    this._hasAnimatedTexture = ['.gif', '.apng'].some((e) =>
-      lineData.Texture.toLowerCase().endsWith(e),
-    );
+    this._hasAnimatedTexture =
+      ['.gif', '.apng'].some((e) => lineData.Texture.toLowerCase().endsWith(e)) &&
+      this._scene.textures.exists(`asset-${lineData.Texture}`);
     this._line = this._hasText
       ? new GameObjects.Text(scene, 0, 0, this._text ?? '', {
           fontFamily: FONT_FAMILY,
@@ -87,7 +87,7 @@ export class Line {
           color: '#ffffff',
           align: 'left',
         }).setOrigin(0.5)
-      : this._hasAnimatedTexture && this._scene.textures.exists(`asset-${lineData.Texture}`)
+      : this._hasAnimatedTexture
         ? new GameObjects.Sprite(scene, 0, 0, `asset-${lineData.Texture}`).play(
             `asset-${lineData.Texture}`,
           )
@@ -209,10 +209,10 @@ export class Line {
     if (this._hasAnimatedTexture) {
       const sprite = this._line as GameObjects.Sprite;
       if (this._gif !== undefined && this._gif >= 0 && this._gif <= 1) {
-        sprite.anims?.pause();
-        sprite.anims?.setProgress(this._gif);
+        sprite.anims.pause();
+        sprite.anims.setProgress(this._gif);
       } else if (sprite.anims?.isPaused) {
-        sprite.anims?.resume();
+        sprite.anims.resume();
       }
     }
     if (this._color !== undefined) this._line.setTint(rgbToHex(this._color));
