@@ -14,6 +14,11 @@ import {
   type Config,
   type PointerTap,
   type PointerDrag,
+  type AlphaControl,
+  type PosControl,
+  type SizeControl,
+  type SkewControl,
+  type YControl,
   // type RecorderOptions,
 } from './types';
 import { EventBus } from './EventBus';
@@ -339,6 +344,12 @@ export const processEvents = (
   events?.sort((a, b) => a.startBeat - b.startBeat);
 };
 
+export const processControlNodes = (
+  control: AlphaControl[] | PosControl[] | SizeControl[] | SkewControl[] | YControl[],
+): void => {
+  control.sort((a, b) => b.x - a.x);
+};
+
 export const toBeats = (time: number[]): number => {
   if (time[1] == 0 || time[2] == 0) return time[0];
   return time[0] + time[1] / time[2];
@@ -465,7 +476,30 @@ const calculateValue = (
   return undefined;
 };
 
-export const getValue = (
+export const getControlValue = (
+  x: number,
+  control:
+    | { type: 'alpha'; payload: AlphaControl[] }
+    | { type: 'pos'; payload: PosControl[] }
+    | { type: 'size'; payload: SizeControl[] }
+    | { type: 'skew'; payload: SkewControl[] }
+    | { type: 'y'; payload: YControl[] },
+): number => {
+  const currentIndex = control.payload.findLastIndex((node) => node.x >= x) ?? 0;
+  const nextIndex = currentIndex + 1 < control.payload.length ? currentIndex + 1 : currentIndex;
+  return calculateValue(
+    control.payload[currentIndex][control.type as keyof (typeof control.payload)[number]],
+    control.payload[nextIndex][control.type as keyof (typeof control.payload)[number]],
+    easing(
+      control.payload[currentIndex].easing,
+      undefined,
+      (x - control.payload[currentIndex].x) /
+        (control.payload[nextIndex].x - control.payload[currentIndex].x),
+    ),
+  ) as number;
+};
+
+export const getEventValue = (
   beat: number,
   event: Event | SpeedEvent | ColorEvent | TextEvent | GifEvent | VariableEvent,
 ) =>
@@ -494,7 +528,7 @@ export const getIntegral = (
       2
     );
   return (
-    ((event.start + (getValue(beat, event) as number)) *
+    ((event.start + (getEventValue(beat, event) as number)) *
       (getTimeSec(bpmList, beat) - getTimeSec(bpmList, event.startBeat))) /
     2
   );

@@ -1,11 +1,12 @@
-import { GameObjects } from 'phaser';
+// import { GameObjects } from 'phaser';
+import { SkewImage } from 'phaser3-rex-plugins/plugins/quadimage.js';
 import { JudgmentType, type Note } from '../types';
-import { clamp, getTimeSec, rgbToHex } from '../utils';
+import { clamp, getControlValue, getTimeSec, rgbToHex } from '../utils';
 import type { Game } from '../scenes/Game';
 import type { Line } from './Line';
 import { NOTE_BASE_SIZE, NOTE_PRIORITIES } from '../constants';
 
-export class PlainNote extends GameObjects.Image {
+export class PlainNote extends SkewImage {
   private _scene: Game;
   private _data: Note;
   private _line: Line;
@@ -13,6 +14,9 @@ export class PlainNote extends GameObjects.Image {
   private _yModifier: 1 | -1;
   private _hitTime: number;
   private _targetHeight: number = 0;
+
+  private _alpha: number = 1;
+
   private _judgmentType: JudgmentType = JudgmentType.UNJUDGED;
   private _beatJudged: number | undefined = undefined;
   private _pendingPerfect: boolean = false;
@@ -26,9 +30,10 @@ export class PlainNote extends GameObjects.Image {
     this._data = data;
     this._yModifier = data.above === 1 ? -1 : 1;
     this._hitTime = getTimeSec(scene.bpmList, data.startBeat);
-    this.setOrigin(0.5);
+    // this.setOrigin(0.5);
     this.resize();
-    this.setAlpha(data.alpha / 255);
+    this._alpha = data.alpha / 255;
+    this.setAlpha(this._alpha);
     if (data.tint) {
       this.setTint(rgbToHex(data.tint));
     }
@@ -42,24 +47,43 @@ export class PlainNote extends GameObjects.Image {
     const dist =
       this._scene.d((this._targetHeight - height) * this._data.speed) +
       this._scene.o(-this._data.yOffset);
+    const chartDist = (dist / this._scene.sys.canvas.height) * 900;
     this.setX(
       this._scene.p(
-        this._xModifier * this._data.positionX +
+        this._xModifier *
+          this._data.positionX *
+          getControlValue(chartDist, { type: 'pos', payload: this._line.data.posControl }) +
           Math.tan(
             ((this._xModifier * this._data.positionX) / 675) *
               -(this._line.incline ?? 0) *
               (Math.PI / 180),
           ) *
-            (dist / this._scene.sys.canvas.height) *
-            900,
+            chartDist,
       ),
     );
-    this.resize();
+    this.setSkewDeg(
+      this._xModifier *
+        this._data.positionX *
+        getControlValue(chartDist, { type: 'skew', payload: this._line.data.skewControl }),
+      0,
+    );
+    this._alpha =
+      (this._data.alpha *
+        getControlValue(chartDist, {
+          type: 'alpha',
+          payload: this._line.data.alphaControl,
+        })) /
+      255;
+    this.resize(chartDist);
     if (this._beatJudged && beat < this._beatJudged) {
       this._scene.judgment.unjudge(this);
     }
     if (this._judgmentType !== JudgmentType.BAD) {
-      this.setY(this._yModifier * dist);
+      this.setY(
+        this._yModifier *
+          dist *
+          getControlValue(chartDist, { type: 'y', payload: this._line.data.yControl }),
+      );
     }
     if (beat >= this._data.startBeat) {
       if (this._data.isFake) {
@@ -86,7 +110,7 @@ export class PlainNote extends GameObjects.Image {
       const { perfectJudgment, goodJudgment } = this._scene.preferences;
       const badJudgment = goodJudgment * 1.125;
       const progress = clamp(delta / goodJudgment, 0, 1);
-      this.setAlpha((this._data.alpha / 255) * (1 - progress));
+      this.setAlpha(this._alpha * (1 - progress));
       if (beat >= this._data.startBeat) {
         if (this._scene.autoplay || this._pendingPerfect) {
           this._scene.judgment.hit(JudgmentType.PERFECT, deltaSec, this);
@@ -134,15 +158,21 @@ export class PlainNote extends GameObjects.Image {
     this._targetHeight = height;
   }
 
-  resize() {
+  resize(chartDist: number | undefined = undefined) {
     const scale = this._scene.p(NOTE_BASE_SIZE * this._scene.preferences.noteSize);
-    this.setScale(this._data.size * scale, -this._yModifier * scale);
+    const control = chartDist
+      ? getControlValue(chartDist, {
+          type: 'size',
+          payload: this._line.data.sizeControl,
+        })
+      : 1;
+    this.setScale(this._data.size * control * scale, -this._yModifier * control * scale);
   }
 
   reset() {
     this._judgmentType = JudgmentType.UNJUDGED;
     this._beatJudged = undefined;
-    this.setAlpha(this._data.alpha / 255);
+    this.setAlpha(this._alpha);
     this.clearTint();
     if (this._data.tint) {
       this.setTint(rgbToHex(this._data.tint));

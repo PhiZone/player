@@ -1,7 +1,7 @@
 import { GameObjects } from 'phaser';
 import { Game } from '../scenes/Game';
 import { type AnimatedVariable, type VariableEvent, type Video as VideoType } from '../types';
-import { getTimeSec, getValue, processEvents, toBeats } from '../utils';
+import { getTimeSec, getEventValue, processEvents, toBeats } from '../utils';
 
 export class Video extends GameObjects.Container {
   private _scene: Game;
@@ -49,6 +49,7 @@ export class Video extends GameObjects.Container {
         }
       }
       this._video.stop();
+      this._video.saveTexture(`asset-${data.path}`, true);
       this.add(this._video);
       this.add(this._overlay);
       scene.register(this);
@@ -184,7 +185,7 @@ class VariableAnimator {
       while (this._cur < this._events.length - 1 && beat > this._events[this._cur + 1].startBeat) {
         this._cur++;
       }
-      return getValue(beat, this._events[this._cur]);
+      return getEventValue(beat, this._events[this._cur]);
     } else {
       return undefined;
     }

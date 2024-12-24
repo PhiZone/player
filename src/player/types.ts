@@ -360,7 +360,7 @@ export interface ShaderEffect {
   };
 }
 
-export type Variable = AnimatedVariable | number | number[];
+export type Variable = AnimatedVariable | number | number[] | string;
 
 export type AnimatedVariable = VariableEvent[];
 

@@ -1,7 +1,7 @@
 import { GameObjects, Renderer } from 'phaser';
 import type { Game } from '../scenes/Game';
 import type { AnimatedVariable, RegisteredObject, ShaderEffect, VariableEvent } from '../types';
-import { getValue, processEvents, toBeats } from '../utils';
+import { getEventValue, processEvents, toBeats } from '../utils';
 
 const DEFAULT_VALUE_REGEX = /uniform\s+(\w+)\s+(\w+);\s+\/\/\s+%([^%]+)%/g;
 
@@ -18,6 +18,8 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
     | undefined;
   private _targets: RegisteredObject[] | undefined;
   private _animators: VariableAnimator[] = [];
+  private _isLoaded: boolean = false;
+  // private _samplerMap: { [key: number]: string } = {};
 
   constructor(
     game: Phaser.Game,
@@ -62,6 +64,10 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
           this._data.vars[name] = value.split(',').map((v) => parseFloat(v.trim()));
           break;
         }
+        case 'sampler2D': {
+          this._data.vars[name] = value;
+          break;
+        }
         default: {
           throw Error(`Unknown type of uniform in shader ${this._data.shader}: ${type}`);
         }
@@ -82,7 +88,31 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
     }
   }
 
+  onBoot(): void {
+    if (this._data.vars) {
+      let textureSlot = 1;
+      Object.entries(this._data.vars).forEach(([key, value]) => {
+        if (typeof value === 'number' || (Array.isArray(value) && typeof value[0] === 'number')) {
+          this.setUniform(key, value, 0);
+        } else if (typeof value === 'string') {
+          if (!this._scene.textures.exists(value)) {
+            alert(`Texture ${value} required by Shader ${this.name} does not exist.`);
+            return;
+          }
+          const texture = this._scene.textures.get(`asset-${value}`).source[0].glTexture;
+          if (texture) {
+            this.set1i(key, textureSlot);
+            this.bindTexture(texture, textureSlot++);
+          }
+        }
+      });
+    }
+    this._isLoaded = true;
+    console.log('Shader', this.name, 'loaded');
+  }
+
   update(beat: number, time: number) {
+    if (!this._isLoaded) return;
     this.active = beat > this._data.startBeat && beat <= this._data.endBeat;
     if (!this.active) {
       if (
@@ -128,26 +158,20 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
       });
       console.log(this._targets);
     }
-    if (!this.currentShader) {
-      console.warn(
-        `Shader ${this.name} is not loaded, even if it has ${this._container?.object.count('visible', true)} visible targets.`,
-      );
-      try {
-        this.set1f('time', time / 1000);
-      } catch (e) {
-        console.log('And thus we have expectedly caught', e);
-      }
-      return;
-    }
+    // if (!this.currentShader) {
+    //   console.warn(
+    //     `Shader ${this.name} is not loaded, even if it has ${this._container?.object.count('visible', true)} visible targets.`,
+    //   );
+    //   try {
+    //     this.set1f('time', time / 1000);
+    //   } catch (e) {
+    //     console.log('And thus we have expectedly caught', e);
+    //   }
+    //   return;
+    // }
     try {
       this.set1f('time', time / 1000);
       this.set2f('screenSize', this.renderer.width, this.renderer.height);
-      if (this._data.vars)
-        Object.entries(this._data.vars).forEach(([key, value]) => {
-          if (typeof value === 'number' || (Array.isArray(value) && typeof value[0] === 'number')) {
-            this.setUniform(key, value, beat);
-          }
-        });
       this._animators.forEach((animator) => animator.update(beat));
     } catch (e) {
       console.error(e);
@@ -225,7 +249,7 @@ class VariableAnimator {
       while (this._cur < this._events.length - 1 && beat > this._events[this._cur + 1].startBeat) {
         this._cur++;
       }
-      return getValue(beat, this._events[this._cur]);
+      return getEventValue(beat, this._events[this._cur]);
     } else {
       return undefined;
     }

@@ -13,10 +13,11 @@ import {
   getIntegral,
   getLineColor,
   getTimeSec,
-  getValue,
+  getEventValue,
   processEvents,
   rgbToHex,
   toBeats,
+  processControlNodes,
 } from '../utils';
 import type { Game } from '../scenes/Game';
 import { FONT_FAMILY } from '../constants';
@@ -144,6 +145,12 @@ export class Line {
       processEvents(this._data.extended.scaleYEvents);
       processEvents(this._data.extended.textEvents);
     }
+
+    processControlNodes(this._data.alphaControl);
+    processControlNodes(this._data.posControl);
+    processControlNodes(this._data.sizeControl);
+    processControlNodes(this._data.skewControl);
+    processControlNodes(this._data.yControl);
 
     if (this._data.notes) {
       // this._holdContainer = this.createContainer(3);
@@ -429,7 +436,7 @@ export class Line {
       ) {
         return undefined;
       }
-      return getValue(beat, events[cur[layerIndex]]);
+      return getEventValue(beat, events[cur[layerIndex]]);
     } else {
       return undefined;
     }
@@ -491,13 +498,9 @@ export class Line {
       gif: this.handleEvent(beat, layerIndex, extended.gifEvents, this._curGif, false) as
         | number
         | undefined,
-      incline: this.handleEvent(
-        beat,
-        layerIndex,
-        extended.inclineEvents,
-        this._curIncline,
-        false,
-      ) as number | undefined,
+      incline: this.handleEvent(beat, layerIndex, extended.inclineEvents, this._curIncline) as
+        | number
+        | undefined,
       scaleX: this.handleEvent(beat, layerIndex, extended.scaleXEvents, this._curScaleX) as
         | number
         | undefined,
