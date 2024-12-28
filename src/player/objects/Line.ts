@@ -99,7 +99,7 @@ export class Line {
       this._scene.p(1) * (this._scaleX ?? 1),
       this._scene.p(1) * (this._scaleY ?? 1),
     ); // previously 1.0125 (according to the official definition that a line is 3 times as wide as the screen)
-    this._line.setDepth(2 + precedence);
+    this._line.setDepth(lineData.zIndex !== undefined ? lineData.zIndex : 2 + precedence);
     this._line.setVisible(!this._hasAttach || this._hasText);
     if (!this._hasCustomTexture && !this._hasAttach) this._line.setTint(getLineColor(scene));
     if (this._data.anchor) this._line.setOrigin(this._data.anchor[0], 1 - this._data.anchor[1]);

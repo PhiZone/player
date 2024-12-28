@@ -24,7 +24,7 @@ export class Video extends GameObjects.Container {
     if (Array.isArray(data.dim)) {
       this._dimAnimator = new VariableAnimator(data.dim);
     }
-    this.setDepth(data.zIndex ?? 1);
+    this.setDepth(data.zIndex !== undefined ? data.zIndex : 1);
     this._video.play();
     this._video.on('metadata', () => {
       this._data.startTimeSec = getTimeSec(scene.bpmList, toBeats(this._data.time));

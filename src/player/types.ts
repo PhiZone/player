@@ -86,6 +86,7 @@ export interface JudgeLine {
   sizeControl: SizeControl[];
   skewControl: SkewControl[];
   yControl: YControl[];
+  zIndex?: number;
   zOrder: number;
 }
 
