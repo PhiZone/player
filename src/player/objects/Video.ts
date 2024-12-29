@@ -12,6 +12,8 @@ export class Video extends GameObjects.Container {
   private _alphaAnimator: VariableAnimator;
   private _dimAnimator: VariableAnimator;
   private _ready: boolean = false;
+  private _shouldPlay: boolean = false;
+  private _isPlaying: boolean = false;
 
   constructor(scene: Game, data: VideoType, successCallback: () => void) {
     super(scene, 0, 0);
@@ -24,13 +26,53 @@ export class Video extends GameObjects.Container {
     if (Array.isArray(data.dim)) {
       this._dimAnimator = new VariableAnimator(data.dim);
     }
-    this.setDepth(data.zIndex !== undefined ? data.zIndex : 1);
     this._video.play();
     this._video.on('metadata', () => {
       this._data.startTimeSec = getTimeSec(scene.bpmList, toBeats(this._data.time));
       this._data.endTimeSec = this._data.startTimeSec + this._video.getDuration();
+      // console.log('Video metadata loaded', this._data);
     });
+    // this._video.on('unsupported', (_, e) => {
+    //   console.log('Unsupported video format', e);
+    // });
+    // this._video.on('unlocked', (_, e) => {
+    //   console.log('Unlocked', e);
+    // });
+    // this._video.on('error', (_, e) => {
+    //   console.log('Errored', e);
+    // });
+    // this._video.on('timeout', () => {
+    //   console.log('Timed out');
+    // });
+    // this._video.on('play', () => {
+    //   console.log('Play');
+    // });
+    // this._video.on('playing', () => {
+    //   console.log('Playing');
+    // });
+    // this._video.on('complete', () => {
+    //   console.log('Completed');
+    // });
+    // this._video.on('loop', () => {
+    //   console.log('Looped');
+    // });
+    // this._video.on('seeking', () => {
+    //   console.log('Seeking');
+    // });
+    // this._video.on('seeked', () => {
+    //   console.log('Seeked');
+    // });
+    // this._video.on('created', () => {
+    //   console.log('Created');
+    // });
+    // this._video.on('stalled', () => {
+    //   console.log('Stalled');
+    // });
+    // this._video.on('stop', () => {
+    //   console.log('Stopped');
+    // });
     this._video.on('textureready', () => {
+      // console.log('Texture ready');
       this._overlay = new GameObjects.Rectangle(
         scene,
         0,
@@ -48,27 +90,33 @@ export class Video extends GameObjects.Container {
           this._overlay.setMask(mask);
         }
       }
-      this._video.stop();
-      this._video.saveTexture(`asset-${data.path}`, true);
-      this.add(this._video);
-      this.add(this._overlay);
-      scene.register(this);
-      this._ready = true;
-      successCallback();
+      setTimeout(() => {
+        this._video.pause();
+        this._video.seekTo(0);
+        this.add(this._video);
+        this.add(this._overlay);
+        this._video.saveTexture(`asset-${data.path}`, true);
+        this.setDepth(data.zIndex !== undefined ? data.zIndex : 1);
+        scene.register(this);
+        this._ready = true;
+        successCallback();
+      }, 100);
     });
   }
 
   update(beat: number, timeSec: number) {
     if (!this._ready) return;
-    this.setVisible(
-      timeSec >= 0 && timeSec >= this._data.startTimeSec && timeSec < this._data.endTimeSec,
-    );
-    if (!this.visible) {
-      this._video.stop();
+    this._shouldPlay =
+      timeSec >= 0 && timeSec >= this._data.startTimeSec && timeSec < this._data.endTimeSec;
+    this.setVisible(this._shouldPlay);
+    if (!this._shouldPlay) {
+      this._video.pause();
+      this._video.seekTo(0);
+      this._isPlaying = false;
       return;
-    } else if (!this._video.isPlaying() && this._scene.song.isPlaying) {
-      this.setSeek(timeSec);
-      this._video.play();
+    } else if (!this._isPlaying && this._scene.song.isPlaying) {
+      this._video.resume();
+      this._isPlaying = true;
     }
     this._video.setPlaybackRate(this._scene.song.rate);
     if (typeof this._data.alpha === 'number') {
@@ -132,7 +180,8 @@ export class Video extends GameObjects.Container {
       rotation * (this._data.attach?.rotationFactor ?? 1),
     );
     this.setAlpha(alpha * (this._data.attach?.alphaFactor ?? 1));
-    this._video.setTint(tint);
+    const tintFactor = this._data.attach?.tintFactor ?? 1;
+    this._video.setTint(tint * tintFactor + (1 - tintFactor) * 0xffffff);
     if (this._data.attach?.scaleXMode === 1) {
       this.scaleX = scaleX;
       if (this._mask) this._mask.scaleX = scaleX;

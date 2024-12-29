@@ -86,6 +86,7 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
         }
       });
     }
+    this.bootFX();
   }
 
   onBoot(): void {
@@ -96,7 +97,7 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
           this.setUniform(key, value, 0);
         } else if (typeof value === 'string') {
           if (!this._scene.textures.exists(value)) {
-            alert(`Texture ${value} required by Shader ${this.name} does not exist.`);
+            alert(`Texture ${value} required by Shader ${this._data.shader} does not exist.`);
             return;
           }
           const texture = this._scene.textures.get(`asset-${value}`).source[0].glTexture;
@@ -108,11 +109,13 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
       });
     }
     this._isLoaded = true;
-    console.log('Shader', this.name, 'loaded');
+    console.log('Shader', this._data.shader, 'loaded');
   }
 
   update(beat: number, time: number) {
-    if (!this._isLoaded) return;
+    if (!this._isLoaded) {
+      return;
+    }
     this.active = beat > this._data.startBeat && beat <= this._data.endBeat;
     if (!this.active) {
       if (

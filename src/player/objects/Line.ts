@@ -100,8 +100,9 @@ export class Line {
       this._scene.p(1) * (this._scaleY ?? 1),
     ); // previously 1.0125 (according to the official definition that a line is 3 times as wide as the screen)
     this._line.setDepth(lineData.zIndex !== undefined ? lineData.zIndex : 2 + precedence);
-    this._line.setVisible(!this._hasAttach || this._hasText);
-    if (!this._hasCustomTexture && !this._hasAttach) this._line.setTint(getLineColor(scene));
+    this._line.setVisible(!this._hasAttach || !!lineData.appearanceOnAttach || this._hasText);
+    if (!this._hasCustomTexture && (!this._hasAttach || lineData.appearanceOnAttach === 2))
+      this._line.setTint(getLineColor(scene));
     if (this._data.anchor) this._line.setOrigin(this._data.anchor[0], 1 - this._data.anchor[1]);
 
     if (scene.preferences.chartFlipping & 1) {
@@ -223,7 +224,7 @@ export class Line {
       }
     }
     if (this._color !== undefined) this._line.setTint(rgbToHex(this._color));
-    else if (!this._hasCustomTexture && !this._hasAttach)
+    else if (!this._hasCustomTexture && (!this._hasAttach || this._data.appearanceOnAttach === 2))
       this._line.setTint(getLineColor(this._scene));
     const { x, y } = this.getPosition();
     const rotation =
@@ -554,7 +555,7 @@ export class Line {
     this._attachedVideos.push(video);
     this._hasAttach = true;
     this._line.clearTint();
-    this._line.setVisible(this._hasText);
+    this._line.setVisible(!!this._data.appearanceOnAttach || this._hasText);
   }
 
   public get notes() {
@@ -594,10 +595,11 @@ export class Line {
   }
 
   setVisible(visible: boolean) {
-    [!this._hasAttach ? this._line : undefined, ...Object.values(this._noteContainers)].forEach(
-      (obj) => {
-        obj?.setVisible(visible);
-      },
-    );
+    [
+      !this._hasAttach || this._data.appearanceOnAttach ? this._line : undefined,
+      ...Object.values(this._noteContainers),
+    ].forEach((obj) => {
+      obj?.setVisible(visible);
+    });
   }
 }

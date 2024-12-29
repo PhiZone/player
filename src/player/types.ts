@@ -340,6 +340,7 @@ export interface Video {
     positionYFactor?: number;
     rotationFactor?: number;
     alphaFactor?: number;
+    tintFactor?: number;
     scaleXMode?: 0 | 1 | 2;
     scaleYMode?: 0 | 1 | 2;
   };

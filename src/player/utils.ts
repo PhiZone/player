@@ -490,12 +490,14 @@ export const getControlValue = (
   return calculateValue(
     control.payload[currentIndex][control.type as keyof (typeof control.payload)[number]],
     control.payload[nextIndex][control.type as keyof (typeof control.payload)[number]],
-    easing(
-      control.payload[currentIndex].easing,
-      undefined,
-      (x - control.payload[currentIndex].x) /
-        (control.payload[nextIndex].x - control.payload[currentIndex].x),
-    ),
+    nextIndex === currentIndex
+      ? 0
+      : easing(
+          control.payload[currentIndex].easing,
+          undefined,
+          (x - control.payload[currentIndex].x) /
+            (control.payload[nextIndex].x - control.payload[currentIndex].x),
+        ),
   ) as number;
 };
 
@@ -769,7 +771,7 @@ export const triggerDownload = (blob: Blob, name: string) => {
 const convertGifToSpritesheet = (gifArrayBuffer: ArrayBuffer) => {
   const gif = parseGIF(gifArrayBuffer);
   const originalFrames = decompressFrames(gif, true);
-  console.log(gif, originalFrames);
+  // console.log(gif, originalFrames);
 
   if (originalFrames.length === 0) {
     throw new Error('GIF has no frames');

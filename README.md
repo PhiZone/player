@@ -38,9 +38,9 @@ While there hasn't been support for GIF events, APNGs are planned to act exactly
 
 ### Z indexes
 
-The z index (depth) defines the order in which game objects are rendered. The lower the value, the earlier they are rendered.
+The Z index (depth) defines the order in which game objects are rendered. The lower the value, the earlier they are rendered.
 
-| Default z index (depth) | Object(s)                                                                  |
+| Default Z index (depth) | Object(s)                                                                  |
 | ----------------------- | -------------------------------------------------------------------------- |
 | 0                       | Illustration                                                               |
 | 1                       | Background video, if present                                               |
@@ -59,7 +59,7 @@ The z index (depth) defines the order in which game objects are rendered. The lo
 | 14                      | Song title                                                                 |
 | 15                      | Level name & difficulty                                                    |
 
-The z indexes of judgment lines are calculated based on their `zOrder` values ([code here](https://github.com/PhiZone/player/blob/ed8a6119a28c8594d372aacb8e1da12fdce6d692/src/player/utils.ts#L595)). Simply put, the values are mapped onto [0, 1) and made equally spaced, and then get added by 2 to become z indexes. See examples below.
+The Z indexes of judgment lines whose `zIndex` are not present (see [Chart enhancements](#chart-enhancements)) are calculated based on their `zOrder` values ([code here](https://github.com/PhiZone/player/blob/ed8a6119a28c8594d372aacb8e1da12fdce6d692/src/player/utils.ts#L595)). Simply put, the values are mapped onto [0, 1) and made equally spaced, and then get added by 2 to become Z indexes. See examples below.
 
 | `zOrder`           | Z index               |
 | ------------------ | --------------------- |
@@ -71,13 +71,14 @@ The z indexes of judgment lines are calculated based on their `zOrder` values ([
 
 Aside from adding support for RPE features, we've also designed some original properties for judgment lines & notes.
 
-| Property           | Value(s)                                    | Example                         | Description                                                                                        |
-| ------------------ | ------------------------------------------- | ------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `scaleOnNotes`     | `0`: none; `1`: scale; `2`: clip            | `"scaleOnNotes": 2`             | Belongs to a judgment line. Decides how `scaleX` events affect notes. Defaults to `0`.             |
-| `zIndex`           | an integer or a float                       | `"zIndex": 3.5`                 | Belongs to a note. Sets the z index for the note. For default values, see [z indexes](#z-indexes). |
-| `zIndexHitEffects` | an integer or a float                       | `"zIndex": 6.5`                 | Belongs to a note. Sets the z index for the hit effects of the note. Defaults to `7`.              |
-| `tint`             | [R, G, B], as seen in `colorEvents`; `null` | `"tint": [255, 0, 0]`           | Belongs to a note. Sets the tint for the note. Defaults to `null`.                                 |
-| `tintHitEffects`   | [R, G, B], as seen in `colorEvents`; `null` | `"tintHitEffects": [255, 0, 0]` | Belongs to a note. Sets the tint for the hit effects of the note. Defaults to `null`.              |
+| Property             | Value(s)                                            | Example                         | Description                                                                                                                                                                                                                                                                    |
+| -------------------- | --------------------------------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `scaleOnNotes`       | `0`: none; `1`: scale; `2`: clip                    | `"scaleOnNotes": 2`             | Belongs to a judgment line. Decides how `scaleX` events affect notes. Defaults to `0`.                                                                                                                                                                                         |
+| `appearanceOnAttach` | `0`: hidden; `1`: white colored; `2`: FC/AP colored | `"appearanceOnAttach": 2`       | Belongs to a judgment line. Decides how the line will be displayed when a UI component or any video is attached to it. Color events will override the color defined by these options. Defaults to `0`.                                                                         |
+| `zIndex`             | an integer or a float                               | `"zIndex": 3.5`                 | Belongs to a judgment line or note. Sets the Z index for the object. For a judgment line, this property, if set, overrides the `zOrder` property, allowing for more control over on which layer the line should be displayed. For default values, see [Z indexes](#z-indexes). |
+| `zIndexHitEffects`   | an integer or a float                               | `"zIndex": 6.5`                 | Belongs to a note. Sets the Z index for the hit effects of the note. Defaults to `7`.                                                                                                                                                                                          |
+| `tint`               | [R, G, B], as seen in `colorEvents`; `null`         | `"tint": [255, 0, 0]`           | Belongs to a note. Sets the tint for the note. Defaults to `null`.                                                                                                                                                                                                             |
+| `tintHitEffects`     | [R, G, B], as seen in `colorEvents`; `null`         | `"tintHitEffects": [255, 0, 0]` | Belongs to a note. Sets the tint for the hit effects of the note. Defaults to `null`.                                                                                                                                                                                          |
 
 ### Video enhancements
 
@@ -85,7 +86,7 @@ Support for videos in `extra.json` gets extended with the following new properti
 
 | Property | Type   | Description                                                                                 |
 | -------- | ------ | ------------------------------------------------------------------------------------------- |
-| `zIndex` | Number | Determines the z index for this video. Defaults to `1`.                                     |
+| `zIndex` | Number | Determines the Z index for this video. Defaults to `1`.                                     |
 | `attach` | Object | Attaches this video to a judgment line, if this property is present. See below for details. |
 
 Properties residing in the `attach` object:
@@ -97,6 +98,7 @@ Properties residing in the `attach` object:
 | `positionYFactor` (optional) | Number | Multiplied by the y position of the line, determines the y position of this video. Defaults to `1`.                                               |
 | `rotationFactor` (optional)  | Number | Multiplied by the rotation of the line, determines the rotation of this video. Defaults to `1`.                                                   |
 | `alphaFactor` (optional)     | Number | Multiplied by the alpha of the line, determines the alpha of this video, together with the `alpha` property of the video itself. Defaults to `1`. |
+| `tintFactor` (optional)      | Number | Multiplied by the tint of the line, determines the tint of this video. Defaults to `1`.                                                           |
 | `scaleXMode` (optional)      | Number | Determines how `scaleX` events of the line affect this video. Values same as in `scaleOnNotes`. Defaults to `0`.                                  |
 | `scaleYMode` (optional)      | Number | Determines how `scaleY` events of the line affect this video. Values same as in `scaleOnNotes`. Defaults to `0`.                                  |
 
@@ -108,8 +110,8 @@ A target range defines a list of depth-adjacent (next to each other on the z axi
 
 | Property               | Type    | Description                                                                                                                                                                             |
 | ---------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `minZIndex`            | Number  | Defines the minimum z index (depth) of this range. Inclusive.                                                                                                                           |
-| `maxZIndex`            | Number  | Defines the maximum z index (depth) of this range. Exclusive.                                                                                                                           |
+| `minZIndex`            | Number  | Defines the minimum Z index (depth) of this range. Inclusive.                                                                                                                           |
+| `maxZIndex`            | Number  | Defines the maximum Z index (depth) of this range. Exclusive.                                                                                                                           |
 | `exclusive` (optional) | Boolean | Determines whether this range should exclude the range of another active shader event when the two ranges intersect but this range is not a superset of the other. Defaults to `false`. |
 
 If the `global` property of a shader event is set to `true`, then its `targetRange` will not function.

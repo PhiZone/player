@@ -233,10 +233,10 @@ export class Game extends Scene {
       await Promise.all([
         ...this._animatedAssets.map(async (asset) => {
           const spritesheet = await getSpritesheet(asset.url, asset.isGif);
-          console.log(spritesheet.frameSize, spritesheet.frameCount, spritesheet.frameRate);
-          spritesheet.spritesheet.toBlob((e) => {
-            if (e) console.log(URL.createObjectURL(e));
-          });
+          // console.log(spritesheet.frameSize, spritesheet.frameCount, spritesheet.frameRate);
+          // spritesheet.spritesheet.toBlob((e) => {
+          //   if (e) console.log(URL.createObjectURL(e));
+          // });
           this.load.spritesheet(
             asset.key,
             spritesheet.spritesheet.toDataURL(),
