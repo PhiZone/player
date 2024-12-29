@@ -67,6 +67,7 @@ export class Video extends GameObjects.Container {
       this._video.stop();
       return;
     } else if (!this._video.isPlaying() && this._scene.song.isPlaying) {
+      this.setSeek(timeSec);
       this._video.play();
     }
     this._video.setPlaybackRate(this._scene.song.rate);
