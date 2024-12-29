@@ -82,7 +82,8 @@ export interface JudgeLine {
   notes?: Note[];
   numOfNotes: number;
   posControl: PosControl[];
-  scaleOnNotes?: number;
+  scaleOnNotes?: 0 | 1 | 2;
+  appearanceOnAttach?: 0 | 1 | 2;
   sizeControl: SizeControl[];
   skewControl: SkewControl[];
   yControl: YControl[];
@@ -339,8 +340,8 @@ export interface Video {
     positionYFactor?: number;
     rotationFactor?: number;
     alphaFactor?: number;
-    scaleXMode?: number;
-    scaleYMode?: number;
+    scaleXMode?: 0 | 1 | 2;
+    scaleYMode?: 0 | 1 | 2;
   };
 }
 
