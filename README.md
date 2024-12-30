@@ -34,7 +34,7 @@ Besides, <kbd>ESC</kbd> is always available to pause with the pause screen.
 
 Animated PNGs are an excellent alternative to GIFs, offering enhanced color fidelity and the support of an 8-bit alpha channel for smoother transparency effects.
 
-While there hasn't been support for GIF events, APNGs are planned to act exactly the same as GIFs.
+An APNG acts exactly the same way as a GIF does, unless the number of repetitions is specified in the file, according to the APNG specification.
 
 ### Z indexes
 
@@ -59,7 +59,7 @@ The Z index (depth) defines the order in which game objects are rendered. The lo
 | 14                      | Song title                                                                 |
 | 15                      | Level name & difficulty                                                    |
 
-The Z indexes of judgment lines whose `zIndex` are not present (see [Chart enhancements](#chart-enhancements)) are calculated based on their `zOrder` values ([code here](https://github.com/PhiZone/player/blob/ed8a6119a28c8594d372aacb8e1da12fdce6d692/src/player/utils.ts#L595)). Simply put, the values are mapped onto [0, 1) and made equally spaced, and then get added by 2 to become Z indexes. See examples below.
+The Z indexes of judgment lines whose `zIndex` is not present (see [Chart enhancements](#chart-enhancements)) are calculated based on their `zOrder` values ([code here](https://github.com/PhiZone/player/blob/ed8a6119a28c8594d372aacb8e1da12fdce6d692/src/player/utils.ts#L595)). Simply put, the values are mapped onto [0, 1) and made equally spaced, and then get added by 2 to become Z indexes. See examples below.
 
 | `zOrder`           | Z index               |
 | ------------------ | --------------------- |
@@ -106,7 +106,7 @@ Properties residing in the `attach` object:
 
 Except for WebGL's incompatibilities with newer versions of GLSL, the program supports not only all the shader features defined by `extra.json`, but also one original addition to the standard: **target range**.
 
-A target range defines a list of depth-adjacent (next to each other on the z axis) game objects that a shader event is applied to. It belongs directly to a shader event (as the optional `targetRange` property) and consists of the following properties:
+A target range defines a list of depth-adjacent (next to each other on the Z axis) game objects that a shader event is applied to. It belongs directly to a shader event (as the optional `targetRange` property) and consists of the following properties:
 
 | Property               | Type    | Description                                                                                                                                                                             |
 | ---------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -165,7 +165,7 @@ One thing to note is that a single object cannot be rendered in parallel by two 
 }
 ```
 
-Notice that there are two events that share the same shader code. This is a workaround when you want to apply the same shader to objects that are not adjacent on the z axis.
+Notice that there are two events that share the same shader code. This is a workaround when you want to apply the same shader to objects that are not adjacent on the Z axis.
 
 </details>
 

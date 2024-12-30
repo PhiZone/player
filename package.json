@@ -29,7 +29,10 @@
     "lint:fix": "eslint . --fix",
     "pret": "prettier --check ./**/*.{js,cjs,ts,html,css,svelte,md,json}",
     "pret:fix": "prettier --write ./**/*.{js,cjs,ts,html,css,svelte,md,json}",
+    "d": "tauri build",
+    "dd": "tauri build --debug",
     "desktop": "tauri build",
+    "and": "pnpm cap open android",
     "android": "pnpm cap open android",
     "ios": "pnpm cap open ios"
   },
