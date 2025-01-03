@@ -128,19 +128,22 @@ export class JudgmentHandler {
     ) {
       this.createHitsound(note);
       this.createHitEffects(type, note);
-      const timer = setInterval(() => {
-        if (
-          note.judgmentType !== JudgmentType.UNJUDGED ||
-          this._scene.beat < note.note.startBeat ||
-          this._scene.beat > note.note.endBeat
-        ) {
-          clearInterval(timer);
-          return;
-        }
-        if (this._scene.status === GameStatus.PLAYING) {
-          this.createHitEffects(type, note);
-        }
-      }, 24000 / this._scene.bpm);
+      const timer = setInterval(
+        () => {
+          if (
+            note.judgmentType !== JudgmentType.UNJUDGED ||
+            this._scene.beat < note.note.startBeat ||
+            this._scene.beat > note.note.endBeat
+          ) {
+            clearInterval(timer);
+            return;
+          }
+          if (this._scene.status === GameStatus.PLAYING) {
+            this.createHitEffects(type, note);
+          }
+        },
+        30000 / this._scene.bpm / this._scene.song.rate,
+      );
       this._judgmentDeltas.push({ delta, beat });
     }
     note.setTempJudgment(type, beat);
