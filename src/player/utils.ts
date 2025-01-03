@@ -485,7 +485,8 @@ export const getControlValue = (
     | { type: 'skew'; payload: SkewControl[] }
     | { type: 'y'; payload: YControl[] },
 ): number => {
-  const currentIndex = control.payload.findLastIndex((node) => node.x >= x) ?? 0;
+  let currentIndex = control.payload.findLastIndex((node) => node.x >= x);
+  if (currentIndex === -1) currentIndex = 0;
   const nextIndex = currentIndex + 1 < control.payload.length ? currentIndex + 1 : currentIndex;
   return calculateValue(
     control.payload[currentIndex][control.type as keyof (typeof control.payload)[number]],
