@@ -18,6 +18,7 @@ import {
   rgbToHex,
   toBeats,
   processControlNodes,
+  isEqual,
 } from '../utils';
 import type { Game } from '../scenes/Game';
 import { FONT_FAMILY } from '../constants';
@@ -72,7 +73,13 @@ export class Line {
 
   private _lastUpdate: number = -Infinity;
 
-  constructor(scene: Game, lineData: JudgeLine, num: number, precedence: number) {
+  constructor(
+    scene: Game,
+    lineData: JudgeLine,
+    num: number,
+    precedence: number,
+    highlightMoments: [number, number, number][],
+  ) {
     this._scene = scene;
     this._num = num;
     this._data = lineData;
@@ -167,11 +174,19 @@ export class Line {
       this._data.notes.forEach((data) => {
         let note: PlainNote | LongNote;
         if (data.type === 2) {
-          note = new LongNote(scene, data);
+          note = new LongNote(
+            scene,
+            data,
+            highlightMoments.some((moment) => isEqual(moment, data.startTime)),
+          );
           note.setHeadHeight(this.calculateHeight(data.startBeat));
           note.setTailHeight(this.calculateHeight(data.endBeat));
         } else {
-          note = new PlainNote(scene, data);
+          note = new PlainNote(
+            scene,
+            data,
+            highlightMoments.some((moment) => isEqual(moment, data.startTime)),
+          );
           note.setHeight(this.calculateHeight(data.startBeat));
         }
         this.addNote(note, this._noteContainers[note.zIndex] ?? this.createContainer(note.zIndex));

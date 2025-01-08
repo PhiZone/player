@@ -556,8 +556,21 @@ export class Game extends Scene {
     });
 
     const precedences = calculatePrecedences(this._chart.judgeLineList.map((data) => data.zOrder));
+    const moments: [number, number, number][] = [];
+    let lastMoment = [-Infinity, 0, 0];
+    this._chart.judgeLineList
+      .map((line) => line.notes ?? [])
+      .flat()
+      .forEach((note) => {
+        const cur = note.startTime;
+        if (isEqual(cur, lastMoment) && !isEqual(cur, moments.at(-1))) {
+          moments.push(cur);
+        } else {
+          lastMoment = cur;
+        }
+      });
     this._lines = this._chart.judgeLineList.map(
-      (data, i) => new Line(this, data, i, precedences.get(data.zOrder)!),
+      (data, i) => new Line(this, data, i, precedences.get(data.zOrder)!, moments),
     );
   }
 
@@ -575,23 +588,6 @@ export class Game extends Scene {
           : a.note.startBeat - b.note.startBeat,
       );
     this._numberOfNotes = this._notes.length;
-    const moments: number[][] = [];
-    let lastMoment = [-Infinity, 0, 0];
-    notes.forEach((note) => {
-      const cur = note.note.startTime;
-      if (isEqual(cur, lastMoment) && !isEqual(cur, moments.at(-1))) {
-        moments.push(cur);
-      } else {
-        lastMoment = cur;
-      }
-    });
-    moments.forEach((moment) => {
-      notes
-        .filter((note) => isEqual(note.note.startTime, moment))
-        .forEach((note) => {
-          note.setHighlight(this._data.preferences.simultaneousNoteHint);
-        });
-    });
     this._lines
       .filter((line) => line.data.father != -1)
       .forEach((line) => {

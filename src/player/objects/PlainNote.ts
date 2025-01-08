@@ -23,8 +23,8 @@ export class PlainNote extends SkewImage {
   private _hasTapInput: boolean = false;
   private _consumeTap: boolean = true;
 
-  constructor(scene: Game, data: Note, x: number = 0, y: number = 0, highlight: boolean = false) {
-    super(scene, x, y, `${data.type}${highlight ? '-hl' : ''}`);
+  constructor(scene: Game, data: Note, highlight: boolean = false) {
+    super(scene, undefined, undefined, `${data.type}${highlight ? '-hl' : ''}`);
 
     this._scene = scene;
     this._data = data;
@@ -61,11 +61,10 @@ export class PlainNote extends SkewImage {
             chartDist,
       ),
     );
-    this.setSkewDeg(
-      this._xModifier *
+    this.setSkewXDeg(
+      -this._xModifier *
         this._data.positionX *
         getControlValue(chartDist, { type: 'skew', payload: this._line.data.skewControl }),
-      0,
     );
     this._alpha =
       (this._data.alpha *
@@ -148,10 +147,6 @@ export class PlainNote extends SkewImage {
         this._hasTapInput = false;
       }
     }
-  }
-
-  setHighlight(highlight: boolean) {
-    this.setTexture(`${this._data.type}${highlight ? '-hl' : ''}`);
   }
 
   setHeight(height: number) {

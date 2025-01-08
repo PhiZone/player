@@ -31,8 +31,8 @@ export class LongNote extends GameObjects.Container {
   private _hasTapInput: boolean = false;
   private _consumeTap: boolean = true;
 
-  constructor(scene: Game, data: Note, x: number = 0, y: number = 0, highlight: boolean = false) {
-    super(scene, x, y);
+  constructor(scene: Game, data: Note, highlight: boolean = false) {
+    super(scene);
 
     this._scene = scene;
     this._data = data;
@@ -167,13 +167,6 @@ export class LongNote extends GameObjects.Container {
         this._scene.judgment.judge(this._tempJudgmentType, this);
       }
     }
-  }
-
-  setHighlight(highlight: boolean) {
-    this._head.setTexture(`2-h${highlight ? '-hl' : ''}`);
-    this._body.setTexture(`2${highlight ? '-hl' : ''}`);
-    this._tail.setTexture(`2-t${highlight ? '-hl' : ''}`);
-    this._bodyHeight = this._body.texture.getSourceImage().height;
   }
 
   setTint(tint: number | undefined) {
