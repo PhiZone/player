@@ -173,20 +173,13 @@ export class Line {
       this._data.notes.sort((a, b) => a.startBeat - b.startBeat);
       this._data.notes.forEach((data) => {
         let note: PlainNote | LongNote;
+        const highlight = highlightMoments.some((moment) => isEqual(moment, data.startTime));
         if (data.type === 2) {
-          note = new LongNote(
-            scene,
-            data,
-            highlightMoments.some((moment) => isEqual(moment, data.startTime)),
-          );
+          note = new LongNote(scene, data, highlight);
           note.setHeadHeight(this.calculateHeight(data.startBeat));
           note.setTailHeight(this.calculateHeight(data.endBeat));
         } else {
-          note = new PlainNote(
-            scene,
-            data,
-            highlightMoments.some((moment) => isEqual(moment, data.startTime)),
-          );
+          note = new PlainNote(scene, data, highlight);
           note.setHeight(this.calculateHeight(data.startBeat));
         }
         this.addNote(note, this._noteContainers[note.zIndex] ?? this.createContainer(note.zIndex));

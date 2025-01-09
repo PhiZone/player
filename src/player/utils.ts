@@ -600,6 +600,22 @@ export function findPredominantBpm(bpmList: Bpm[], endTimeSec: number) {
   return predominantBpm.bpm;
 }
 
+export const findHighlightMoments = (notes: { startTime: [number, number, number] }[]) => {
+  const moments: [number, number, number][] = [];
+  let lastMoment = [-Infinity, 0, 0];
+  notes
+    .sort((a, b) => toBeats(a.startTime) - toBeats(b.startTime))
+    .forEach((note) => {
+      const cur = note.startTime;
+      if (isEqual(cur, lastMoment) && !isEqual(cur, moments.at(-1))) {
+        moments.push(cur);
+      } else {
+        lastMoment = cur;
+      }
+    });
+  return moments;
+};
+
 export const isPerfectOrGood = (type: JudgmentType) => {
   return (
     type === JudgmentType.PERFECT ||

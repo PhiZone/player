@@ -3,7 +3,6 @@ import { EventBus } from '../EventBus';
 import {
   processIllustration,
   loadJson,
-  isEqual,
   toBeats,
   fit,
   getAudio,
@@ -11,6 +10,7 @@ import {
   calculatePrecedences,
   loadText,
   getSpritesheet,
+  findHighlightMoments,
 } from '../utils';
 import {
   GameStatus,
@@ -556,19 +556,9 @@ export class Game extends Scene {
     });
 
     const precedences = calculatePrecedences(this._chart.judgeLineList.map((data) => data.zOrder));
-    const moments: [number, number, number][] = [];
-    let lastMoment = [-Infinity, 0, 0];
-    this._chart.judgeLineList
-      .map((line) => line.notes ?? [])
-      .flat()
-      .forEach((note) => {
-        const cur = note.startTime;
-        if (isEqual(cur, lastMoment) && !isEqual(cur, moments.at(-1))) {
-          moments.push(cur);
-        } else {
-          lastMoment = cur;
-        }
-      });
+    const moments = findHighlightMoments(
+      this._chart.judgeLineList.map((line) => line.notes ?? []).flat(),
+    );
     this._lines = this._chart.judgeLineList.map(
       (data, i) => new Line(this, data, i, precedences.get(data.zOrder)!, moments),
     );
