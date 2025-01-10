@@ -224,7 +224,7 @@
             name="noteSize"
             min="0.4"
             max="2"
-            step="0.1"
+            step="0.05"
             bind:value={preferences.noteSize}
             class="range range-sm join-item w-7/12"
           />
@@ -243,6 +243,36 @@
                 e.currentTarget.value = '100';
               }
               preferences.noteSize = parseFloat(e.currentTarget.value);
+            }}
+          />
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="w-1/4 text-sm dark:text-neutral-300">Line thickness</span>
+          <input
+            type="range"
+            id="line_thickness"
+            name="lineThickness"
+            min="0.4"
+            max="2"
+            step="0.05"
+            bind:value={preferences.lineThickness}
+            class="range range-sm join-item w-7/12"
+          />
+          <input
+            type="text"
+            value={preferences.lineThickness}
+            class="border-transparent shadow-sm rounded-lg focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 w-1/6 text-right"
+            on:focusout={(e) => {
+              if (!/^[+-]?([0-9]*[.])?[0-9]+$/.test(e.currentTarget.value)) {
+                e.currentTarget.value = `${preferences.lineThickness}`;
+                return;
+              }
+              if (parseInt(e.currentTarget.value) < 0) {
+                e.currentTarget.value = '0';
+              } else if (parseInt(e.currentTarget.value) > 100) {
+                e.currentTarget.value = '100';
+              }
+              preferences.lineThickness = parseFloat(e.currentTarget.value);
             }}
           />
         </div>

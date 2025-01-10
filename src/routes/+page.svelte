@@ -5,7 +5,7 @@
   import queryString from 'query-string';
   import { fileTypeFromBlob } from 'file-type';
   import type { Config, Metadata, Preferences, RecorderOptions, RpeJson } from '../player/types';
-  import { clamp, fit, getParams, inferLevelType, isZip } from '../player/utils';
+  import { clamp, fit, getParams, haveSameKeys, inferLevelType, isZip } from '../player/utils';
   import PreferencesModal from '$lib/components/Preferences.svelte';
   import { goto } from '$app/navigation';
   import { Capacitor } from '@capacitor/core';
@@ -57,6 +57,7 @@
     fcApIndicator: true,
     goodJudgment: 160,
     hitSoundVolume: 1,
+    lineThickness: 1,
     musicVolume: 1,
     noteSize: 1,
     perfectJudgment: 80,
@@ -112,9 +113,18 @@
       tgs = localStorage.getItem('toggles');
       rec = localStorage.getItem('recorderOptions');
 
-      if (pref) preferences = JSON.parse(pref);
-      if (tgs) toggles = JSON.parse(tgs);
-      if (rec) recorderOptions = JSON.parse(rec);
+      if (pref) {
+        pref = JSON.parse(pref);
+        if (haveSameKeys(pref, preferences)) preferences = pref;
+      }
+      if (tgs) {
+        tgs = JSON.parse(tgs);
+        if (haveSameKeys(tgs, toggles)) toggles = tgs;
+      }
+      if (rec) {
+        rec = JSON.parse(rec);
+        if (haveSameKeys(rec, recorderOptions)) recorderOptions = rec;
+      }
     }
 
     if (recorderOptions.overrideResolution && recorderOptions.overrideResolution.length === 2) {

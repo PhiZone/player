@@ -129,6 +129,13 @@ export const setFullscreen = () => {
   }
 };
 
+export const haveSameKeys = (obj1: object, obj2: object): boolean => {
+  const keys1 = Object.keys(obj1).sort();
+  const keys2 = Object.keys(obj2).sort();
+  console.log(keys1, keys2, JSON.stringify(keys1) === JSON.stringify(keys2));
+  return JSON.stringify(keys1) === JSON.stringify(keys2);
+};
+
 export const inferLevelType = (level: string | null): 0 | 1 | 2 | 3 => {
   if (!level) return 2;
   level = level.toLowerCase();
@@ -168,6 +175,7 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
   const fcApIndicator = ['1', 'true'].some((v) => v == (searchParams.get('fcApIndicator') ?? '1'));
   const goodJudgment = parseInt(searchParams.get('goodJudgment') ?? '160');
   const hitSoundVolume = parseFloat(searchParams.get('hitSoundVolume') ?? '1');
+  const lineThickness = parseFloat(searchParams.get('lineThickness') ?? '1');
   const musicVolume = parseFloat(searchParams.get('musicVolume') ?? '1');
   const noteSize = parseFloat(searchParams.get('noteSize') ?? '1');
   const perfectJudgment = parseInt(searchParams.get('perfectJudgment') ?? '80');
@@ -222,6 +230,7 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
       fcApIndicator,
       goodJudgment,
       hitSoundVolume,
+      lineThickness,
       musicVolume,
       noteSize,
       perfectJudgment,
@@ -370,9 +379,9 @@ export const getLineColor = (scene: Game): number => {
     : FcApStatus.NONE;
   switch (status) {
     case FcApStatus.AP:
-      return 0xffffb4;
+      return 0xfeffa9;
     case FcApStatus.FC:
-      return 0xb3ecff;
+      return 0xa2eeff;
     default:
       return 0xffffff;
   }
@@ -381,10 +390,10 @@ export const getLineColor = (scene: Game): number => {
 export const getJudgmentColor = (type: JudgmentType): number => {
   switch (type) {
     case JudgmentType.PERFECT:
-      return 0xffeda2;
+      return 0xffec9f;
     case JudgmentType.GOOD_EARLY:
     case JudgmentType.GOOD_LATE:
-      return 0xb6e1ff;
+      return 0xb4e1ff;
     case JudgmentType.BAD:
       return 0x6b3b3a;
     default:
