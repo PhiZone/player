@@ -46,7 +46,7 @@ export class PlainNote extends SkewImage {
   update(beat: number, songTime: number, height: number, visible = true) {
     const dist =
       this._scene.d((this._targetHeight - height) * this._data.speed) +
-      this._scene.o(-this._data.yOffset);
+      this._scene.o(this._data.yOffset);
     const chartDist = (dist / this._scene.sys.canvas.height) * 900;
     this.setX(
       this._scene.p(
@@ -96,7 +96,7 @@ export class PlainNote extends SkewImage {
       this.setVisible(
         visible &&
           songTime >= this._hitTime - this._data.visibleTime &&
-          (dist >= this._scene.o(-this._data.yOffset) || !this._line.data.isCover),
+          (dist >= this._scene.o(this._data.yOffset) || !this._line.data.isCover),
       );
     }
   }
@@ -175,7 +175,7 @@ export class PlainNote extends SkewImage {
   }
 
   public get judgmentPosition() {
-    const y = this._yModifier * this._scene.o(-this._data.yOffset);
+    const y = this._yModifier * this._scene.o(this._data.yOffset);
     return {
       x: this._line.x + this.x * Math.cos(this._line.rotation) + y * Math.sin(this._line.rotation),
       y: this._line.y + this.x * Math.sin(this._line.rotation) + y * Math.cos(this._line.rotation),

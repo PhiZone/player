@@ -104,7 +104,7 @@ export class Line {
     this._hasAttach = !!this._data.attachUI;
     this._line.setScale(
       this._scene.p(1) * (this._scaleX ?? 1),
-      this._scene.p(1) * (this._scaleY ?? 1),
+      (this._hasCustomTexture ? this._scene.p(1) : this._scene.o(1.35)) * (this._scaleY ?? 1),
     ); // previously 1.0125 (according to the official definition that a line is 3 times as wide as the screen)
     this._line.setDepth(lineData.zIndex !== undefined ? lineData.zIndex : 2 + precedence);
     this._line.setVisible(!this._hasAttach || !!lineData.appearanceOnAttach || this._hasText);
@@ -219,7 +219,7 @@ export class Line {
   updateParams() {
     this._line.setScale(
       this._scene.p(1) * (this._scaleX ?? 1),
-      this._scene.p(1) * (this._scaleY ?? 1),
+      (this._hasCustomTexture ? this._scene.p(1) : this._scene.o(1.35)) * (this._scaleY ?? 1),
     );
     if (this._hasText) (this._line as GameObjects.Text).setText(this._text ?? '');
     if (this._hasAnimatedTexture) {
@@ -327,7 +327,7 @@ export class Line {
     const halfScreenWidth = this._scene.sys.canvas.width / 2;
     const halfScreenHeight = this._scene.sys.canvas.height / 2;
     let x = this._scene.p(this._xModifier * this._x);
-    let y = this._scene.o(this._yModifier * this._y);
+    let y = this._scene.o(-this._yModifier * this._y);
     if (this._parent !== null) {
       const parentX = this._parent.x - halfScreenWidth;
       const parentY = this._parent.y - halfScreenHeight;
