@@ -631,7 +631,6 @@ export class Game extends Scene {
     this._shaders = this._extra.effects.map((effect, i) => {
       const asset = this._shaderAssets.find((asset) => asset.key === effect.shader);
       if (!asset) {
-        this._status = GameStatus.ERROR;
         if (!missing.includes(effect.shader)) {
           missing.push(effect.shader);
           alert(`Unable to locate external shader ${effect.shader.slice(6)}`);

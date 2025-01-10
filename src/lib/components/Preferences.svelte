@@ -224,7 +224,7 @@
             name="noteSize"
             min="0.4"
             max="2"
-            step="0.05"
+            step="0.01"
             bind:value={preferences.noteSize}
             class="range range-sm join-item w-7/12"
           />
@@ -254,7 +254,7 @@
             name="lineThickness"
             min="0.4"
             max="2"
-            step="0.05"
+            step="0.01"
             bind:value={preferences.lineThickness}
             class="range range-sm join-item w-7/12"
           />
