@@ -29,7 +29,7 @@
     metadata: Metadata;
   }
 
-  const VERSION = '0.0.6';
+  const VERSION = '0.0.8';
   const REPO_LINK = 'https://github.com/PhiZone/player';
 
   let showCollapse = false;

@@ -195,7 +195,6 @@ Notice that there are two events that share the same shader code. This is a work
 | Support for `zOrder`                              | 0.0.1   |                                                                               | ✅ Done             | Z 轴排序适配                     |
 | Basic support for the extended event layer        | 0.0.2   | Excluding GIF events & incline events                                         | ✅ Done             | 扩展事件层的基本适配             |
 | Cross-platform distribution                       | 0.0.3   | Plan to reference [this blog](https://nsarrazin.com/blog/sveltekit-universal) | ✅ Done             | 跨平台分发                       |
-| Better input detections                           | 0.0.3   | Especially for Flicks                                                         | ✅ Done             | 输入检测优化                     |
 | Support for Phira `extra.json`                    | 0.0.4   | Including shaders                                                             | ✅ Done<sup>1</sup> | Phira `extra.json` 适配          |
 | Support for `attachUI`                            | 0.0.4   |                                                                               | ✅ Done             | UI 绑定适配                      |
 | Support for anchors                               | 0.0.4   |                                                                               | ✅ Done             | 锚点适配                         |
@@ -205,18 +204,20 @@ Notice that there are two events that share the same shader code. This is a work
 | Video feature enhancements                        | 0.0.5   |                                                                               | ✅ Done             | 视频功能增强                     |
 | Offset adjustment mode                            | 0.0.6   |                                                                               | ✅ Done             | 延迟调整模式                     |
 | Full support for the extended event layer         | 0.0.6   | GIF events & incline events                                                   | ✅ Done             | 扩展事件层的完全适配             |
-| Recording mode                                    | 0.0.7   |                                                                               | ⏳ Postponed        | 录制模式                         |
 | Support for all note properties                   | 0.0.7   |                                                                               | ✅ Done             | 所有 Note 属性的适配             |
-| Alignment with official/RPE constants             | 0.0.8   | Hold tolerances, texture size units, etc.                                     |                     | 官/RPE 常数对齐                  |
-| (Shader enhancement) Support for sampler uniforms | 0.0.8   |                                                                               | 🚧 Working          | （着色器增强）sampler 型变量支持 |
-| Full RPE support                                  | 0.1.0   |                                                                               | 🚧 Working          | 完全 RPE 适配                    |
+| Better input detections                           | 0.0.8   | Especially for Flicks                                                         | 🚧 Working          | 输入检测优化                     |
+| Full RPE support                                  | 0.1.0   |                                                                               | ✅ Done             | 完全 RPE 适配                    |
+| Web deployment                                    | 0.1.0   |                                                                               | 🚧 Working          | Web 部署                         |
 | Basic PE support                                  | 0.1.1   |                                                                               |                     | 基本 PE 适配                     |
 | Customizable resource pack                        | 0.1.2   |                                                                               |                     | 可自定义资源包                   |
+| Alignment with official/RPE constants             | 0.1.3   | Hold tolerances, texture size units, etc.                                     |                     | 官/RPE 常数对齐                  |
+| Recording mode                                    | 0.1.4   |                                                                               | ⏳ Postponed        | 录制模式                         |
 | PhiZone integration                               | 0.2.0   |                                                                               |                     | PhiZone 集成                     |
+| (Shader enhancement) Support for sampler uniforms | 0.2.1   |                                                                               | ⏳ Postponed        | （着色器增强）sampler 型变量支持 |
 
 <sup>1</sup> Support for fragment shaders is partial, due to WebGL relying on an older version of GLSL.
 
-A version is reached whenever at least one feature from this version and all features from the previous versions are marked as `✅ Done`. A version is released only when all features from this version and the previous versions are marked as `✅ Done`.
+A version is reached whenever at least one feature from this version is marked as `🚧 Working`, and all features from the previous versions are marked as `✅ Done`. A version is released only when all features from this version and the previous versions are marked as `✅ Done`.
 
 ## Assets
 
@@ -288,7 +289,7 @@ game
         vignette.glsl
 ```
 
-According to [a statement from Pigeon Games](https://www.bilibili.com/opus/624904779363026292), assets from Phigros are copyrighted, and their appearance in other software is legally prohibited. This restriction applies to all assets in this folder except for:
+For the time being, this program uses Phigros' assets for development. According to [a statement from Pigeon Games](https://www.bilibili.com/opus/624904779363026292), assets from Phigros are copyrighted, and their appearance in other software is legally prohibited. This restriction applies to all assets in this folder except for:
 
 - all shaders (`shaders/*`, the majority of which are licensed under MIT/CC0, with a few exceptions from [ShaderToy](https://www.shadertoy.com) licensed under the default [CC BY-NC-SA 3.0](https://creativecommons.org/licenses/by-nc-sa/3.0/) license specified by the site);
 - all fonts (`fonts/**`, licenses presented in `OFL.txt` in each font folder);
