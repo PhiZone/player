@@ -14,7 +14,14 @@
   import start from './main';
   import { EventBus } from './EventBus';
   import { GameStatus, type Config } from './types';
-  import { convertTime, findPredominantBpm, getParams, getTimeSec, outputRecording } from './utils';
+  import {
+    convertTime,
+    findPredominantBpm,
+    getParams,
+    getTimeSec,
+    outputRecording,
+    triggerDownload,
+  } from './utils';
   import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
   import { ProgressBarStatus } from '@tauri-apps/api/window';
   import WaveSurfer, { type WaveSurferOptions } from 'wavesurfer.js';
@@ -321,12 +328,10 @@
       }
       return value;
     });
-    const blob = new Blob([content], { type: 'application/json' });
-    const link = document.createElement('a');
-    link.download = `${title} [${level}] (offset ${offset >= 0 ? '+' : '-'}${Math.abs(offset).toFixed(0)}).json`;
-    link.href = URL.createObjectURL(blob);
-    link.click();
-    URL.revokeObjectURL(link.href);
+    triggerDownload(
+      new Blob([content], { type: 'application/json' }),
+      `${title} [${level}] (offset ${offset >= 0 ? '+' : '-'}${Math.abs(offset).toFixed(0)}).json`,
+    );
     isOffsetAdjustedChartExported = true;
   };
 </script>
