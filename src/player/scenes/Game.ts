@@ -152,8 +152,8 @@ export class Game extends Scene {
     this.load.image('2-hl', 'notes/HoldHL.png');
     this.load.image('2-h', 'notes/HoldHead.png');
     this.load.image('2-h-hl', 'notes/HoldHeadHL.png');
-    this.load.image('2-t', 'notes/HoldEnd.png');
-    this.load.image('2-t-hl', 'notes/HoldEndHL.png');
+    this.load.image('2-t', 'notes/HoldTail.png');
+    this.load.image('2-t-hl', 'notes/HoldTailHL.png');
     this.load.image('1', 'notes/Tap.png');
     this.load.image('1-hl', 'notes/TapHL.png');
 
@@ -168,8 +168,8 @@ export class Game extends Scene {
 
     this.load.image('asset-line.png', 'line.png');
     this.load.spritesheet('hit-effects', 'HitEffects.png', {
-      frameWidth: 256,
-      frameHeight: 256,
+      frameWidth: 375,
+      frameHeight: 375,
     });
 
     const { song, chart, illustration, assetNames, assetTypes, assets } = this._data.resources;
@@ -604,7 +604,7 @@ export class Game extends Scene {
     this.anims.create({
       key: 'hit-effects',
       frames: 'hit-effects',
-      frameRate: 60,
+      frameRate: 120,
       repeat: 0,
     });
   }

@@ -269,8 +269,8 @@ game
 │       Flick.png
 │       FlickHL.png
 │       Hold.png
-│       HoldEnd.png
-│       HoldEndHL.png
+│       HoldTail.png
+│       HoldTailHL.png
 │       HoldHead.png
 │       HoldHeadHL.png
 │       HoldHL.png

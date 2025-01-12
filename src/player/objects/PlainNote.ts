@@ -154,7 +154,9 @@ export class PlainNote extends SkewImage {
   }
 
   resize(chartDist: number | undefined = undefined) {
-    const scale = this._scene.p(NOTE_BASE_SIZE * this._scene.preferences.noteSize);
+    const scale =
+      (989 / this.texture.getSourceImage().width) *
+      this._scene.p(NOTE_BASE_SIZE * this._scene.preferences.noteSize);
     const control = chartDist
       ? getControlValue(chartDist, {
           type: 'size',

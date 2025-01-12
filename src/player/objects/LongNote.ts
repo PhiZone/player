@@ -190,7 +190,9 @@ export class LongNote extends GameObjects.Container {
   }
 
   resize() {
-    const scale = this._scene.p(NOTE_BASE_SIZE * this._scene.preferences.noteSize);
+    const scale =
+      (989 / this._body.texture.getSourceImage().width) *
+      this._scene.p(NOTE_BASE_SIZE * this._scene.preferences.noteSize);
     this._head.setScale(this._data.size * scale, -this._yModifier * scale);
     this._body.scaleX = this._data.size * scale;
     this._tail.setScale(this._data.size * scale, -this._yModifier * scale);

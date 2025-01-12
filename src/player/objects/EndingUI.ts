@@ -202,9 +202,12 @@ export class EndingUI extends GameObjects.Container {
     this._sound = this._scene.sound.add('ending');
     this._sound.setVolume(this._scene.preferences.musicVolume).play();
     this._scene.sound.add('grade-hit').setVolume(this._scene.preferences.hitSoundVolume).play();
-    this._timer = setInterval(() => {
-      this._sound.setSeek(0);
-    }, 192e3 / 7);
+    this._timer = setInterval(
+      () => {
+        this._sound.setSeek(0);
+      },
+      (2 * 192e3) / 7,
+    );
     setTimeout(
       () => {
         EventBus.emit('recording-stop');
