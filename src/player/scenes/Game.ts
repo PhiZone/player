@@ -131,7 +131,7 @@ export class Game extends Scene {
           : `Loading ${e.url.split('/').pop()}`,
       );
     });
-    this.load.setPath('game');
+    this.load.setPath('/game');
 
     this.load.bitmapFont('Outfit', 'fonts/Outfit/Outfit.png', 'fonts/Outfit/Outfit.fnt');
 
