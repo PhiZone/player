@@ -19,6 +19,7 @@
     findPredominantBpm,
     getParams,
     getTimeSec,
+    IS_TAURI,
     outputRecording,
     triggerDownload,
   } from './utils';
@@ -37,7 +38,7 @@
 
   config ??= getParams();
   if (!config) {
-    goto('__TAURI_INTERNALS__' in window ? `/?t=${Date.now()}` : '/');
+    goto(IS_TAURI ? `/?t=${Date.now()}` : '/');
   }
 
   let progress = 0;
@@ -209,7 +210,7 @@
 
     EventBus.on('update', (t: number) => {
       if (t !== timeSec) {
-        if ('__TAURI_INTERNALS__' in window) {
+        if (IS_TAURI) {
           if (t < duration) {
             getCurrentWebviewWindow().setProgressBar({
               status:
@@ -244,7 +245,7 @@
 
     EventBus.on('finished', () => {
       status = GameStatus.FINISHED;
-      if ('__TAURI_INTERNALS__' in window) {
+      if (IS_TAURI) {
         getCurrentWebviewWindow().setProgressBar({
           status: ProgressBarStatus.None,
         });
@@ -265,20 +266,19 @@
   });
 
   const exit = () => {
-    const isTauri = '__TAURI_INTERNALS__' in window;
-    if (isTauri) {
+    if (IS_TAURI) {
       getCurrentWebviewWindow().setProgressBar({
         status: ProgressBarStatus.None,
       });
     }
     if (!config || config.newTab) {
-      if (isTauri) {
+      if (IS_TAURI) {
         getCurrentWebviewWindow().close();
       } else {
         window.close();
       }
     } else {
-      goto(isTauri ? `/?t=${Date.now()}` : '/');
+      goto(IS_TAURI ? `/?t=${Date.now()}` : '/');
     }
   };
 

@@ -1,15 +1,13 @@
 import { Game as MainGame } from './scenes/Game';
 import { WEBGL, Game, Scale, type Types } from 'phaser';
 import type { Config } from './types';
-import { fit } from './utils';
+import { fit, IS_TAURI } from './utils';
 import { Capacitor } from '@capacitor/core';
-import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { EventBus } from './EventBus';
 
 const start = (parent: string, sceneConfig: Config | null) => {
   const parentElement = document.getElementById(parent)!;
-  const isTauri = '__TAURI_INTERNALS__' in window;
 
   const config: Types.Core.GameConfig = {
     type: WEBGL,
@@ -70,7 +68,7 @@ const start = (parent: string, sceneConfig: Config | null) => {
         autoCenter: Scale.CENTER_BOTH,
       };
     }
-    if (isTauri && sceneConfig.newTab) {
+    if (IS_TAURI && sceneConfig.newTab) {
       if (sceneConfig.metadata.title && sceneConfig.metadata.level) {
         getCurrentWindow().setTitle(
           `${sceneConfig.metadata.title} [${
@@ -91,21 +89,12 @@ const start = (parent: string, sceneConfig: Config | null) => {
   globalThis.__PHASER_GAME__ = game;
   game.scene.start('MainGame');
   if (!config.scale || config.scale.mode === Scale.EXPAND) {
-    if (isTauri) {
-      getCurrentWebviewWindow().onResized((_) => {
-        game.scale.resize(
-          parentElement.clientWidth * window.devicePixelRatio,
-          parentElement.clientHeight * window.devicePixelRatio,
-        );
-      });
-    } else {
-      new ResizeObserver((size) => {
-        game.scale.resize(
-          size[0].contentBoxSize[0].inlineSize * window.devicePixelRatio,
-          size[0].contentBoxSize[0].blockSize * window.devicePixelRatio,
-        );
-      }).observe(parentElement);
-    }
+    new ResizeObserver((size) => {
+      game.scale.resize(
+        size[0].contentBoxSize[0].inlineSize * window.devicePixelRatio,
+        size[0].contentBoxSize[0].blockSize * window.devicePixelRatio,
+      );
+    }).observe(parentElement);
   }
   return game;
 };

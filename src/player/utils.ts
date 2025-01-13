@@ -91,6 +91,8 @@ const easingFunctions: ((x: number) => number)[] = [
     x < 0.5 ? (1 - easingFunctions[25](1 - 2 * x)) / 2 : (1 + easingFunctions[25](2 * x - 1)) / 2,
 ];
 
+export const IS_TAURI = '__TAURI_INTERNALS__' in window;
+
 const download = async (url: string, name?: string) => {
   EventBus.emit('loading', 0);
   EventBus.emit(
@@ -132,7 +134,6 @@ export const setFullscreen = () => {
 export const haveSameKeys = (obj1: object, obj2: object): boolean => {
   const keys1 = Object.keys(obj1).sort();
   const keys2 = Object.keys(obj2).sort();
-  console.log(keys1, keys2, JSON.stringify(keys1) === JSON.stringify(keys2));
   return JSON.stringify(keys1) === JSON.stringify(keys2);
 };
 
