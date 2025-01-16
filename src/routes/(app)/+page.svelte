@@ -21,6 +21,7 @@
   import { PhysicalPosition, PhysicalSize } from '@tauri-apps/api/dpi';
   import { currentMonitor, type Monitor } from '@tauri-apps/api/window';
   import { getCurrent, onOpenUrl } from '@tauri-apps/plugin-deep-link';
+  import { App, type URLOpenListenerEvent } from '@capacitor/app';
   import { page } from '$app/stores';
 
   interface FileEntry {
@@ -42,10 +43,13 @@
   let showCollapse = false;
   let showRecorderCollapse = false;
   let overrideResolution = false;
+  let modalMem = false;
   let directoryInput: HTMLInputElement;
+  let modal: HTMLDialogElement;
   let monitor: Monitor | null = null;
 
   let progress = -1;
+  let progressSpeed = -1;
   let progressDetail = '';
   let showProgress = true;
   let done = false;
@@ -77,6 +81,7 @@
     adjustOffset: false,
     record: false,
     newTab: false,
+    inApp: IS_TAURI || Capacitor.getPlatform() !== 'web' ? 2 : 0,
   };
   let recorderOptions: RecorderOptions = {
     frameRate: 60,
@@ -105,31 +110,51 @@
   onMount(async () => {
     directoryInput.webkitdirectory = true;
 
-    const params = getParams(
-      $page.params.t || !IS_TAURI ? undefined : (await getCurrent())?.at(0),
-      false,
-    );
+    init();
+
+    if (IS_TAURI) {
+      onOpenUrl((urls) => {
+        handleRedirect(urls[0]);
+      });
+    }
+
+    if (Capacitor.getPlatform() !== 'web') {
+      App.addListener('appUrlOpen', (event: URLOpenListenerEvent) => {
+        handleRedirect(event.url);
+      });
+    }
+  });
+
+  const init = async () => {
+    if (!$page.url.searchParams.get('t')) {
+      const url = IS_TAURI ? (await getCurrent())?.at(0) : undefined;
+      if (url) {
+        const params = getParams(url, false);
+        if (params) {
+          handleParams(params);
+          return;
+        }
+        const searchParams = new URL(url).searchParams;
+        handleParamFiles(searchParams);
+      }
+    }
+
     let pref, tgs, rec;
+    pref = localStorage.getItem('preferences');
+    tgs = localStorage.getItem('toggles');
+    rec = localStorage.getItem('recorderOptions');
 
-    if (params) {
-      handleParams(params);
-    } else {
-      pref = localStorage.getItem('preferences');
-      tgs = localStorage.getItem('toggles');
-      rec = localStorage.getItem('recorderOptions');
-
-      if (pref) {
-        pref = JSON.parse(pref);
-        if (haveSameKeys(pref, preferences)) preferences = pref;
-      }
-      if (tgs) {
-        tgs = JSON.parse(tgs);
-        if (haveSameKeys(tgs, toggles)) toggles = tgs;
-      }
-      if (rec) {
-        rec = JSON.parse(rec);
-        if (haveSameKeys(rec, recorderOptions)) recorderOptions = rec;
-      }
+    if (pref) {
+      pref = JSON.parse(pref);
+      if (haveSameKeys(pref, preferences)) preferences = pref;
+    }
+    if (tgs) {
+      tgs = JSON.parse(tgs);
+      if (haveSameKeys(tgs, toggles)) toggles = tgs;
+    }
+    if (rec) {
+      rec = JSON.parse(rec);
+      if (haveSameKeys(rec, recorderOptions)) recorderOptions = rec;
     }
 
     if (recorderOptions.overrideResolution && recorderOptions.overrideResolution.length === 2) {
@@ -138,13 +163,30 @@
       recorderResolutionHeight = recorderOptions.overrideResolution[1];
     }
 
-    if (IS_TAURI) {
-      onOpenUrl((urls) => {
-        const params = getParams(urls[0], false);
-        if (params) handleParams(params);
-      });
+    if (
+      !IS_TAURI &&
+      Capacitor.getPlatform() === 'web' &&
+      ($page.url.searchParams.has('file') || $page.url.searchParams.has('zip'))
+    ) {
+      if (toggles.inApp === 0) {
+        modal.showModal();
+      } else if (toggles.inApp === 1) {
+        window.open(`phizone-player://${$page.url.search}`);
+      } else {
+        handleParamFiles($page.url.searchParams);
+      }
     }
-  });
+  };
+
+  const handleRedirect = (url: string) => {
+    const params = getParams(url, false);
+    if (params) {
+      handleParams(params);
+    } else {
+      const searchParams = new URL(url).searchParams;
+      handleParamFiles(searchParams);
+    }
+  };
 
   const shareId = (a: FileEntry, b: FileEntry) =>
     a.file.name.split('.').slice(0, -1).join('.') === b.file.name.split('.').slice(0, -1).join('.');
@@ -156,6 +198,55 @@
     timeouts.forEach((id) => clearTimeout(id));
     showProgress = true;
     timeouts = [];
+  };
+
+  const download = async (url: string) => {
+    progress = 0;
+    progressSpeed = 0;
+    progressDetail = `Downloading ${url.split('/').pop()}`;
+    const response = await fetch(url);
+    const contentLength = response.headers.get('content-length');
+    if (!response.body) {
+      throw new Error('Unable to fetch data.');
+    }
+
+    const totalSize = parseInt(contentLength ?? '-1');
+    let loadedSize = 0;
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+
+    const speedWindow: { loadedSize: number; time: number }[] = [];
+    const windowSize = 8;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) {
+        chunks.push(value);
+        loadedSize += value.length;
+        progress = clamp(loadedSize / totalSize, 0, 1);
+
+        const currentTime = Date.now();
+        speedWindow.push({ loadedSize, time: currentTime });
+
+        if (speedWindow.length > windowSize) {
+          speedWindow.shift();
+        }
+
+        if (speedWindow.length > 1) {
+          const firstSample = speedWindow[0];
+          const lastSample = speedWindow[speedWindow.length - 1];
+          const elapsedTime = (lastSample.time - firstSample.time) / 1000;
+          const bytesTransferred = lastSample.loadedSize - firstSample.loadedSize;
+          if (elapsedTime > 0) {
+            progressSpeed = bytesTransferred / elapsedTime;
+          }
+        }
+      }
+    }
+
+    progressSpeed = -1;
+    return new File(chunks, url.split('/').pop() ?? url);
   };
 
   const decompress = async (blob: Blob) => {
@@ -253,6 +344,12 @@
     return bundle;
   };
 
+  const decompressZipArchives = async (files: File[]) => {
+    const result: File[] = [];
+    (await Promise.all(files.map(decompress))).flat().forEach((file) => result.push(file));
+    return result;
+  };
+
   const handleFiles = async (files: File[] | null) => {
     if (!files || files.length === 0) {
       return;
@@ -345,11 +442,11 @@
     );
   };
 
-  const getURL = (blob: Blob | undefined) => (blob ? URL.createObjectURL(blob) : null);
+  const getUrl = (blob: Blob | undefined) => (blob ? URL.createObjectURL(blob) : null);
 
   const humanizeFileSize = (size: number) => {
     var i = size == 0 ? 0 : clamp(Math.floor(Math.log(size) / Math.log(1024)), 0, 4);
-    return +(size / Math.pow(1024, i)).toFixed(2) * 1 + ' ' + ['B', 'KiB', 'MiB', 'GiB', 'TiB'][i];
+    return (size / Math.pow(1024, i)).toFixed(2) + ' ' + ['B', 'KiB', 'MiB', 'GiB', 'TiB'][i];
   };
 
   const handleParams = (params: Config) => {
@@ -363,6 +460,7 @@
       adjustOffset: params.adjustOffset,
       record: params.record,
       newTab: params.newTab,
+      inApp: params.inApp,
     };
     start(
       `/play?${queryString.stringify(params, {
@@ -372,6 +470,22 @@
         sort: false,
       })}`,
     );
+  };
+
+  const handleParamFiles = async (params: URLSearchParams) => {
+    showCollapse = true;
+
+    const downloadUrls = async (urls: string[]) => {
+      const result = [];
+      for (const url of urls) {
+        result.push(await download(url));
+      }
+      return result;
+    };
+
+    const zipArchives = await downloadUrls(params.getAll('zip'));
+    const regularFiles = await downloadUrls(params.getAll('file'));
+    await handleFiles((await decompressZipArchives(zipArchives)).concat(regularFiles));
   };
 
   const configureWebviewWindow = (webview: WebviewWindow) => {
@@ -475,6 +589,73 @@
       Get the app
       <i class="fa-solid fa-download"></i>
     </a>
+    <dialog id="app" class="modal" bind:this={modal}>
+      <div class="modal-box">
+        <h3 class="text-lg font-bold">Use the app?</h3>
+        <p class="py-4">
+          It looks like some files can be resolved. You might want to proceed with the PhiZone
+          Player app if you have it installed. Otherwise, you can either <a
+            href="/app"
+            target="_blank"
+            class="text-accent hover:underline"
+          >
+            download the app
+          </a>
+          or stay in the browser.
+        </p>
+        <div class="relative flex items-start">
+          <div class="flex items-center h-5 mt-1">
+            <input
+              id="remember-app-preference"
+              name="remember-app-preference"
+              type="checkbox"
+              class="transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
+              aria-describedby="remember-app-preference-description"
+              bind:checked={modalMem}
+            />
+          </div>
+          <label for="remember-app-preference" class="ms-3 transition">
+            <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
+              Remember my choice
+            </span>
+            <span
+              id="remember-app-preference-description"
+              class="block text-sm text-gray-600 dark:text-neutral-500"
+            >
+              If toggled on, this dialog will not be shown again.
+            </span>
+          </label>
+        </div>
+        <div class="modal-action">
+          <form method="dialog" class="gap-3 flex justify-center">
+            <button
+              class="inline-flex justify-center items-center gap-x-3 text-center bg-gradient-to-tl from-blue-500 via-violet-500 to-fuchsia-500 dark:from-blue-700 dark:via-violet-700 dark:to-fuchsia-700 text-white text-sm font-medium rounded-md focus:outline-none py-3 px-4 transition-all duration-300 bg-size-200 bg-pos-0 hover:bg-pos-100"
+              on:click={() => {
+                window.open(`phizone-player://${$page.url.search}`);
+                if (modalMem) {
+                  toggles.inApp = 1;
+                  localStorage.setItem('toggles', JSON.stringify(toggles));
+                }
+              }}
+            >
+              Open in the app
+            </button>
+            <button
+              class="py-3 px-4 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-100 focus:outline-none focus:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-700 dark:focus:bg-neutral-700 transition"
+              on:click={() => {
+                handleParamFiles($page.url.searchParams);
+                if (modalMem) {
+                  toggles.inApp = 2;
+                  localStorage.setItem('toggles', JSON.stringify(toggles));
+                }
+              }}
+            >
+              Proceed with browser
+            </button>
+          </form>
+        </div>
+      </div>
+    </dialog>
   {:else}
     <a
       href={REPO_LINK}
@@ -512,14 +693,13 @@
             : '.pez,.yml,.yaml,.shader,.glsl,.frag,.fsh,.fs,application/zip,application/json,image/*,video/*,audio/*,text/*'}
           class="file-input file-input-bordered w-full max-w-xs file:btn dark:file:btn-neutral file:no-animation border-gray-200 rounded-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 dark:border-neutral-700 dark:text-neutral-300 dark:focus:ring-neutral-600"
           on:input={async (e) => {
-            const files = e.currentTarget.files;
-            if (!files || files.length === 0) return;
-            const fileArray = Array.from(files);
-            const zipArchives = fileArray.filter(isZip);
-            const regularFiles = fileArray.filter((file) => !isZip(file));
-            (await Promise.all(zipArchives.map(decompress)))
-              .flat()
-              .forEach((file) => regularFiles.push(file));
+            const fileList = e.currentTarget.files;
+            if (!fileList || fileList.length === 0) return;
+            const files = Array.from(fileList);
+            const zipArchives = files.filter(isZip);
+            const regularFiles = files
+              .filter((file) => !isZip(file))
+              .concat(await decompressZipArchives(zipArchives));
             await handleFiles(regularFiles);
           }}
         />
@@ -544,9 +724,16 @@
       class:opacity-100={progress >= 0 && showProgress}
     >
       <div class="mb-2 flex justify-between items-center">
-        <h3 class="text-sm font-semibold text-gray-800 dark:text-white">
-          {progressDetail ?? 'Loading'}
-        </h3>
+        <div class="flex gap-3">
+          <h3 class="text-sm font-semibold text-gray-800 dark:text-white">
+            {progressDetail ?? 'Loading'}
+          </h3>
+          <p class="text-sm text-gray-500 dark:text-gray-300">
+            {#if progressSpeed >= 0}
+              {humanizeFileSize(progressSpeed) + '/s'}
+            {/if}
+          </p>
+        </div>
         <span class="text-sm text-gray-800 dark:text-white">
           {progress.toLocaleString(undefined, {
             style: 'percent',
@@ -1218,13 +1405,13 @@
               const assetsIncluded = assets.filter((asset) => asset.included);
               const params = queryString.stringify(
                 {
-                  song: getURL(audioFiles.find((file) => file.id === currentBundle.song)?.file),
-                  chart: getURL(chartFiles.find((file) => file.id === currentBundle.chart)?.file),
+                  song: getUrl(audioFiles.find((file) => file.id === currentBundle.song)?.file),
+                  chart: getUrl(chartFiles.find((file) => file.id === currentBundle.chart)?.file),
                   illustration: imageFiles.find((file) => file.id === currentBundle.illustration)
                     ?.url,
                   assetNames: assetsIncluded.map((asset) => asset.file.name),
                   assetTypes: assetsIncluded.map((asset) => asset.type),
-                  assets: assetsIncluded.map((asset) => getURL(asset.file)),
+                  assets: assetsIncluded.map((asset) => getUrl(asset.file)),
                   ...currentBundle.metadata,
                   ...preferences,
                   ...toggles,
@@ -1244,15 +1431,15 @@
                 const config: Config = {
                   resources: {
                     song:
-                      getURL(audioFiles.find((file) => file.id === currentBundle.song)?.file) ?? '',
+                      getUrl(audioFiles.find((file) => file.id === currentBundle.song)?.file) ?? '',
                     chart:
-                      getURL(chartFiles.find((file) => file.id === currentBundle.chart)?.file) ??
+                      getUrl(chartFiles.find((file) => file.id === currentBundle.chart)?.file) ??
                       '',
                     illustration:
                       imageFiles.find((file) => file.id === currentBundle.illustration)?.url ?? '',
                     assetNames: assetsIncluded.map((asset) => asset.file.name),
                     assetTypes: assetsIncluded.map((asset) => asset.type),
-                    assets: assetsIncluded.map((asset) => getURL(asset.file) ?? ''),
+                    assets: assetsIncluded.map((asset) => getUrl(asset.file) ?? ''),
                   },
                   metadata: currentBundle.metadata,
                   preferences,
