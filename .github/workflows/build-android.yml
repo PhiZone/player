@@ -58,16 +58,22 @@ jobs:
       - name: Check folder content of Android output
         run: ls ./android/app/build/outputs/bundle/release
 
+      - name: Specify version
+        id: version
+        shell: bash
+        run: echo "VERSION=$(jq -r '.version' package.json)" >> $GITHUB_OUTPUT
+
       - name: Set tag
         id: current-datetime
-        run: echo "CURRENT_DATETIME=$(date +'%Y-%m-%d-%H_%M_%S%z')" >> "$GITHUB_OUTPUT"
+        run: echo "CURRENT_DATETIME=$(date + '%Y-%m-%d-%H_%M_%S%z')" >> "$GITHUB_OUTPUT"
 
       - name: Build release
         shell: bash
         run: |
-          hub release create ${{ steps.current-datetime.outputs.CURRENT_DATETIME }} \
-          -m ${{ steps.current-datetime.outputs.CURRENT_DATETIME }} \
-          -a ./android/app/build/outputs/bundle/release/app-release-signed.aab \
-          -a ./android/app/build/outputs/apk/debug/app-debug.apk
+          gh release create "v${{ steps.version.outputs.VERSION }}" \
+          --title "Release v${{ steps.version.outputs.VERSION }} ${{ steps.current-datetime.outputs.CURRENT_DATETIME }}" \
+          --notes "Automated build ${{ steps.current-datetime.outputs.CURRENT_DATETIME }}" \
+          ./android/app/build/outputs/bundle/release/app-release-signed.aab \
+          ./android/app/build/outputs/apk/debug/app-debug.apk
         env:
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
