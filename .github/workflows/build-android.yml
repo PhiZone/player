@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - defres
+  pull_request:
+    branches:
+      - defres
+  workflow_dispatch:
 
 jobs:
   build:
