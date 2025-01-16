@@ -1,5 +1,5 @@
 name: Build Android
-run-name: Build Production-ready Android App 🚀
+run-name: Build for Android
 on:
   push:
     branches:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    name: Build APK
+    name: Build for Android
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source
@@ -27,12 +27,14 @@ jobs:
           node-version: 19.x
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
 
       - name: Install dependencies
         run: pnpm i
 
-      - name: Create Build Folder
+      - name: Create build
         run: pnpm build
 
       # - name: Add android folder if not present
@@ -45,7 +47,7 @@ jobs:
       #   run: npx cap copy
 
       # TODO: Check for folder structure in README for generating splash screen
-      - name: Generate icons and splash screen to android folder
+      - name: Generate icons and splash screen
         run: if [ -d "./resources" ]; then pnpm i -D @capacitor/assets && pnpm capacitor-assets generate --android; fi
 
       - name: Build app bundle
@@ -59,7 +61,7 @@ jobs:
       - name: Sign dev build
         run: jarsigner -keystore android/release.decrypted.jks -storepass "${{ secrets.RELEASE_KEYSTORE_PASSWORD }}" -signedjar ./android/app/build/outputs/bundle/release/app-release-signed.aab ./android/app/build/outputs/bundle/release/app-release.aab release
 
-      - name: Check folder content of android output
+      - name: Check folder content of Android output
         run: ls ./android/app/build/outputs/bundle/release
 
       - name: Set tag
