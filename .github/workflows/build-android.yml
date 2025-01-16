@@ -73,7 +73,7 @@ jobs:
       - name: Build release
         run: |
           gh release create "v${{ steps.version.outputs.VERSION }}" \
-          --title "Release v${{ steps.version.outputs.VERSION }} ${{ steps.current-datetime.outputs.CURRENT_DATETIME }}" \
+          --title "v${{ steps.version.outputs.VERSION }} ${{ steps.current-datetime.outputs.CURRENT_DATETIME }}" \
           --notes "Automated build ${{ steps.current-datetime.outputs.CURRENT_DATETIME }}" \
           ./android/app/build/outputs/bundle/release/app-release-signed.aab \
           ./android/app/build/outputs/apk/debug/app-debug.apk
