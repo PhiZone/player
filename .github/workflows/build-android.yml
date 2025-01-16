@@ -50,6 +50,9 @@ jobs:
       - name: Generate icons and splash screen
         run: if [ -d "./resources" ]; then pnpm i -D @capacitor/assets && pnpm capacitor-assets generate --android; fi
 
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
       - name: Build app bundle
         run: cd android && ./gradlew bundle && ./gradlew assembleDebug
 
