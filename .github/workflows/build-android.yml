@@ -35,18 +35,8 @@ jobs:
         run: pnpm i
 
       - name: Create build
-        run: pnpm build
+        run: pnpm build && pnpm cap update
 
-      # - name: Add android folder if not present
-      #   run: if [ ! -d "./android" ]; then npx cap add android; fi
-
-      # - name: Capacitor update
-      #   run: npx cap update
-
-      # - name: Capacitor copy
-      #   run: npx cap copy
-
-      # TODO: Check for folder structure in README for generating splash screen
       - name: Generate icons and splash screen
         run: if [ -d "./resources" ]; then pnpm i -D @capacitor/assets && pnpm capacitor-assets generate --android; fi
 
