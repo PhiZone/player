@@ -70,7 +70,7 @@ jobs:
         id: current-datetime
         run: |
           echo "CURRENT_DATETIME=$(date +'%m%d-%H%M')" >> "$GITHUB_OUTPUT" && \
-          echo "CURRENT_DATETIME_FULL=$(date +'%Y-%m-%d %H:%M:%S %z')" >> "$GITHUB_OUTPUT"
+          echo "CURRENT_DATETIME_FULL=$(date +'%Y-%m-%d %H:%M:%S (%z)')" >> "$GITHUB_OUTPUT"
 
       - name: Build release
         run: |
