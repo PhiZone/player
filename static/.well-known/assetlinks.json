@@ -1,0 +1,5 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target" : { "namespace": "android_app", "package_name": "cn.phizone.player",
+               "sha256_cert_fingerprints": ["E5:87:E9:83:10:53:72:01:24:7B:06:D1:EF:4D:1B:92:0F:1F:5B:DD:1D:88:8F:34:C7:1A:26:58:F2:D2:84:B2"] }
+}]

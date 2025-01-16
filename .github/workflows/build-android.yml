@@ -9,6 +9,10 @@ on:
       - defres
   workflow_dispatch:
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   build:
     name: Build for Android
@@ -60,15 +64,13 @@ jobs:
 
       - name: Specify version
         id: version
-        shell: bash
         run: echo "VERSION=$(jq -r '.version' package.json)" >> $GITHUB_OUTPUT
 
-      - name: Set tag
+      - name: Specify current time
         id: current-datetime
-        run: echo "CURRENT_DATETIME=$(date + '%Y-%m-%d-%H_%M_%S%z')" >> "$GITHUB_OUTPUT"
+        run: echo "CURRENT_DATETIME=$(date +'%Y%m%d-%H%M%S%z')" >> "$GITHUB_OUTPUT"
 
       - name: Build release
-        shell: bash
         run: |
           gh release create "v${{ steps.version.outputs.VERSION }}" \
           --title "Release v${{ steps.version.outputs.VERSION }} ${{ steps.current-datetime.outputs.CURRENT_DATETIME }}" \
