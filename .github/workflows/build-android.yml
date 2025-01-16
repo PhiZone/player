@@ -68,13 +68,15 @@ jobs:
 
       - name: Specify current time
         id: current-datetime
-        run: echo "CURRENT_DATETIME=$(date +'%Y%m%d-%H%M%S%z')" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "CURRENT_DATETIME=$(date +'%m%d-%H%M')" >> "$GITHUB_OUTPUT" && \
+          echo "CURRENT_DATETIME_FULL=$(date +'%Y-%m-%d %H:%M:%S %z')" >> "$GITHUB_OUTPUT"
 
       - name: Build release
         run: |
           gh release create "v${{ steps.version.outputs.VERSION }}" \
-          --title "Release v${{ steps.version.outputs.VERSION }} ${{ steps.current-datetime.outputs.CURRENT_DATETIME }}" \
-          --notes "Automated build ${{ steps.current-datetime.outputs.CURRENT_DATETIME }}" \
+          --title "v${{ steps.version.outputs.VERSION }} ${{ steps.current-datetime.outputs.CURRENT_DATETIME }}" \
+          --notes "Automated build at ${{ steps.current-datetime.outputs.CURRENT_DATETIME_FULL }}" \
           ./android/app/build/outputs/bundle/release/app-release-signed.aab \
           ./android/app/build/outputs/apk/debug/app-debug.apk
         env:
