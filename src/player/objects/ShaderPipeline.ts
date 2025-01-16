@@ -125,7 +125,7 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
           .filter((key) => key !== this.name)
           .some((key) => this._container!.occupied[key])
       ) {
-        console.log('Removing targets from', this.name);
+        console.debug('Removing targets from', this.name);
         this._container.object.removeAll();
         this._targets.forEach((target) => {
           target.occupied[this.name] = false;
@@ -154,12 +154,12 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
           }
         })
         .sort((a, b) => a.depth - b.depth);
-      console.log('Adding targets to', this.name);
+      console.debug('Adding targets to', this.name);
       this._targets.forEach((target) => {
         target.occupied[this.name] = true;
         this._container?.object.add(target.object);
       });
-      console.log(this._targets);
+      console.debug(this._targets);
     }
     // if (!this.currentShader) {
     //   console.warn(

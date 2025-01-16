@@ -15,7 +15,7 @@ export class Video extends GameObjects.Container {
   private _shouldPlay: boolean = false;
   private _isPlaying: boolean = false;
 
-  constructor(scene: Game, data: VideoType, successCallback: () => void) {
+  constructor(scene: Game, data: VideoType, callback: (success: boolean) => void) {
     super(scene, 0, 0);
     this._scene = scene;
     this._data = data;
@@ -30,17 +30,18 @@ export class Video extends GameObjects.Container {
     this._video.on('metadata', () => {
       this._data.startTimeSec = getTimeSec(scene.bpmList, toBeats(this._data.time));
       this._data.endTimeSec = this._data.startTimeSec + this._video.getDuration();
-      // console.log('Video metadata loaded', this._data);
     });
-    // this._video.on('unsupported', (_, e) => {
-    //   console.log('Unsupported video format', e);
-    // });
-    // this._video.on('unlocked', (_, e) => {
+    this._video.on('unsupported', (_: never, e: never) => {
+      console.warn('Unsupported format for video', data.path, e);
+      callback(false);
+    });
+    // this._video.on('unlocked', (_: never, e: never) => {
     //   console.log('Unlocked', e);
     // });
-    // this._video.on('error', (_, e) => {
-    //   console.log('Errored', e);
-    // });
+    this._video.on('error', (_: never, e: never) => {
+      console.error('An error occurred whilst loading video', data.path, e);
+      callback(false);
+    });
     // this._video.on('timeout', () => {
     //   console.log('Timed out');
     // });
@@ -72,7 +73,6 @@ export class Video extends GameObjects.Container {
     //   console.log('Stopped');
     // });
     this._video.on('textureready', () => {
-      // console.log('Texture ready');
       this._overlay = new GameObjects.Rectangle(
         scene,
         0,
@@ -99,7 +99,7 @@ export class Video extends GameObjects.Container {
         this.setDepth(data.zIndex !== undefined ? data.zIndex : 1);
         scene.register(this);
         this._ready = true;
-        successCallback();
+        callback(true);
       }, 100);
     });
   }

@@ -21,6 +21,8 @@ Designed with [Preline UI](https://preline.co) and [daisyUI](https://daisyui.com
 
 Choose either some files (or .zip/.pez archives) or an entire folder, and chart bundles will be automatically detected according to Re: PhiEdit (or RPE) metadata files (typically named `info.txt`) in which a chart, a song, and an illustration are specified. Any other files that fail to be recognized, which are most likely multimedia that will be referenced by the chart, or the `extra.json` from Phira, will be presented in the assets.
 
+Additionally, the program can automatically download files from URLs specified in the `zip` and `file` search parameters. A `zip` parameter should be provided a URL to a zip archive, while a `file` parameter should be provided a URL to a regular file.
+
 ### Innovative keyboard controls
 
 Similar to a video player, the program includes handy keyboard controls on autoplay mode:

@@ -137,7 +137,7 @@ export const haveSameKeys = (obj1: object, obj2: object): boolean => {
   return JSON.stringify(keys1) === JSON.stringify(keys2);
 };
 
-export const inferLevelType = (level: string | null): 0 | 1 | 2 | 3 => {
+export const inferLevelType = (level: string | null): 0 | 1 | 2 | 3 | 4 => {
   if (!level) return 2;
   level = level.toLowerCase();
   if (level.includes(' ')) {
@@ -146,6 +146,7 @@ export const inferLevelType = (level: string | null): 0 | 1 | 2 | 3 => {
   if (['ez', 'easy'].includes(level)) return 0;
   if (['hd', 'easy'].includes(level)) return 1;
   if (['at', 'another'].includes(level)) return 3;
+  if (['sp', 'special'].includes(level)) return 4;
   return 2;
 };
 
@@ -164,7 +165,7 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
   const illustrator = searchParams.get('illustrator');
   const level = searchParams.get('level');
   const levelType =
-    (clamp(parseInt(searchParams.get('levelType') ?? '2'), 0, 3) as 0 | 1 | 2 | 3) ??
+    (clamp(parseInt(searchParams.get('levelType') ?? '2'), 0, 4) as 0 | 1 | 2 | 3 | 4) ??
     inferLevelType(level);
   const difficulty = searchParams.get('difficulty');
 
@@ -199,6 +200,7 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
   const record = ['1', 'true'].some((v) => v == searchParams.get('record'));
   const autostart = ['1', 'true'].some((v) => v == searchParams.get('autostart'));
   const newTab = ['1', 'true'].some((v) => v == searchParams.get('newTab'));
+  const inApp = parseInt(searchParams.get('inApp') ?? '0');
   if (!song || !chart || !illustration || assetNames.length < assets.length) {
     if (!loadFromStorage) return null;
     const storageItem = localStorage.getItem('player');
@@ -252,6 +254,7 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
     record,
     autostart,
     newTab,
+    inApp,
   };
 };
 

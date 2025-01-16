@@ -11,6 +11,7 @@ export interface Config {
   record: boolean;
   autostart: boolean;
   newTab: boolean;
+  inApp: number;
 }
 
 export interface Resources {
