@@ -1,5 +1,5 @@
-name: Publish Debug
-run-name: Publish debug builds
+name: Publish with Debug
+run-name: Publish builds with debug targets
 on:
   push:
     branches:
@@ -45,13 +45,13 @@ jobs:
       matrix:
         include:
           - platform: 'macos-latest' # for Arm based macs (M1 and above).
-            args: '--target aarch64-apple-darwin --debug'
+            args: '--target aarch64-apple-darwin'
           - platform: 'macos-latest' # for Intel based macs.
-            args: '--target x86_64-apple-darwin --debug'
+            args: '--target x86_64-apple-darwin'
           - platform: 'ubuntu-22.04' # for Tauri v1 you could replace this with ubuntu-20.04.
-            args: '--debug'
+            args: ''
           - platform: 'windows-latest'
-            args: '--debug'
+            args: ''
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -100,7 +100,7 @@ jobs:
   publish-capacitor-android:
     name: Build for Android
     runs-on: ubuntu-latest
-    needs: metadata
+    needs: [metadata, publish-tauri]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
