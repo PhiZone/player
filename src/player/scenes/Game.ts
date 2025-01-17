@@ -681,10 +681,13 @@ export class Game extends Scene {
     const signalHandler = new SignalHandler(this._extra.videos.length);
     this._videos = this._extra.videos.map(
       (data) =>
-        new Video(this, data, (success: boolean) => {
+        new Video(this, data, (errorMsg?: string, exception?: DOMException | string) => {
           signalHandler.emit();
-          if (!success) {
-            alert(`Failed to load video ${data.path}. See console for details.`);
+          if (errorMsg) {
+            if (exception) {
+              console.error(errorMsg, exception);
+            }
+            alert(errorMsg);
           }
         }),
     );

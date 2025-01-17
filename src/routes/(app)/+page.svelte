@@ -11,6 +11,8 @@
     getParams,
     haveSameKeys,
     inferLevelType,
+    IS_ANDROID_OR_IOS,
+    IS_IOS,
     IS_TAURI,
     isZip,
   } from '../../player/utils';
@@ -171,7 +173,7 @@
       if (toggles.inApp === 0) {
         modal.showModal();
       } else if (toggles.inApp === 1) {
-        window.open(`phizone-player://${$page.url.search}`);
+        window.open(`${IS_ANDROID_OR_IOS ? '/app' : 'phizone-player://'}${$page.url.search}`);
       } else {
         handleParamFiles($page.url.searchParams);
       }
@@ -631,7 +633,9 @@
             <button
               class="inline-flex justify-center items-center gap-x-3 text-center bg-gradient-to-tl from-blue-500 via-violet-500 to-fuchsia-500 dark:from-blue-700 dark:via-violet-700 dark:to-fuchsia-700 text-white text-sm font-medium rounded-md focus:outline-none py-3 px-4 transition-all duration-300 bg-size-200 bg-pos-0 hover:bg-pos-100"
               on:click={() => {
-                window.open(`phizone-player://${$page.url.search}`);
+                window.open(
+                  `${IS_ANDROID_OR_IOS ? '/app' : 'phizone-player://'}${$page.url.search}`,
+                );
                 if (modalMem) {
                   toggles.inApp = 1;
                   localStorage.setItem('toggles', JSON.stringify(toggles));
@@ -688,7 +692,7 @@
         <input
           type="file"
           multiple
-          accept={Capacitor.getPlatform() === 'ios'
+          accept={IS_IOS || Capacitor.getPlatform() === 'ios'
             ? null
             : '.pez,.yml,.yaml,.shader,.glsl,.frag,.fsh,.fs,application/zip,application/json,image/*,video/*,audio/*,text/*'}
           class="file-input file-input-bordered w-full max-w-xs file:btn dark:file:btn-neutral file:no-animation border-gray-200 rounded-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 dark:border-neutral-700 dark:text-neutral-300 dark:focus:ring-neutral-600"

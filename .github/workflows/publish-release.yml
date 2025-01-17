@@ -66,13 +66,13 @@ jobs:
         run: pnpm i
 
       - name: Create build
-        run: pnpm build && pnpm cap update
+        run: pnpm build
 
       - name: Generate icons and splash screen
         run: if [ -d "./resources" ]; then pnpm i -D @capacitor/assets && pnpm capacitor-assets generate --android; fi
 
       - name: Build app bundle
-        run: cd android && chmod +x ./gradlew && ./gradlew bundle && ./gradlew assembleRelease
+        run: cd android && chmod +x ./gradlew && ./gradlew bundle && ./gradlew assemble
 
       - name: Decode Android signing key
         run: |
@@ -82,15 +82,20 @@ jobs:
       - name: Sign builds
         run: |
           jarsigner -keystore android/release.decoded.jks -storepass "${{ secrets.RELEASE_KEYSTORE_PASSWORD }}" -signedjar ./android/app/build/outputs/bundle/release/PhiZone.Player_${{ needs.metadata.outputs.version }}_arm64-signed.aab ./android/app/build/outputs/bundle/release/app-release.aab release
-          jarsigner -keystore android/release.decoded.jks -storepass "${{ secrets.RELEASE_KEYSTORE_PASSWORD }}" -signedjar ./android/app/build/outputs/apk/release/PhiZone.Player_${{ needs.metadata.outputs.version }}_arm64.apk ./android/app/build/outputs/apk/release/app-release-unsigned.apk release
 
+      - name: Rename build file
+        run: |
+          mv ./android/app/build/outputs/apk/debug/app-debug.apk ./android/app/build/outputs/apk/debug/PhiZone.Player_${{ needs.metadata.outputs.version }}_arm64.apk
+          mv ./android/app/build/outputs/apk/release/app-release-unsigned.apk ./android/app/build/outputs/apk/release/PhiZone.Player_${{ needs.metadata.outputs.version }}_arm64-unsigned.apk
+  
       - name: Publish release
         run: |
           gh release create "v${{ needs.metadata.outputs.version }}" \
           --title "v${{ needs.metadata.outputs.version }}" \
           --notes "See the assets for downloads." --draft \
           ./android/app/build/outputs/bundle/release/PhiZone.Player_${{ needs.metadata.outputs.version }}_arm64-signed.aab \
-          ./android/app/build/outputs/apk/release/PhiZone.Player_${{ needs.metadata.outputs.version }}_arm64.apk
+          ./android/app/build/outputs/apk/release/PhiZone.Player_${{ needs.metadata.outputs.version }}_arm64-unsigned.apk \
+          ./android/app/build/outputs/apk/debug/PhiZone.Player_${{ needs.metadata.outputs.version }}_arm64.apk
         env:
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
 
