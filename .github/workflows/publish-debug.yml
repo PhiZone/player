@@ -39,6 +39,8 @@ jobs:
     name: Build for Android
     runs-on: ubuntu-22.04
     needs: metadata
+    permissions:
+      contents: write
     steps:
       - name: Confirm build version and datetime
         run: |
@@ -81,10 +83,10 @@ jobs:
       - name: Decode Android signing key
         run: |
           echo "${{ secrets.RELEASE_KEYSTORE }}" > android/release.jks.base64
-          base64 -d android/release.jks.base64 > android/release.decrypted.jks
+          base64 -d android/release.jks.base64 > android/release.decoded.jks
 
-      - name: Sign dev build
-        run: jarsigner -keystore android/release.decrypted.jks -storepass "${{ secrets.RELEASE_KEYSTORE_PASSWORD }}" -signedjar ./android/app/build/outputs/bundle/release/app-release-signed.aab ./android/app/build/outputs/bundle/release/app-release.aab release
+      - name: Sign build
+        run: jarsigner -keystore android/release.decoded.jks -storepass "${{ secrets.RELEASE_KEYSTORE_PASSWORD }}" -signedjar ./android/app/build/outputs/bundle/release/app-release-signed.aab ./android/app/build/outputs/bundle/release/app-release.aab release
 
       - name: Rename build files
         run: |
@@ -95,7 +97,7 @@ jobs:
         run: |
           gh release create "v${{ needs.metadata.outputs.version }}_${{ needs.metadata.outputs.current-datetime }}" \
           --title "v${{ needs.metadata.outputs.version }} ${{ needs.metadata.outputs.current-datetime }}" \
-          --notes "Automated release with debug builds. See the assets for downloads." \
+          --notes "Automated release with debug builds. See the assets for downloads." --prerelease \
           ./android/app/build/outputs/bundle/release/PhiZone.Player_${{ needs.metadata.outputs.version }}_arm64-signed.aab \
           ./android/app/build/outputs/apk/debug/PhiZone.Player_${{ needs.metadata.outputs.version }}_arm64-debug.apk
         env:
@@ -151,7 +153,7 @@ jobs:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || (matrix.platform == 'windows-latest' && 'aarch64-pc-windows-msvc' || '') }}
 
       - name: Install dependencies (Ubuntu only)
-        if: matrix.platform == 'ubuntu-22.04' # This must match the platform value defined above.
+        if: startsWith(matrix.platform, 'ubuntu-')
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
@@ -163,13 +165,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
         with:
-          # includeDebug: ${{ matrix.platform == 'ubuntu-22.04' && 'false' || 'true' }}
-          includeDebug: true
           tagName: v${{ needs.metadata.outputs.version }}_${{ needs.metadata.outputs.current-datetime }} # the action automatically replaces \_\_VERSION\_\_ with the app version.
           releaseName: 'v${{ needs.metadata.outputs.version }} ${{ needs.metadata.outputs.current-datetime }}'
           # releaseBody: |
           #   Automated release with debug builds. See the assets for downloads.
           #   *Debug builds for Linux are not included due to unexpectedly lengthy packaging times.*
+          # includeDebug: ${{ matrix.platform == 'ubuntu-22.04' && 'false' || 'true' }}
           releaseBody: 'Automated release with debug builds. See the assets for downloads.'
+          includeDebug: true
           prerelease: true
           args: ${{ matrix.args }}
