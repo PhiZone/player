@@ -36,13 +36,14 @@ export class Video extends GameObjects.Container {
       this._data.endTimeSec = this._data.startTimeSec + this._video.getDuration();
     });
     this._video.on('unsupported', (_: never, e: DOMException | string) => {
-      callback('Unsupported format for video' + data.path, e);
+      callback('Unsupported format for video ' + data.path, e);
     });
     // this._video.on('unlocked', (_: never, e: never) => {
     //   console.log('Unlocked', e);
     // });
     this._video.on('error', (_: never, e: DOMException | string) => {
-      callback('An error occurred whilst loading video' + data.path, e);
+      if (typeof e === 'string' && e.startsWith('AbortError')) return;
+      callback('An error occurred whilst loading video ' + data.path, e);
     });
     // this._video.on('timeout', () => {
     //   console.log('Timed out');
