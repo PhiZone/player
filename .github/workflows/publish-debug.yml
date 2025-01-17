@@ -16,7 +16,7 @@ defaults:
 jobs:
   metadata:
     name: Retrieve metadata
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -82,7 +82,7 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || (matrix.platform == 'ubuntu-latest' && 'aarch64-unknown-linux-gnu' || (matrix.platform == 'windows-latest' && 'aarch64-pc-windows-msvc' || '')) }}
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || (matrix.platform == 'ubuntu-22.04' && 'aarch64-unknown-linux-gnu' || (matrix.platform == 'windows-latest' && 'aarch64-pc-windows-msvc' || '')) }}
 
       - name: Install dependencies (Ubuntu only)
         if: matrix.platform == 'ubuntu-22.04' # This must match the platform value defined above.
@@ -110,7 +110,7 @@ jobs:
 
   publish-capacitor-android:
     name: Build for Android
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: [metadata, publish-tauri]
     steps:
       - name: Confirm build version and datetime
