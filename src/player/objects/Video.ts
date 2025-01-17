@@ -15,7 +15,11 @@ export class Video extends GameObjects.Container {
   private _shouldPlay: boolean = false;
   private _isPlaying: boolean = false;
 
-  constructor(scene: Game, data: VideoType, callback: (success: boolean) => void) {
+  constructor(
+    scene: Game,
+    data: VideoType,
+    callback: (errorMsg?: string, exception?: DOMException | string) => void,
+  ) {
     super(scene, 0, 0);
     this._scene = scene;
     this._data = data;
@@ -31,16 +35,14 @@ export class Video extends GameObjects.Container {
       this._data.startTimeSec = getTimeSec(scene.bpmList, toBeats(this._data.time));
       this._data.endTimeSec = this._data.startTimeSec + this._video.getDuration();
     });
-    this._video.on('unsupported', (_: never, e: never) => {
-      console.warn('Unsupported format for video', data.path, e);
-      callback(false);
+    this._video.on('unsupported', (_: never, e: DOMException | string) => {
+      callback('Unsupported format for video' + data.path, e);
     });
     // this._video.on('unlocked', (_: never, e: never) => {
     //   console.log('Unlocked', e);
     // });
-    this._video.on('error', (_: never, e: never) => {
-      console.error('An error occurred whilst loading video', data.path, e);
-      callback(false);
+    this._video.on('error', (_: never, e: DOMException | string) => {
+      callback('An error occurred whilst loading video' + data.path, e);
     });
     // this._video.on('timeout', () => {
     //   console.log('Timed out');
@@ -99,7 +101,7 @@ export class Video extends GameObjects.Container {
         this.setDepth(data.zIndex !== undefined ? data.zIndex : 1);
         scene.register(this);
         this._ready = true;
-        callback(true);
+        callback();
       }, 100);
     });
   }
