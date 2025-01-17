@@ -25,11 +25,11 @@ jobs:
 
       - name: Specify version
         id: version
-        run: echo "VERSION=$(jq -r '.version' package.json)" >> $GITHUB_ENV
+        run: echo "VERSION=$(jq -r '.version' package.json)" >> $GITHUB_OUTPUT
 
       - name: Specify current datetime
         id: current-datetime
-        run: echo "CURRENT_DATETIME=$(date +'%m%d-%H%M%S')" >> "$GITHUB_ENV"
+        run: echo "CURRENT_DATETIME=$(date +'%m%d-%H%M%S')" >> $GITHUB_OUTPUT
 
     outputs:
       version: ${{ steps.version.outputs.VERSION }}
@@ -143,8 +143,10 @@ jobs:
       - name: Sign dev build
         run: jarsigner -keystore android/release.decrypted.jks -storepass "${{ secrets.RELEASE_KEYSTORE_PASSWORD }}" -signedjar ./android/app/build/outputs/bundle/release/app-release-signed.aab ./android/app/build/outputs/bundle/release/app-release.aab release
 
-      - name: Check folder content of Android output
-        run: ls ./android/app/build/outputs/bundle/release
+      - name: Rename build files
+        run: |
+          mv ./android/app/build/outputs/bundle/release/app-release-signed.aab ./android/app/build/outputs/bundle/release/PhiZone.Player_${{ needs.metadata.outputs.version }}_arm64-signed.aab
+          mv ./android/app/build/outputs/apk/debug/app-debug.apk ./android/app/build/outputs/apk/debug/PhiZone.Player_${{ needs.metadata.outputs.version }}_arm64-debug.apk
 
       - name: Build release
         run: |
