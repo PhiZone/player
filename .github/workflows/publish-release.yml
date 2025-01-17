@@ -1,0 +1,165 @@
+name: Publish
+run-name: Publish release builds
+on:
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  metadata:
+    name: Retrieve metadata
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: defres
+
+      - name: Specify version
+        id: version
+        run: echo "VERSION=$(jq -r '.version' package.json)" >> $GITHUB_OUTPUT
+
+      - name: Specify current datetime
+        id: current-datetime
+        run: echo "CURRENT_DATETIME=$(date +'%m%d-%H%M%S')" >> $GITHUB_OUTPUT
+
+    outputs:
+      version: ${{ steps.version.outputs.VERSION }}
+      current-datetime: ${{ steps.current-datetime.outputs.CURRENT_DATETIME }}
+
+  publish-capacitor-android:
+    name: Build for Android
+    runs-on: ubuntu-22.04
+    needs: metadata
+    permissions:
+      contents: write
+    steps:
+      - name: Confirm build version and datetime
+        run: |
+          echo "Version: ${{ needs.metadata.outputs.version }}"
+          echo "Build datetime: ${{ needs.metadata.outputs.current-datetime }}"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: defres
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Install dependencies
+        run: pnpm i
+
+      - name: Create build
+        run: pnpm build && pnpm cap update
+
+      - name: Generate icons and splash screen
+        run: if [ -d "./resources" ]; then pnpm i -D @capacitor/assets && pnpm capacitor-assets generate --android; fi
+
+      - name: Build app bundle
+        run: cd android && chmod +x ./gradlew && ./gradlew bundle && ./gradlew assembleRelease
+
+      - name: Decode Android signing key
+        run: |
+          echo "${{ secrets.RELEASE_KEYSTORE }}" > android/release.jks.base64
+          base64 -d android/release.jks.base64 > android/release.decoded.jks
+
+      - name: Sign build
+        run: jarsigner -keystore android/release.decoded.jks -storepass "${{ secrets.RELEASE_KEYSTORE_PASSWORD }}" -signedjar ./android/app/build/outputs/bundle/release/app-release-signed.aab ./android/app/build/outputs/bundle/release/app-release.aab release
+
+      - name: Rename build files
+        run: |
+          mv ./android/app/build/outputs/bundle/release/app-release-signed.aab ./android/app/build/outputs/bundle/release/PhiZone.Player_${{ needs.metadata.outputs.version }}_arm64-signed.aab
+          mv ./android/app/build/outputs/apk/release/app-release.apk ./android/app/build/outputs/apk/release/PhiZone.Player_${{ needs.metadata.outputs.version }}_arm64.apk
+
+      - name: Build release
+        run: |
+          gh release create "v${{ needs.metadata.outputs.version }}" \
+          --title "v${{ needs.metadata.outputs.version }}" \
+          --notes "See the assets for downloads." --draft \
+          ./android/app/build/outputs/bundle/release/PhiZone.Player_${{ needs.metadata.outputs.version }}_arm64-signed.aab \
+          ./android/app/build/outputs/apk/release/PhiZone.Player_${{ needs.metadata.outputs.version }}_arm64.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+
+  publish-tauri:
+    name: Build with Tauri
+    needs: [metadata, publish-capacitor-android]
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'ubuntu-22.04'
+            args: ''
+          - platform: 'ubuntu-22.04-arm'
+            args: ''
+          - platform: 'windows-latest'
+            args: ''
+          - platform: 'windows-latest'
+            args: '--target aarch64-pc-windows-msvc'
+          - platform: 'macos-latest'
+            args: '--target aarch64-apple-darwin'
+          - platform: 'macos-latest'
+            args: '--target x86_64-apple-darwin'
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Confirm build version and datetime
+        run: |
+          echo "Version: ${{ needs.metadata.outputs.version }}"
+          echo "Build datetime: ${{ needs.metadata.outputs.current-datetime }}"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: defres
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || (matrix.platform == 'windows-latest' && 'aarch64-pc-windows-msvc' || '') }}
+
+      - name: Install dependencies (Ubuntu only)
+        if: startsWith(matrix.platform, 'ubuntu-')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Install frontend dependencies
+        run: pnpm i
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+        with:
+          tagName: v${{ needs.metadata.outputs.version }}
+          releaseName: 'v${{ needs.metadata.outputs.version }}'
+          releaseBody: 'See the assets for downloads.'
+          args: ${{ matrix.args }}
