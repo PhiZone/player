@@ -90,7 +90,7 @@ jobs:
           --title "v${{ needs.metadata.outputs.version }}" \
           --notes "See the assets for downloads." --draft \
           ./android/app/build/outputs/bundle/release/PhiZone.Player_${{ needs.metadata.outputs.version }}_arm64-signed.aab \
-          ./android/app/build/outputs/apk/debug/PhiZone.Player_${{ needs.metadata.outputs.version }}_arm64.apk
+          ./android/app/build/outputs/apk/release/PhiZone.Player_${{ needs.metadata.outputs.version }}_arm64.apk
         env:
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
 
