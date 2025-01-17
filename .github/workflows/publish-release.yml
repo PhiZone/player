@@ -1,12 +1,6 @@
-name: Publish with Debug
-run-name: Publish builds with debug targets
+name: Publish
+run-name: Publish release builds
 on:
-  push:
-    branches:
-      - defres
-  pull_request:
-    branches:
-      - defres
   workflow_dispatch:
 
 defaults:
@@ -78,7 +72,7 @@ jobs:
         run: if [ -d "./resources" ]; then pnpm i -D @capacitor/assets && pnpm capacitor-assets generate --android; fi
 
       - name: Build app bundle
-        run: cd android && chmod +x ./gradlew && ./gradlew bundle && ./gradlew assembleDebug
+        run: cd android && chmod +x ./gradlew && ./gradlew bundle && ./gradlew assembleRelease
 
       - name: Decode Android signing key
         run: |
@@ -91,15 +85,15 @@ jobs:
       - name: Rename build files
         run: |
           mv ./android/app/build/outputs/bundle/release/app-release-signed.aab ./android/app/build/outputs/bundle/release/PhiZone.Player_${{ needs.metadata.outputs.version }}_arm64-signed.aab
-          mv ./android/app/build/outputs/apk/debug/app-debug.apk ./android/app/build/outputs/apk/debug/PhiZone.Player_${{ needs.metadata.outputs.version }}_arm64-debug.apk
+          mv ./android/app/build/outputs/apk/release/app-release.apk ./android/app/build/outputs/apk/release/PhiZone.Player_${{ needs.metadata.outputs.version }}_arm64.apk
 
       - name: Build release
         run: |
-          gh release create "v${{ needs.metadata.outputs.version }}_${{ needs.metadata.outputs.current-datetime }}" \
-          --title "v${{ needs.metadata.outputs.version }} ${{ needs.metadata.outputs.current-datetime }}" \
-          --notes "Automated release with debug builds. See the assets for downloads." --prerelease \
+          gh release create "v${{ needs.metadata.outputs.version }}" \
+          --title "v${{ needs.metadata.outputs.version }}" \
+          --notes "See the assets for downloads." --draft \
           ./android/app/build/outputs/bundle/release/PhiZone.Player_${{ needs.metadata.outputs.version }}_arm64-signed.aab \
-          ./android/app/build/outputs/apk/debug/PhiZone.Player_${{ needs.metadata.outputs.version }}_arm64-debug.apk
+          ./android/app/build/outputs/apk/release/PhiZone.Player_${{ needs.metadata.outputs.version }}_arm64.apk
         env:
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
 
@@ -165,13 +159,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
         with:
-          tagName: v${{ needs.metadata.outputs.version }}_${{ needs.metadata.outputs.current-datetime }} # the action automatically replaces \_\_VERSION\_\_ with the app version.
-          releaseName: 'v${{ needs.metadata.outputs.version }} ${{ needs.metadata.outputs.current-datetime }}'
-          # releaseBody: |
-          #   Automated release with debug builds. See the assets for downloads.
-          #   *Debug builds for Linux are not included due to unexpectedly lengthy packaging times.*
-          # includeDebug: ${{ matrix.platform == 'ubuntu-22.04' && 'false' || 'true' }}
-          releaseBody: 'Automated release with debug builds. See the assets for downloads.'
-          includeDebug: true
-          prerelease: true
+          tagName: v${{ needs.metadata.outputs.version }}
+          releaseName: 'v${{ needs.metadata.outputs.version }}'
+          releaseBody: 'See the assets for downloads.'
           args: ${{ matrix.args }}
