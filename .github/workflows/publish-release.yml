@@ -80,13 +80,9 @@ jobs:
           base64 -d android/release.jks.base64 > android/release.decoded.jks
 
       - name: Sign build
-        run: jarsigner -keystore android/release.decoded.jks -storepass "${{ secrets.RELEASE_KEYSTORE_PASSWORD }}" -signedjar ./android/app/build/outputs/bundle/release/app-release-signed.aab ./android/app/build/outputs/bundle/release/app-release.aab release
-
-      - name: Rename build files
         run: |
-          tree ./android/app/build/outputs
-          mv ./android/app/build/outputs/bundle/release/app-release-signed.aab ./android/app/build/outputs/bundle/release/PhiZone.Player_${{ needs.metadata.outputs.version }}_arm64-signed.aab
-          mv ./android/app/build/outputs/apk/debug/app-debug.apk ./android/app/build/outputs/apk/debug/PhiZone.Player_${{ needs.metadata.outputs.version }}_arm64.apk
+          jarsigner -keystore android/release.decoded.jks -storepass "${{ secrets.RELEASE_KEYSTORE_PASSWORD }}" -signedjar ./android/app/build/outputs/bundle/release/PhiZone.Player_${{ needs.metadata.outputs.version }}_arm64-signed.aab ./android/app/build/outputs/bundle/release/app-release.aab release
+          jarsigner -keystore android/release.decoded.jks -storepass "${{ secrets.RELEASE_KEYSTORE_PASSWORD }}" -signedjar ./android/app/build/outputs/apk/release/PhiZone.Player_${{ needs.metadata.outputs.version }}_arm64.apk ./android/app/build/outputs/apk/release/app-release-unsigned.apk release
 
       - name: Build release
         run: |
