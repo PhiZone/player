@@ -4,7 +4,7 @@
   const distributions = [
     {
       title: 'Windows',
-      subtitle: 'Architecture: x86-64',
+      subtitle: 'Architecture: x64',
       description:
         'Desktop distribution via Tauri. Provides exclusive features (e.g. streaming mode).',
       href: '#',
