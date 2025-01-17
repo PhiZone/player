@@ -42,7 +42,7 @@ export class Video extends GameObjects.Container {
     //   console.log('Unlocked', e);
     // });
     this._video.on('error', (_: never, e: DOMException | string) => {
-      if (typeof e === 'string' && e.startsWith('AbortError')) return;
+      if (e.toString().startsWith('AbortError')) return;
       callback('An error occurred whilst loading video ' + data.path, e);
     });
     // this._video.on('timeout', () => {
