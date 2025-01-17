@@ -110,7 +110,7 @@ jobs:
 
   publish-capacitor-android:
     name: Build for Android
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: [metadata, publish-tauri]
     steps:
       - name: Confirm build version and datetime
