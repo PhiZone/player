@@ -213,7 +213,7 @@ export class JudgmentHandler {
       if (!note.consumeTap || note.hasTapInput || note.judgmentType !== JudgmentType.UNJUDGED) {
         continue;
       }
-      const distance = input
+      const distanceRelative = input
         ? (Phaser.Math.Distance.BetweenPoints(
             note.judgmentPosition,
             getJudgmentPosition(input, note.line),
@@ -221,7 +221,11 @@ export class JudgmentHandler {
             1350) /
           this._scene.sys.canvas.width
         : Infinity;
-      if (distance > threshold) {
+      const distanceActual = input
+        ? (Phaser.Math.Distance.BetweenPoints(note.judgmentPosition, input.position) * 1350) /
+          this._scene.sys.canvas.width
+        : Infinity;
+      if (distanceRelative > threshold) {
         if (input) {
           this._scene.tweens.add({
             targets: [
@@ -260,14 +264,14 @@ export class JudgmentHandler {
       }
       if (
         minBeat > note.note.startBeat ||
-        (equal(minBeat, note.note.startBeat) && minDistance > distance) ||
+        (equal(minBeat, note.note.startBeat) && minDistance > distanceActual) ||
         (equal(minBeat, note.note.startBeat) &&
-          equal(minDistance, distance) &&
+          equal(minDistance, distanceActual) &&
           minType > note.note.type)
       ) {
         nearestNote = note;
         minBeat = note.note.startBeat;
-        minDistance = distance;
+        minDistance = distanceActual;
         minType = note.note.type;
         note.setTint(0x0077ff);
       }
