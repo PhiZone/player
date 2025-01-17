@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "7VMT2FDAR8.cn.phizone.player",
+        "paths": ["*"]
+      }
+    ]
+  }
+}
