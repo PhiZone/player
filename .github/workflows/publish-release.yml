@@ -66,7 +66,7 @@ jobs:
         run: pnpm i
 
       - name: Create build
-        run: pnpm build && pnpm cap update
+        run: pnpm build
 
       - name: Generate icons and splash screen
         run: if [ -d "./resources" ]; then pnpm i -D @capacitor/assets && pnpm capacitor-assets generate --android; fi
