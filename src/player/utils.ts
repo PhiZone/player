@@ -28,7 +28,7 @@ import { ENDING_ILLUSTRATION_CORNER_RADIUS } from './constants';
 import { parseGIF, decompressFrames, type ParsedFrame } from 'gifuct-js';
 import { dot, gcd } from 'mathjs';
 import { fileTypeFromBlob } from 'file-type';
-import parseAPNG, { Frame } from 'apng-js';
+import parseAPNG, { type Frame } from 'apng-js';
 import { fixWebmDuration } from '@fix-webm-duration/fix';
 import { AndroidFullScreen } from '@awesome-cordova-plugins/android-full-screen';
 import { Capacitor } from '@capacitor/core';
