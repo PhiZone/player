@@ -4,9 +4,13 @@ on:
   push:
     branches:
       - defres
+    paths:
+      - 'src/**'
   pull_request:
     branches:
       - defres
+    paths:
+      - 'src/**'
   workflow_dispatch:
 
 defaults:
