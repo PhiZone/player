@@ -55,6 +55,11 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
     steps:
+      - name: Confirm build version and datetime
+        run: |
+          echo "Version: ${{ needs.metadata.outputs.version }}"
+          echo "Build datetime: ${{ needs.metadata.outputs.current-datetime }}"
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -102,6 +107,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: [metadata, publish-tauri]
     steps:
+      - name: Confirm build version and datetime
+        run: |
+          echo "Version: ${{ needs.metadata.outputs.version }}"
+          echo "Build datetime: ${{ needs.metadata.outputs.current-datetime }}"
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
