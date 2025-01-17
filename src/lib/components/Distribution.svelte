@@ -2,7 +2,7 @@
   export let data: {
     title: string;
     subtitle: string;
-    description: string;
+    description: string | undefined;
     href: string;
     color: string;
     fa: string;
@@ -23,9 +23,11 @@
     <p class="text-xs font-medium text-gray-500 dark:text-neutral-500">
       {data.subtitle}
     </p>
-    <p class="mt-2 text-gray-500 dark:text-neutral-400">
-      {data.description}
-    </p>
+    {#if data.description}
+      <p class="mt-2 text-gray-500 dark:text-neutral-400">
+        {data.description}
+      </p>
+    {/if}
   </div>
 </a>
 

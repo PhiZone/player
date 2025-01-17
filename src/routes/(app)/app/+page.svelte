@@ -1,4 +1,5 @@
 <script>
+  import { REPO_LINK } from '$lib';
   import Distribution from '$lib/components/Distribution.svelte';
 
   const distributions = [
@@ -17,8 +18,17 @@
       description:
         'Desktop distribution via Tauri. Provides exclusive features (e.g. streaming mode).',
       href: '#',
-      color: 'orange-500',
+      color: 'lime-500',
       fa: 'apple',
+    },
+    {
+      title: 'Linux',
+      subtitle: 'Architecture: x64',
+      description:
+        'Desktop distribution via Tauri. Provides exclusive features (e.g. streaming mode).',
+      href: '#',
+      color: 'amber-500',
+      fa: 'linux',
     },
     {
       title: 'Android',
@@ -37,6 +47,15 @@
       href: '#',
       color: 'violet-500',
       fa: 'app-store',
+    },
+    {
+      title: 'Other distributions',
+      subtitle: 'Available on GitHub',
+      description:
+        'ARM64 distributions for Linux and Windows, x64 for Intel Macs, debug builds, etc.',
+      href: '#',
+      color: 'slate-500',
+      fa: 'github',
     },
   ];
 </script>
@@ -63,7 +82,7 @@
   </p>
 </div>
 
-<div class="mt-3 grid grid-cols-2 gap-2 max-w-3xl mx-auto">
+<div class="mt-3 grid grid-cols-2 md:grid-cols-3 gap-2 max-w-6xl mx-auto">
   {#each distributions as data}
     <Distribution {data} />
   {/each}

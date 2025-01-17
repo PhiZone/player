@@ -1,6 +1,5 @@
 <script>
-  const VERSION = '0.0.8';
-  const REPO_LINK = 'https://github.com/PhiZone/player';
+  import { REPO_LINK, VERSION } from '$lib';
 </script>
 
 <div
@@ -39,10 +38,15 @@
 </div>
 
 <div class="hover:border-blue-500 hover:text-blue-500" hidden></div>
-<div class="hover:border-orange-500 hover:text-orange-500" hidden></div>
+<div class="hover:border-lime-500 hover:text-lime-500" hidden></div>
+<div class="hover:border-amber-500 hover:text-amber-500" hidden></div>
 <div class="hover:border-emerald-500 hover:text-emerald-500" hidden></div>
 <div class="hover:border-violet-500 hover:text-violet-500" hidden></div>
+<div class="hover:border-slate-500 hover:text-slate-500" hidden></div>
+
 <div class="focus:border-blue-500 focus:text-blue-500" hidden></div>
-<div class="focus:border-orange-500 focus:text-orange-500" hidden></div>
+<div class="focus:border-lime-500 focus:text-lime-500" hidden></div>
+<div class="focus:border-amber-500 focus:text-amber-500" hidden></div>
 <div class="focus:border-emerald-500 focus:text-emerald-500" hidden></div>
 <div class="focus:border-violet-500 focus:text-violet-500" hidden></div>
+<div class="focus:border-slate-500 focus:text-slate-500" hidden></div>
