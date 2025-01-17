@@ -159,4 +159,5 @@ jobs:
           tagName: v${{ needs.metadata.outputs.version }}
           releaseName: 'v${{ needs.metadata.outputs.version }}'
           releaseBody: 'See the assets for downloads.'
+          releaseDraft: true
           args: ${{ matrix.args }}
