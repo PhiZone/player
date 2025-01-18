@@ -19,6 +19,7 @@ export class PlainNote extends SkewImage {
 
   private _judgmentType: JudgmentType = JudgmentType.UNJUDGED;
   private _beatJudged: number | undefined = undefined;
+  private _isInJudgeWindow: boolean = false;
   private _pendingPerfect: boolean = false;
   private _hasTapInput: boolean = false;
   private _consumeTap: boolean = true;
@@ -30,7 +31,6 @@ export class PlainNote extends SkewImage {
     this._data = data;
     this._yModifier = data.above === 1 ? -1 : 1;
     this._hitTime = getTimeSec(scene.bpmList, data.startBeat);
-    // this.setOrigin(0.5);
     this.resize();
     this._alpha = data.alpha / 255;
     this.setAlpha(this._alpha);
@@ -125,7 +125,12 @@ export class PlainNote extends SkewImage {
       const isTap = this._data.type === 1;
       const isFlick = this._data.type === 3;
       if (!this._pendingPerfect && Math.abs(delta) <= (isTap ? badJudgment : goodJudgment)) {
+        if (!this._isInJudgeWindow) {
+          this._line.addToJudgeWindow(this);
+          this._isInJudgeWindow = true;
+        }
         if (isTap && !this._hasTapInput) return;
+        this._hasTapInput = false;
         if (!this._scene.pointer.findDrag(this, isFlick)) return;
         if (isTap && delta < -goodJudgment) {
           this._scene.judgment.hit(JudgmentType.BAD, deltaSec, this);
@@ -144,7 +149,6 @@ export class PlainNote extends SkewImage {
         } else {
           this._scene.judgment.hit(JudgmentType.BAD, deltaSec, this);
         }
-        this._hasTapInput = false;
       }
     }
   }
@@ -189,6 +193,8 @@ export class PlainNote extends SkewImage {
   setJudgment(type: JudgmentType, beat: number) {
     this._judgmentType = type;
     this._beatJudged = beat;
+    this._line.removeFromJudgeWindow(this);
+    this._isInJudgeWindow = false;
   }
 
   public get beatJudged() {

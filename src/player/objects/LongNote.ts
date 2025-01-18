@@ -27,6 +27,7 @@ export class LongNote extends GameObjects.Container {
   private _beatJudged: number | undefined = undefined;
   private _tempJudgmentType: JudgmentType = JudgmentType.UNJUDGED;
   private _beatTempJudged: number | undefined = undefined;
+  private _isInJudgeWindow: boolean = false;
   private _lastInputBeat: number = 0;
   private _hasTapInput: boolean = false;
   private _consumeTap: boolean = true;
@@ -133,6 +134,10 @@ export class LongNote extends GameObjects.Container {
         }
       }
       if (delta >= -goodJudgment && delta <= goodJudgment) {
+        if (!this._isInJudgeWindow) {
+          this._line.addToJudgeWindow(this);
+          this._isInJudgeWindow = true;
+        }
         if (!this._hasTapInput) return;
         if (delta < -perfectJudgment) {
           this._scene.judgment.hold(JudgmentType.GOOD_EARLY, deltaSec, this);
@@ -155,6 +160,7 @@ export class LongNote extends GameObjects.Container {
             HOLD_BODY_TOLERANCE / 1000 ||
           this._scene.status === GameStatus.SEEKING
         ) {
+          this.setTint(0xff0000);
           this._scene.judgment.judge(JudgmentType.MISS, this);
           return;
         }
@@ -199,16 +205,21 @@ export class LongNote extends GameObjects.Container {
   reset() {
     this._judgmentType = JudgmentType.UNJUDGED;
     this._beatJudged = undefined;
-    this.setAlpha(this._data.alpha / 255);
-    this.clearTint();
-    if (this._data.tint) {
-      this.setTint(rgbToHex(this._data.tint));
-    }
+    this.resetAppearance();
   }
 
   resetTemp() {
     this._tempJudgmentType = JudgmentType.UNJUDGED;
     this._beatTempJudged = undefined;
+    this.resetAppearance();
+  }
+
+  resetAppearance() {
+    this.setAlpha(this._data.alpha / 255);
+    this.clearTint();
+    if (this._data.tint) {
+      this.setTint(rgbToHex(this._data.tint));
+    }
   }
 
   public get judgmentPosition() {
@@ -254,6 +265,8 @@ export class LongNote extends GameObjects.Container {
   setTempJudgment(type: JudgmentType, beat: number) {
     this._tempJudgmentType = type;
     this._beatTempJudged = beat;
+    this._line.removeFromJudgeWindow(this);
+    this._isInJudgeWindow = false;
   }
 
   public get beatTempJudged() {
