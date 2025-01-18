@@ -56,6 +56,7 @@ export class Game extends Scene {
   }[] = [];
   private _audioAssets: { key: string; url: string }[] = [];
   private _shaderAssets: { key: string; url: string; source?: string }[] = [];
+  private _skinSize: number | undefined = undefined;
 
   private _title: string | null;
   private _composer: string | null;
@@ -815,6 +816,13 @@ export class Game extends Scene {
 
   public get status() {
     return this._status;
+  }
+
+  public get skinSize() {
+    if (!this._skinSize) {
+      this._skinSize = this.textures.get('1').getSourceImage().width;
+    }
+    return this._skinSize;
   }
 
   public get autoplay() {
