@@ -27,7 +27,7 @@ export const FONT_FAMILY = 'Outfit';
 /*
     The base size of notes, which will be scaled by the note size from the preferences.
 */
-export const NOTE_BASE_SIZE = 0.18;
+export const NOTE_BASE_SIZE = 0.19;
 
 /*
     The priorities for each note type. A note with a higher priority will be rendered on top of those with relatively lower priorities.
