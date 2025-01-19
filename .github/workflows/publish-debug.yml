@@ -43,74 +43,10 @@ jobs:
       version: ${{ steps.version.outputs.VERSION }}
       current-datetime: ${{ steps.current-datetime.outputs.CURRENT_DATETIME }}
 
-  publish-capacitor-android:
-    name: Build for Android
-    runs-on: ubuntu-22.04
-    needs: metadata
-    permissions:
-      contents: write
-    steps:
-      - name: Confirm build version and datetime
-        run: |
-          echo "Version: ${{ needs.metadata.outputs.version }}"
-          echo "Build datetime: ${{ needs.metadata.outputs.current-datetime }}"
-
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '17'
-
-      - name: Install dependencies
-        run: pnpm i
-
-      - name: Create build
-        run: pnpm build
-
-      - name: Generate icons and splash screen
-        run: if [ -d "./resources" ]; then pnpm i -D @capacitor/assets && pnpm capacitor-assets generate --android; fi
-
-      - name: Build app bundle
-        run: cd android && chmod +x ./gradlew && ./gradlew bundle && ./gradlew assembleDebug
-
-      - name: Decode Android signing key
-        run: |
-          echo "${{ secrets.RELEASE_KEYSTORE }}" > android/release.jks.base64
-          base64 -d android/release.jks.base64 > android/release.decoded.jks
-
-      - name: Sign build
-        run: jarsigner -keystore android/release.decoded.jks -storepass "${{ secrets.RELEASE_KEYSTORE_PASSWORD }}" -signedjar ./android/app/build/outputs/bundle/release/PhiZone.Player_${{ needs.metadata.outputs.version }}-signed.aab ./android/app/build/outputs/bundle/release/app-release.aab release
-
-      - name: Rename build file
-        run: mv ./android/app/build/outputs/apk/debug/app-debug.apk ./android/app/build/outputs/apk/debug/PhiZone.Player_${{ needs.metadata.outputs.version }}-debug.apk
-
-      - name: Publish release
-        run: |
-          gh release create "v${{ needs.metadata.outputs.version }}_${{ needs.metadata.outputs.current-datetime }}" \
-          --title "v${{ needs.metadata.outputs.version }} ${{ needs.metadata.outputs.current-datetime }}" \
-          --notes "Automated release with debug builds. See the assets for downloads." --prerelease \
-          ./android/app/build/outputs/bundle/release/PhiZone.Player_${{ needs.metadata.outputs.version }}-signed.aab \
-          ./android/app/build/outputs/apk/debug/PhiZone.Player_${{ needs.metadata.outputs.version }}-debug.apk
-        env:
-          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
-
   publish-capacitor-ios:
     name: Build for iOS
     runs-on: macos-latest
-    needs: [metadata, publish-capacitor-android]
+    needs: metadata
     permissions:
       contents: write
     steps:
@@ -197,7 +133,9 @@ jobs:
 
       - name: Publish release
         run: |
-          gh release upload "v${{ needs.metadata.outputs.version }}_${{ needs.metadata.outputs.current-datetime }}" \
+          gh release create "v${{ needs.metadata.outputs.version }}_${{ needs.metadata.outputs.current-datetime }}" \
+          --title "v${{ needs.metadata.outputs.version }} ${{ needs.metadata.outputs.current-datetime }}" \
+          --notes "Automated release with debug builds. See the assets for downloads." --prerelease \
           $RUNNER_TEMP/build/PhiZone.Player_${{ needs.metadata.outputs.version }}.ipa
         env:
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
@@ -208,9 +146,71 @@ jobs:
           security delete-keychain $RUNNER_TEMP/app-signing.keychain-db
           rm ~/Library/MobileDevice/Provisioning\ Profiles/build_pp.mobileprovision
 
+  publish-capacitor-android:
+    name: Build for Android
+    runs-on: ubuntu-22.04
+    needs: [metadata, publish-capacitor-ios]
+    permissions:
+      contents: write
+    steps:
+      - name: Confirm build version and datetime
+        run: |
+          echo "Version: ${{ needs.metadata.outputs.version }}"
+          echo "Build datetime: ${{ needs.metadata.outputs.current-datetime }}"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Install dependencies
+        run: pnpm i
+
+      - name: Create build
+        run: pnpm build
+
+      - name: Generate icons and splash screen
+        run: if [ -d "./resources" ]; then pnpm i -D @capacitor/assets && pnpm capacitor-assets generate --android; fi
+
+      - name: Build app bundle
+        run: cd android && chmod +x ./gradlew && ./gradlew bundle && ./gradlew assembleDebug
+
+      - name: Decode Android signing key
+        run: |
+          echo "${{ secrets.RELEASE_KEYSTORE }}" > android/release.jks.base64
+          base64 -d android/release.jks.base64 > android/release.decoded.jks
+
+      - name: Sign build
+        run: jarsigner -keystore android/release.decoded.jks -storepass "${{ secrets.RELEASE_KEYSTORE_PASSWORD }}" -signedjar ./android/app/build/outputs/bundle/release/PhiZone.Player_${{ needs.metadata.outputs.version }}-signed.aab ./android/app/build/outputs/bundle/release/app-release.aab release
+
+      - name: Rename build file
+        run: mv ./android/app/build/outputs/apk/debug/app-debug.apk ./android/app/build/outputs/apk/debug/PhiZone.Player_${{ needs.metadata.outputs.version }}-debug.apk
+
+      - name: Publish release
+        run: |
+          gh release upload "v${{ needs.metadata.outputs.version }}_${{ needs.metadata.outputs.current-datetime }}" \
+          ./android/app/build/outputs/bundle/release/PhiZone.Player_${{ needs.metadata.outputs.version }}-signed.aab \
+          ./android/app/build/outputs/apk/debug/PhiZone.Player_${{ needs.metadata.outputs.version }}-debug.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+
   publish-tauri:
     name: Build with Tauri
-    needs: [metadata, publish-capacitor-android]
+    needs: [metadata, publish-capacitor-ios]
     permissions:
       contents: write
     strategy:
