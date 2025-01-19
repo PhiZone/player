@@ -6,11 +6,17 @@ on:
       - defres
     paths:
       - 'src/**'
+      - 'src-tauri/**'
+      - 'static/**'
+      - '.github/workflows/publish-debug.yml'
   pull_request:
     branches:
       - defres
     paths:
       - 'src/**'
+      - 'src-tauri/**'
+      - 'static/**'
+      - '.github/workflows/publish-debug.yml'
   workflow_dispatch:
 
 defaults:
@@ -136,8 +142,7 @@ jobs:
 
       - name: Install iOS dependencies
         run: |
-          cd ios
-          bundle install
+          cd ios/App
           pod install
 
       - name: Create build
@@ -173,7 +178,7 @@ jobs:
 
       - name: Build app archive
         run: |
-          cd ios
+          cd ios/App
           xcodebuild -scheme "App" \
           -archivePath $RUNNER_TEMP/app.xcarchive \
           -sdk iphoneos \
