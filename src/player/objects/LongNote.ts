@@ -160,7 +160,7 @@ export class LongNote extends GameObjects.Container {
             HOLD_BODY_TOLERANCE / 1000 ||
           this._scene.status === GameStatus.SEEKING
         ) {
-          this.setTint(0xff0000);
+          // this.setTint(0xff0000);
           this._scene.judgment.judge(JudgmentType.MISS, this);
           return;
         }
