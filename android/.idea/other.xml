@@ -160,6 +160,17 @@
         <PersistentDeviceSelectionData>
           <option name="api" value="33" />
           <option name="brand" value="google" />
+          <option name="codename" value="eos" />
+          <option name="id" value="eos" />
+          <option name="manufacturer" value="Google" />
+          <option name="name" value="Eos" />
+          <option name="screenDensity" value="320" />
+          <option name="screenX" value="384" />
+          <option name="screenY" value="384" />
+        </PersistentDeviceSelectionData>
+        <PersistentDeviceSelectionData>
+          <option name="api" value="33" />
+          <option name="brand" value="google" />
           <option name="codename" value="felix" />
           <option name="id" value="felix" />
           <option name="manufacturer" value="Google" />

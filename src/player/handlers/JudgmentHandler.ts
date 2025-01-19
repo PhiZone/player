@@ -227,21 +227,21 @@ export class JudgmentHandler {
       //   });
       //   continue;
       // }
-      this._scene.tweens.add({
-        targets: [
-          this._scene.add
-            .circle(
-              getJudgmentPosition(input, note.line).x,
-              getJudgmentPosition(input, note.line).y,
-              36,
-              0x0077ff,
-            )
-            .setAlpha(0.9)
-            .setDepth(100),
-        ],
-        alpha: 0,
-        duration: 500,
-      });
+      // this._scene.tweens.add({
+      //   targets: [
+      //     this._scene.add
+      //       .circle(
+      //         getJudgmentPosition(input, note.line).x,
+      //         getJudgmentPosition(input, note.line).y,
+      //         36,
+      //         0x0077ff,
+      //       )
+      //       .setAlpha(0.9)
+      //       .setDepth(100),
+      //   ],
+      //   alpha: 0,
+      //   duration: 500,
+      // });
       if (
         minBeat > note.note.startBeat ||
         (equal(minBeat, note.note.startBeat) && minDistance > distanceActual) ||
@@ -253,7 +253,7 @@ export class JudgmentHandler {
         minBeat = note.note.startBeat;
         minDistance = distanceActual;
         minType = note.note.type;
-        note.setTint(0x0077ff);
+        // note.setTint(0x0077ff);
       }
     }
     if (nearestNote) {
@@ -264,22 +264,22 @@ export class JudgmentHandler {
           note.hasTapInput = true;
         }
       }
-      nearestNote.setTint(0x00ff00);
-      this._scene.tweens.add({
-        targets: [
-          this._scene.add
-            .circle(
-              getJudgmentPosition(input, nearestNote.line).x,
-              getJudgmentPosition(input, nearestNote.line).y,
-              36,
-              0x00ff00,
-            )
-            .setAlpha(0.9)
-            .setDepth(100),
-        ],
-        alpha: 0,
-        duration: 500,
-      });
+      // nearestNote.setTint(0x00ff00);
+      // this._scene.tweens.add({
+      //   targets: [
+      //     this._scene.add
+      //       .circle(
+      //         getJudgmentPosition(input, nearestNote.line).x,
+      //         getJudgmentPosition(input, nearestNote.line).y,
+      //         36,
+      //         0x00ff00,
+      //       )
+      //       .setAlpha(0.9)
+      //       .setDepth(100),
+      //   ],
+      //   alpha: 0,
+      //   duration: 500,
+      // });
     }
   }
 
