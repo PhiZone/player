@@ -32,6 +32,7 @@ import parseAPNG, { type Frame } from 'apng-js';
 import { fixWebmDuration } from '@fix-webm-duration/fix';
 import { AndroidFullScreen } from '@awesome-cordova-plugins/android-full-screen';
 import { Capacitor } from '@capacitor/core';
+import { Clipboard } from '@capacitor/clipboard';
 import bezier from 'bezier-easing';
 import type { Line } from './objects/Line';
 import Notiflix from 'notiflix';
@@ -1112,8 +1113,10 @@ export const alertError = (error: Error, message?: string) => {
   document.querySelectorAll('.notiflix-notify')?.forEach(
     (e) =>
       e.id.startsWith(ID) &&
-      e.addEventListener('click', () => {
-        navigator.clipboard.writeText(error.stack ?? `${error.name}: ${error.message}`);
+      e.addEventListener('click', async () => {
+        const text = error.stack ?? `${error.name}: ${error.message}`;
+        if (Capacitor.getPlatform() === 'web') navigator.clipboard.writeText(text);
+        else await Clipboard.write({ string: text });
         Notiflix.Notify.success('Error copied to clipboard', {
           cssAnimationStyle: 'from-right',
           opacity: 0.9,
