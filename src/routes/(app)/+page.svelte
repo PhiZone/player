@@ -25,7 +25,9 @@
   import { getCurrent, onOpenUrl } from '@tauri-apps/plugin-deep-link';
   import { App, type URLOpenListenerEvent } from '@capacitor/app';
   import { page } from '$app/stores';
-    import { REPO_LINK } from '$lib';
+  import { REPO_LINK } from '$lib';
+  import { SendIntent } from 'send-intent';
+  import { Filesystem } from '@capacitor/filesystem';
 
   interface FileEntry {
     id: number;
@@ -123,6 +125,24 @@
       App.addListener('appUrlOpen', (event: URLOpenListenerEvent) => {
         handleRedirect(event.url);
       });
+      SendIntent.checkSendIntentReceived()
+        .then((result) => {
+          if (result) {
+            console.log('SendIntent received');
+            console.log(JSON.stringify(result));
+          }
+          if (result.url) {
+            let resultUrl = decodeURIComponent(result.url);
+            Filesystem.readFile({ path: resultUrl })
+              .then((content) => {
+                decompress(content.data as Blob).then((files) => {
+                  handleFiles(files);
+                });
+              })
+              .catch((err) => console.error(err));
+          }
+        })
+        .catch((err) => console.error(err));
     }
   });
 
