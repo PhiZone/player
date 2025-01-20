@@ -173,21 +173,24 @@ jobs:
       - name: Build app bundle
         run: cd android && chmod +x ./gradlew && ./gradlew bundle && ./gradlew assembleRelease
 
-      - name: Decode Android signing key
-        run: |
-          echo "${{ secrets.RELEASE_KEYSTORE }}" > android/release.jks.base64
-          base64 -d android/release.jks.base64 > android/release.decoded.jks
+      - uses: kevin-david/zipalign-sign-android-release@v2
+        name: Sign APK
+        id: sign-apk
+        with:
+          releaseDirectory: android/app/build/outputs/apk/release/
+          signingKeyBase64: ${{ secrets.RELEASE_KEYSTORE }}
+          keyStorePassword: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          zipAlign: true
 
-      - name: Sign builds
+      - name: Rename builds
         run: |
-          jarsigner -keystore android/release.decoded.jks -storepass "${{ secrets.RELEASE_KEYSTORE_PASSWORD }}" -signedjar android/app/build/outputs/bundle/release/PhiZone.Player_${{ needs.metadata.outputs.version }}-signed.aab android/app/build/outputs/bundle/release/app-release.aab release
-          zipalign -v -p 4 android/app/build/outputs/apk/release/app-release-unsigned.apk android/app/build/outputs/apk/release/app-release-unsigned-aligned.apk
-          apksigner sign --ks android/release.decoded.jks --out android/app/build/outputs/apk/release/PhiZone.Player_${{ needs.metadata.outputs.version }}.apk android/app/build/outputs/apk/release/app-release-unsigned-aligned.apk
+          mv android/app/build/outputs/bundle/release/app-release.aab android/app/build/outputs/bundle/release/PhiZone.Player_${{ needs.metadata.outputs.version }}.aab
+          mv ${{ steps.sign-apk.outputs.signedReleaseFile }} android/app/build/outputs/apk/release/PhiZone.Player_${{ needs.metadata.outputs.version }}.apk
 
       - name: Publish release
         run: |
           gh release upload "v${{ needs.metadata.outputs.version }}" \
-          android/app/build/outputs/bundle/release/PhiZone.Player_${{ needs.metadata.outputs.version }}-signed.aab \
+          android/app/build/outputs/bundle/release/PhiZone.Player_${{ needs.metadata.outputs.version }}.aab \
           android/app/build/outputs/apk/release/PhiZone.Player_${{ needs.metadata.outputs.version }}.apk
         env:
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
