@@ -25,6 +25,7 @@
   import { getCurrent, onOpenUrl } from '@tauri-apps/plugin-deep-link';
   import { App, type URLOpenListenerEvent } from '@capacitor/app';
   import { page } from '$app/stores';
+    import { REPO_LINK } from '$lib';
 
   interface FileEntry {
     id: number;
@@ -39,8 +40,6 @@
     illustration: number;
     metadata: Metadata;
   }
-
-  const REPO_LINK = 'https://github.com/PhiZone/player';
 
   let showCollapse = false;
   let showRecorderCollapse = false;

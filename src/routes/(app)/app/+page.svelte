@@ -1,5 +1,5 @@
 <script>
-  import { REPO_LINK } from '$lib';
+  import { REPO_LINK, VERSION } from '$lib';
   import Distribution from '$lib/components/Distribution.svelte';
 
   const distributions = [
@@ -8,7 +8,7 @@
       subtitle: 'Architecture: x64',
       description:
         'Desktop distribution via Tauri. Provides exclusive features (e.g. streaming mode).',
-      href: '#',
+      href: `${REPO_LINK}/releases/download/v${VERSION}/PhiZone.Player_${VERSION}_x64-setup.exe`,
       color: 'blue-500',
       fa: 'windows',
     },
@@ -17,7 +17,7 @@
       subtitle: 'Available for Apple silicon',
       description:
         'Desktop distribution via Tauri. Provides exclusive features (e.g. streaming mode).',
-      href: '#',
+      href: `${REPO_LINK}/releases/download/v${VERSION}/PhiZone.Player_${VERSION}_aarch64.dmg`,
       color: 'lime-500',
       fa: 'apple',
     },
@@ -26,7 +26,7 @@
       subtitle: 'Architecture: x64',
       description:
         'Desktop distribution via Tauri. Provides exclusive features (e.g. streaming mode).',
-      href: '#',
+      href: `${REPO_LINK}/releases/download/v${VERSION}/PhiZone.Player_${VERSION}_amd64.AppImage`,
       color: 'amber-500',
       fa: 'linux',
     },
@@ -35,7 +35,7 @@
       subtitle: 'Architecture: ARM64',
       description:
         'Mobile distribution via Capacitor. Incompatibilities and performance issues expected.',
-      href: '#',
+      href: `${REPO_LINK}/releases/download/v${VERSION}/PhiZone.Player_${VERSION}.apk`,
       color: 'emerald-500',
       fa: 'android',
     },
@@ -44,7 +44,7 @@
       subtitle: 'Available via TestFlight',
       description:
         'Mobile distribution via Capacitor. Incompatibilities and performance issues expected.',
-      href: '#',
+      href: 'https://testflight.apple.com/join/6Uba7RmH',
       color: 'violet-500',
       fa: 'app-store',
     },
@@ -52,8 +52,8 @@
       title: 'Other distributions',
       subtitle: 'Available on GitHub',
       description:
-        'ARM64 distributions for Linux and Windows, x64 for Intel Macs, debug builds, etc.',
-      href: '#',
+        'ARM64 distributions for Linux and Windows, x64 for Intel Macs, IPA, debug builds, etc.',
+      href: `${REPO_LINK}/releases`,
       color: 'slate-500',
       fa: 'github',
     },
