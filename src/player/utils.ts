@@ -34,6 +34,7 @@ import { AndroidFullScreen } from '@awesome-cordova-plugins/android-full-screen'
 import { Capacitor } from '@capacitor/core';
 import bezier from 'bezier-easing';
 import type { Line } from './objects/Line';
+import Notiflix from "notiflix";
 import 'context-filter-polyfill';
 
 const easingFunctions: ((x: number) => number)[] = [
@@ -1086,3 +1087,28 @@ export const getSpritesheet = async (url: string, isGif = false) => {
   const buffer = await resp.arrayBuffer();
   return isGif ? convertGifToSpritesheet(buffer) : convertApngToSpritesheet(buffer);
 };
+
+const sysError = (error: Error, message?: string) => {
+  const type = error === null ? "null" : error === undefined ? "undefined" : error.constructor.name;
+  let message2 = String(error);
+  let detail = String(error);
+  if (error instanceof Error) {
+    const stack = error.stack || "Stack not available";
+    if (error.name === type) message2 = error.message;
+    else message2 = `${error.name}: ${error.message}`;
+    const idx = stack.indexOf(message2) + 1;
+    if (idx) detail = `${message2}\n${stack.slice(idx + message2.length)}`;
+    else detail = `${message2}\n    ${stack.split("\n").join("\n    ")}`; //Safari
+  }
+  if (message) message2 = message;
+  const errMessage = `[${type}] ${message2.split("\n")[0]}`;
+  Notiflix.Notify.failure(errMessage, {
+    ID: "msgHandlerErr",
+    cssAnimationStyle: "fade",
+    showOnlyTheLastOne: false,
+    opacity: 0.8,
+    borderRadius: "15px",
+  });
+};
+self.addEventListener("error", e => sysError(e.error, e.message));
+self.addEventListener("unhandledrejection", e => sysError(e.reason));
