@@ -1094,21 +1094,25 @@ const sysError = (error: Error, message?: string) => {
   let detail = String(error);
   if (error instanceof Error) {
     const stack = error.stack || "Stack not available";
-    if (error.name === type) message2 = error.message;
-    else message2 = `${error.name}: ${error.message}`;
+    message2 = `${error.name}: ${error.message}`;
     const idx = stack.indexOf(message2) + 1;
     if (idx) detail = `${message2}\n${stack.slice(idx + message2.length)}`;
     else detail = `${message2}\n    ${stack.split("\n").join("\n    ")}`; //Safari
   }
   if (message) message2 = message;
-  const errMessage = `[${type}] ${message2.split("\n")[0]}`;
+  const errMessage = `(Click to copy detail)[${type}] ${message2.split("\n")[0]}`;
+  const ID = `msgHandlerErr-${performance.now()}`;
   Notiflix.Notify.failure(errMessage, {
-    ID: "msgHandlerErr",
+    ID,
     cssAnimationStyle: "fade",
     showOnlyTheLastOne: false,
     opacity: 0.8,
     borderRadius: "15px",
   });
+  document.querySelectorAll(`.notiflix-notify`)?.forEach(e => e.id.startsWith(ID) && e.addEventListener("click", () => {
+    navigator.clipboard.writeText(error.stack || `${error.name}: ${error.message}`);
+    Notiflix.Notify.success("Copied", { cssAnimationStyle: "fade", opacity: 0.8, borderRadius: "15px" });
+  }));
 };
 self.addEventListener("error", e => sysError(e.error, e.message));
 self.addEventListener("unhandledrejection", e => sysError(e.reason));
