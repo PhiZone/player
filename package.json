@@ -87,6 +87,7 @@
     "jszip": "^3.10.1",
     "mathjs": "^14.0.1",
     "mime": "^4.0.6",
+    "notiflix": "^3.2.8",
     "phaser": "^3.87.0",
     "phaser3-rex-plugins": "^1.80.12",
     "query-string": "^9.1.1",

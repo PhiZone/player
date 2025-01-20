@@ -34,6 +34,7 @@ import { AndroidFullScreen } from '@awesome-cordova-plugins/android-full-screen'
 import { Capacitor } from '@capacitor/core';
 import bezier from 'bezier-easing';
 import type { Line } from './objects/Line';
+import Notiflix from 'notiflix';
 import 'context-filter-polyfill';
 
 const easingFunctions: ((x: number) => number)[] = [
@@ -1085,4 +1086,39 @@ export const getSpritesheet = async (url: string, isGif = false) => {
   const resp = await download(url, 'image');
   const buffer = await resp.arrayBuffer();
   return isGif ? convertGifToSpritesheet(buffer) : convertApngToSpritesheet(buffer);
+};
+
+export const alertError = (error: Error, message?: string) => {
+  const type = error === null ? 'null' : error === undefined ? 'undefined' : error.constructor.name;
+  let message2 = String(error);
+  // let _detail = String(error);
+  if (error instanceof Error) {
+    // const stack = error.stack || 'Stack not available';
+    message2 = `${error.name}: ${error.message}`;
+    // const idx = stack.indexOf(message2) + 1;
+    // if (idx) _detail = `${message2}\n${stack.slice(idx + message2.length)}`;
+    // else _detail = `${message2}\n    ${stack.split('\n').join('\n    ')}`; //Safari
+  }
+  if (message) message2 = message;
+  const errMessage = `(Click to copy) [${type}] ${message2.split('\n')[0]}`;
+  const ID = `msgHandlerErr-${performance.now()}`;
+  Notiflix.Notify.failure(errMessage, {
+    ID,
+    cssAnimationStyle: 'from-right',
+    showOnlyTheLastOne: false,
+    opacity: 0.9,
+    borderRadius: '12px',
+  });
+  document.querySelectorAll('.notiflix-notify')?.forEach(
+    (e) =>
+      e.id.startsWith(ID) &&
+      e.addEventListener('click', () => {
+        navigator.clipboard.writeText(error.stack ?? `${error.name}: ${error.message}`);
+        Notiflix.Notify.success('Error copied to clipboard', {
+          cssAnimationStyle: 'from-right',
+          opacity: 0.9,
+          borderRadius: '12px',
+        });
+      }),
+  );
 };
