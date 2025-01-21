@@ -733,6 +733,16 @@ export const calculatePrecedences = (arr: number[]) => {
 
 export const getAudio = async (url: string): Promise<string> => {
   const originalAudio = await download(url, 'audio');
+  // For debug purposes only
+  if (Capacitor.getPlatform() !== 'web') {
+    const type = (await fileTypeFromBlob(originalAudio))?.mime.toString() ?? '';
+    console.error(
+      '[DEBUG] Can play',
+      type,
+      '->',
+      document.createElement('audio').canPlayType(type),
+    );
+  }
   try {
     const type = (await fileTypeFromBlob(originalAudio))?.mime.toString() ?? '';
     console.log('can play', type, '->', document.createElement('audio').canPlayType(type)); // TODO need testing
