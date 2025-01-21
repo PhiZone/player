@@ -658,7 +658,7 @@ export class Game extends Scene {
             exclusive: false,
           };
         }
-        target = this.register(
+        target = this.registerContainer(
           new GameObjects.Container(this).setDepth(effect.targetRange.minZIndex),
           effect.targetRange.maxZIndex,
         );
@@ -694,9 +694,16 @@ export class Game extends Scene {
     await signalHandler.wait();
   }
 
-  register(object: GameObject, upperDepth?: number) {
+  register(object: GameObject) {
     this.add.existing(object);
-    const entry = { object, depth: object.depth, upperDepth, occupied: {} };
+    const entry = { object, depth: object.depth, treeDepth: 1 };
+    this._objects.push(entry);
+    return entry;
+  }
+
+  registerContainer(object: GameObjects.Container, upperDepth: number) {
+    this.add.existing(object);
+    const entry = { object, depth: object.depth, upperDepth, treeDepth: 1 };
     this._objects.push(entry);
     return entry;
   }

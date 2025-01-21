@@ -19,6 +19,8 @@ import {
   type SizeControl,
   type SkewControl,
   type YControl,
+  type RegisteredObject,
+  type RegisteredContainer,
   // type RecorderOptions,
 } from './types';
 import { EventBus } from './EventBus';
@@ -729,6 +731,76 @@ export const calculatePrecedences = (arr: number[]) => {
   });
 
   return valueToNormalized;
+};
+
+export const mostFrequentElement = <T>(array: T[]) => {
+  const frequencyMap = new Map<T, number>();
+
+  array.forEach((item) => {
+    frequencyMap.set(item, (frequencyMap.get(item) || 0) + 1);
+  });
+
+  let maxElement: T | null = null;
+  let maxCount = 0;
+
+  frequencyMap.forEach((count, element) => {
+    if (count > maxCount) {
+      maxCount = count;
+      maxElement = element;
+    }
+  });
+
+  return maxElement !== null
+    ? { element: maxElement as T, frequency: maxCount / array.length }
+    : null;
+};
+
+export const findLowestCommonAncestor = (a: RegisteredObject, b: RegisteredObject) => {
+  const aAncestors = new Set([a]);
+  let current: RegisteredObject | undefined = a;
+  while (current.occupant) {
+    aAncestors.add(current.occupant);
+    current = current.occupant;
+  }
+  current = b;
+  while (current && !aAncestors.has(current)) {
+    current = current.occupant;
+  }
+  return {
+    lca: current as RegisteredContainer | undefined,
+    distance: Math.max(a.treeDepth, b.treeDepth) - (current?.treeDepth ?? 0),
+  };
+};
+
+export const findLowestCommonAncestorArray = (array: RegisteredObject[]) => {
+  let current: RegisteredObject | undefined = array[0];
+  let distance = 0;
+  for (let i = 1; i < array.length; i++) {
+    if (!current) return { lca: undefined, distance };
+    const { lca, distance: dist } = findLowestCommonAncestor(current, array[i]);
+    current = lca;
+    distance = Math.max(distance, dist);
+  }
+  return {
+    lca: current as RegisteredContainer | undefined,
+    distance,
+  };
+};
+
+export const findLeaves = (
+  container: RegisteredContainer,
+  maxDepth?: number,
+): RegisteredObject[] => {
+  const leaves: RegisteredObject[] = [];
+  if (maxDepth === 0) return leaves;
+  container.shader!.children.forEach((child) => {
+    if ('shader' in child) {
+      leaves.push(...findLeaves(child, maxDepth ? maxDepth - 1 : undefined));
+    } else {
+      leaves.push(child);
+    }
+  });
+  return leaves;
 };
 
 export const getAudio = async (url: string): Promise<string> => {

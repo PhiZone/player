@@ -1,23 +1,30 @@
 import { GameObjects, Renderer } from 'phaser';
 import type { Game } from '../scenes/Game';
-import type { AnimatedVariable, RegisteredObject, ShaderEffect, VariableEvent } from '../types';
-import { getEventValue, processEvents, toBeats } from '../utils';
+import type {
+  AnimatedVariable,
+  RegisteredContainer,
+  RegisteredObject,
+  ShaderEffect,
+  VariableEvent,
+} from '../types';
+import {
+  findLeaves,
+  findLowestCommonAncestorArray,
+  getEventValue,
+  mostFrequentElement,
+  processEvents,
+  toBeats,
+} from '../utils';
 
 const DEFAULT_VALUE_REGEX = /uniform\s+(\w+)\s+(\w+);\s+\/\/\s+%([^%]+)%/g;
 
 export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
   private _scene: Game;
   private _data: ShaderEffect;
-  private _container:
-    | {
-        object: GameObjects.Container;
-        depth: number;
-        upperDepth: number;
-        occupied: { [key: string]: boolean };
-      }
-    | undefined;
-  private _targets: RegisteredObject[] | undefined;
+  private _container: RegisteredContainer;
+  private _targets: RegisteredObject[] = [];
   private _animators: VariableAnimator[] = [];
+  private _targetsCollected: boolean = false;
   private _isLoaded: boolean = false;
   // private _samplerMap: { [key: number]: string } = {};
 
@@ -27,11 +34,11 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
       scene: Game;
       fragShader: string;
       data: ShaderEffect;
-      target?: {
+      target: {
         object: GameObjects.Container;
         depth: number;
         upperDepth: number;
-        occupied: { [key: string]: boolean };
+        occupant?: RegisteredContainer | undefined;
       };
     },
   ) {
@@ -43,7 +50,7 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
     this._data = postPipelineData.data;
     this._data.startBeat = toBeats(this._data.start);
     this._data.endBeat = toBeats(this._data.end);
-    this._container = postPipelineData.target;
+    this._container = { shader: this, treeDepth: 1, ...postPipelineData.target };
 
     [...postPipelineData.fragShader.matchAll(DEFAULT_VALUE_REGEX)].map((uniform) => {
       const type = uniform[1];
@@ -118,52 +125,47 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
     }
     this.active = beat > this._data.startBeat && beat <= this._data.endBeat;
     if (!this.active) {
-      if (
-        this._container &&
-        this._targets?.some((target) => target.occupied[this.name]) &&
-        !Object.keys(this._container.occupied)
-          .filter((key) => key !== this.name)
-          .some((key) => this._container!.occupied[key])
-      ) {
-        console.debug('Removing targets from', this.name);
+      if (this._targetsCollected && !this._container.occupant) {
+        this._targetsCollected = false;
+        console.log('Removing targets from', this.name);
         this._container.object.removeAll();
         this._targets.forEach((target) => {
-          target.occupied[this.name] = false;
+          target.occupant = undefined;
+          target.treeDepth = 1;
           // this._scene.add.existing(target.object);
         });
+        this._targets = [];
       }
       return;
     }
-    if (
-      this._data.targetRange &&
-      (!this._targets || this._targets?.some((target) => !target.occupied[this.name]))
-    ) {
+    if (this._data.targetRange && !this._targetsCollected) {
+      this._targetsCollected = true;
       const range = this._data.targetRange;
-      this._targets = this._scene.objects
+      let targets = this._scene.objects
         .filter((o) => {
-          if (Object.keys(o.occupied).some((key) => o.occupied[key])) return false;
-          if (o.upperDepth) {
-            if ((o.object as GameObjects.Container).list.length === 0) return false;
-            if (range.exclusive) {
-              return o.depth >= range.minZIndex && o.upperDepth <= range.maxZIndex;
-            } else {
-              return o.upperDepth > range.minZIndex && o.depth < range.maxZIndex;
-            }
-          } else {
-            return o.depth >= range.minZIndex && o.depth < range.maxZIndex;
-          }
+          if ('upperDepth' in o) return false;
+          return o.depth >= range.minZIndex && o.depth < range.maxZIndex;
         })
         .sort((a, b) => a.depth - b.depth);
-      console.debug('Adding targets to', this.name);
-      this._targets.forEach((target) => {
-        target.occupied[this.name] = true;
-        this._container?.object.add(target.object);
-      });
-      console.debug(this._targets);
+      if (targets.length === 0) return;
+      const { lca, distance } = findLowestCommonAncestorArray(targets);
+      let occupant = lca;
+      if (range.exclusive && ((lca && findLeaves(lca, distance).length > targets.length) || !lca)) {
+        if (!lca) {
+          targets = targets.filter((target) => target.occupant === undefined);
+        } else {
+          const result = mostFrequentElement(targets.map((target) => target.occupant!));
+          targets = result!.element.shader!.children;
+          occupant = result!.element;
+        }
+      }
+      console.log('Adding targets to', this.name, this._data, targets);
+      targets.forEach((target) => this.addChild(target));
+      if (occupant) occupant.shader!.addChild(this._container);
     }
     // if (!this.currentShader) {
     //   console.warn(
-    //     `Shader ${this.name} is not loaded, even if it has ${this._container?.object.count('visible', true)} visible targets.`,
+    //     `Shader ${this.name} is not loaded, even if it has ${this._container.object.count('visible', true)} visible targets.`,
     //   );
     //   try {
     //     this.set1f('time', time / 1000);
@@ -206,6 +208,21 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
       );
     }
     return value;
+  }
+
+  addChild(target: RegisteredObject) {
+    target.occupant = this._container;
+    target.treeDepth = this._container.treeDepth + 1;
+    this._targets.push(target);
+    this._container.object.add(target.object);
+  }
+
+  public get parent() {
+    return this._container.occupant;
+  }
+
+  public get children() {
+    return this._targets;
   }
 }
 
