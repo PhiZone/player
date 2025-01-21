@@ -5,6 +5,8 @@ on:
     branches:
       - defres
     paths:
+      - 'android/**'
+      - 'ios/**'
       - 'src/**'
       - 'src-tauri/**'
       - 'static/**'
@@ -13,6 +15,8 @@ on:
     branches:
       - defres
     paths:
+      - 'android/**'
+      - 'ios/**'
       - 'src/**'
       - 'src-tauri/**'
       - 'static/**'
