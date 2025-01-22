@@ -72,6 +72,7 @@ export class GameUI {
     });
 
     this._combo = this.createComponent(
+      'combo',
       scene.w(this._positions[1][0]),
       scene.h(this._positions[1][1]),
       this._scene.p(this._offsets[1][0]),
@@ -85,6 +86,7 @@ export class GameUI {
     );
 
     this._comboText = this.createComponent(
+      'combotext',
       scene.w(this._positions[2][0]),
       scene.h(this._positions[2][1]),
       this._scene.p(this._offsets[2][0]),
@@ -97,6 +99,7 @@ export class GameUI {
     );
 
     this._score = this.createComponent(
+      'score',
       scene.w(this._positions[3][0]),
       scene.h(this._positions[3][1]),
       this._scene.p(this._offsets[3][0]),
@@ -110,6 +113,7 @@ export class GameUI {
     );
 
     this._accuracy = this.createComponent(
+      'accuracy',
       scene.w(this._positions[4][0]),
       scene.h(this._positions[4][1]),
       this._scene.p(this._offsets[4][0]),
@@ -127,6 +131,7 @@ export class GameUI {
     this._accuracy.text.setAlpha(0.7);
 
     this._songTitle = this.createComponent(
+      'title',
       scene.w(this._positions[5][0]),
       scene.h(this._positions[5][1]),
       this._scene.p(this._offsets[5][0]),
@@ -139,6 +144,7 @@ export class GameUI {
     );
 
     this._level = this.createComponent(
+      'level',
       scene.w(this._positions[6][0]),
       scene.h(this._positions[6][1]),
       this._scene.p(this._offsets[6][0]),
@@ -299,6 +305,7 @@ export class GameUI {
   }
 
   createComponent(
+    name: string,
     x: number,
     y: number,
     offsetX: number,
@@ -312,7 +319,7 @@ export class GameUI {
     textStyle?: Types.GameObjects.Text.TextStyle | undefined,
   ) {
     const container = new GameObjects.Container(this._scene, x, y).setDepth(depth);
-    this._scene.register(container);
+    this._scene.registerNode(container, `ui-${name}`);
     const component = new UIComponent(
       this._scene,
       container,
@@ -341,7 +348,7 @@ export class GameUI {
     texture: string,
   ) {
     const container = new GameObjects.Container(this._scene, x, y).setDepth(depth);
-    this._scene.register(container);
+    this._scene.registerNode(container, 'ui-button');
     const button = new Button(
       this._scene,
       container,
@@ -535,7 +542,7 @@ class ProgressBar extends GameObjects.Container {
     this._progressBar = new GameObjects.Image(ui.scene, 0, 0, 'progress-bar').setOrigin(1, 0);
     this.setDepth(depth);
     this.add(this._progressBar);
-    ui.scene.register(this);
+    ui.scene.registerNode(this, 'ui-bar');
   }
 
   setAttach(params: {

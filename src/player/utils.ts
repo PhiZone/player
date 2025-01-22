@@ -37,6 +37,7 @@ import bezier from 'bezier-easing';
 import type { Line } from './objects/Line';
 import Notiflix from 'notiflix';
 import 'context-filter-polyfill';
+import { ROOT, type Node } from './objects/Node';
 
 const easingFunctions: ((x: number) => number)[] = [
   (x) => x,
@@ -731,18 +732,81 @@ export const calculatePrecedences = (arr: number[]) => {
   return valueToNormalized;
 };
 
+export const mostFrequentElement = <T>(array: T[]) => {
+  const frequencyMap = new Map<T, number>();
+
+  array.forEach((item) => {
+    frequencyMap.set(item, (frequencyMap.get(item) || 0) + 1);
+  });
+
+  let maxElement: T | null = null;
+  let maxCount = 0;
+
+  frequencyMap.forEach((count, element) => {
+    if (count > maxCount) {
+      maxCount = count;
+      maxElement = element;
+    }
+  });
+
+  return maxElement !== null
+    ? { element: maxElement as T, frequency: maxCount / array.length }
+    : null;
+};
+
+export const findLowestCommonAncestor = (a: Node, b: Node) => {
+  if (a === ROOT)
+    return {
+      lca: ROOT,
+      distance: Math.max(a.treeDepth, b.treeDepth),
+    };
+  const aAncestors = new Set([a]);
+  let current: Node = a;
+  while (current.parent !== ROOT) {
+    aAncestors.add(current.parent);
+    current = current.parent;
+  }
+  current = b;
+  while (current !== ROOT && !aAncestors.has(current)) {
+    current = current.parent;
+  }
+  return {
+    lca: current,
+    distance: Math.max(a.treeDepth, b.treeDepth) - (current?.treeDepth ?? 0),
+  };
+};
+
+export const findLowestCommonAncestorArray = (array: Node[]) => {
+  let current: Node = array[0];
+  let distance = 0;
+  for (let i = 1; i < array.length; i++) {
+    if (current === ROOT) break;
+    const { lca, distance: dist } = findLowestCommonAncestor(current, array[i]);
+    current = lca;
+    distance = Math.max(distance, dist);
+  }
+  return {
+    lca: current,
+    distance,
+  };
+};
+
+export const findLeaves = (node: Node, maxDepth?: number): Node[] => {
+  const leaves: Node[] = [];
+  if (maxDepth === 0) return leaves;
+  node.children.forEach((child) => {
+    if ('shader' in child) {
+      leaves.push(...findLeaves(child, maxDepth ? maxDepth - 1 : undefined));
+    } else {
+      leaves.push(child);
+    }
+  });
+  return leaves;
+};
+
 export const getAudio = async (url: string): Promise<string> => {
   const originalAudio = await download(url, 'audio');
-  // For debug purposes only
-  if (Capacitor.getPlatform() !== 'web') {
-    const type = (await fileTypeFromBlob(originalAudio))?.mime.toString() ?? '';
-    console.error(
-      '[DEBUG] Can play',
-      type,
-      '->',
-      document.createElement('audio').canPlayType(type),
-    );
-  }
+
   try {
     const type = (await fileTypeFromBlob(originalAudio))?.mime.toString() ?? '';
     console.log('can play', type, '->', document.createElement('audio').canPlayType(type)); // TODO need testing
@@ -1097,6 +1161,31 @@ export const getSpritesheet = async (url: string, isGif = false) => {
   const resp = await download(url, 'image');
   const buffer = await resp.arrayBuffer();
   return isGif ? convertGifToSpritesheet(buffer) : convertApngToSpritesheet(buffer);
+};
+
+export const versionCompare = (aString: string, bString: string) => {
+  const a = aString.split('.').map(parseInt);
+  const b = bString.split('.').map(parseInt);
+  for (let i = 0; i < Math.min(a.length, b.length); i++) {
+    if (a[i] < b[i]) return -1;
+    if (a[i] > b[i]) return 1;
+  }
+  return 0;
+};
+
+export const notify = (message: string, clickCallback?: () => void) => {
+  const ID = `notification-${performance.now()}`;
+  Notiflix.Notify.info(message, {
+    ID,
+    cssAnimationStyle: 'from-right',
+    showOnlyTheLastOne: false,
+    opacity: 0.9,
+    borderRadius: '12px',
+  });
+  if (!clickCallback) return;
+  document
+    .querySelectorAll('.notiflix-notify')
+    ?.forEach((e) => e.id.startsWith(ID) && e.addEventListener('click', clickCallback));
 };
 
 export const alertError = (error: Error, message?: string) => {

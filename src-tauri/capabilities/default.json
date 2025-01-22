@@ -14,6 +14,7 @@
     "core:window:allow-close",
     "core:window:allow-set-progress-bar",
     "core:event:default",
-    "deep-link:default"
+    "deep-link:default",
+    "os:default"
   ]
 }

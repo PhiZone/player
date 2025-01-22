@@ -139,7 +139,7 @@ export class Line {
     // );
 
     this.setVisible(false);
-    scene.register(this._line);
+    scene.registerNode(this._line, `line-${num}`);
 
     this._data.eventLayers.forEach((layer) => {
       processEvents(layer?.alphaEvents);
@@ -353,7 +353,7 @@ export class Line {
     const container = new GameObjects.Container(this._scene);
     container.setDepth(depth);
     this._noteContainers[depth] = container;
-    this._scene.register(container);
+    this._scene.registerNode(container, `line-${this._num}-cont-${depth}`);
     return container;
   }
 

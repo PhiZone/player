@@ -1,23 +1,25 @@
-import { GameObjects, Renderer } from 'phaser';
+import { Renderer } from 'phaser';
 import type { Game } from '../scenes/Game';
-import type { AnimatedVariable, RegisteredObject, ShaderEffect, VariableEvent } from '../types';
-import { getEventValue, processEvents, toBeats } from '../utils';
+import type { AnimatedVariable, ShaderEffect, VariableEvent } from '../types';
+import {
+  findLeaves,
+  findLowestCommonAncestorArray,
+  getEventValue,
+  mostFrequentElement,
+  processEvents,
+  toBeats,
+} from '../utils';
+import type { ShaderNode } from './ShaderNode';
+import { Node, ROOT } from './Node';
 
 const DEFAULT_VALUE_REGEX = /uniform\s+(\w+)\s+(\w+);\s+\/\/\s+%([^%]+)%/g;
 
 export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
   private _scene: Game;
   private _data: ShaderEffect;
-  private _container:
-    | {
-        object: GameObjects.Container;
-        depth: number;
-        upperDepth: number;
-        occupied: { [key: string]: boolean };
-      }
-    | undefined;
-  private _targets: RegisteredObject[] | undefined;
+  private _node?: ShaderNode;
   private _animators: VariableAnimator[] = [];
+  private _targetsCollected: boolean = false;
   private _isLoaded: boolean = false;
   // private _samplerMap: { [key: number]: string } = {};
 
@@ -27,12 +29,7 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
       scene: Game;
       fragShader: string;
       data: ShaderEffect;
-      target?: {
-        object: GameObjects.Container;
-        depth: number;
-        upperDepth: number;
-        occupied: { [key: string]: boolean };
-      };
+      target?: ShaderNode;
     },
   ) {
     postPipelineData.fragShader = postPipelineData.fragShader
@@ -43,7 +40,9 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
     this._data = postPipelineData.data;
     this._data.startBeat = toBeats(this._data.start);
     this._data.endBeat = toBeats(this._data.end);
-    this._container = postPipelineData.target;
+    if (postPipelineData.target) {
+      this._node = postPipelineData.target;
+    }
 
     [...postPipelineData.fragShader.matchAll(DEFAULT_VALUE_REGEX)].map((uniform) => {
       const type = uniform[1];
@@ -113,71 +112,77 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
   }
 
   update(beat: number, time: number) {
-    if (!this._isLoaded) {
+    if (!this._isLoaded || !this.active) {
       return;
     }
-    this.active = beat > this._data.startBeat && beat <= this._data.endBeat;
-    if (!this.active) {
-      if (
-        this._container &&
-        this._targets?.some((target) => target.occupied[this.name]) &&
-        !Object.keys(this._container.occupied)
-          .filter((key) => key !== this.name)
-          .some((key) => this._container!.occupied[key])
-      ) {
-        console.debug('Removing targets from', this.name);
-        this._container.object.removeAll();
-        this._targets.forEach((target) => {
-          target.occupied[this.name] = false;
-          // this._scene.add.existing(target.object);
-        });
-      }
-      return;
-    }
-    if (
-      this._data.targetRange &&
-      (!this._targets || this._targets?.some((target) => !target.occupied[this.name]))
-    ) {
+    if (this._data.targetRange && this._node && !this._targetsCollected) {
+      this._targetsCollected = true;
       const range = this._data.targetRange;
-      this._targets = this._scene.objects
+      let targets = this._scene.objects
         .filter((o) => {
-          if (Object.keys(o.occupied).some((key) => o.occupied[key])) return false;
-          if (o.upperDepth) {
-            if ((o.object as GameObjects.Container).list.length === 0) return false;
-            if (range.exclusive) {
-              return o.depth >= range.minZIndex && o.upperDepth <= range.maxZIndex;
-            } else {
-              return o.upperDepth > range.minZIndex && o.depth < range.maxZIndex;
-            }
-          } else {
-            return o.depth >= range.minZIndex && o.depth < range.maxZIndex;
-          }
+          if ('upperDepth' in o) return false;
+          return o.depth >= range.minZIndex && o.depth < range.maxZIndex;
         })
         .sort((a, b) => a.depth - b.depth);
-      console.debug('Adding targets to', this.name);
-      this._targets.forEach((target) => {
-        target.occupied[this.name] = true;
-        this._container?.object.add(target.object);
+      if (targets.length === 0) return;
+      console.log('Potential targets for', this._node.name, targets);
+      let parent;
+      if (targets.length === 1) {
+        parent = targets[0].parent;
+      } else {
+        const { lca, distance } = findLowestCommonAncestorArray(targets);
+        parent = lca;
+        if (range.exclusive && findLeaves(lca, distance).length > targets.length) {
+          const result = mostFrequentElement(targets.map((target) => target.parent));
+          targets = result!.element.children;
+          parent = result!.element;
+        }
+        const result = new Set<Node>();
+        for (const t of targets) {
+          let target = t;
+          while (target.treeDepth > lca.treeDepth + 1) {
+            target = target.parent;
+          }
+          result.add(target);
+        }
+        targets = Array.from(result);
+      }
+      console.log('Parent:', parent?.name);
+      if (parent !== ROOT) {
+        parent.addChild(this._node);
+        (parent as ShaderNode).object.add(this._node.object);
+      }
+      console.log('Adding targets to', this.name, this._data, targets);
+      targets.forEach((target) => {
+        this._node!.addChild(target);
+        this._node!.object.add(target.object);
       });
-      console.debug(this._targets);
+      console.log(
+        'Current tree:',
+        this._scene.objects.map((o) => `${o.name} ${o.parent?.name ?? ''}`).join('\n'),
+      );
     }
-    // if (!this.currentShader) {
-    //   console.warn(
-    //     `Shader ${this.name} is not loaded, even if it has ${this._container?.object.count('visible', true)} visible targets.`,
-    //   );
-    //   try {
-    //     this.set1f('time', time / 1000);
-    //   } catch (e) {
-    //     console.log('And thus we have expectedly caught', e);
-    //   }
-    //   return;
-    // }
     try {
       this.set1f('time', time / 1000);
       this.set2f('screenSize', this.renderer.width, this.renderer.height);
       this._animators.forEach((animator) => animator.update(beat));
     } catch (e) {
       console.error(e);
+    }
+  }
+
+  detach(beat: number) {
+    this.active = beat > this._data.startBeat && beat <= this._data.endBeat;
+    if (!this._isLoaded || !this._node) {
+      return;
+    }
+    if (!this.active) {
+      if (this._targetsCollected && !this._node.parent) {
+        this._targetsCollected = false;
+        console.log('Removing targets from', this.name);
+        this._node.object.removeAll();
+        this._node.removeAll();
+      }
     }
   }
 
