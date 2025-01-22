@@ -312,7 +312,7 @@ If you wish to run this program on your own, please be sure to append the missin
 
 ## Deployments
 
-The official website is deployed at https://player.phi.zone/. Distributions for Windows, macOS, Linux, Android and iOS/iPadOS can be found in the GitHub releases.
+The official website is deployed at https://player.phi.zone/ and https://player.phizone.cn/. Distributions for Windows, macOS, Linux, Android and iOS/iPadOS can be found in the GitHub releases.
 
 ## Stargazers over time
 

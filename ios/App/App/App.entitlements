@@ -5,6 +5,7 @@
 	<key>com.apple.developer.associated-domains</key>
 	<array>
 		<string>applinks:player.phi.zone</string>
+		<string>applinks:player.phizone.cn</string>
 	</array>
 </dict>
 </plist>
