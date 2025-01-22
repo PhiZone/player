@@ -1,5 +1,4 @@
 import type { GameObjects, Math } from 'phaser';
-import type { ShaderPipeline } from './objects/ShaderPipeline';
 
 export interface Config {
   resources: Resources;
@@ -304,25 +303,8 @@ export enum Grade {
   AP,
 }
 
-export type RegisteredObject =
-  | {
-      object: GameObject;
-      depth: number;
-      treeDepth: number;
-      occupant?: RegisteredContainer | undefined;
-    }
-  | RegisteredContainer;
-
-export interface RegisteredContainer {
-  object: GameObjects.Container;
-  shader?: ShaderPipeline;
-  depth: number;
-  upperDepth: number;
-  treeDepth: number;
-  occupant?: RegisteredContainer | undefined;
-}
-
 export type GameObject =
+  | GameObjects.Container
   | GameObjects.Image
   | GameObjects.Video
   | GameObjects.Sprite

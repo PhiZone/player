@@ -19,8 +19,6 @@ import {
   type SizeControl,
   type SkewControl,
   type YControl,
-  type RegisteredObject,
-  type RegisteredContainer,
   // type RecorderOptions,
 } from './types';
 import { EventBus } from './EventBus';
@@ -39,6 +37,7 @@ import bezier from 'bezier-easing';
 import type { Line } from './objects/Line';
 import Notiflix from 'notiflix';
 import 'context-filter-polyfill';
+import { ROOT, type Node } from './objects/Node';
 
 const easingFunctions: ((x: number) => number)[] = [
   (x) => x,
@@ -755,45 +754,42 @@ export const mostFrequentElement = <T>(array: T[]) => {
     : null;
 };
 
-export const findLowestCommonAncestor = (a: RegisteredObject, b: RegisteredObject) => {
+export const findLowestCommonAncestor = (a: Node, b: Node) => {
   const aAncestors = new Set([a]);
-  let current: RegisteredObject | undefined = a;
-  while (current.occupant) {
-    aAncestors.add(current.occupant);
-    current = current.occupant;
+  let current: Node = a;
+  while (current.parent !== ROOT) {
+    aAncestors.add(current.parent);
+    current = current.parent;
   }
   current = b;
-  while (current && !aAncestors.has(current)) {
-    current = current.occupant;
+  while (current !== ROOT && !aAncestors.has(current)) {
+    current = current.parent;
   }
   return {
-    lca: current as RegisteredContainer | undefined,
+    lca: current,
     distance: Math.max(a.treeDepth, b.treeDepth) - (current?.treeDepth ?? 0),
   };
 };
 
-export const findLowestCommonAncestorArray = (array: RegisteredObject[]) => {
-  let current: RegisteredObject | undefined = array[0];
+export const findLowestCommonAncestorArray = (array: Node[]) => {
+  let current: Node = array[0];
   let distance = 0;
   for (let i = 1; i < array.length; i++) {
-    if (!current) return { lca: undefined, distance };
+    if (current === ROOT) break;
     const { lca, distance: dist } = findLowestCommonAncestor(current, array[i]);
     current = lca;
     distance = Math.max(distance, dist);
   }
   return {
-    lca: current as RegisteredContainer | undefined,
+    lca: current,
     distance,
   };
 };
 
-export const findLeaves = (
-  container: RegisteredContainer,
-  maxDepth?: number,
-): RegisteredObject[] => {
-  const leaves: RegisteredObject[] = [];
+export const findLeaves = (node: Node, maxDepth?: number): Node[] => {
+  const leaves: Node[] = [];
   if (maxDepth === 0) return leaves;
-  container.shader!.children.forEach((child) => {
+  node.children.forEach((child) => {
     if ('shader' in child) {
       leaves.push(...findLeaves(child, maxDepth ? maxDepth - 1 : undefined));
     } else {

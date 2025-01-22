@@ -21,8 +21,8 @@ export class JudgmentHandler {
 
   constructor(scene: Game) {
     this._scene = scene;
-    scene.notes.forEach((note) => {
-      this.createHitEffectsContainer(note.note.zIndexHitEffects ?? 7);
+    [...new Set(scene.notes.map((note) => note.note.zIndexHitEffects))].forEach((zIndex) => {
+      this.createHitEffectsContainer(zIndex ?? 7);
     });
   }
 
@@ -152,7 +152,7 @@ export class JudgmentHandler {
     const container = new GameObjects.Container(this._scene);
     container.setDepth(depth);
     this._hitEffectsContainers[depth] = container;
-    this._scene.register(container);
+    this._scene.registerNode(container, `hiteffects-${depth}`);
     return container;
   }
 

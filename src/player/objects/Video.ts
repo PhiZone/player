@@ -100,7 +100,7 @@ export class Video extends GameObjects.Container {
         this.add(this._overlay);
         this._video.saveTexture(`asset-${data.path}`, true);
         this.setDepth(data.zIndex !== undefined ? data.zIndex : 1);
-        scene.register(this);
+        scene.registerNode(this, `video-${data.path}`);
         this._ready = true;
         callback();
       }, 100);

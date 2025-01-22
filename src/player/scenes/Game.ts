@@ -18,7 +18,6 @@ import {
   type Config,
   type GameObject,
   type PhiraExtra,
-  type RegisteredObject,
   type RpeJson,
   type ShaderEffect,
 } from '../types';
@@ -35,6 +34,8 @@ import { terminateFFmpeg } from '../ffmpeg';
 import { ShaderPipeline } from '../objects/ShaderPipeline';
 import { Video } from '../objects/Video';
 import { SignalHandler } from '../handlers/SignalHandler';
+import { Node, ROOT } from '../objects/Node';
+import { ShaderNode } from '../objects/ShaderNode';
 
 export class Game extends Scene {
   private _status: GameStatus = GameStatus.LOADING;
@@ -80,7 +81,7 @@ export class Game extends Scene {
         | {
             key: string;
             effect: ShaderEffect;
-            target: Cameras.Scene2D.Camera | RegisteredObject;
+            target: Cameras.Scene2D.Camera | ShaderNode;
           }
         | undefined
       )[]
@@ -90,7 +91,7 @@ export class Game extends Scene {
   private _timeout: NodeJS.Timeout;
   private _isSeeking: boolean = false;
 
-  private _objects: RegisteredObject[] = [];
+  private _objects: Node[] = [];
 
   private _song: Sound.NoAudioSound | Sound.HTML5AudioSound | Sound.WebAudioSound;
   private _background: GameObjects.Image;
@@ -477,6 +478,14 @@ export class Game extends Scene {
         ('object' in shader.target
           ? shader.target.object.getPostPipeline(shader.key)
           : shader.target.getPostPipeline(shader.key)) as ShaderPipeline
+      )?.detach(beat);
+    });
+    this._shaders?.forEach((shader) => {
+      if (!shader) return;
+      (
+        ('object' in shader.target
+          ? shader.target.object.getPostPipeline(shader.key)
+          : shader.target.getPostPipeline(shader.key)) as ShaderPipeline
       )?.update(beat, songTime);
     });
     this._videos?.forEach((video) => video.update(beat, songTime));
@@ -496,7 +505,7 @@ export class Game extends Scene {
       this.sys.canvas.height / 2,
       'illustration-background',
     ).setDepth(0);
-    this.register(this._background);
+    this.registerNode(this._background, 'illustration');
     this.positionBackground(this._background);
   }
 
@@ -637,7 +646,7 @@ export class Game extends Scene {
         }
         return undefined;
       }
-      const key = `${effect.shader}-${i}`;
+      const key = `sh-${effect.shader.slice(6)}-${i}`;
       (this.renderer as Renderer.WebGL.WebGLRenderer).pipelines.addPostPipeline(
         key,
         ShaderPipeline,
@@ -658,9 +667,10 @@ export class Game extends Scene {
             exclusive: false,
           };
         }
-        target = this.registerContainer(
+        target = this.registerShaderNode(
           new GameObjects.Container(this).setDepth(effect.targetRange.minZIndex),
           effect.targetRange.maxZIndex,
+          key,
         );
         target.object.setPostPipeline(key, {
           scene: this,
@@ -694,16 +704,16 @@ export class Game extends Scene {
     await signalHandler.wait();
   }
 
-  register(object: GameObject) {
+  registerNode(object: GameObject, name: string) {
     this.add.existing(object);
-    const entry = { object, depth: object.depth, treeDepth: 1 };
+    const entry = new Node(name, object, object.depth, ROOT);
     this._objects.push(entry);
     return entry;
   }
 
-  registerContainer(object: GameObjects.Container, upperDepth: number) {
+  registerShaderNode(object: GameObjects.Container, upperDepth: number, name: string) {
     this.add.existing(object);
-    const entry = { object, depth: object.depth, upperDepth, treeDepth: 1 };
+    const entry = new ShaderNode(name, object, object.depth, upperDepth, ROOT);
     this._objects.push(entry);
     return entry;
   }
