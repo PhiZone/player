@@ -214,6 +214,7 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
   const simultaneousNoteHint = ['1', 'true'].some(
     (v) => v == (searchParams.get('simultaneousNoteHint') ?? '1'),
   );
+  const timeScale = parseFloat(searchParams.get('timeScale') ?? '1');
 
   const frameRate = parseFloat(searchParams.get('frameRate') ?? '60');
   const overrideResolution: number[] | null = searchParams
@@ -268,6 +269,7 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
       noteSize,
       perfectJudgment,
       simultaneousNoteHint,
+      timeScale,
     },
     recorderOptions: {
       frameRate,

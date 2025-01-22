@@ -90,6 +90,7 @@ export class Game extends Scene {
   private _visible: boolean = true;
   private _timeout: NodeJS.Timeout;
   private _isSeeking: boolean = false;
+  private _timeScale: number = 1;
 
   private _objects: Node[] = [];
 
@@ -218,6 +219,8 @@ export class Game extends Scene {
         });
       else console.log('To be implemented:', name); // TODO
     });
+
+    this.timeScale = this._data.preferences.timeScale;
   }
 
   create() {
@@ -355,7 +358,7 @@ export class Game extends Scene {
     this.in();
     this._timeout = setTimeout(() => {
       this._song.play();
-    }, 1000);
+    }, 1000 / this.tweens.timeScale);
     EventBus.emit('started');
     this.game.events.on('hidden', () => {
       this._visible = false;
@@ -401,7 +404,7 @@ export class Game extends Scene {
     this.in();
     this._timeout = setTimeout(() => {
       this._song.play();
-    }, 1000);
+    }, 1000 / this.tweens.timeScale);
     this._status = GameStatus.PLAYING;
     this._objects.sort((a, b) => a.depth - b.depth);
     EventBus.emit('started');
@@ -413,12 +416,12 @@ export class Game extends Scene {
     this.out();
     setTimeout(() => {
       this._endingUI = new EndingUI(this, this._data.recorderOptions.endingLoopsToRecord);
-    }, 500);
+    }, 500 / this.tweens.timeScale);
     setTimeout(() => {
       this.resetShadersAndVideos();
       this._endingUI!.play();
       EventBus.emit('finished');
-    }, 1000);
+    }, 1000 / this.tweens.timeScale);
   }
 
   setSeek(value: number) {
@@ -470,6 +473,7 @@ export class Game extends Scene {
 
   updateChart(beat: number, songTime: number, gameTime: number) {
     if (this._status === GameStatus.FINISHED || this._status === GameStatus.DESTROYED) return;
+    gameTime *= this._timeScale;
     this._lines.forEach((line) => line.update(beat, songTime, gameTime));
     this._notes.forEach((note) => note.updateJudgment(beat, songTime));
     this._shaders?.forEach((shader) => {
@@ -738,6 +742,17 @@ export class Game extends Scene {
     return (distance * this.sys.canvas.height * 2) / 15;
   }
 
+  public set timeScale(value: number) {
+    this._timeScale = value;
+    if (this._autoplay) {
+      this.sound.setRate(value);
+      this.anims.globalTimeScale = value;
+      this.tweens.timeScale = value;
+    } else {
+      this._song.setRate(value);
+    }
+  }
+
   public get gameUI() {
     return this._gameUI;
   }
@@ -832,6 +847,10 @@ export class Game extends Scene {
 
   public get status() {
     return this._status;
+  }
+
+  public get timeScale() {
+    return this._timeScale;
   }
 
   public get autoplay() {

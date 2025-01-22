@@ -86,6 +86,7 @@
     noteSize: 1,
     perfectJudgment: 80,
     simultaneousNoteHint: true,
+    timeScale: 1,
   };
   let toggles = {
     autostart: false,

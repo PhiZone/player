@@ -121,7 +121,7 @@ export class Video extends GameObjects.Container {
       this._video.resume();
       this._isPlaying = true;
     }
-    this._video.setPlaybackRate(this._scene.song.rate);
+    this._video.setPlaybackRate(this._scene.timeScale);
     if (typeof this._data.alpha === 'number') {
       this.setAlpha(this._data.alpha);
     } else {

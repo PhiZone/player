@@ -202,17 +202,21 @@ export class EndingUI extends GameObjects.Container {
     this._sound = this._scene.sound.add('ending');
     this._sound.setVolume(this._scene.preferences.musicVolume).play();
     this._scene.sound.add('grade-hit').setVolume(this._scene.preferences.hitSoundVolume).play();
-    this._timer = setInterval(() => {
-      this._sound.setSeek(0);
-    }, 192e3 / 7);
+    this._timer = setInterval(
+      () => {
+        this._sound.setSeek(0);
+      },
+      192e3 / 7 / this._scene.tweens.timeScale,
+    );
     setTimeout(
       () => {
         EventBus.emit('recording-stop');
       },
-      (this._loopsToRecord * 192e3) / 7,
+      (this._loopsToRecord * 192e3) / 7 / this._scene.tweens.timeScale,
     );
     this._tweening = true;
-    if (Capacitor.getPlatform() !== 'android') this._grade.preFX?.addShine(7 / 6, 1, 3, false);
+    if (Capacitor.getPlatform() !== 'android')
+      this._grade.preFX?.addShine((7 / 6) * this._scene.tweens.timeScale, 1, 3, false);
 
     // Overlay (to dim the background)
     this._scene.tweens.add({

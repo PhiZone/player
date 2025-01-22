@@ -27,7 +27,7 @@ export class JudgmentHandler {
   }
 
   hit(type: JudgmentType, delta: number, note: PlainNote) {
-    delta /= this._scene.song.rate;
+    delta /= this._scene.timeScale;
     if (
       this._scene.status === GameStatus.PLAYING &&
       (!this._scene.autoplay || Math.abs(delta) < 1e-1)
@@ -119,7 +119,7 @@ export class JudgmentHandler {
   }
 
   hold(type: JudgmentType, delta: number, note: LongNote) {
-    delta /= this._scene.song.rate;
+    delta /= this._scene.timeScale;
     const beat = this._scene.beat;
     if (
       this._scene.status === GameStatus.PLAYING &&
@@ -141,7 +141,7 @@ export class JudgmentHandler {
             this.createHitEffects(type, note);
           }
         },
-        30000 / this._scene.bpm / this._scene.song.rate,
+        30000 / this._scene.bpm / this._scene.timeScale,
       );
       this._judgmentDeltas.push({ delta, beat });
     }
