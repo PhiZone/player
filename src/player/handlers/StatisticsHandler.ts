@@ -32,6 +32,7 @@ export class StatisticsHandler {
       this._accuracy = 1;
       return;
     }
+    delta *= this._scene.song.rate;
     const displayScoreDiff = this._score - this._displayScore;
     this._displayScore += displayScoreDiff * Math.min(delta / 50, 1);
     const displayStdDevDiff = this._stdDev - this._displayStdDev;

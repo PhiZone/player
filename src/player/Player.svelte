@@ -633,10 +633,10 @@
       aria-label="Speed up"
       on:click={() => {
         if (!gameRef.scene) return;
-        if (wavesurferOptions) wavesurferOptions.minPxPerSec *= gameRef.scene.song.rate;
-        gameRef.scene.song.rate = Math.min(9.9, gameRef.scene.song.rate + 0.1);
+        if (wavesurferOptions) wavesurferOptions.minPxPerSec *= gameRef.scene.timeScale;
+        gameRef.scene.timeScale = Math.min(9.9, gameRef.scene.timeScale + 0.1);
         if (wavesurferOptions) {
-          wavesurferOptions.minPxPerSec /= gameRef.scene.song.rate;
+          wavesurferOptions.minPxPerSec /= gameRef.scene.timeScale;
           wavesurfer?.setOptions(wavesurferOptions);
         }
       }}
@@ -649,25 +649,25 @@
       aria-label="Reset to normal speed"
       on:click={() => {
         if (!gameRef.scene) return;
-        if (wavesurferOptions) wavesurferOptions.minPxPerSec *= gameRef.scene.song.rate;
-        gameRef.scene.song.rate = 1;
+        if (wavesurferOptions) wavesurferOptions.minPxPerSec *= gameRef.scene.timeScale;
+        gameRef.scene.timeScale = 1;
         if (wavesurferOptions) {
           wavesurfer?.setOptions(wavesurferOptions);
         }
       }}
       on:mousedown|preventDefault
     >
-      × {gameRef.scene?.song.rate.toFixed(1)}
+      × {gameRef.scene?.timeScale.toFixed(1)}
     </button>
     <button
       class="btn btn-outline join-item"
       aria-label="Speed down"
       on:click={() => {
         if (!gameRef.scene) return;
-        if (wavesurferOptions) wavesurferOptions.minPxPerSec *= gameRef.scene.song.rate;
-        gameRef.scene.song.rate = Math.max(0.1, gameRef.scene.song.rate - 0.1);
+        if (wavesurferOptions) wavesurferOptions.minPxPerSec *= gameRef.scene.timeScale;
+        gameRef.scene.timeScale = Math.max(0.1, gameRef.scene.timeScale - 0.1);
         if (wavesurferOptions) {
-          wavesurferOptions.minPxPerSec /= gameRef.scene.song.rate;
+          wavesurferOptions.minPxPerSec /= gameRef.scene.timeScale;
           wavesurfer?.setOptions(wavesurferOptions);
         }
       }}

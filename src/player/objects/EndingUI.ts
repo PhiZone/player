@@ -206,16 +206,17 @@ export class EndingUI extends GameObjects.Container {
       () => {
         this._sound.setSeek(0);
       },
-      (2 * 192e3) / 7,
+      (2 * 192e3) / 7 / this._scene.tweens.timeScale,
     );
     setTimeout(
       () => {
         EventBus.emit('recording-stop');
       },
-      (this._loopsToRecord * 192e3) / 7,
+      (this._loopsToRecord * 192e3) / 7 / this._scene.tweens.timeScale,
     );
     this._tweening = true;
-    if (Capacitor.getPlatform() !== 'android') this._grade.preFX?.addShine(7 / 6, 1, 3, false);
+    if (Capacitor.getPlatform() !== 'android')
+      this._grade.preFX?.addShine((7 / 6) * this._scene.tweens.timeScale, 1, 3, false);
 
     // Overlay (to dim the background)
     this._scene.tweens.add({

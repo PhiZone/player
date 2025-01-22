@@ -47,6 +47,7 @@ export interface Preferences {
   noteSize: number;
   perfectJudgment: number;
   simultaneousNoteHint: boolean;
+  timeScale: number;
 }
 
 export interface RecorderOptions {
