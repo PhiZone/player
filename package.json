@@ -80,6 +80,7 @@
     "@fix-webm-duration/fix": "^1.0.1",
     "@tauri-apps/api": "^2.2.0",
     "@tauri-apps/plugin-deep-link": "~2.2.0",
+    "@tauri-apps/plugin-os": "~2.2.0",
     "apng-js": "^1.1.4",
     "bezier-easing": "^2.1.0",
     "context-filter-polyfill": "^0.3.22",

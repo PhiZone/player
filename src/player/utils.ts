@@ -1163,6 +1163,31 @@ export const getSpritesheet = async (url: string, isGif = false) => {
   return isGif ? convertGifToSpritesheet(buffer) : convertApngToSpritesheet(buffer);
 };
 
+export const versionCompare = (aString: string, bString: string) => {
+  const a = aString.split('.').map(parseInt);
+  const b = bString.split('.').map(parseInt);
+  for (let i = 0; i < Math.min(a.length, b.length); i++) {
+    if (a[i] < b[i]) return -1;
+    if (a[i] > b[i]) return 1;
+  }
+  return 0;
+};
+
+export const notify = (message: string, clickCallback?: () => void) => {
+  const ID = `notification-${performance.now()}`;
+  Notiflix.Notify.info(message, {
+    ID,
+    cssAnimationStyle: 'from-right',
+    showOnlyTheLastOne: false,
+    opacity: 0.9,
+    borderRadius: '12px',
+  });
+  if (!clickCallback) return;
+  document
+    .querySelectorAll('.notiflix-notify')
+    ?.forEach((e) => e.id.startsWith(ID) && e.addEventListener('click', clickCallback));
+};
+
 export const alertError = (error: Error, message?: string) => {
   const type = error === null ? 'null' : error === undefined ? 'undefined' : error.constructor.name;
   let message2 = String(error);

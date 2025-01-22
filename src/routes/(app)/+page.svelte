@@ -4,7 +4,14 @@
   import { onMount } from 'svelte';
   import queryString from 'query-string';
   import { fileTypeFromBlob } from 'file-type';
-  import type { Config, Metadata, Preferences, RecorderOptions, RpeJson } from '../../player/types';
+  import type {
+    Config,
+    Metadata,
+    Preferences,
+    RecorderOptions,
+    Release,
+    RpeJson,
+  } from '../../player/types';
   import {
     clamp,
     fit,
@@ -15,6 +22,8 @@
     IS_IOS,
     IS_TAURI,
     isZip,
+    notify,
+    versionCompare,
   } from '../../player/utils';
   import PreferencesModal from '$lib/components/Preferences.svelte';
   import { goto } from '$app/navigation';
@@ -23,9 +32,10 @@
   import { PhysicalPosition, PhysicalSize } from '@tauri-apps/api/dpi';
   import { currentMonitor, type Monitor } from '@tauri-apps/api/window';
   import { getCurrent, onOpenUrl } from '@tauri-apps/plugin-deep-link';
+  import { platform, arch } from '@tauri-apps/plugin-os';
   import { App, type URLOpenListenerEvent } from '@capacitor/app';
   import { page } from '$app/stores';
-  import { REPO_LINK } from '$lib';
+  import { REPO_API_LINK, REPO_LINK, VERSION } from '$lib';
   import { SendIntent } from 'send-intent';
   import { Filesystem } from '@capacitor/filesystem';
 
@@ -157,6 +167,47 @@
         }
         const searchParams = new URL(url).searchParams;
         handleParamFiles(searchParams);
+      }
+
+      if (IS_TAURI || Capacitor.getPlatform() !== 'web') {
+        const latestRelease = (await (
+          await fetch(`${REPO_API_LINK}/releases/latest`)
+        ).json()) as Release;
+        if (versionCompare(latestRelease.tag_name.slice(1), VERSION) > 0) {
+          const clickToDownload =
+            (IS_TAURI && platform() === 'windows') ||
+            platform() === 'macos' ||
+            Capacitor.getPlatform() === 'android';
+          notify(
+            `A new version (${latestRelease.tag_name}) is available. ${clickToDownload ? 'Click to download.' : Capacitor.getPlatform() === 'ios' ? 'Please update the app via TestFlight.' : 'Click to go to the GitHub releases page.'}`,
+            Capacitor.getPlatform() === 'ios'
+              ? undefined
+              : () => {
+                  if (clickToDownload) {
+                    const isWindows = platform() === 'windows';
+                    const isX86 = arch().startsWith('x86');
+                    const asset = latestRelease.assets.find((asset) =>
+                      asset.name.endsWith(
+                        Capacitor.getPlatform() === 'android'
+                          ? '.apk'
+                          : isWindows
+                            ? isX86
+                              ? 'x64-setup.exe'
+                              : 'arm64-setup.exe'
+                            : isX86
+                              ? 'x64.dmg'
+                              : 'aarch64.dmg',
+                      ),
+                    );
+                    if (asset) {
+                      window.location.href = asset?.browser_download_url;
+                      return;
+                    }
+                  }
+                  window.open(latestRelease.html_url);
+                },
+          );
+        }
       }
     }
 
