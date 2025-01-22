@@ -755,6 +755,11 @@ export const mostFrequentElement = <T>(array: T[]) => {
 };
 
 export const findLowestCommonAncestor = (a: Node, b: Node) => {
+  if (a === ROOT)
+    return {
+      lca: ROOT,
+      distance: Math.max(a.treeDepth, b.treeDepth),
+    };
   const aAncestors = new Set([a]);
   let current: Node = a;
   while (current.parent !== ROOT) {

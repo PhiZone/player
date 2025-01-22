@@ -10,7 +10,7 @@ import {
   toBeats,
 } from '../utils';
 import type { ShaderNode } from './ShaderNode';
-import { Node } from './Node';
+import { Node, ROOT } from './Node';
 
 const DEFAULT_VALUE_REGEX = /uniform\s+(\w+)\s+(\w+);\s+\/\/\s+%([^%]+)%/g;
 
@@ -126,25 +126,32 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
         .sort((a, b) => a.depth - b.depth);
       if (targets.length === 0) return;
       console.log('Potential targets for', this._node.name, targets);
-      const { lca, distance } = findLowestCommonAncestorArray(targets);
-      let parent = lca;
-      if (range.exclusive && findLeaves(lca, distance).length > targets.length) {
-        const result = mostFrequentElement(targets.map((target) => target.parent));
-        targets = result!.element.children;
-        parent = result!.element;
-      }
-      const result = new Set<Node>();
-      for (const t of targets) {
-        let target = t;
-        while (target.treeDepth > lca.treeDepth + 1) {
-          target = target.parent;
-          console.log(target.treeDepth, lca.treeDepth + 1, target.treeDepth > lca.treeDepth + 1);
+      let parent;
+      if (targets.length === 1) {
+        parent = targets[0].parent;
+      } else {
+        const { lca, distance } = findLowestCommonAncestorArray(targets);
+        parent = lca;
+        if (range.exclusive && findLeaves(lca, distance).length > targets.length) {
+          const result = mostFrequentElement(targets.map((target) => target.parent));
+          targets = result!.element.children;
+          parent = result!.element;
         }
-        result.add(target);
+        const result = new Set<Node>();
+        for (const t of targets) {
+          let target = t;
+          while (target.treeDepth > lca.treeDepth + 1) {
+            target = target.parent;
+          }
+          result.add(target);
+        }
+        targets = Array.from(result);
       }
-      targets = Array.from(result);
-      console.log('Parent:', parent?.name, 'Distance:', distance);
-      if (parent) parent.addChild(this._node);
+      console.log('Parent:', parent?.name);
+      if (parent !== ROOT) {
+        parent.addChild(this._node);
+        (parent as ShaderNode).object.add(this._node.object);
+      }
       console.log('Adding targets to', this.name, this._data, targets);
       targets.forEach((target) => {
         this._node!.addChild(target);
