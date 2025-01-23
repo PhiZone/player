@@ -17,9 +17,16 @@ export class Node {
     this.children = [];
   }
 
+  updateDepth() {
+    this.treeDepth = this.parent.treeDepth + 1;
+    this.children.forEach((child) => {
+      child.updateDepth();
+    });
+  }
+
   addChild(child: Node) {
     child.parent = this;
-    child.treeDepth = this.treeDepth + 1;
+    child.updateDepth();
     this.children.push(child);
   }
 
@@ -27,7 +34,7 @@ export class Node {
     const index = this.children.indexOf(child);
     if (index !== -1) {
       child.parent = ROOT;
-      child.treeDepth = 1;
+      child.updateDepth();
       this.children.splice(index, 1);
     }
   }
@@ -35,7 +42,7 @@ export class Node {
   removeAll() {
     this.children.forEach((child) => {
       child.parent = ROOT;
-      child.treeDepth = 1;
+      child.updateDepth();
     });
     this.children = [];
   }
