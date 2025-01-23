@@ -29,6 +29,7 @@
   import Minimap from 'wavesurfer.js/dist/plugins/minimap.esm.js';
   import Regions from 'wavesurfer.js/dist/plugins/regions.esm.js';
   import { NOTE_PRIORITIES } from './constants';
+  import { equal } from 'mathjs';
 
   export let gameRef: GameReference;
 
@@ -657,7 +658,11 @@
       }}
       on:mousedown|preventDefault
     >
-      × {gameRef.scene?.timeScale.toFixed(1)}
+      {gameRef.scene &&
+      !equal(gameRef.scene.timeScale, parseFloat(gameRef.scene.timeScale.toFixed(1)))
+        ? '~'
+        : '×'}
+      {gameRef.scene?.timeScale.toFixed(1)}
     </button>
     <button
       class="btn btn-outline join-item"
