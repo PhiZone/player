@@ -1,8 +1,8 @@
 import { REPO_API_LINK } from '$lib';
-import type { Release } from '../../player/types';
-import type { LayoutLoad } from './$types';
+import type { Release } from '../../../player/types';
+import type { PageLoad } from './$types';
 
-export const load: LayoutLoad = async ({ fetch }) => {
+export const load: PageLoad = async ({ fetch }) => {
   const latestRelease = (await (await fetch(`${REPO_API_LINK}/releases/latest`)).json()) as Release;
   return {
     latestRelease,
