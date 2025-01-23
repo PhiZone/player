@@ -306,6 +306,7 @@ export enum Grade {
 
 export type GameObject =
   | GameObjects.Container
+  | GameObjects.Layer
   | GameObjects.Image
   | GameObjects.Video
   | GameObjects.Sprite
