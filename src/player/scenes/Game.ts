@@ -673,7 +673,8 @@ export class Game extends Scene {
           };
         }
         target = this.registerShaderNode(
-          new GameObjects.Container(this).setDepth(effect.targetRange.minZIndex),
+          new GameObjects.Layer(this),
+          effect.targetRange.minZIndex,
           effect.targetRange.maxZIndex,
           key,
         );
@@ -716,9 +717,15 @@ export class Game extends Scene {
     return entry;
   }
 
-  registerShaderNode(object: GameObjects.Container, upperDepth: number, name: string) {
+  registerShaderNode(
+    object: GameObjects.Layer,
+    lowerDepth: number,
+    upperDepth: number,
+    name: string,
+  ) {
+    object.setDepth(lowerDepth);
     this.add.existing(object);
-    const entry = new ShaderNode(name, object, object.depth, upperDepth, ROOT);
+    const entry = new ShaderNode(name, object, lowerDepth, upperDepth, ROOT);
     this._objects.push(entry);
     return entry;
   }

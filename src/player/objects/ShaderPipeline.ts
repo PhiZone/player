@@ -159,7 +159,9 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
       });
       console.log(
         'Current tree:',
-        this._scene.objects.map((o) => `${o.name} ${o.parent.name}`).join('\n'),
+        this._scene.objects
+          .map((o) => `\n${o.name} ${o.parent === ROOT ? 'ROOT' : o.parent.name}`)
+          .join(''),
       );
     }
     try {

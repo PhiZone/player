@@ -35,7 +35,7 @@
   import { platform, arch } from '@tauri-apps/plugin-os';
   import { App, type URLOpenListenerEvent } from '@capacitor/app';
   import { page } from '$app/stores';
-  import { REPO_API_LINK, REPO_LINK, VERSION } from '$lib';
+  import { REPO_LINK, VERSION } from '$lib';
   import { SendIntent } from 'send-intent';
   import { Filesystem } from '@capacitor/filesystem';
 
@@ -121,6 +121,10 @@
 
   let timeouts: NodeJS.Timeout[] = [];
 
+  export let data;
+
+  $: ({ latestRelease } = data);
+
   onMount(async () => {
     directoryInput.webkitdirectory = true;
 
@@ -171,9 +175,6 @@
       }
 
       if (IS_TAURI || Capacitor.getPlatform() !== 'web') {
-        const latestRelease = (await (
-          await fetch(`${REPO_API_LINK}/releases/latest`)
-        ).json()) as Release;
         if (versionCompare(latestRelease.tag_name.slice(1), VERSION) > 0) {
           const clickToDownload =
             (IS_TAURI && platform() === 'windows') ||

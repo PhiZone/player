@@ -1,6 +1,10 @@
-<script>
-  import { REPO_LINK, VERSION } from '$lib';
+<script lang="ts">
+  import { REPO_LINK } from '$lib';
   import Distribution from '$lib/components/Distribution.svelte';
+
+  export let data;
+
+  const VERSION = data.latestRelease.tag_name.slice(1);
 
   const distributions = [
     {
