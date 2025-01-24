@@ -220,8 +220,6 @@ export class Game extends Scene {
         });
       else console.log('To be implemented:', name); // TODO
     });
-
-    this.timeScale = this._data.preferences.timeScale;
   }
 
   create() {
@@ -500,6 +498,7 @@ export class Game extends Scene {
     this.sound.pauseOnBlur = false;
     this._song = this.sound.add('song');
     this._song.setVolume(this._data.preferences.musicVolume);
+    this.timeScale = this._data.preferences.timeScale;
   }
 
   createBackground() {
