@@ -763,7 +763,7 @@
         <input
           type="file"
           multiple
-          accept={IS_IOS || Capacitor.getPlatform() === 'ios'
+          accept={IS_ANDROID_OR_IOS || Capacitor.getPlatform() !== 'web'
             ? null
             : '.pez,.yml,.yaml,.shader,.glsl,.frag,.fsh,.fs,application/zip,application/json,image/*,video/*,audio/*,text/*'}
           class="file-input file-input-bordered w-full max-w-xs file:btn dark:file:btn-neutral file:no-animation border-gray-200 rounded-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 dark:border-neutral-700 dark:text-neutral-300 dark:focus:ring-neutral-600"
@@ -779,20 +779,22 @@
           }}
         />
       </label>
-      <div class="divider mb-1 lg:divider-horizontal">OR</div>
-      <label class="form-control w-full max-w-xs">
-        <div class="label pt-0">
-          <span class="label-text">Choose a folder</span>
-        </div>
-        <input
-          bind:this={directoryInput}
-          type="file"
-          multiple
-          class="file-input file-input-bordered w-full max-w-xs file:btn dark:file:btn-neutral file:no-animation border-gray-200 rounded-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 dark:border-neutral-700 dark:text-neutral-300 dark:focus:ring-neutral-600"
-          on:input={async () =>
-            await handleFiles(directoryInput.files ? Array.from(directoryInput.files) : null)}
-        />
-      </label>
+      {#if !IS_ANDROID_OR_IOS && Capacitor.getPlatform() === 'web'}
+        <div class="divider mb-1 lg:divider-horizontal">OR</div>
+        <label class="form-control w-full max-w-xs">
+          <div class="label pt-0">
+            <span class="label-text">Choose a folder</span>
+          </div>
+          <input
+            bind:this={directoryInput}
+            type="file"
+            multiple
+            class="file-input file-input-bordered w-full max-w-xs file:btn dark:file:btn-neutral file:no-animation border-gray-200 rounded-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 dark:border-neutral-700 dark:text-neutral-300 dark:focus:ring-neutral-600"
+            on:input={async () =>
+              await handleFiles(directoryInput.files ? Array.from(directoryInput.files) : null)}
+          />
+        </label>
+      {/if}
     </div>
     <div
       class="w-full sm:w-5/6 md:w-3/4 lg:w-2/3 opacity-0 transition"
