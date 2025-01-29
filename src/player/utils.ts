@@ -123,6 +123,8 @@ export const IS_ANDROID_OR_IOS =
     return false;
   })();
 
+export const IS_IFRAME = window.self !== window.top;
+
 const download = async (url: string, name?: string) => {
   EventBus.emit('loading', 0);
   EventBus.emit(
@@ -892,7 +894,18 @@ export const outputRecording = async (
   // );
 };
 
-export const triggerDownload = (blob: Blob, name: string) => {
+export const triggerDownload = (blob: Blob, name: string, always = false) => {
+  if (IS_IFRAME) {
+    parent.postMessage(
+      {
+        type: 'file',
+        name: name,
+      },
+      '*',
+      [blob],
+    );
+    if (!always) return;
+  }
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
