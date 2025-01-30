@@ -90,10 +90,14 @@ const start = (parent: string, sceneConfig: Config | null) => {
   game.scene.start('MainGame');
   if (!config.scale || config.scale.mode === Scale.EXPAND) {
     new ResizeObserver((size) => {
-      game.scale.resize(
-        size[0].contentBoxSize[0].inlineSize * window.devicePixelRatio,
-        size[0].contentBoxSize[0].blockSize * window.devicePixelRatio,
-      );
+      try {
+        game.scale.resize(
+          size[0].contentBoxSize[0].inlineSize * window.devicePixelRatio,
+          size[0].contentBoxSize[0].blockSize * window.devicePixelRatio,
+        );
+      } catch (e) {
+        console.warn(e);
+      }
     }).observe(parentElement);
   }
   return game;
