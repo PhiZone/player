@@ -11,6 +11,7 @@ import {
   loadText,
   getSpritesheet,
   findHighlightMoments,
+  pathRoot,
 } from '../utils';
 import {
   GameStatus,
@@ -269,13 +270,14 @@ export class Game extends Scene {
           alert('Failed to load extra.json.');
           return;
         }
+        const root = pathRoot();
         this._extra.effects.forEach((effect) => {
           if (effect.shader.startsWith('/')) {
             effect.shader = `asset-${effect.shader.slice(1)}`;
           } else {
             this._shaderAssets.push({
               key: `intsh-${effect.shader}`,
-              url: '/game/shaders/' + effect.shader + '.glsl',
+              url: root + 'game/shaders/' + effect.shader + '.glsl',
             });
             effect.shader = `intsh-${effect.shader}`;
           }

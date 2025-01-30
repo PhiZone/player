@@ -21,6 +21,7 @@
     getTimeSec,
     IS_TAURI,
     outputRecording,
+    pathRoot,
     triggerDownload,
   } from './utils';
   import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
@@ -39,7 +40,7 @@
 
   config ??= getParams();
   if (!config) {
-    goto(IS_TAURI ? `/?t=${Date.now()}` : '/');
+    goto(`${pathRoot()}${IS_TAURI ? `?t=${Date.now()}` : ''}`);
   }
 
   let progress = 0;
@@ -279,7 +280,7 @@
         window.close();
       }
     } else {
-      goto(IS_TAURI ? `/?t=${Date.now()}` : '/');
+      goto(`${pathRoot()}${IS_TAURI ? `?t=${Date.now()}` : ''}`);
     }
   };
 

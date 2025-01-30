@@ -1,7 +1,7 @@
 <script lang="ts">
   import { REPO_LINK } from '$lib';
   import Distribution from '$lib/components/Distribution.svelte';
-  import { IS_ANDROID_OR_IOS, IS_TAURI } from '../../../player/utils.js';
+  import { IS_ANDROID_OR_IOS, IS_TAURI, pathRoot } from '../../../player/utils.js';
   import { Capacitor } from '@capacitor/core';
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
@@ -97,7 +97,7 @@
         <button
           class="w-full inline-flex justify-center items-center gap-x-3 text-center bg-gradient-to-tl from-blue-500 via-violet-500 to-fuchsia-500 dark:from-blue-700 dark:via-violet-700 dark:to-fuchsia-700 text-white text-sm font-medium rounded-md focus:outline-none py-3 px-4 transition-all duration-300 bg-size-200 bg-pos-0 hover:bg-pos-100"
           on:click={() => {
-            window.open(`${IS_ANDROID_OR_IOS ? '/app' : 'phizone-player://'}${$page.url.search}`);
+            window.open(`${IS_ANDROID_OR_IOS ? 'app' : 'phizone-player://'}${$page.url.search}`);
           }}
         >
           Open in the app
@@ -110,7 +110,7 @@
 <div class="max-w-2xl text-center mx-auto">
   <a
     class="block font-bold text-gray-800 text-4xl md:text-5xl lg:text-6xl dark:text-neutral-200 hover:underline"
-    href="/"
+    href={pathRoot()}
   >
     PhiZone
     <span class="bg-clip-text bg-gradient-to-tl from-blue-500 to-violet-600 text-transparent">

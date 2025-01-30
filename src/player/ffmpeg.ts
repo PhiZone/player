@@ -1,8 +1,8 @@
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { toBlobURL } from '@ffmpeg/util';
+import { pathRoot } from './utils';
 
 const ffmpeg = new FFmpeg();
-const baseURL = '/ffmpeg';
 
 export const loadFFmpeg = async (
   callback?: ({
@@ -16,8 +16,18 @@ export const loadFFmpeg = async (
   }) => void,
 ) => {
   await ffmpeg.load({
-    coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript', true, callback),
-    wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm', true, callback),
+    coreURL: await toBlobURL(
+      `${pathRoot()}ffmpeg/ffmpeg-core.js`,
+      'text/javascript',
+      true,
+      callback,
+    ),
+    wasmURL: await toBlobURL(
+      `${pathRoot()}ffmpeg/ffmpeg-core.wasm`,
+      'application/wasm',
+      true,
+      callback,
+    ),
   });
 };
 

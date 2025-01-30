@@ -23,6 +23,7 @@
     IS_TAURI,
     isZip,
     notify,
+    pathRoot,
     versionCompare,
   } from '../../player/utils';
   import PreferencesModal from '$lib/components/Preferences.svelte';
@@ -159,6 +160,7 @@
 
   const init = async () => {
     if (!$page.url.searchParams.get('t')) {
+      localStorage.setItem('playerRoot', $page.url.pathname.endsWith('/') ? $page.url.pathname : `${$page.url.pathname}/`);
       const url = IS_TAURI ? (await getCurrent())?.at(0) : undefined;
       if (url) {
         const params = getParams(url, false);
@@ -244,7 +246,7 @@
       if (toggles.inApp === 0) {
         modal.showModal();
       } else if (toggles.inApp === 1) {
-        window.open(`${IS_ANDROID_OR_IOS ? '/app' : 'phizone-player://'}${$page.url.search}`);
+        window.open(`${IS_ANDROID_OR_IOS ? 'app' : 'phizone-player://'}${$page.url.search}`);
       } else {
         handleParamFiles($page.url.searchParams);
       }
@@ -536,7 +538,7 @@
       inApp: params.inApp,
     };
     start(
-      `/play?${queryString.stringify(params, {
+      `play?${queryString.stringify(params, {
         arrayFormat: 'none',
         skipEmptyString: true,
         skipNull: true,
@@ -649,7 +651,7 @@
   </button>
   {#if !IS_TAURI && Capacitor.getPlatform() === 'web'}
     <a
-      href="/app"
+      href="{pathRoot()}app"
       target={chartFiles.length > 0 ||
       audioFiles.length > 0 ||
       imageFiles.length > 0 ||
@@ -668,7 +670,7 @@
         <p class="py-4">
           It looks like some files can be resolved. You might want to proceed with the PhiZone
           Player app if you have it installed. Otherwise, you can either <a
-            href="/app"
+            href="{pathRoot()}app"
             target="_blank"
             class="text-accent hover:underline"
           >
@@ -705,7 +707,7 @@
               class="inline-flex justify-center items-center gap-x-3 text-center bg-gradient-to-tl from-blue-500 via-violet-500 to-fuchsia-500 dark:from-blue-700 dark:via-violet-700 dark:to-fuchsia-700 text-white text-sm font-medium rounded-md focus:outline-none py-3 px-4 transition-all duration-300 bg-size-200 bg-pos-0 hover:bg-pos-100"
               on:click={() => {
                 window.open(
-                  `${IS_ANDROID_OR_IOS ? '/app' : 'phizone-player://'}${$page.url.search}`,
+                  `${IS_ANDROID_OR_IOS ? 'app' : 'phizone-player://'}${$page.url.search}`,
                 );
                 if (modalMem) {
                   toggles.inApp = 1;
@@ -1501,9 +1503,9 @@
                   sort: false,
                 },
               );
-              let url = '/play';
+              let url = 'play';
               if (params.length <= 15360) {
-                url = `/play?${params}`;
+                url = `play?${params}`;
               } else {
                 const config: Config = {
                   resources: {

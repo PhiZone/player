@@ -125,6 +125,8 @@ export const IS_ANDROID_OR_IOS =
 
 export const IS_IFRAME = window.self !== window.top;
 
+export const pathRoot = () => localStorage.getItem('pathRoot') ?? '/';
+
 const download = async (url: string, name?: string) => {
   EventBus.emit('loading', 0);
   EventBus.emit(
