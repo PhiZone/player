@@ -2,9 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "enables the default permissions",
-  "windows": [
-    "*"
-  ],
+  "windows": ["*"],
   "permissions": [
     "core:default",
     "core:webview:allow-create-webview-window",
@@ -15,6 +13,9 @@
     "core:window:allow-set-progress-bar",
     "core:event:default",
     "deep-link:default",
-    "os:default"
+    "os:default",
+    "upload:default",
+    "fs:allow-temp-read",
+    "fs:allow-remove"
   ]
 }
