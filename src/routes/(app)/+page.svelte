@@ -23,7 +23,6 @@
     IS_TAURI,
     isZip,
     notify,
-    pathRoot,
     versionCompare,
   } from '../../player/utils';
   import PreferencesModal from '$lib/components/Preferences.svelte';
@@ -43,6 +42,7 @@
   import { download as tauriDownload } from '@tauri-apps/plugin-upload';
   import { readFile, remove } from '@tauri-apps/plugin-fs';
   import { random } from 'mathjs';
+  import { base } from '$app/paths';
 
   interface FileEntry {
     id: number;
@@ -181,7 +181,6 @@
 
   const init = async () => {
     if (!$page.url.searchParams.get('t')) {
-      localStorage.setItem('playerRoot', $page.url.pathname.endsWith('/') ? $page.url.pathname : `${$page.url.pathname}/`);
       const url = IS_TAURI ? (await getCurrent())?.at(0) : undefined;
       if (url) {
         const params = getParams(url, false);
@@ -685,7 +684,7 @@
   </button>
   {#if !IS_TAURI && Capacitor.getPlatform() === 'web'}
     <a
-      href="{pathRoot()}app"
+      href="{base}/app"
       target={chartFiles.length > 0 ||
       audioFiles.length > 0 ||
       imageFiles.length > 0 ||
@@ -704,7 +703,7 @@
         <p class="py-4">
           It looks like some files can be resolved. You might want to proceed with the PhiZone
           Player app if you have it installed. Otherwise, you can either <a
-            href="{pathRoot()}app"
+            href="{base}/app"
             target="_blank"
             class="text-accent hover:underline"
           >

@@ -1,10 +1,11 @@
 <script lang="ts">
   import { REPO_LINK } from '$lib';
   import Distribution from '$lib/components/Distribution.svelte';
-  import { IS_ANDROID_OR_IOS, IS_TAURI, pathRoot } from '../../../player/utils.js';
+  import { IS_ANDROID_OR_IOS, IS_TAURI } from '../../../player/utils.js';
   import { Capacitor } from '@capacitor/core';
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
+    import { base } from '$app/paths';
 
   export let data;
 
@@ -110,7 +111,7 @@
 <div class="max-w-2xl text-center mx-auto">
   <a
     class="block font-bold text-gray-800 text-4xl md:text-5xl lg:text-6xl dark:text-neutral-200 hover:underline"
-    href={pathRoot()}
+    href={base}
   >
     PhiZone
     <span class="bg-clip-text bg-gradient-to-tl from-blue-500 to-violet-600 text-transparent">

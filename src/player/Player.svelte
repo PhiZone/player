@@ -21,7 +21,6 @@
     getTimeSec,
     IS_TAURI,
     outputRecording,
-    pathRoot,
     triggerDownload,
   } from './utils';
   import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
@@ -31,6 +30,7 @@
   import Regions from 'wavesurfer.js/dist/plugins/regions.esm.js';
   import { NOTE_PRIORITIES } from './constants';
   import { equal } from 'mathjs';
+    import { base } from '$app/paths';
 
   export let gameRef: GameReference;
 
@@ -40,7 +40,7 @@
 
   config ??= getParams();
   if (!config) {
-    goto(`${pathRoot()}${IS_TAURI ? `?t=${Date.now()}` : ''}`);
+    goto(`${base}/${IS_TAURI ? `?t=${Date.now()}` : ''}`);
   }
 
   let progress = 0;
@@ -284,7 +284,7 @@
         window.close();
       }
     } else {
-      goto(`${pathRoot()}${IS_TAURI ? `?t=${Date.now()}` : ''}`);
+      goto(`${base}/${IS_TAURI ? `?t=${Date.now()}` : ''}`);
     }
   };
 

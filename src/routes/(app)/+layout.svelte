@@ -1,6 +1,5 @@
 <script>
   import { REPO_LINK, VERSION } from '$lib';
-  import { pathRoot } from '../../player/utils';
 </script>
 
 <div
