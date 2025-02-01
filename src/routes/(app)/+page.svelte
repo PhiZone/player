@@ -38,7 +38,7 @@
   import { REPO_API_LINK, REPO_LINK, VERSION } from '$lib';
   import { SendIntent } from 'send-intent';
   import { Filesystem } from '@capacitor/filesystem';
-  import { sep, tempDir } from '@tauri-apps/api/path';
+  import { tempDir } from '@tauri-apps/api/path';
   import { download as tauriDownload } from '@tauri-apps/plugin-upload';
   import { readFile, remove } from '@tauri-apps/plugin-fs';
   import { random } from 'mathjs';
@@ -142,7 +142,7 @@
               (e.data.payload as Blob[]).map((blob) => new File([blob], 'archive.zip')),
             ),
           );
-        } else {
+        } else if (message.type === 'fileInput') {
           await handleFiles((e.data.payload as Blob[]).map((blob) => new File([blob], 'file')));
         }
       }
