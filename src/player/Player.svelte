@@ -195,9 +195,13 @@
           gameRef.scene?.setSeek(Math.max(0, t));
         });
         new ResizeObserver((_) => {
-          wavesurferOptions!.width =
-            offsetHelperElement.clientWidth - offsetElement.offsetWidth - 8;
-          wavesurfer!.setOptions(wavesurferOptions!);
+          try {
+            wavesurferOptions!.width =
+              offsetHelperElement.clientWidth - offsetElement.offsetWidth - 8;
+            wavesurfer!.setOptions(wavesurferOptions!);
+          } catch (e) {
+            console.warn(e);
+          }
         }).observe(offsetHelperElement);
       }
 
@@ -333,6 +337,7 @@
     triggerDownload(
       new Blob([content], { type: 'application/json' }),
       `${title} [${level}] (offset ${offset >= 0 ? '+' : '-'}${Math.abs(offset).toFixed(0)}).json`,
+      'adjustedOffset',
     );
     isOffsetAdjustedChartExported = true;
   };
