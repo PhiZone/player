@@ -1,5 +1,4 @@
 <script>
-  import { base } from '$app/paths';
   import { REPO_LINK, VERSION } from '$lib';
 </script>
 
