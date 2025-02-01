@@ -61,7 +61,7 @@
   let showRecorderCollapse = false;
   let overrideResolution = false;
   let modalMem = false;
-  let directoryInput: HTMLInputElement;
+  let directoryInput: HTMLInputElement | undefined;
   let modal: HTMLDialogElement;
   let monitor: Monitor | null = null;
 
@@ -126,7 +126,7 @@
   let timeouts: NodeJS.Timeout[] = [];
 
   onMount(async () => {
-    directoryInput.webkitdirectory = true;
+    if (directoryInput) directoryInput.webkitdirectory = true;
 
     init();
 
