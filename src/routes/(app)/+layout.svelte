@@ -4,7 +4,7 @@
 </script>
 
 <div
-  class="relative overflow-hidden before:absolute before:top-0 before:start-1/2 before:bg-[url('{base}/landing/polygon-bg-element.svg')] dark:before:bg-[url('{base}/landing/polygon-bg-element-dark.svg')] before:bg-no-repeat before:bg-top before:bg-cover before:size-full before:-z-[1] before:transform before:-translate-x-1/2"
+  class="relative overflow-hidden before:absolute before:top-0 before:start-1/2 before:bg-[url('/player/landing/polygon-bg-element.svg')] dark:before:bg-[url('/player/landing/polygon-bg-element-dark.svg')] before:bg-no-repeat before:bg-top before:bg-cover before:size-full before:-z-[1] before:transform before:-translate-x-1/2"
 >
   <div
     class="max-w-[85rem] min-h-screen mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-10 flex flex-col gap-5"
