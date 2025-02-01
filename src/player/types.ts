@@ -464,3 +464,34 @@ export interface Release {
   zipball_url: string;
   body: string;
 }
+
+export type IncomingMessage = BlobInputMessage | PlayMessage;
+
+export type OutgoingMessage = ChartBundleMessage | FileOutputMessage;
+
+interface BlobInputMessage {
+  type: 'zipInput' | 'fileInput';
+  payload: Blob[];
+}
+
+interface PlayMessage {
+  type: 'play';
+  payload: Config;
+}
+
+interface ChartBundleMessage {
+  type: 'bundle';
+  payload: {
+    type: 'song' | 'chart' | 'illustration' | 'asset';
+    assetType?: number;
+    blob: Blob;
+  }[];
+}
+
+interface FileOutputMessage {
+  type: 'fileOutput';
+  payload: {
+    purpose: 'adjustedOffset' | 'recordedVideo';
+    file: File;
+  };
+}

@@ -19,6 +19,7 @@ import {
   type SizeControl,
   type SkewControl,
   type YControl,
+  type OutgoingMessage,
   // type RecorderOptions,
 } from './types';
 import { EventBus } from './EventBus';
@@ -26,7 +27,7 @@ import { getFFmpeg, loadFFmpeg } from './ffmpeg';
 import type { Game } from './scenes/Game';
 import { ENDING_ILLUSTRATION_CORNER_RADIUS } from './constants';
 import { parseGIF, decompressFrames, type ParsedFrame } from 'gifuct-js';
-import { dot, gcd } from 'mathjs';
+import { dot, gcd, random } from 'mathjs';
 import { fileTypeFromBlob } from 'file-type';
 import parseAPNG, { type Frame } from 'apng-js';
 import { fixWebmDuration } from '@fix-webm-duration/fix';
@@ -38,6 +39,9 @@ import type { Line } from './objects/Line';
 import Notiflix from 'notiflix';
 import 'context-filter-polyfill';
 import { ROOT, type Node } from './objects/Node';
+import { tempDir } from '@tauri-apps/api/path';
+import { download as tauriDownload } from '@tauri-apps/plugin-upload';
+import { readFile, remove } from '@tauri-apps/plugin-fs';
 
 const easingFunctions: ((x: number) => number)[] = [
   (x) => x,
@@ -131,28 +135,38 @@ const download = async (url: string, name?: string) => {
     'loading-detail',
     url.startsWith('blob:') ? `Loading ${name ?? 'file'}` : `Downloading ${url.split('/').pop()}`,
   );
-  const response = await fetch(url);
-  const contentLength = response.headers.get('content-length');
-  if (!response.body) {
-    throw new Error('Unable to fetch data.');
-  }
-
-  const totalSize = parseInt(contentLength ?? '-1');
-  let loadedSize = 0;
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    if (value) {
-      chunks.push(value);
-      loadedSize += value.length;
-      EventBus.emit('loading', clamp(loadedSize / totalSize, 0, 1));
+  if (IS_TAURI && url.startsWith('https://')) {
+    const filePath = (await tempDir()) + random(1e17, 1e18 - 1);
+    await tauriDownload(url, filePath, (payload) => {
+      EventBus.emit('loading', clamp(payload.progressTotal / payload.total, 0, 1));
+    });
+    const data = await readFile(filePath);
+    await remove(filePath);
+    return new Blob([data]);
+  } else {
+    const response = await fetch(url);
+    const contentLength = response.headers.get('content-length');
+    if (!response.body) {
+      throw new Error('Unable to fetch data.');
     }
-  }
 
-  return new Blob(chunks);
+    const totalSize = parseInt(contentLength ?? '-1');
+    let loadedSize = 0;
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) {
+        chunks.push(value);
+        loadedSize += value.length;
+        EventBus.emit('loading', clamp(loadedSize / totalSize, 0, 1));
+      }
+    }
+
+    return new Blob(chunks);
+  }
 };
 
 export const setFullscreen = () => {
@@ -847,8 +861,8 @@ export const outputRecording = async (
 ) => {
   video = await fixWebmDuration(video, duration);
   audio = await fixWebmDuration(audio, duration);
-  triggerDownload(video, 'recording.webm');
-  triggerDownload(audio, 'recording.opus');
+  triggerDownload(video, 'recording.webm', 'recordedVideo');
+  triggerDownload(audio, 'recording.opus', 'recordedVideo');
   // const outputFile = `output.${recorderOptions.outputFormat.toLowerCase()}`;
   // const ffmpeg = getFFmpeg();
   // ffmpeg.on('progress', (progress) => {
@@ -894,16 +908,21 @@ export const outputRecording = async (
   // );
 };
 
-export const triggerDownload = (blob: Blob, name: string, always = false) => {
+export const triggerDownload = (
+  blob: Blob,
+  name: string,
+  purpose: 'adjustedOffset' | 'recordedVideo',
+  always = false,
+) => {
   if (IS_IFRAME) {
-    parent.postMessage(
-      {
-        type: 'file',
-        name: name,
+    const message: OutgoingMessage = {
+      type: 'fileOutput',
+      payload: {
+        purpose,
+        file: new File([blob], name),
       },
-      '*',
-      [blob],
-    );
+    };
+    parent.postMessage(message, '*');
     if (!always) return;
   }
   const url = URL.createObjectURL(blob);

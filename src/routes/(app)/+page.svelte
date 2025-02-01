@@ -6,6 +6,7 @@
   import { fileTypeFromBlob } from 'file-type';
   import type {
     Config,
+    IncomingMessage,
     Metadata,
     Preferences,
     RecorderOptions,
@@ -19,7 +20,6 @@
     haveSameKeys,
     inferLevelType,
     IS_ANDROID_OR_IOS,
-    IS_IOS,
     IS_TAURI,
     isZip,
     notify,
@@ -38,6 +38,10 @@
   import { REPO_API_LINK, REPO_LINK, VERSION } from '$lib';
   import { SendIntent } from 'send-intent';
   import { Filesystem } from '@capacitor/filesystem';
+  import { sep, tempDir } from '@tauri-apps/api/path';
+  import { download as tauriDownload } from '@tauri-apps/plugin-upload';
+  import { readFile, remove } from '@tauri-apps/plugin-fs';
+  import { random } from 'mathjs';
 
   interface FileEntry {
     id: number;
@@ -125,6 +129,23 @@
     directoryInput.webkitdirectory = true;
 
     init();
+
+    addEventListener('message', async (e: MessageEvent<IncomingMessage>) => {
+      const message = e.data;
+      if (message.type === 'play') {
+        handleParams(message.payload);
+      } else {
+        if (message.type === 'zipInput') {
+          await handleFiles(
+            await decompressZipArchives(
+              (e.data.payload as Blob[]).map((blob) => new File([blob], 'archive.zip')),
+            ),
+          );
+        } else {
+          await handleFiles((e.data.payload as Blob[]).map((blob) => new File([blob], 'file')));
+        }
+      }
+    });
 
     if (IS_TAURI) {
       onOpenUrl((urls) => {
@@ -277,49 +298,62 @@
     progress = 0;
     progressSpeed = 0;
     progressDetail = `Downloading ${url.split('/').pop()}`;
-    const response = await fetch(url);
-    const contentLength = response.headers.get('content-length');
-    if (!response.body) {
-      throw new Error('Unable to fetch data.');
-    }
 
-    const totalSize = parseInt(contentLength ?? '-1');
-    let loadedSize = 0;
-    const reader = response.body.getReader();
-    const chunks: Uint8Array[] = [];
+    if (IS_TAURI && url.startsWith('https://')) {
+      const filePath = (await tempDir()) + random(1e17, 1e18 - 1);
+      await tauriDownload(url, filePath, (payload) => {
+        console.log(payload);
+        progress = clamp(payload.progressTotal / payload.total, 0, 1);
+        progressSpeed = payload.transferSpeed;
+      });
+      const data = await readFile(filePath);
+      await remove(filePath);
+      return new File([data], url.split('/').pop() ?? url);
+    } else {
+      const response = await fetch(url);
+      const contentLength = response.headers.get('content-length');
+      if (!response.body) {
+        throw new Error('Unable to fetch data.');
+      }
 
-    const speedWindow: { loadedSize: number; time: number }[] = [];
-    const windowSize = 8;
+      const totalSize = parseInt(contentLength ?? '-1');
+      let loadedSize = 0;
+      const reader = response.body.getReader();
+      const chunks: Uint8Array[] = [];
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (value) {
-        chunks.push(value);
-        loadedSize += value.length;
-        progress = clamp(loadedSize / totalSize, 0, 1);
+      const speedWindow: { loadedSize: number; time: number }[] = [];
+      const windowSize = 8;
 
-        const currentTime = Date.now();
-        speedWindow.push({ loadedSize, time: currentTime });
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value) {
+          chunks.push(value);
+          loadedSize += value.length;
+          progress = clamp(loadedSize / totalSize, 0, 1);
 
-        if (speedWindow.length > windowSize) {
-          speedWindow.shift();
-        }
+          const currentTime = Date.now();
+          speedWindow.push({ loadedSize, time: currentTime });
 
-        if (speedWindow.length > 1) {
-          const firstSample = speedWindow[0];
-          const lastSample = speedWindow[speedWindow.length - 1];
-          const elapsedTime = (lastSample.time - firstSample.time) / 1000;
-          const bytesTransferred = lastSample.loadedSize - firstSample.loadedSize;
-          if (elapsedTime > 0) {
-            progressSpeed = bytesTransferred / elapsedTime;
+          if (speedWindow.length > windowSize) {
+            speedWindow.shift();
+          }
+
+          if (speedWindow.length > 1) {
+            const firstSample = speedWindow[0];
+            const lastSample = speedWindow[speedWindow.length - 1];
+            const elapsedTime = (lastSample.time - firstSample.time) / 1000;
+            const bytesTransferred = lastSample.loadedSize - firstSample.loadedSize;
+            if (elapsedTime > 0) {
+              progressSpeed = bytesTransferred / elapsedTime;
+            }
           }
         }
       }
-    }
 
-    progressSpeed = -1;
-    return new File(chunks, url.split('/').pop() ?? url);
+      progressSpeed = -1;
+      return new File(chunks, url.split('/').pop() ?? url);
+    }
   };
 
   const decompress = async (blob: Blob) => {
