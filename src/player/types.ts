@@ -34,8 +34,8 @@ export interface Metadata {
 }
 
 export interface PlayOptions {
-  preferences: Preferences;
-  recorderOptions: RecorderOptions;
+  preferences?: Preferences;
+  recorderOptions?: RecorderOptions;
   autoplay: boolean;
   practice: boolean;
   adjustOffset: boolean;
