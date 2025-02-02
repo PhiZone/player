@@ -36,13 +36,13 @@ export interface Metadata {
 export interface PlayOptions {
   preferences?: Preferences;
   recorderOptions?: RecorderOptions;
-  autoplay: boolean;
-  practice: boolean;
-  adjustOffset: boolean;
-  record: boolean;
-  autostart: boolean;
-  newTab: boolean;
-  inApp: number;
+  autoplay?: boolean;
+  practice?: boolean;
+  adjustOffset?: boolean;
+  record?: boolean;
+  autostart?: boolean;
+  newTab?: boolean;
+  inApp?: number;
 }
 
 export interface Preferences {
