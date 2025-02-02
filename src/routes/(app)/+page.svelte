@@ -139,6 +139,7 @@
           config = message.payload;
         } else {
           const assetsIncluded = assets.filter((asset) => asset.included);
+          const { preferences: pref, recorderOptions: rec, ...rest } = message.payload;
           config = {
             resources: {
               song: getUrl(audioFiles.find((file) => file.id === currentBundle.song)?.file) ?? '',
@@ -150,11 +151,14 @@
               assets: assetsIncluded.map((asset) => getUrl(asset.file) ?? ''),
             },
             metadata: currentBundle.metadata,
-            ...message.payload,
+            preferences: pref ?? preferences,
+            recorderOptions: rec ?? recorderOptions,
+            ...rest,
           };
         }
         handleParams(config);
       } else {
+        showCollapse = true;
         if (message.type === 'zipInput') {
           await handleFiles(
             await decompressZipArchives(
