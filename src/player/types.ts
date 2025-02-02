@@ -501,8 +501,17 @@ interface InputResponseMessage {
 interface ChartBundleMessage {
   type: 'bundle';
   payload: {
-    resources: Resources;
     metadata: Metadata;
+    resources: {
+      song: File;
+      chart: File;
+      illustration: File;
+      assets: {
+        name: string;
+        type: number;
+        file: File;
+      }[];
+    };
   };
 }
 

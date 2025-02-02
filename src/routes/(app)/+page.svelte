@@ -612,8 +612,20 @@
     const message: OutgoingMessage = {
       type: 'bundle',
       payload: {
-        resources: params.resources,
         metadata: params.metadata,
+        resources: {
+          song: audioFiles.find((file) => file.id === currentBundle.song)!.file,
+          chart: chartFiles.find((file) => file.id === currentBundle.chart)!.file,
+          illustration: imageFiles.find((file) => file.id === currentBundle.illustration)!.file,
+          assets: params.resources.assetNames.map((name) => {
+            const asset = assets.find((asset) => asset.file.name === name)!;
+            return {
+              name,
+              type: asset.type,
+              file: asset.file,
+            };
+          }),
+        },
       },
     };
     parent.postMessage(message, '*');
