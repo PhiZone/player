@@ -61,7 +61,7 @@
   let showRecorderCollapse = false;
   let overrideResolution = false;
   let modalMem = false;
-  let directoryInput: HTMLInputElement | undefined;
+  let directoryInput: HTMLInputElement;
   let modal: HTMLDialogElement;
   let monitor: Monitor | null = null;
 
