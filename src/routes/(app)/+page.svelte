@@ -8,6 +8,7 @@
     Config,
     IncomingMessage,
     Metadata,
+    OutgoingMessage,
     Preferences,
     RecorderOptions,
     Release,
@@ -127,14 +128,33 @@
   let timeouts: NodeJS.Timeout[] = [];
 
   onMount(async () => {
-    directoryInput.webkitdirectory = true;
+    if (directoryInput) directoryInput.webkitdirectory = true;
 
     init();
 
     addEventListener('message', async (e: MessageEvent<IncomingMessage>) => {
       const message = e.data;
       if (message.type === 'play') {
-        handleParams(message.payload);
+        let config: Config;
+        if ('resources' in message.payload) {
+          config = message.payload;
+        } else {
+          const assetsIncluded = assets.filter((asset) => asset.included);
+          config = {
+            resources: {
+              song: getUrl(audioFiles.find((file) => file.id === currentBundle.song)?.file) ?? '',
+              chart: getUrl(chartFiles.find((file) => file.id === currentBundle.chart)?.file) ?? '',
+              illustration:
+                imageFiles.find((file) => file.id === currentBundle.illustration)?.url ?? '',
+              assetNames: assetsIncluded.map((asset) => asset.file.name),
+              assetTypes: assetsIncluded.map((asset) => asset.type),
+              assets: assetsIncluded.map((asset) => getUrl(asset.file) ?? ''),
+            },
+            metadata: currentBundle.metadata,
+            ...message.payload,
+          };
+        }
+        handleParams(config);
       } else {
         if (message.type === 'zipInput') {
           await handleFiles(
@@ -493,6 +513,7 @@
     const fields = ['Song:', 'Picture:', 'Chart:'];
     progressDetail = 'Seeking for charts';
     const textAssets = assets.filter((asset) => asset.type === 3);
+    let bundlesResolved = 0;
     for (let i = 0; i < textAssets.length; i++) {
       progress = i / textAssets.length;
       const asset = textAssets[i];
@@ -512,6 +533,7 @@
         const illustrationFile = imageFiles.find((file) => file.file.name === values[1]);
         if (!chartFile) continue;
         await createBundle(chartFile, songFile, illustrationFile, asset.id);
+        bundlesResolved++;
       }
     }
     if (
@@ -521,6 +543,7 @@
       imageFiles.length > 0
     ) {
       await createBundle(chartFiles[0], undefined, undefined, undefined, true);
+      bundlesResolved++;
     }
     if (chartBundles.length > 0 && selectedBundle === -1) {
       currentBundle = chartBundles[0];
@@ -548,6 +571,13 @@
         );
       }, 1000),
     );
+    const message: OutgoingMessage = {
+      type: 'inputResponse',
+      payload: {
+        bundlesResolved,
+      },
+    };
+    parent.postMessage(message, '*');
   };
 
   const getUrl = (blob: Blob | undefined) => (blob ? URL.createObjectURL(blob) : null);
@@ -570,14 +600,21 @@
       newTab: params.newTab,
       inApp: params.inApp,
     };
-    start(
-      `play?${queryString.stringify(params, {
-        arrayFormat: 'none',
-        skipEmptyString: true,
-        skipNull: true,
-        sort: false,
-      })}`,
-    );
+    const message: OutgoingMessage = {
+      type: 'bundle',
+      payload: {
+        resources: params.resources,
+        metadata: params.metadata,
+      },
+    };
+    parent.postMessage(message, '*');
+    const paramsString = queryString.stringify(params, {
+      arrayFormat: 'none',
+      skipEmptyString: true,
+      skipNull: true,
+      sort: false,
+    });
+    start(paramsString.length <= 15360 ? `${base}/play?${paramsString}` : `${base}/play`);
   };
 
   const handleParamFiles = async (params: URLSearchParams) => {
@@ -1536,9 +1573,9 @@
                   sort: false,
                 },
               );
-              let url = 'play';
+              let url = `${base}/play`;
               if (params.length <= 15360) {
-                url = `play?${params}`;
+                url = `${base}/play?${params}`;
               } else {
                 const config: Config = {
                   resources: {
