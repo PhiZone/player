@@ -33,6 +33,18 @@ export interface Metadata {
   difficulty: number | null;
 }
 
+export interface PlayOptions {
+  preferences: Preferences;
+  recorderOptions: RecorderOptions;
+  autoplay: boolean;
+  practice: boolean;
+  adjustOffset: boolean;
+  record: boolean;
+  autostart: boolean;
+  newTab: boolean;
+  inApp: number;
+}
+
 export interface Preferences {
   aspectRatio: [number, number] | null;
   backgroundBlur: number;
@@ -467,7 +479,7 @@ export interface Release {
 
 export type IncomingMessage = BlobInputMessage | PlayMessage;
 
-export type OutgoingMessage = ChartBundleMessage | FileOutputMessage;
+export type OutgoingMessage = InputResponseMessage | ChartBundleMessage | FileOutputMessage;
 
 interface BlobInputMessage {
   type: 'zipInput' | 'fileInput';
@@ -476,16 +488,22 @@ interface BlobInputMessage {
 
 interface PlayMessage {
   type: 'play';
-  payload: Config;
+  payload: Config | PlayOptions;
+}
+
+interface InputResponseMessage {
+  type: 'inputResponse';
+  payload: {
+    bundlesResolved: number;
+  };
 }
 
 interface ChartBundleMessage {
   type: 'bundle';
   payload: {
-    type: 'song' | 'chart' | 'illustration' | 'asset';
-    assetType?: number;
-    blob: Blob;
-  }[];
+    resources: Resources;
+    metadata: Metadata;
+  };
 }
 
 interface FileOutputMessage {
