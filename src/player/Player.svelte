@@ -85,7 +85,7 @@
     | undefined;
   let wavesurfer: WaveSurfer | undefined;
   let regions: Regions | undefined;
-  let isOffsetAdjustedChartExported = true;
+  let isOffsetAdjustedChartExported = false;
 
   onMount(() => {
     if (!config) return;
