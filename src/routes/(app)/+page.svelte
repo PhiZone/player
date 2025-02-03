@@ -492,9 +492,10 @@
     }
     resetProgress();
     progressDetail = 'Processing files';
+    const now = Date.now();
     await Promise.all(
       files.map(async (file, i) => {
-        const id = Date.now() + i;
+        const id = now + i;
         let mimeType: string | null = null;
         try {
           mimeType = (await fileTypeFromBlob(file))?.mime.toString() ?? mime.getType(file.name);
@@ -510,6 +511,8 @@
               chartFiles.push({ id, file });
             }
           } catch {}
+        } else if (file.name.toLowerCase().endsWith('.pec')) {
+          chartFiles.push({ id, file });
         } else if (type === 0) {
           imageFiles.push({ id, file, url: URL.createObjectURL(file) });
         } else if (type === 1) {
@@ -857,7 +860,7 @@
           multiple
           accept={IS_ANDROID_OR_IOS || Capacitor.getPlatform() !== 'web'
             ? null
-            : '.pez,.yml,.yaml,.shader,.glsl,.frag,.fsh,.fs,application/zip,application/json,image/*,video/*,audio/*,text/*'}
+            : '.pez,.pec,.yml,.yaml,.shader,.glsl,.frag,.fsh,.fs,application/zip,application/json,image/*,video/*,audio/*,text/*'}
           class="file-input file-input-bordered w-full max-w-xs file:btn dark:file:btn-neutral file:no-animation border-gray-200 rounded-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 dark:border-neutral-700 dark:text-neutral-300 dark:focus:ring-neutral-600"
           on:input={async (e) => {
             const fileList = e.currentTarget.files;
