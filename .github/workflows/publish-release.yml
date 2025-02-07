@@ -259,6 +259,10 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm i
 
+      - name: Create .env
+        run: |
+          echo "PUBLIC_SENTRY_DSN=${{ vars.PUBLIC_SENTRY_DSN }}" >> .env
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
