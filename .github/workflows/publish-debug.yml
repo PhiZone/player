@@ -85,6 +85,10 @@ jobs:
       - name: Install dependencies
         run: pnpm i
 
+      - name: Create .env
+        run: |
+          echo "PUBLIC_SENTRY_DSN=${{ vars.PUBLIC_SENTRY_DSN }}" >> .env
+
       - name: Create build
         run: pnpm build
 
@@ -148,6 +152,10 @@ jobs:
         run: |
           cd ios/App
           pod install
+
+      - name: Create .env
+        run: |
+          echo "PUBLIC_SENTRY_DSN=${{ vars.PUBLIC_SENTRY_DSN }}" >> .env
 
       - name: Create build
         run: pnpm build
@@ -247,6 +255,10 @@ jobs:
 
       - name: Install dependencies
         run: pnpm i
+
+      - name: Create .env
+        run: |
+          echo "PUBLIC_SENTRY_DSN=${{ vars.PUBLIC_SENTRY_DSN }}" >> .env
 
       - name: Create build
         run: pnpm build
