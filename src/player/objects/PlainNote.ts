@@ -102,7 +102,7 @@ export class PlainNote extends SkewImage {
   }
 
   updateJudgment(beat: number, songTime: number) {
-    beat *= this._line.data.bpmfactor;
+    beat /= this._line.data.bpmfactor;
     if (this._judgmentType === JudgmentType.UNJUDGED) {
       const deltaSec = songTime - this._hitTime;
       const delta = deltaSec * 1000;

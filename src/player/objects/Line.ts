@@ -206,7 +206,7 @@ export class Line {
     this.handleEventLayers(beat);
     this.updateParams();
     this._notes.forEach((note) => {
-      note.update(beat * this._data.bpmfactor, songTime, this._height, this._opacity >= 0);
+      note.update(beat / this._data.bpmfactor, songTime, this._height, this._opacity >= 0);
     });
   }
 
@@ -367,7 +367,7 @@ export class Line {
     } = this._data.eventLayers.reduce(
       (acc, _, i) => {
         const { alpha, x, y, rotation, height } = this.handleEventLayer(
-          beat * this._data.bpmfactor,
+          beat / this._data.bpmfactor,
           i,
         );
         return {
@@ -387,7 +387,7 @@ export class Line {
       scaleX: this._scaleX,
       scaleY: this._scaleY,
       text: this._text,
-    } = this.handleExtendedEventLayer(beat * this._data.bpmfactor, 0));
+    } = this.handleExtendedEventLayer(beat / this._data.bpmfactor, 0));
   }
 
   handleSpeed(
