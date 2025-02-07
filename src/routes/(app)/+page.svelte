@@ -163,14 +163,15 @@
         }
         handleParams(config);
       } else {
-        showCollapse = true;
         if (message.type === 'zipInput') {
+          showCollapse = true;
           await handleFiles(
             await decompressZipArchives(
               (e.data.payload as Blob[]).map((blob) => new File([blob], 'archive.zip')),
             ),
           );
         } else if (message.type === 'fileInput') {
+          showCollapse = true;
           await handleFiles((e.data.payload as Blob[]).map((blob) => new File([blob], 'file')));
         }
       }
