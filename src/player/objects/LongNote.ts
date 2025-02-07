@@ -118,7 +118,7 @@ export class LongNote extends GameObjects.Container {
   }
 
   updateJudgment(beat: number, songTime: number) {
-    beat *= this._line.data.bpmfactor;
+    beat /= this._line.data.bpmfactor;
     if (this._tempJudgmentType === JudgmentType.UNJUDGED) {
       const deltaSec = songTime - this._hitTime;
       const delta = deltaSec * 1000;
