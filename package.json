@@ -79,7 +79,7 @@
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
     "@fix-webm-duration/fix": "^1.0.1",
-    "@sentry/sveltekit": "8",
+    "@sentry/sveltekit": "^8.54.0",
     "@tauri-apps/api": "^2.2.0",
     "@tauri-apps/plugin-deep-link": "~2.2.0",
     "@tauri-apps/plugin-fs": "~2",

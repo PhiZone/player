@@ -1,14 +1,15 @@
 import { sequence } from '@sveltejs/kit/hooks';
 import { handleErrorWithSentry, sentryHandle } from '@sentry/sveltekit';
 import * as Sentry from '@sentry/sveltekit';
+import { PUBLIC_SENTRY_DSN } from '$env/static/public';
 
 Sentry.init({
-  dsn: 'https://13f9fd8b0c377f72d0b06f22cb097929@o4508777719595008.ingest.de.sentry.io/4508777736503376',
+  dsn: PUBLIC_SENTRY_DSN,
 
   tracesSampleRate: 1.0,
 
   // uncomment the line below to enable Spotlight (https://spotlightjs.com)
-  // spotlight: import.meta.env.DEV,
+  spotlight: import.meta.env.DEV,
 });
 
 // If you have custom handlers, make sure to place them after `sentryHandle()` in the `sequence` function.
