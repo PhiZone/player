@@ -10,6 +10,8 @@ on:
       - 'src/**'
       - 'src-tauri/**'
       - 'static/**'
+      - 'package.json'
+      - 'vite/config.prod.mjs'
       - '.github/workflows/publish-debug.yml'
   pull_request:
     branches:
@@ -20,6 +22,8 @@ on:
       - 'src/**'
       - 'src-tauri/**'
       - 'static/**'
+      - 'package.json'
+      - 'vite/config.prod.mjs'
       - '.github/workflows/publish-debug.yml'
   workflow_dispatch:
 
@@ -46,6 +50,75 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.VERSION }}
       current-datetime: ${{ steps.current-datetime.outputs.CURRENT_DATETIME }}
+
+  publish-web:
+    name: Publish to Sentry and GitHub Pages
+    runs-on: ubuntu-22.04
+    needs: metadata
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    concurrency:
+      group: 'pages'
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Confirm build version and datetime
+        run: |
+          echo "Version: ${{ needs.metadata.outputs.version }}"
+          echo "Build datetime: ${{ needs.metadata.outputs.current-datetime }}"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install dependencies
+        run: pnpm i
+
+      - name: Create .env
+        run: |
+          echo "PUBLIC_SENTRY_DSN=${{ vars.PUBLIC_SENTRY_DSN }}" >> .env
+            echo "PUBLIC_FFMPEG_URL=${{ vars.PUBLIC_FFMPEG_URL }}" >> .env
+
+      - name: Create build
+        run: pnpm build
+
+      - name: Create Sentry release
+        uses: getsentry/action-release@v1
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: phizone
+          SENTRY_PROJECT: player
+        with:
+          environment: production
+          version: ${{ needs.metadata.outputs.version }}_${{ needs.metadata.outputs.current-datetime }}
+          sourcemaps: './build'
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './build'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
 
   publish-capacitor-ios:
     name: Build for iOS
@@ -84,6 +157,11 @@ jobs:
         run: |
           cd ios/App
           pod install
+
+      - name: Create .env
+        run: |
+          echo "PUBLIC_SENTRY_DSN=${{ vars.PUBLIC_SENTRY_DSN }}" >> .env
+            echo "PUBLIC_FFMPEG_URL=${{ vars.PUBLIC_FFMPEG_URL }}" >> .env
 
       - name: Create build
         run: pnpm build
@@ -184,6 +262,11 @@ jobs:
       - name: Install dependencies
         run: pnpm i
 
+      - name: Create .env
+        run: |
+          echo "PUBLIC_SENTRY_DSN=${{ vars.PUBLIC_SENTRY_DSN }}" >> .env
+            echo "PUBLIC_FFMPEG_URL=${{ vars.PUBLIC_FFMPEG_URL }}" >> .env
+
       - name: Create build
         run: pnpm build
 
@@ -270,6 +353,11 @@ jobs:
 
       - name: Install frontend dependencies
         run: pnpm i
+
+      - name: Create .env
+        run: |
+          echo "PUBLIC_SENTRY_DSN=${{ vars.PUBLIC_SENTRY_DSN }}" >> .env
+            echo "PUBLIC_FFMPEG_URL=${{ vars.PUBLIC_FFMPEG_URL }}" >> .env
 
       - uses: tauri-apps/tauri-action@v0
         env:
