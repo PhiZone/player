@@ -88,6 +88,7 @@ jobs:
       - name: Create .env
         run: |
           echo "PUBLIC_SENTRY_DSN=${{ vars.PUBLIC_SENTRY_DSN }}" >> .env
+            echo "PUBLIC_FFMPEG_URL=${{ vars.PUBLIC_FFMPEG_URL }}" >> .env
 
       - name: Create build
         run: pnpm build
@@ -156,6 +157,7 @@ jobs:
       - name: Create .env
         run: |
           echo "PUBLIC_SENTRY_DSN=${{ vars.PUBLIC_SENTRY_DSN }}" >> .env
+            echo "PUBLIC_FFMPEG_URL=${{ vars.PUBLIC_FFMPEG_URL }}" >> .env
 
       - name: Create build
         run: pnpm build
@@ -259,6 +261,7 @@ jobs:
       - name: Create .env
         run: |
           echo "PUBLIC_SENTRY_DSN=${{ vars.PUBLIC_SENTRY_DSN }}" >> .env
+            echo "PUBLIC_FFMPEG_URL=${{ vars.PUBLIC_FFMPEG_URL }}" >> .env
 
       - name: Create build
         run: pnpm build
@@ -350,6 +353,7 @@ jobs:
       - name: Create .env
         run: |
           echo "PUBLIC_SENTRY_DSN=${{ vars.PUBLIC_SENTRY_DSN }}" >> .env
+            echo "PUBLIC_FFMPEG_URL=${{ vars.PUBLIC_FFMPEG_URL }}" >> .env
 
       - uses: tauri-apps/tauri-action@v0
         env:
