@@ -316,6 +316,10 @@ If you wish to run this program on your own, please be sure to append the missin
 
 The official website is deployed at https://player.phi.zone/ and https://player.phizone.cn/. Distributions for Windows, macOS, Linux, Android and iOS/iPadOS can be found in the GitHub releases.
 
+## Telemetry
+
+We use [Sentry](https://sentry.io/) and [Google Analytics](https://analytics.google.com/) for error tracking and usage data analysis.
+
 ## Stargazers over time
 
 [![Stargazers over time](https://starchart.cc/PhiZone/player.svg?variant=adaptive)](https://starchart.cc/PhiZone/player)
