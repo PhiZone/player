@@ -10,6 +10,8 @@ on:
       - 'src/**'
       - 'src-tauri/**'
       - 'static/**'
+      - 'package.json'
+      - 'vite/config.prod.mjs'
       - '.github/workflows/publish-debug.yml'
   pull_request:
     branches:
@@ -20,6 +22,8 @@ on:
       - 'src/**'
       - 'src-tauri/**'
       - 'static/**'
+      - 'package.json'
+      - 'vite/config.prod.mjs'
       - '.github/workflows/publish-debug.yml'
   workflow_dispatch:
 
