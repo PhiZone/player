@@ -12,6 +12,7 @@
   "bugs": {
     "url": "https://github.com/PhiZone/player/issues"
   },
+  "type": "module",
   "homepage": "https://www.phi.zone/player",
   "keywords": [
     "phizone",
@@ -21,6 +22,9 @@
     "svelte",
     "vite"
   ],
+  "engines": {
+    "node": ">= 20"
+  },
   "scripts": {
     "dev": "vite --config vite/config.dev.mjs --host",
     "build:only": "vite build --config vite/config.prod.mjs",
@@ -71,7 +75,6 @@
     "typescript-eslint": "^8.21.0",
     "vite": "^6.0.9"
   },
-  "type": "module",
   "dependencies": {
     "@awesome-cordova-plugins/android-full-screen": "^6.14.0",
     "@capacitor/clipboard": "^7.0.0",
