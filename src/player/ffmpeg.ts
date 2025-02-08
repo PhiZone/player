@@ -1,8 +1,9 @@
+import { PUBLIC_FFMPEG_URL } from '$env/static/public';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { toBlobURL } from '@ffmpeg/util';
 
 const ffmpeg = new FFmpeg();
-const baseURL = '/ffmpeg';
+const baseURL = PUBLIC_FFMPEG_URL ?? '/ffmpeg';
 
 export const loadFFmpeg = async (
   callback?: ({
