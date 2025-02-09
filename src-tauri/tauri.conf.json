@@ -26,6 +26,14 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "fileAssociations": [
+      {
+        "ext": ["pez"],
+        "name": "RPE Chart Bundle",
+        "description": "RPE Chart Bundle",
+        "role": "Viewer"
+      }
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
