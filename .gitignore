@@ -9,6 +9,8 @@ node_modules
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
+build.sh
+
 static/game/**/*
 !static/game/**/
 !static/game/**/.gitkeep
