@@ -235,7 +235,7 @@ A version is reached whenever at least one feature from this version is marked a
 
 ## Assets
 
-Game assets are stored in `./static/game`. A tree view of the folder (on the `main` branch) is as follows:
+Game assets are stored in `./static/game`. A tree view of the folder is as follows:
 
 ```
 game
@@ -259,7 +259,6 @@ game
 │           Outfit.png
 │
 ├───grades
-│       .gitkeep
 │       A.png
 │       B.png
 │       C.png
@@ -270,13 +269,11 @@ game
 │       V.png
 │
 ├───hitsounds
-│       .gitkeep
 │       Drag.wav
 │       Flick.wav
 │       Tap.wav
 │
 ├───notes
-│       .gitkeep
 │       Drag.png
 │       DragHL.png
 │       Flick.png
@@ -303,12 +300,16 @@ game
         vignette.glsl
 ```
 
-For the time being, this program uses Phigros' assets for development. According to [a statement from Pigeon Games](https://www.bilibili.com/opus/624904779363026292), assets from Phigros are copyrighted, and their appearance in other software is legally prohibited. This restriction applies to all assets in this folder except for:
+We deeply appreciate those who generously granted us permission to use their works free of charge. The full credits are listed below:
 
-- all shaders (`shaders/*`, the majority of which are licensed under MIT/CC0, with a few exceptions from [ShaderToy](https://www.shadertoy.com/) licensed under the default [CC BY-NC-SA 3.0](https://creativecommons.org/licenses/by-nc-sa/3.0/) license specified by the site);
-- all fonts (`fonts/**`, licenses presented in `OFL.txt` in each font folder);
-- `Pause.svg` (by Font Awesome, licensed under [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/));
-- and `ending/GradeHit.wav` (by Naptie with sound effects on [Pixabay](https://pixabay.com/), licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)).
+- note skins & hit effects by 星鹿ELEC;
+- hitsounds from [Phigrim](https://www.phigrim.cn/);
+- results music by Supa7onyz a.k.a. Normal1zer (**PHIZONE PROPRIETARY ASSETS**);
+- grade letters by Naptie (using [Black Ops One](https://fonts.google.com/specimen/Black+Ops+One/) font by James Grieshaber and Eben Sorkin licensed under [SIL Open Font License Version 1.1](https://openfontlicense.org/open-font-license-official-text/))
+- shaders (`shaders/*`), the majority of which are licensed under MIT/CC0, with a few exceptions from [ShaderToy](https://www.shadertoy.com/) licensed under the default [CC BY-NC-SA 3.0](https://creativecommons.org/licenses/by-nc-sa/3.0/) license specified by the site;
+- fonts (`fonts/**`), licenses presented in `OFL.txt` in each font folder;
+- `Pause.svg` by Font Awesome, licensed under [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/);
+- `ending/GradeHit.wav` by Naptie with sound effects on [Pixabay](https://pixabay.com/), licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/).
 
 If you wish to run this program on your own, please be sure to append the missing assets as aforementioned. Alternatively, consider switching to the `defres` branch, which includes note skins & hit effects by 星鹿ELEC, hitsounds from [Phigrim](https://www.phigrim.cn/), an ending screen loop from [Pixabay](https://pixabay.com/), and other assets that imitate the official ones.
 
