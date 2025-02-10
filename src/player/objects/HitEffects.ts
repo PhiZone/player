@@ -17,7 +17,9 @@ export class HitEffects extends GameObjects.Sprite {
 
     this._scene = scene;
     this._color = getJudgmentColor(type);
-    this.setScale(this._scene.p(HIT_EFFECTS_SIZE * this._scene.preferences.noteSize));
+    this.setScale(
+      (256 / this.width) * this._scene.p(HIT_EFFECTS_SIZE * this._scene.preferences.noteSize),
+    );
     this.setOrigin(0.5);
     this.setTint(this._color);
     this.setAlpha(type === JudgmentType.PERFECT ? 15 / 17 : 47 / 51);
@@ -40,12 +42,14 @@ export class HitEffects extends GameObjects.Sprite {
   }
 
   particle(tint?: number) {
-    const particle = new GameObjects.Rectangle(
+    const particle = new GameObjects.Arc(
       this._scene,
       this.x,
       this.y,
-      this.scaleX * HIT_EFFECTS_PARTICLE_SIZE,
-      this.scaleY * HIT_EFFECTS_PARTICLE_SIZE,
+      this.scale * HIT_EFFECTS_PARTICLE_SIZE * Math.SQRT1_2,
+      undefined,
+      undefined,
+      undefined,
       tint ?? this._color,
     )
       .setOrigin(0.5)

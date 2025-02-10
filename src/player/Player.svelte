@@ -30,6 +30,7 @@
   import Regions from 'wavesurfer.js/dist/plugins/regions.esm.js';
   import { NOTE_PRIORITIES } from './constants';
   import { equal } from 'mathjs';
+    import { base } from '$app/paths';
 
   export let gameRef: GameReference;
 
@@ -39,7 +40,7 @@
 
   config ??= getParams();
   if (!config) {
-    goto(IS_TAURI ? `/?t=${Date.now()}` : '/');
+    goto(`${base}/${IS_TAURI ? `?t=${Date.now()}` : ''}`);
   }
 
   let progress = 0;
@@ -283,7 +284,7 @@
         window.close();
       }
     } else {
-      goto(IS_TAURI ? `/?t=${Date.now()}` : '/');
+      goto(`${base}/${IS_TAURI ? `?t=${Date.now()}` : ''}`);
     }
   };
 

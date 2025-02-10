@@ -43,6 +43,7 @@
   import { download as tauriDownload } from '@tauri-apps/plugin-upload';
   import { readFile, remove } from '@tauri-apps/plugin-fs';
   import { random } from 'mathjs';
+  import { base } from '$app/paths';
 
   interface FileEntry {
     id: number;
@@ -295,7 +296,9 @@
       if (toggles.inApp === 0) {
         modal.showModal();
       } else if (toggles.inApp === 1) {
-        window.open(`${IS_ANDROID_OR_IOS ? '/app' : 'phizone-player://'}${$page.url.search}`);
+        window.open(
+          `${IS_ANDROID_OR_IOS ? `${base}/app` : 'phizone-player://'}${$page.url.search}`,
+        );
       } else {
         handleParamFiles($page.url.searchParams);
       }
@@ -638,7 +641,7 @@
       skipNull: true,
       sort: false,
     });
-    start(paramsString.length <= 15360 ? `/play?${paramsString}` : '/play');
+    start(paramsString.length <= 15360 ? `${base}/play?${paramsString}` : `${base}/play`);
   };
 
   const handleParamFiles = async (params: URLSearchParams) => {
@@ -745,7 +748,7 @@
   </button>
   {#if !IS_TAURI && Capacitor.getPlatform() === 'web'}
     <a
-      href="/app"
+      href="{base}/app"
       target={chartFiles.length > 0 ||
       audioFiles.length > 0 ||
       imageFiles.length > 0 ||
@@ -764,7 +767,7 @@
         <p class="py-4">
           It looks like some files can be resolved. You might want to proceed with the PhiZone
           Player app if you have it installed. Otherwise, you can either <a
-            href="/app"
+            href="{base}/app"
             target="_blank"
             class="text-accent hover:underline"
           >
@@ -801,7 +804,7 @@
               class="inline-flex justify-center items-center gap-x-3 text-center bg-gradient-to-tl from-blue-500 via-violet-500 to-fuchsia-500 dark:from-blue-700 dark:via-violet-700 dark:to-fuchsia-700 text-white text-sm font-medium rounded-md focus:outline-none py-3 px-4 transition-all duration-300 bg-size-200 bg-pos-0 hover:bg-pos-100"
               on:click={() => {
                 window.open(
-                  `${IS_ANDROID_OR_IOS ? '/app' : 'phizone-player://'}${$page.url.search}`,
+                  `${IS_ANDROID_OR_IOS ? `${base}/app` : 'phizone-player://'}${$page.url.search}`,
                 );
                 if (modalMem) {
                   toggles.inApp = 1;
@@ -1597,9 +1600,9 @@
                   sort: false,
                 },
               );
-              let url = '/play';
+              let url = `${base}/play`;
               if (params.length <= 15360) {
-                url = `/play?${params}`;
+                url = `${base}/play?${params}`;
               } else {
                 const config: Config = {
                   resources: {

@@ -17,7 +17,6 @@ if (process.env.PUBLIC_FFMPEG_URL) {
 }
 
 export default defineConfig({
-  base: './',
   plugins: [sveltekit()],
   logLevel: 'error',
   build: {
