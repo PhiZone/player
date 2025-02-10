@@ -311,11 +311,17 @@ We deeply appreciate those who generously granted us permission to use their wor
 - `Pause.svg` by Font Awesome, licensed under [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/);
 - `ending/GradeHit.wav` by Naptie with sound effects on [Pixabay](https://pixabay.com/), licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/).
 
-If you wish to run this program on your own, please be sure to append the missing assets as aforementioned. Alternatively, consider switching to the `defres` branch, which includes note skins & hit effects by 星鹿ELEC, hitsounds from [Phigrim](https://www.phigrim.cn/), an ending screen loop from [Pixabay](https://pixabay.com/), and other assets that imitate the official ones.
-
 ## Deployments
 
-The official website is deployed at https://player.phi.zone/ and https://player.phizone.cn/. Distributions for Windows, macOS, Linux, Android and iOS/iPadOS can be found in the GitHub releases.
+A list of web deployments is as follows:
+- [player.phi.zone](https://player.phi.zone/) - Cloudflare Pages
+- [player.phizone.cn](https://player.phizone.cn/) - self-hosted
+- [phizone.github.io/player](https://phizone.github.io/player/) - GitHub Pages
+- [www.phi.zone/player](https://www.phi.zone/player/) - self-hosted
+- [www.phizone.cn/player](https://www.phizone.cn/player/) - self-hosted
+- [insider.phizone.cn/player](https://insider.phizone.cn/player/) - self-hosted
+
+App distributions for Windows, macOS, Linux, Android and iOS/iPadOS can be found in the GitHub releases.
 
 ## Telemetry
 

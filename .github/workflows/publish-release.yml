@@ -65,13 +65,11 @@ jobs:
           cd ios/App
           pod install
 
-      - name: Create .env
-        run: |
-            echo "PUBLIC_SENTRY_DSN=${{ vars.PUBLIC_SENTRY_DSN }}" >> .env
-            echo "PUBLIC_FFMPEG_URL=${{ vars.PUBLIC_FFMPEG_URL }}" >> .env
-
       - name: Create build
         run: pnpm build
+        env:
+          PUBLIC_SENTRY_DSN: ${{ vars.PUBLIC_SENTRY_DSN }}
+          PUBLIC_FFMPEG_URL:
 
       - name: Generate icons and splash screen
         run: if [ -d "./resources" ]; then pnpm i -D @capacitor/assets && pnpm capacitor-assets generate --ios; fi
@@ -169,13 +167,11 @@ jobs:
       - name: Install dependencies
         run: pnpm i
 
-      - name: Create .env
-        run: |
-          echo "PUBLIC_SENTRY_DSN=${{ vars.PUBLIC_SENTRY_DSN }}" >> .env
-            echo "PUBLIC_FFMPEG_URL=${{ vars.PUBLIC_FFMPEG_URL }}" >> .env
-
       - name: Create build
         run: pnpm build
+        env:
+          PUBLIC_SENTRY_DSN: ${{ vars.PUBLIC_SENTRY_DSN }}
+          PUBLIC_FFMPEG_URL:
 
       - name: Generate icons and splash screen
         run: if [ -d "./resources" ]; then pnpm i -D @capacitor/assets && pnpm capacitor-assets generate --android; fi
@@ -261,14 +257,11 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm i
 
-      - name: Create .env
-        run: |
-          echo "PUBLIC_SENTRY_DSN=${{ vars.PUBLIC_SENTRY_DSN }}" >> .env
-            echo "PUBLIC_FFMPEG_URL=${{ vars.PUBLIC_FFMPEG_URL }}" >> .env
-
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          PUBLIC_SENTRY_DSN: ${{ vars.PUBLIC_SENTRY_DSN }}
+          PUBLIC_FFMPEG_URL:
         with:
           tagName: v${{ needs.metadata.outputs.version }}
           releaseName: 'v${{ needs.metadata.outputs.version }}'
