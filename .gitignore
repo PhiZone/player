@@ -16,6 +16,3 @@ static/game/**/*
 !static/game/shaders/*
 !static/game/Pause.svg
 !static/game/ending/GradeHit.wav
-
-# Sentry Config File
-.env.sentry-build-plugin
