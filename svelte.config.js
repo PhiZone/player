@@ -12,7 +12,7 @@ const config = {
       fallback: 'index.html',
     }),
     paths: {
-      base: '',
+      base: process.env.PATH_BASE ?? '',
     },
   },
 };

@@ -3,7 +3,7 @@ run-name: Publish builds with debug targets
 on:
   push:
     branches:
-      - defres
+      - main
     paths:
       - 'android/**'
       - 'ios/**'
@@ -15,7 +15,7 @@ on:
       - '.github/workflows/publish-debug.yml'
   pull_request:
     branches:
-      - defres
+      - main
     paths:
       - 'android/**'
       - 'ios/**'
@@ -92,7 +92,8 @@ jobs:
       - name: Create .env
         run: |
           echo "PUBLIC_SENTRY_DSN=${{ vars.PUBLIC_SENTRY_DSN }}" >> .env
-            echo "PUBLIC_FFMPEG_URL=${{ vars.PUBLIC_FFMPEG_URL }}" >> .env
+          echo "PUBLIC_FFMPEG_URL=${{ vars.PUBLIC_FFMPEG_URL }}" >> .env
+          echo "PATH_BASE=/player" >> .env
 
       - name: Create build
         run: pnpm build
