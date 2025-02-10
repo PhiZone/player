@@ -1,9 +1,11 @@
 <script>
+  import { base } from '$app/paths';
   import { REPO_LINK, VERSION } from '$lib';
 </script>
 
 <div
-  class="relative overflow-hidden before:absolute before:top-0 before:start-1/2 before:bg-[url('/player/landing/polygon-bg-element.svg')] dark:before:bg-[url('/player/landing/polygon-bg-element-dark.svg')] before:bg-no-repeat before:bg-top before:bg-cover before:size-full before:-z-[1] before:transform before:-translate-x-1/2"
+  class="relative overflow-hidden before:absolute before:top-0 before:start-1/2 before:bg-no-repeat before:bg-top before:bg-cover before:size-full before:-z-[1] before:transform before:-translate-x-1/2"
+  style="--bg-url: url('{base}/landing/polygon-bg-element.svg'); --bg-dark-url: url('{base}/landing/polygon-bg-element-dark.svg');"
 >
   <div
     class="max-w-[85rem] min-h-screen mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-10 flex flex-col gap-5"
@@ -50,3 +52,14 @@
 <div class="focus:border-emerald-500 focus:text-emerald-500" hidden></div>
 <div class="focus:border-violet-500 focus:text-violet-500" hidden></div>
 <div class="focus:border-slate-500 focus:text-slate-500" hidden></div>
+
+<style>
+  :global(.relative::before) {
+    background-image: var(--bg-url);
+  }
+  @media (prefers-color-scheme: dark) {
+    :global(.relative::before) {
+      background-image: var(--bg-dark-url);
+    }
+  }
+</style>

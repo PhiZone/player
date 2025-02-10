@@ -296,7 +296,9 @@
       if (toggles.inApp === 0) {
         modal.showModal();
       } else if (toggles.inApp === 1) {
-        window.open(`${IS_ANDROID_OR_IOS ? 'app' : 'phizone-player://'}${$page.url.search}`);
+        window.open(
+          `${IS_ANDROID_OR_IOS ? `${base}/app` : 'phizone-player://'}${$page.url.search}`,
+        );
       } else {
         handleParamFiles($page.url.searchParams);
       }
@@ -799,7 +801,7 @@
               class="inline-flex justify-center items-center gap-x-3 text-center bg-gradient-to-tl from-blue-500 via-violet-500 to-fuchsia-500 dark:from-blue-700 dark:via-violet-700 dark:to-fuchsia-700 text-white text-sm font-medium rounded-md focus:outline-none py-3 px-4 transition-all duration-300 bg-size-200 bg-pos-0 hover:bg-pos-100"
               on:click={() => {
                 window.open(
-                  `${IS_ANDROID_OR_IOS ? 'app' : 'phizone-player://'}${$page.url.search}`,
+                  `${IS_ANDROID_OR_IOS ? `${base}/app` : 'phizone-player://'}${$page.url.search}`,
                 );
                 if (modalMem) {
                   toggles.inApp = 1;
