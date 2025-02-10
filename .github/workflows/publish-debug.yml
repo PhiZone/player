@@ -93,10 +93,11 @@ jobs:
         run: |
           echo "PUBLIC_SENTRY_DSN=${{ vars.PUBLIC_SENTRY_DSN }}" >> .env
           echo "PUBLIC_FFMPEG_URL=${{ vars.PUBLIC_FFMPEG_URL }}" >> .env
-          echo "PATH_BASE=/player" >> .env
 
       - name: Create build
         run: pnpm build
+        env:
+          PATH_BASE: /player
 
       - name: Create Sentry release
         uses: getsentry/action-release@v1
