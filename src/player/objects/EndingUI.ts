@@ -204,9 +204,9 @@ export class EndingUI extends GameObjects.Container {
     this._scene.sound.add('grade-hit').setVolume(this._scene.preferences.hitSoundVolume).play();
     this._timer = setInterval(
       () => {
-        this._sound.setSeek(0);
+        this._sound.play();
       },
-      (2 * 192e3) / 7 / this._scene.tweens.timeScale,
+      192e3 / 7 / this._scene.tweens.timeScale,
     );
     setTimeout(
       () => {
