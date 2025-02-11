@@ -376,6 +376,21 @@ export const processIllustration = (
 
         ctx.clip();
         ctx.drawImage(img, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+
+        const dimZoneHeight = cropHeight * 0.5;
+        const dimnessPercent = 0.95;
+        const gradient = ctx.createLinearGradient(
+          0,
+          canvas.height - dimZoneHeight,
+          0,
+          canvas.height,
+        );
+        gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        gradient.addColorStop(1, `rgba(0, 0, 0, ${dimnessPercent})`);
+
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, canvas.height - dimZoneHeight, canvas.width, dimZoneHeight);
+
         const cropped = canvas.toDataURL();
 
         resolve({ background, cropped });
