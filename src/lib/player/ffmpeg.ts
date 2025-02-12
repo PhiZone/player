@@ -4,7 +4,7 @@ import { toBlobURL } from '@ffmpeg/util';
 import { base } from '$app/paths';
 
 const ffmpeg = new FFmpeg();
-const baseURL = PUBLIC_FFMPEG_URL ?? `${base}/ffmpeg`;
+const baseURL = PUBLIC_FFMPEG_URL.startsWith('http') ? PUBLIC_FFMPEG_URL : `${base}/ffmpeg`;
 
 export const loadFFmpeg = async (
   callback?: ({
