@@ -317,7 +317,7 @@ A list of web deployments is as follows:
 - [player.phi.zone](https://player.phi.zone/) - Cloudflare Pages
 - [player.phizone.cn](https://player.phizone.cn/) - self-hosted
 - [phizone.github.io/player](https://phizone.github.io/player/) - GitHub Pages
-- [www.phi.zone/player](https://www.phi.zone/player/) - self-hosted
+- [www.phi.zone/player](https://www.phi.zone/player/) - Vercel
 - [www.phizone.cn/player](https://www.phizone.cn/player/) - self-hosted
 - [insider.phizone.cn/player](https://insider.phizone.cn/player/) - self-hosted
 
