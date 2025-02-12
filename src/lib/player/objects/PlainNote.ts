@@ -42,6 +42,8 @@ export class PlainNote extends SkewImage {
     if ([1, 2].includes(scene.preferences.chartFlipping)) {
       this._xModifier = -1;
     }
+
+    this._data.yOffset *= this._data.speed; // bro's intercept depends on slope 👍👍👍
   }
 
   update(beat: number, songTime: number, height: number, visible = true) {
