@@ -539,7 +539,7 @@ class ProgressBar extends GameObjects.Container {
 
   constructor(ui: GameUI, depth: number) {
     super(ui.scene);
-    this._progressBar = new GameObjects.Image(ui.scene, 0, 0, 'progress-bar').setOrigin(1, 0);
+    this._progressBar = new GameObjects.Image(ui.scene, 0, 0, 'progress-bar').setOrigin(1, 0.2);
     this.setDepth(depth);
     this.add(this._progressBar);
     ui.scene.registerNode(this, 'ui-bar');
