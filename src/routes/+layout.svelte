@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { setFullscreen, alertError } from '../player/utils';
+  import { setFullscreen, alertError } from '$lib/utils';
   import '@fortawesome/fontawesome-free/css/all.min.css';
   import '../app.css';
 

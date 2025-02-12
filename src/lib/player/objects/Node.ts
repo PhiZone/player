@@ -1,4 +1,4 @@
-import type { GameObject } from '../types';
+import type { GameObject } from '$lib/types';
 
 export class Node {
   name: string;

@@ -3,7 +3,7 @@ import { HitEffects } from '../objects/HitEffects';
 import type { LongNote } from '../objects/LongNote';
 import type { PlainNote } from '../objects/PlainNote';
 import type { Game } from '../scenes/Game';
-import { JudgmentType, GameStatus, type PointerTap } from '../types';
+import { JudgmentType, GameStatus, type PointerTap } from '$lib/types';
 import { isPerfectOrGood, getJudgmentColor, rgbToHex, getJudgmentPosition } from '../utils';
 import { JUDGMENT_THRESHOLD } from '../constants';
 import { equal } from 'mathjs';

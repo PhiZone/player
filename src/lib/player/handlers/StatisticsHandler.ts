@@ -1,6 +1,6 @@
 import { std } from 'mathjs';
 import type { Game } from '../scenes/Game';
-import { FcApStatus, Grade } from '../types';
+import { FcApStatus, Grade } from '$lib/types';
 import type { JudgmentHandler } from './JudgmentHandler';
 
 export class StatisticsHandler {

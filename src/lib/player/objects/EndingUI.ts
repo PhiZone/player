@@ -1,7 +1,7 @@
 import { GameObjects, Sound } from 'phaser';
 import type { Game } from '../scenes/Game';
 import { FONT_FAMILY } from '../constants';
-import type { Grade } from '../types';
+import type { Grade } from '$lib/types';
 import { pad, position } from '../utils';
 import { EventBus } from '../EventBus';
 import { Capacitor } from '@capacitor/core';
@@ -10,7 +10,7 @@ export class EndingUI extends GameObjects.Container {
   private _scene: Game;
   private _innerContainer: GameObjects.Container;
   private _sound: Sound.NoAudioSound | Sound.HTML5AudioSound | Sound.WebAudioSound;
-  private _illustration: GameObjects.Image;
+  private _illustration: GameObjects.Container;
   private _overlay: GameObjects.Rectangle;
   private _grade: GameObjects.Image;
   private _score: ScoreBoard;
@@ -117,9 +117,7 @@ export class EndingUI extends GameObjects.Container {
     this.x = this._scene.w(0);
     if (this._tweening) return;
     this.setPosition(this._scene.w(0), this._scene.h(0) + this._scene.d(0.41));
-    this._illustration.setScale(
-      this._scene.d(4) / this._illustration.texture.getSourceImage().height,
-    );
+    this._illustration.setScale(this._scene.d(4) / 1080);
     this._grade.setPosition(-this._scene.d(32 / 9 - 0.9), -this._scene.d(2.9));
     this._grade.setScale(this._scene.d(1.8) / this._grade.texture.getSourceImage().height);
     this._score.setPosition(this._scene.d(32 / 9), -this._scene.d(3.8));
@@ -165,10 +163,33 @@ export class EndingUI extends GameObjects.Container {
   }
 
   createIllustration() {
+    const container = new GameObjects.Container(this._scene);
     const illustration = new GameObjects.Image(this._scene, 0, 0, 'illustration-cropped');
-    illustration.setScale(this._scene.d(4) / illustration.texture.getSourceImage().height);
-    this._innerContainer.add(illustration);
-    return illustration;
+    illustration.setScale(1080 / illustration.texture.getSourceImage().height);
+    const title = this.createText(this._scene.metadata.title ?? '', -912, 513, 0, 1, 72);
+    const level = this.createText(this._scene.metadata.level ?? '', 912, 513, 1, 1);
+    container.add(illustration);
+    container.add(title);
+    container.add(level);
+    container.setScale(this._scene.d(4) / 1080);
+    this._innerContainer.add(container);
+    return container;
+  }
+
+  createText(
+    text: string,
+    x: number,
+    y: number,
+    originX: number,
+    originY: number,
+    size: number = 64,
+  ) {
+    return new GameObjects.Text(this._scene, x, y, text, {
+      fontFamily: FONT_FAMILY,
+      fontSize: size,
+      color: '#ffffff',
+      align: 'center',
+    }).setOrigin(originX, originY);
   }
 
   createGrade(grade: Grade) {

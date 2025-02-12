@@ -13,13 +13,12 @@
   import { goto } from '$app/navigation';
   import start from './main';
   import { EventBus } from './EventBus';
-  import { GameStatus, type Config } from './types';
+  import { GameStatus, type Config } from '$lib/types';
+  import { getParams, IS_TAURI } from '$lib/utils';
   import {
     convertTime,
     findPredominantBpm,
-    getParams,
     getTimeSec,
-    IS_TAURI,
     outputRecording,
     triggerDownload,
   } from './utils';
@@ -30,7 +29,7 @@
   import Regions from 'wavesurfer.js/dist/plugins/regions.esm.js';
   import { NOTE_PRIORITIES } from './constants';
   import { equal } from 'mathjs';
-    import { base } from '$app/paths';
+  import { base } from '$app/paths';
 
   export let gameRef: GameReference;
 

@@ -1,6 +1,6 @@
 <script lang="ts">
-  import Player, { type GameReference } from '../../player/Player.svelte';
-  import { getParams } from '../../player/utils';
+  import Player, { type GameReference } from '$lib/player/Player.svelte';
+  import { getParams } from '$lib/utils';
 
   let gameRef: GameReference = { game: null, scene: null };
   let config = getParams();

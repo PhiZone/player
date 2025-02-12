@@ -3,7 +3,7 @@ import { FLICK_VELOCTY_THRESHOLD, JUDGMENT_THRESHOLD } from '../constants';
 import type { LongNote } from '../objects/LongNote';
 import type { PlainNote } from '../objects/PlainNote';
 import type { Game } from '../scenes/Game';
-import { GameStatus, type PointerDrag } from '../types';
+import { GameStatus, type PointerDrag } from '$lib/types';
 import { getJudgmentPosition } from '../utils';
 
 export class PointerHandler {

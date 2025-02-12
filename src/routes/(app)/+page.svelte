@@ -13,7 +13,7 @@
     RecorderOptions,
     Release,
     RpeJson,
-  } from '../../player/types';
+  } from '$lib/types';
   import {
     clamp,
     fit,
@@ -25,7 +25,7 @@
     isZip,
     notify,
     versionCompare,
-  } from '../../player/utils';
+  } from '$lib/utils';
   import PreferencesModal from '$lib/components/Preferences.svelte';
   import { goto } from '$app/navigation';
   import { Capacitor } from '@capacitor/core';

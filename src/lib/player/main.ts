@@ -1,7 +1,7 @@
 import { Game as MainGame } from './scenes/Game';
 import { WEBGL, Game, Scale, type Types } from 'phaser';
-import type { Config } from './types';
-import { fit, IS_TAURI } from './utils';
+import type { Config } from '$lib/types';
+import { fit, IS_TAURI } from '$lib/utils';
 import { Capacitor } from '@capacitor/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { EventBus } from './EventBus';

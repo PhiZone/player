@@ -6,7 +6,7 @@ import {
   type JudgeLine,
   type SpeedEvent,
   type TextEvent,
-} from '../types';
+} from '$lib/types';
 import { LongNote } from './LongNote';
 import { PlainNote } from './PlainNote';
 import {

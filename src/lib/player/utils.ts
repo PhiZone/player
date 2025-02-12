@@ -1,5 +1,3 @@
-import { get } from 'svelte/store';
-import { page } from '$app/stores';
 import { fetchFile } from '@ffmpeg/util';
 import {
   type Event,
@@ -11,7 +9,6 @@ import {
   FcApStatus,
   JudgmentType,
   type Bpm,
-  type Config,
   type PointerTap,
   type PointerDrag,
   type AlphaControl,
@@ -21,7 +18,7 @@ import {
   type YControl,
   type OutgoingMessage,
   // type RecorderOptions,
-} from './types';
+} from '$lib/types';
 import { EventBus } from './EventBus';
 import { getFFmpeg, loadFFmpeg } from './ffmpeg';
 import type { Game } from './scenes/Game';
@@ -31,17 +28,14 @@ import { dot, gcd, random } from 'mathjs';
 import { fileTypeFromBlob } from 'file-type';
 import parseAPNG, { type Frame } from 'apng-js';
 import { fixWebmDuration } from '@fix-webm-duration/fix';
-import { AndroidFullScreen } from '@awesome-cordova-plugins/android-full-screen';
-import { Capacitor } from '@capacitor/core';
-import { Clipboard } from '@capacitor/clipboard';
 import bezier from 'bezier-easing';
 import type { Line } from './objects/Line';
-import Notiflix from 'notiflix';
-import 'context-filter-polyfill';
 import { ROOT, type Node } from './objects/Node';
 import { tempDir } from '@tauri-apps/api/path';
 import { download as tauriDownload } from '@tauri-apps/plugin-upload';
 import { readFile, remove } from '@tauri-apps/plugin-fs';
+import { clamp, IS_IFRAME, IS_TAURI } from '$lib/utils';
+import 'context-filter-polyfill';
 
 const easingFunctions: ((x: number) => number)[] = [
   (x) => x,
@@ -98,37 +92,6 @@ const easingFunctions: ((x: number) => number)[] = [
     x < 0.5 ? (1 - easingFunctions[25](1 - 2 * x)) / 2 : (1 + easingFunctions[25](2 * x - 1)) / 2,
 ];
 
-export const IS_TAURI = '__TAURI_INTERNALS__' in window;
-
-export const IS_IOS = (() => {
-  const iosQuirkPresent = function () {
-    const audio = new Audio();
-
-    audio.volume = 0.5;
-    return audio.volume === 1; // volume cannot be changed from "1" on iOS 12 and below
-  };
-
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  const isAppleDevice = navigator.userAgent.includes('Macintosh');
-  const isTouchScreen = navigator.maxTouchPoints >= 1; // true for iOS 13 (and hopefully beyond)
-
-  return isIOS || (isAppleDevice && (isTouchScreen || iosQuirkPresent()));
-})();
-
-export const IS_ANDROID_OR_IOS =
-  IS_IOS ||
-  (() => {
-    if (/windows phone/i.test(navigator.userAgent)) {
-      return false;
-    }
-    if (/android/i.test(navigator.userAgent)) {
-      return true;
-    }
-    return false;
-  })();
-
-export const IS_IFRAME = window.self !== window.top;
-
 const download = async (url: string, name?: string) => {
   EventBus.emit('loading', 0);
   EventBus.emit(
@@ -167,143 +130,6 @@ const download = async (url: string, name?: string) => {
 
     return new Blob(chunks);
   }
-};
-
-export const setFullscreen = () => {
-  if (Capacitor.getPlatform() === 'android') {
-    AndroidFullScreen.isImmersiveModeSupported()
-      .then(() => AndroidFullScreen.immersiveMode())
-      .catch(console.warn);
-  }
-};
-
-export const haveSameKeys = (obj1: object, obj2: object): boolean => {
-  const keys1 = Object.keys(obj1).sort();
-  const keys2 = Object.keys(obj2).sort();
-  return JSON.stringify(keys1) === JSON.stringify(keys2);
-};
-
-export const inferLevelType = (level: string | null): 0 | 1 | 2 | 3 | 4 => {
-  if (!level) return 2;
-  level = level.toLowerCase();
-  if (level.includes(' ')) {
-    level = level.split(' ')[0];
-  }
-  if (['ez', 'easy'].includes(level)) return 0;
-  if (['hd', 'easy'].includes(level)) return 1;
-  if (['at', 'another'].includes(level)) return 3;
-  if (['sp', 'special'].includes(level)) return 4;
-  return 2;
-};
-
-export const getParams = (url?: string, loadFromStorage = true): Config | null => {
-  const searchParams = (url ? new URL(url) : get(page).url).searchParams;
-  const song = searchParams.get('song');
-  const chart = searchParams.get('chart');
-  const illustration = searchParams.get('illustration');
-  const assetNames = searchParams.getAll('assetNames');
-  const assetTypes = searchParams.getAll('assetTypes').map((v) => parseInt(v));
-  const assets = searchParams.getAll('assets');
-
-  const title = searchParams.get('title');
-  const composer = searchParams.get('composer');
-  const charter = searchParams.get('charter');
-  const illustrator = searchParams.get('illustrator');
-  const level = searchParams.get('level');
-  const levelType =
-    (clamp(parseInt(searchParams.get('levelType') ?? '2'), 0, 4) as 0 | 1 | 2 | 3 | 4) ??
-    inferLevelType(level);
-  const difficulty = searchParams.get('difficulty');
-
-  const aspectRatio: number[] | null = searchParams.getAll('aspectRatio').map((v) => parseInt(v));
-  const backgroundBlur = parseFloat(searchParams.get('backgroundBlur') ?? '1');
-  const backgroundLuminance = parseFloat(searchParams.get('backgroundLuminance') ?? '0.5');
-  const chartFlipping = parseInt(searchParams.get('chartFlipping') ?? '0');
-  const chartOffset = parseInt(searchParams.get('chartOffset') ?? '0');
-  const fcApIndicator = ['1', 'true'].some((v) => v == (searchParams.get('fcApIndicator') ?? '1'));
-  const goodJudgment = parseInt(searchParams.get('goodJudgment') ?? '160');
-  const hitSoundVolume = parseFloat(searchParams.get('hitSoundVolume') ?? '1');
-  const lineThickness = parseFloat(searchParams.get('lineThickness') ?? '1');
-  const musicVolume = parseFloat(searchParams.get('musicVolume') ?? '1');
-  const noteSize = parseFloat(searchParams.get('noteSize') ?? '1');
-  const perfectJudgment = parseInt(searchParams.get('perfectJudgment') ?? '80');
-  const simultaneousNoteHint = ['1', 'true'].some(
-    (v) => v == (searchParams.get('simultaneousNoteHint') ?? '1'),
-  );
-  const timeScale = parseFloat(searchParams.get('timeScale') ?? '1');
-
-  const frameRate = parseFloat(searchParams.get('frameRate') ?? '60');
-  const overrideResolution: number[] | null = searchParams
-    .getAll('overrideResolution')
-    .map((v) => parseInt(v));
-  const endingLoopsToRecord = parseFloat(searchParams.get('endingLoopsToRecord') ?? '1');
-  const outputFormat = searchParams.get('outputFormat') ?? 'mp4';
-  const videoBitrate = parseInt(searchParams.get('videoBitrate') ?? '6000');
-  const audioBitrate = parseInt(searchParams.get('audioBitrate') ?? '320');
-
-  const autoplay = ['1', 'true'].some((v) => v == searchParams.get('autoplay'));
-  const practice = ['1', 'true'].some((v) => v == searchParams.get('practice'));
-  const adjustOffset = ['1', 'true'].some((v) => v == searchParams.get('adjustOffset'));
-  const record = ['1', 'true'].some((v) => v == searchParams.get('record'));
-  const autostart = ['1', 'true'].some((v) => v == searchParams.get('autostart'));
-  const newTab = ['1', 'true'].some((v) => v == searchParams.get('newTab'));
-  const inApp = parseInt(searchParams.get('inApp') ?? '0');
-  if (!song || !chart || !illustration || assetNames.length < assets.length) {
-    if (!loadFromStorage) return null;
-    const storageItem = localStorage.getItem('player');
-    return storageItem ? JSON.parse(storageItem) : null;
-  }
-  return {
-    resources: {
-      song,
-      chart,
-      illustration,
-      assetNames,
-      assetTypes,
-      assets,
-    },
-    metadata: {
-      title,
-      composer,
-      charter,
-      illustrator,
-      levelType,
-      level,
-      difficulty: difficulty !== null ? parseFloat(difficulty) : null,
-    },
-    preferences: {
-      aspectRatio: aspectRatio.length >= 2 ? [aspectRatio[0], aspectRatio[1]] : null,
-      backgroundBlur,
-      backgroundLuminance,
-      chartFlipping,
-      chartOffset,
-      fcApIndicator,
-      goodJudgment,
-      hitSoundVolume,
-      lineThickness,
-      musicVolume,
-      noteSize,
-      perfectJudgment,
-      simultaneousNoteHint,
-      timeScale,
-    },
-    recorderOptions: {
-      frameRate,
-      overrideResolution:
-        overrideResolution.length >= 2 ? [overrideResolution[0], overrideResolution[1]] : null,
-      endingLoopsToRecord,
-      outputFormat,
-      videoBitrate,
-      audioBitrate,
-    },
-    autoplay,
-    practice,
-    adjustOffset,
-    record,
-    autostart,
-    newTab,
-    inApp,
-  };
 };
 
 export const loadText = async (url: string, name: string) => {
@@ -376,6 +202,21 @@ export const processIllustration = (
 
         ctx.clip();
         ctx.drawImage(img, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+
+        const dimZoneHeight = cropHeight * 0.5;
+        const dimnessPercent = 0.95;
+        const gradient = ctx.createLinearGradient(
+          0,
+          canvas.height - dimZoneHeight,
+          0,
+          canvas.height,
+        );
+        gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        gradient.addColorStop(1, `rgba(0, 0, 0, ${dimnessPercent})`);
+
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, canvas.height - dimZoneHeight, canvas.width, dimZoneHeight);
+
         const cropped = canvas.toDataURL();
 
         resolve({ background, cropped });
@@ -451,10 +292,6 @@ export const getJudgmentColor = (type: JudgmentType): number => {
     default:
       return 0xffffff;
   }
-};
-
-export const clamp = (num: number, lower: number, upper: number) => {
-  return Math.min(Math.max(num, lower), upper);
 };
 
 export const easing = (
@@ -598,27 +435,6 @@ export const getIntegral = (
   );
 };
 
-export const fit = (
-  width: number,
-  height: number,
-  refWidth: number,
-  refHeight: number,
-  modifier: boolean = false,
-) => {
-  let isWide = refWidth / refHeight < width / height;
-  if (modifier) {
-    isWide = !isWide;
-  }
-  if (isWide) {
-    width = (refHeight / height) * width;
-    height = refHeight;
-  } else {
-    height = (refWidth / width) * height;
-    width = refWidth;
-  }
-  return { width, height };
-};
-
 export const getJudgmentPosition = (input: PointerTap | PointerDrag, line: Line) => {
   const vector = line.vector;
   vector.scale(dot([input.position.x - line.x, input.position.y - line.y], [vector.x, vector.y]));
@@ -705,20 +521,11 @@ export const convertTime = (input: string | number, round = false) => {
   }`;
 };
 
-export const isZip = (file: File) =>
-  file.type === 'application/zip' ||
-  file.type === 'application/x-zip-compressed' ||
-  file.name.toLowerCase().endsWith('.pez');
-
 export const pad = (num: number, size: number) => {
   let numStr = num.toString();
   while (numStr.length < size) numStr = '0' + numStr;
   return numStr;
 };
-
-// const paddings = Array(7)
-//   .fill('')
-//   .map((_, i) => Array(i).fill(0).join(''));
 
 export const position = (
   array: { x: number; actualWidth: number }[],
@@ -1195,66 +1002,4 @@ export const getSpritesheet = async (url: string, isGif = false) => {
   const resp = await download(url, 'image');
   const buffer = await resp.arrayBuffer();
   return isGif ? convertGifToSpritesheet(buffer) : convertApngToSpritesheet(buffer);
-};
-
-export const versionCompare = (aString: string, bString: string) => {
-  const a = aString.split('.').map(parseInt);
-  const b = bString.split('.').map(parseInt);
-  for (let i = 0; i < Math.min(a.length, b.length); i++) {
-    if (a[i] < b[i]) return -1;
-    if (a[i] > b[i]) return 1;
-  }
-  return 0;
-};
-
-export const notify = (message: string, clickCallback?: () => void) => {
-  const ID = `notification-${performance.now()}`;
-  Notiflix.Notify.info(message, {
-    ID,
-    cssAnimationStyle: 'from-right',
-    showOnlyTheLastOne: false,
-    opacity: 0.9,
-    borderRadius: '12px',
-  });
-  if (!clickCallback) return;
-  document
-    .querySelectorAll('.notiflix-notify')
-    ?.forEach((e) => e.id.startsWith(ID) && e.addEventListener('click', clickCallback));
-};
-
-export const alertError = (error: Error, message?: string) => {
-  const type = error === null ? 'null' : error === undefined ? 'undefined' : error.constructor.name;
-  let message2 = String(error);
-  // let _detail = String(error);
-  if (error instanceof Error) {
-    // const stack = error.stack || 'Stack not available';
-    message2 = `${error.name}: ${error.message}`;
-    // const idx = stack.indexOf(message2) + 1;
-    // if (idx) _detail = `${message2}\n${stack.slice(idx + message2.length)}`;
-    // else _detail = `${message2}\n    ${stack.split('\n').join('\n    ')}`; //Safari
-  }
-  if (message) message2 = message;
-  const errMessage = `(Click to copy) [${type}] ${message2.split('\n')[0]}`;
-  const ID = `msgHandlerErr-${performance.now()}`;
-  Notiflix.Notify.failure(errMessage, {
-    ID,
-    cssAnimationStyle: 'from-right',
-    showOnlyTheLastOne: false,
-    opacity: 0.9,
-    borderRadius: '12px',
-  });
-  document.querySelectorAll('.notiflix-notify')?.forEach(
-    (e) =>
-      e.id.startsWith(ID) &&
-      e.addEventListener('click', async () => {
-        const text = error.stack ?? `${error.name}: ${error.message}`;
-        if (Capacitor.getPlatform() === 'web') navigator.clipboard.writeText(text);
-        else await Clipboard.write({ string: text });
-        Notiflix.Notify.success('Error copied to clipboard', {
-          cssAnimationStyle: 'from-right',
-          opacity: 0.9,
-          borderRadius: '12px',
-        });
-      }),
-  );
 };

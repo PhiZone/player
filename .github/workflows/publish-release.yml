@@ -257,7 +257,8 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm i
 
-      - uses: tauri-apps/tauri-action@v0
+      - name: Build and publish
+        uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           PUBLIC_SENTRY_DSN: ${{ vars.PUBLIC_SENTRY_DSN }}

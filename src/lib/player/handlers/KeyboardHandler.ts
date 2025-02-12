@@ -1,5 +1,5 @@
 import type { Game } from '../scenes/Game';
-import { GameStatus } from '../types';
+import { GameStatus } from '$lib/types';
 
 export class KeyboardHandler {
   private _scene: Game;
