@@ -1,6 +1,6 @@
 import { Renderer } from 'phaser';
 import type { Game } from '../scenes/Game';
-import type { AnimatedVariable, ShaderEffect, VariableEvent } from '../types';
+import type { AnimatedVariable, ShaderEffect, VariableEvent } from '$lib/types';
 import {
   findLeaves,
   findLowestCommonAncestorArray,

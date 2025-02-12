@@ -1,7 +1,7 @@
 import { GameObjects, Sound } from 'phaser';
 import type { Game } from '../scenes/Game';
 import { FONT_FAMILY } from '../constants';
-import type { Grade } from '../types';
+import type { Grade } from '$lib/types';
 import { pad, position } from '../utils';
 import { EventBus } from '../EventBus';
 import { Capacitor } from '@capacitor/core';

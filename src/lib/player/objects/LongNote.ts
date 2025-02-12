@@ -1,5 +1,5 @@
 import { GameObjects } from 'phaser';
-import { GameStatus, JudgmentType, type Note } from '../types';
+import { GameStatus, JudgmentType, type Note } from '$lib/types';
 import type { Game } from '../scenes/Game';
 import type { Line } from './Line';
 import { getTimeSec, rgbToHex } from '../utils';

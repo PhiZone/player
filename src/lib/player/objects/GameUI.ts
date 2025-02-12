@@ -1,7 +1,7 @@
 import { GameObjects, Tweens, type Types } from 'phaser';
 import type { Game } from '../scenes/Game';
 import { pad } from '../utils';
-import { GameStatus } from '../types';
+import { GameStatus } from '$lib/types';
 import { COMBO_TEXT, FONT_FAMILY } from '../constants';
 
 export class GameUI {

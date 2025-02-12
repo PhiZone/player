@@ -1,5 +1,5 @@
 import { GameObjects } from 'phaser';
-import { JudgmentType } from '../types';
+import { JudgmentType } from '$lib/types';
 import { getJudgmentColor } from '../utils';
 import type { Game } from '../scenes/Game';
 import {

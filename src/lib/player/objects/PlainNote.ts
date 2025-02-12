@@ -1,7 +1,8 @@
 // import { GameObjects } from 'phaser';
 import { SkewImage } from 'phaser3-rex-plugins/plugins/quadimage.js';
-import { JudgmentType, type Note } from '../types';
-import { clamp, getControlValue, getTimeSec, rgbToHex } from '../utils';
+import { JudgmentType, type Note } from '$lib/types';
+import { clamp } from '$lib/utils';
+import { getControlValue, getTimeSec, rgbToHex } from '../utils';
 import type { Game } from '../scenes/Game';
 import type { Line } from './Line';
 import { NOTE_BASE_SIZE, NOTE_PRIORITIES } from '../constants';

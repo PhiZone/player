@@ -1,6 +1,6 @@
 import { GameObjects } from 'phaser';
 import { Game } from '../scenes/Game';
-import { type AnimatedVariable, type VariableEvent, type Video as VideoType } from '../types';
+import { type AnimatedVariable, type VariableEvent, type Video as VideoType } from '$lib/types';
 import { getTimeSec, getEventValue, processEvents, toBeats } from '../utils';
 
 export class Video extends GameObjects.Container {

@@ -1,12 +1,11 @@
 import { Cameras, GameObjects, Renderer, Scene, Sound } from 'phaser';
 import { EventBus } from '../EventBus';
+import { inferLevelType, fit } from '$lib/utils';
 import {
   processIllustration,
   loadJson,
   toBeats,
-  fit,
   getAudio,
-  inferLevelType,
   calculatePrecedences,
   loadText,
   getSpritesheet,
@@ -20,7 +19,7 @@ import {
   type PhiraExtra,
   type RpeJson,
   type ShaderEffect,
-} from '../types';
+} from '$lib/types';
 import { Line } from '../objects/Line';
 import type { LongNote } from '../objects/LongNote';
 import type { PlainNote } from '../objects/PlainNote';

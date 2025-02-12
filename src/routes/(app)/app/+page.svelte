@@ -1,7 +1,7 @@
 <script lang="ts">
   import { REPO_LINK } from '$lib';
   import Distribution from '$lib/components/Distribution.svelte';
-  import { IS_ANDROID_OR_IOS, IS_TAURI } from '../../../player/utils.js';
+  import { IS_ANDROID_OR_IOS, IS_TAURI } from '$lib/utils';
   import { Capacitor } from '@capacitor/core';
   import { page } from '$app/stores';
   import { onMount } from 'svelte';

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Preferences } from '../../player/types';
+  import type { Preferences } from '$lib/types';
 
   interface $$Props {
     preferences: Preferences;
