@@ -1,6 +1,6 @@
 import { get } from 'svelte/store';
 import { page } from '$app/stores';
-import { type Config } from './types';
+import { type Config, type OutgoingMessage } from './types';
 import { AndroidFullScreen } from '@awesome-cordova-plugins/android-full-screen';
 import { Capacitor } from '@capacitor/core';
 import { Clipboard } from '@capacitor/clipboard';
@@ -204,6 +204,8 @@ export const isZip = (file: File) =>
   file.type === 'application/zip' ||
   file.type === 'application/x-zip-compressed' ||
   file.name.toLowerCase().endsWith('.pez');
+
+export const send = (message: OutgoingMessage) => parent.postMessage(message, '*');
 
 export const versionCompare = (aString: string, bString: string) => {
   const a = aString.split('.').map(parseInt);

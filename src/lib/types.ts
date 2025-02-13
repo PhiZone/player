@@ -477,28 +477,43 @@ export interface Release {
   body: string;
 }
 
-export type IncomingMessage = BlobInputMessage | PlayMessage;
+export type IncomingMessage = BlobInputMessage | UrlInputMessage | PlayMessage;
 
-export type OutgoingMessage = InputResponseMessage | ChartBundleMessage | FileOutputMessage;
+export type OutgoingMessage =
+  | EventMessage
+  | InputResponseMessage
+  | ChartBundleMessage
+  | FileOutputMessage;
 
-interface BlobInputMessage {
+export interface BlobInputMessage {
   type: 'zipInput' | 'fileInput';
-  payload: Blob[];
+  payload: {
+    input: Blob[];
+    replacee?: number;
+  };
 }
 
-interface PlayMessage {
+export interface UrlInputMessage {
+  type: 'zipUrlInput' | 'fileUrlInput';
+  payload: {
+    input: string[];
+    replacee?: number;
+  };
+}
+
+export interface PlayMessage {
   type: 'play';
   payload: Config | PlayOptions;
 }
 
-interface InputResponseMessage {
+export interface InputResponseMessage {
   type: 'inputResponse';
   payload: {
     bundlesResolved: number;
   };
 }
 
-interface ChartBundleMessage {
+export interface ChartBundleMessage {
   type: 'bundle';
   payload: {
     metadata: Metadata;
@@ -515,10 +530,26 @@ interface ChartBundleMessage {
   };
 }
 
-interface FileOutputMessage {
+export interface FileOutputMessage {
   type: 'fileOutput';
   payload: {
     purpose: 'adjustedOffset' | 'recordedVideo';
     file: File;
+  };
+}
+
+export interface EventMessage {
+  type: 'event';
+  payload: {
+    name:
+      | 'ready'
+      | 'errored'
+      | 'started'
+      | 'progress'
+      | 'paused'
+      | 'resumed'
+      | 'restarted'
+      | 'finished';
+    value?: number;
   };
 }

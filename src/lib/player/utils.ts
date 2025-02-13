@@ -16,7 +16,6 @@ import {
   type SizeControl,
   type SkewControl,
   type YControl,
-  type OutgoingMessage,
   // type RecorderOptions,
 } from '$lib/types';
 import { EventBus } from './EventBus';
@@ -34,7 +33,7 @@ import { ROOT, type Node } from './objects/Node';
 import { tempDir } from '@tauri-apps/api/path';
 import { download as tauriDownload } from '@tauri-apps/plugin-upload';
 import { readFile, remove } from '@tauri-apps/plugin-fs';
-import { clamp, IS_IFRAME, IS_TAURI } from '$lib/utils';
+import { clamp, IS_IFRAME, IS_TAURI, send } from '$lib/utils';
 import 'context-filter-polyfill';
 
 const easingFunctions: ((x: number) => number)[] = [
@@ -722,14 +721,13 @@ export const triggerDownload = (
   always = false,
 ) => {
   if (IS_IFRAME) {
-    const message: OutgoingMessage = {
+    send({
       type: 'fileOutput',
       payload: {
         purpose,
         file: new File([blob], name),
       },
-    };
-    parent.postMessage(message, '*');
+    });
     if (!always) return;
   }
   const url = URL.createObjectURL(blob);
