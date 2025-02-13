@@ -479,7 +479,11 @@ export interface Release {
 
 export type IncomingMessage = BlobInputMessage | PlayMessage;
 
-export type OutgoingMessage = InputResponseMessage | ChartBundleMessage | FileOutputMessage;
+export type OutgoingMessage =
+  | EventMessage
+  | InputResponseMessage
+  | ChartBundleMessage
+  | FileOutputMessage;
 
 interface BlobInputMessage {
   type: 'zipInput' | 'fileInput';
@@ -520,5 +524,21 @@ interface FileOutputMessage {
   payload: {
     purpose: 'adjustedOffset' | 'recordedVideo';
     file: File;
+  };
+}
+
+interface EventMessage {
+  type: 'event';
+  payload: {
+    name:
+      | 'ready'
+      | 'errored'
+      | 'started'
+      | 'progress'
+      | 'paused'
+      | 'resumed'
+      | 'restarted'
+      | 'finished';
+    value?: number;
   };
 }

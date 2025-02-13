@@ -1,6 +1,6 @@
 import { Cameras, GameObjects, Renderer, Scene, Sound } from 'phaser';
 import { EventBus } from '../EventBus';
-import { inferLevelType, fit } from '$lib/utils';
+import { inferLevelType, fit, send } from '$lib/utils';
 import {
   processIllustration,
   loadJson,
@@ -359,6 +359,12 @@ export class Game extends Scene {
       this._song.play();
     }, 1000 / this.tweens.timeScale);
     EventBus.emit('started');
+    send({
+      type: 'event',
+      payload: {
+        name: 'started',
+      },
+    });
     this.game.events.on('hidden', () => {
       this._visible = false;
       if (this._status !== GameStatus.FINISHED) this.pause();
@@ -378,6 +384,12 @@ export class Game extends Scene {
     this._song.pause();
     this._videos?.forEach((video) => video.pause());
     EventBus.emit('paused', emittedBySpace);
+    send({
+      type: 'event',
+      payload: {
+        name: 'paused',
+      },
+    });
   }
 
   resume() {
@@ -387,6 +399,12 @@ export class Game extends Scene {
     this._song.resume();
     this._videos?.forEach((video) => video.resume());
     EventBus.emit('started');
+    send({
+      type: 'event',
+      payload: {
+        name: 'resumed',
+      },
+    });
   }
 
   async restart() {
@@ -407,6 +425,12 @@ export class Game extends Scene {
     this._status = GameStatus.PLAYING;
     this._objects.sort((a, b) => a.depth - b.depth);
     EventBus.emit('started');
+    send({
+      type: 'event',
+      payload: {
+        name: 'restarted',
+      },
+    });
   }
 
   end() {
@@ -420,6 +444,12 @@ export class Game extends Scene {
       this.resetShadersAndVideos();
       this._endingUI!.play();
       EventBus.emit('finished');
+      send({
+        type: 'event',
+        payload: {
+          name: 'finished',
+        },
+      });
     }, 1000 / this.tweens.timeScale);
   }
 
@@ -438,6 +468,12 @@ export class Game extends Scene {
     ) {
       if (this._status === GameStatus.ERROR) {
         EventBus.emit('error');
+        send({
+          type: 'event',
+          payload: {
+            name: 'errored',
+          },
+        });
       }
       return;
     }
@@ -449,11 +485,17 @@ export class Game extends Scene {
       this._gameUI.update();
       this.positionBackground(this._background);
     }
-    EventBus.emit(
-      'update',
-      this._status === GameStatus.FINISHED ? this._song.duration : this._song.seek,
-    );
-    this.updateChart(this.beat, this.timeSec, time);
+    let timeSec = this.realTimeSec;
+    EventBus.emit('update', timeSec);
+    send({
+      type: 'event',
+      payload: {
+        name: 'progress',
+        value: timeSec,
+      },
+    });
+    timeSec -= this._offset / 1000;
+    this.updateChart(this.getBeat(timeSec), timeSec, time);
     this.statistics.updateDisplay(delta);
     if (this._isSeeking) {
       this._status = status;
@@ -729,6 +771,20 @@ export class Game extends Scene {
     return entry;
   }
 
+  getBeat(songTime: number) {
+    if (this._bpmIndex > 0 && songTime < this._bpmList[this._bpmIndex].startTimeSec) {
+      this._bpmIndex = 0;
+    }
+    while (
+      this._bpmIndex < this._bpmList.length - 1 &&
+      songTime >= this._bpmList[this._bpmIndex + 1].startTimeSec
+    ) {
+      this._bpmIndex++;
+    }
+    const curBpm = this._bpmList[this._bpmIndex];
+    return curBpm.startBeat + ((songTime - curBpm.startTimeSec) / 60) * curBpm.bpm;
+  }
+
   w(width: number) {
     return (width / 1350) * this.sys.canvas.width + this.sys.canvas.width / 2;
   }
@@ -811,18 +867,7 @@ export class Game extends Scene {
   }
 
   public get beat() {
-    const songTime = this.timeSec;
-    if (this._bpmIndex > 0 && songTime < this._bpmList[this._bpmIndex].startTimeSec) {
-      this._bpmIndex = 0;
-    }
-    while (
-      this._bpmIndex < this._bpmList.length - 1 &&
-      songTime >= this._bpmList[this._bpmIndex + 1].startTimeSec
-    ) {
-      this._bpmIndex++;
-    }
-    const curBpm = this._bpmList[this._bpmIndex];
-    return curBpm.startBeat + ((songTime - curBpm.startTimeSec) / 60) * curBpm.bpm;
+    return this.getBeat(this.timeSec);
   }
 
   public get timeSec() {
@@ -830,6 +875,10 @@ export class Game extends Scene {
       (this._status === GameStatus.FINISHED ? this._song.duration : this._song.seek) -
       this._offset / 1000
     );
+  }
+
+  public get realTimeSec() {
+    return this._status === GameStatus.FINISHED ? this._song.duration : this._song.seek;
   }
 
   public get bpm() {

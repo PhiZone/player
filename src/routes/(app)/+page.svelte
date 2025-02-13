@@ -24,6 +24,7 @@
     IS_TAURI,
     isZip,
     notify,
+    send,
     versionCompare,
   } from '$lib/utils';
   import PreferencesModal from '$lib/components/Preferences.svelte';
@@ -207,6 +208,13 @@
         })
         .catch((err) => console.error(err));
     }
+
+    send({
+      type: 'event',
+      payload: {
+        name: 'ready',
+      },
+    });
   });
 
   const init = async () => {
@@ -583,13 +591,12 @@
         );
       }, 1000),
     );
-    const message: OutgoingMessage = {
+    send({
       type: 'inputResponse',
       payload: {
         bundlesResolved,
       },
-    };
-    parent.postMessage(message, '*');
+    });
   };
 
   const getUrl = (blob: Blob | undefined) => (blob ? URL.createObjectURL(blob) : null);
@@ -612,7 +619,7 @@
       newTab: params.newTab,
       inApp: params.inApp,
     };
-    const message: OutgoingMessage = {
+    send({
       type: 'bundle',
       payload: {
         metadata: params.metadata,
@@ -630,8 +637,7 @@
           }),
         },
       },
-    };
-    parent.postMessage(message, '*');
+    });
     const paramsString = queryString.stringify(params, {
       arrayFormat: 'none',
       skipEmptyString: true,
