@@ -137,6 +137,7 @@
 
     addEventListener('message', async (e: MessageEvent<IncomingMessage>) => {
       const message = e.data;
+      if (!message || !message.type) return;
       if (message.type === 'play') {
         let config: Config;
         if ('resources' in message.payload) {
@@ -166,10 +167,12 @@
           };
         }
         handleParams(config);
-      } else {
-        if (!message.type.endsWith('Input')) {
-          return;
-        }
+      } else if (
+        message.type === 'zipInput' ||
+        message.type === 'fileInput' ||
+        message.type === 'zipUrlInput' ||
+        message.type === 'fileUrlInput'
+      ) {
         showCollapse = true;
         const files: File[] = [];
         let replacee: number | undefined = undefined;
