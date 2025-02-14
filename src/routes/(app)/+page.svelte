@@ -550,8 +550,6 @@
               }
             }
           } catch {}
-        } else if (file.name.toLowerCase().endsWith('.pec')) {
-          chartFiles.push({ id, file });
         } else if (type === 0) {
           imageFiles.push({ id, file, url: URL.createObjectURL(file) });
           if (replacee !== undefined && replacee < chartBundles.length) {
