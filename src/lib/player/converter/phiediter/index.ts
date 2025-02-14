@@ -1,13 +1,13 @@
 import { beatToArray } from '$lib/player/utils';
 import type { RpeJson, RpeMeta, JudgeLine, EventLayer, Event, SpeedEvent } from '$lib/types';
-import type { PhiEditerCommandBase, PhiEditerNote } from './types';
+import type { PecCommandBase, PecNote } from './types';
 
 const PhiEditer = (chartRaw: string, meta: Omit<RpeMeta, 'offset'>): RpeJson => {
   const chartRawArr = chartRaw.split(/[\r\n]+/);
   const chartOffset = parseInt(chartRawArr.shift()!);
   if (isNaN(chartOffset)) throw new Error('Not a valid PhiEditer chart');
 
-  const noteList: PhiEditerNote[] = [];
+  const noteList: PecNote[] = [];
   const lineList: Record<number, JudgeLine> = {};
   const result: RpeJson = {
     BPMList: [],
@@ -20,7 +20,7 @@ const PhiEditer = (chartRaw: string, meta: Omit<RpeMeta, 'offset'>): RpeJson => 
   };
 
   for (const command of chartRawArr) {
-    const commandArr = command.split(/\s/) as PhiEditerCommandBase;
+    const commandArr = command.split(/\s/) as PecCommandBase;
 
     switch (commandArr[0]) {
       // Parse BPMs

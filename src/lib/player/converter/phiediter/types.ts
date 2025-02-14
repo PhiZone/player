@@ -1,19 +1,19 @@
 import type { Note } from '$lib/types';
 
-export type PhiEditerCommandTypeBPM = 'bp';
-export type PhiEditerCommandTypeNote = 'n1' | 'n2' | 'n3' | 'n4';
-export type PhiEditerCommandTypeNoteExtra = '#' | '&';
-export type PhiEditerCommandTypeLine = 'cv' | 'cm' | 'cp' | 'cr' | 'cd' | 'cf' | 'ca';
-export type PhiEditerCommandType =
-  | PhiEditerCommandTypeBPM
-  | PhiEditerCommandTypeNote
-  | PhiEditerCommandTypeNoteExtra
-  | PhiEditerCommandTypeLine;
+export type PecCommandTypeBPM = 'bp';
+export type PecCommandTypeNote = 'n1' | 'n2' | 'n3' | 'n4';
+export type PecCommandTypeNoteExtra = '#' | '&';
+export type PecCommandTypeLine = 'cv' | 'cm' | 'cp' | 'cr' | 'cd' | 'cf' | 'ca';
+export type PecCommandType =
+  | PecCommandTypeBPM
+  | PecCommandTypeNote
+  | PecCommandTypeNoteExtra
+  | PecCommandTypeLine;
 
-export interface PhiEditerCommandBase extends Array<string> {
-  0: PhiEditerCommandType;
+export interface PecCommandBase extends Array<string> {
+  0: PecCommandType;
 }
 
-export interface PhiEditerNote extends Note {
+export interface PecNote extends Note {
   lineID: number;
 }
