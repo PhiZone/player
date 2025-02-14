@@ -24,6 +24,7 @@
     inferLevelType,
     IS_ANDROID_OR_IOS,
     IS_TAURI,
+    isPec,
     isZip,
     notify,
     send,
@@ -214,9 +215,9 @@
       });
       const result = await invoke('get_incoming_files');
       if (result) {
-          console.log('Incoming files', result);
-          await handleFilePaths(result as string[]);
-        }
+        console.log('Incoming files', result);
+        await handleFilePaths(result as string[]);
+      }
     }
 
     if (Capacitor.getPlatform() !== 'web') {
@@ -564,18 +565,26 @@
           mimeType = mime.getType(file.name);
         }
         const type = getFileType(mimeType, file.name);
+        let chartSuccess = false;
+        const chartContent = await file.text();
         if (mimeType === 'application/json') {
           try {
-            const json = JSON.parse(await file.text());
+            const json = JSON.parse(chartContent);
             if (json.META) {
-              chartFiles.push({ id, file });
-              if (replacee !== undefined && replacee < chartBundles.length) {
-                const replaceeBundle = chartBundles[replacee];
-                selectedChart = id;
-                replaceeBundle.chart = id;
-              }
+              chartSuccess = true;
             }
           } catch {}
+        }
+        if (isPec(chartContent.split(/\r?\n/).slice(0, 2))) {
+          chartSuccess = true;
+        }
+        if (chartSuccess) {
+          chartFiles.push({ id, file });
+          if (replacee !== undefined && replacee < chartBundles.length) {
+            const replaceeBundle = chartBundles[replacee];
+            selectedChart = id;
+            replaceeBundle.chart = id;
+          }
         } else if (type === 0) {
           imageFiles.push({ id, file, url: URL.createObjectURL(file) });
           if (replacee !== undefined && replacee < chartBundles.length) {

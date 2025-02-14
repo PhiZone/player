@@ -56,6 +56,9 @@ export const haveSameKeys = (obj1: object, obj2: object): boolean => {
   return JSON.stringify(keys1) === JSON.stringify(keys2);
 };
 
+export const isPec = (pecCriteria: string[]) =>
+  !isNaN(parseFloat(pecCriteria[0])) && /^bp \d+(\.\d+)? \d+(\.\d+)?$/.test(pecCriteria[1]);
+
 export const inferLevelType = (level: string | null): 0 | 1 | 2 | 3 | 4 => {
   if (!level) return 2;
   level = level.toLowerCase();
