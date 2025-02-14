@@ -31,6 +31,10 @@ defaults:
   run:
     shell: bash
 
+concurrency:
+  group: 'publish-debug'
+  cancel-in-progress: false
+
 jobs:
   metadata:
     name: Retrieve metadata
@@ -54,6 +58,7 @@ jobs:
   publish-web:
     name: Publish to Sentry and GitHub Pages
     runs-on: ubuntu-22.04
+    if: github.event_name == 'push'
     needs: metadata
     permissions:
       contents: read

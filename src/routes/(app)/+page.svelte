@@ -1,5 +1,5 @@
 <script lang="ts">
-  import JSZip, { file } from 'jszip';
+  import JSZip from 'jszip';
   import mime from 'mime/lite';
   import { onMount } from 'svelte';
   import queryString from 'query-string';
@@ -9,7 +9,6 @@
     Config,
     IncomingMessage,
     Metadata,
-    OutgoingMessage,
     Preferences,
     RecorderOptions,
     Release,
@@ -46,7 +45,7 @@
   import { tempDir } from '@tauri-apps/api/path';
   import { download as tauriDownload } from '@tauri-apps/plugin-upload';
   import { readFile, remove } from '@tauri-apps/plugin-fs';
-  import { random, re } from 'mathjs';
+  import { random } from 'mathjs';
   import { base } from '$app/paths';
   import { listen } from '@tauri-apps/api/event';
   import { invoke } from '@tauri-apps/api/core';
@@ -1445,7 +1444,7 @@
                 >
                   The canvas will be recorded and saved as a video file.
                   <br />
-                  Note that this feature is still work in progress.
+                  Note that this feature is still a work in progress.
                 </span>
               </label>
             </div>
