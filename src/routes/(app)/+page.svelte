@@ -1434,7 +1434,7 @@
                 >
                   The canvas will be recorded and saved as a video file.
                   <br />
-                  Note that this feature is still work in progress.
+                  Note that this feature is still a work in progress.
                 </span>
               </label>
             </div>
