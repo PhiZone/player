@@ -32,6 +32,12 @@
         "name": "RPE Chart Bundle",
         "description": "RPE Chart Bundle",
         "role": "Viewer"
+      },
+      {
+        "ext": ["zip"],
+        "name": "ZIP Bundle",
+        "description": "ZIP Bundle",
+        "role": "Viewer"
       }
     ],
     "icon": [

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import JSZip from 'jszip';
+  import JSZip, { file } from 'jszip';
   import mime from 'mime/lite';
   import { onMount } from 'svelte';
   import queryString from 'query-string';
@@ -47,6 +47,8 @@
   import { readFile, remove } from '@tauri-apps/plugin-fs';
   import { random, re } from 'mathjs';
   import { base } from '$app/paths';
+  import { listen } from '@tauri-apps/api/event';
+  import { invoke } from '@tauri-apps/api/core';
 
   interface FileEntry {
     id: number;
@@ -205,6 +207,16 @@
       onOpenUrl((urls) => {
         handleRedirect(urls[0]);
       });
+      listen('incoming-files', async (event) => {
+        const filePaths = event.payload as string[];
+        console.log(filePaths);
+        await handleFilePaths(filePaths);
+      });
+      const result = await invoke('get_incoming_files');
+      if (result) {
+          console.log('Incoming files', result);
+          await handleFilePaths(result as string[]);
+        }
     }
 
     if (Capacitor.getPlatform() !== 'web') {
@@ -343,6 +355,20 @@
       const searchParams = new URL(url).searchParams;
       handleParamFiles(searchParams);
     }
+  };
+
+  const handleFilePaths = async (filePaths: string[]) => {
+    let promises = await Promise.allSettled(
+      filePaths.map(async (filePath) => {
+        const data = await readFile(filePath);
+        return new File([data], filePath.split('/').pop() ?? filePath);
+      }),
+    );
+    handleFiles(
+      promises
+        .filter((promise) => promise.status === 'fulfilled')
+        .map((promise) => (promise as PromiseFulfilledResult<File>).value),
+    );
   };
 
   const shareId = (a: FileEntry, b: FileEntry) =>
