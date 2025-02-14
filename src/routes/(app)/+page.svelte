@@ -13,6 +13,7 @@
     RecorderOptions,
     Release,
     RpeJson,
+    RpeMeta,
     UrlInputMessage,
   } from '$lib/types';
   import {
@@ -26,6 +27,7 @@
     isPec,
     isZip,
     notify,
+    readMetadata,
     send,
     versionCompare,
   } from '$lib/utils';
@@ -510,19 +512,28 @@
       }
       illustrationFile = imageFiles[0];
     }
-    const chart = JSON.parse(await chartFile.file.text()) as RpeJson;
+    let metadata;
+    try {
+      metadata = (JSON.parse(await chartFile.file.text()) as RpeJson).META;
+    } catch {
+      if (!infoId) {
+        if (!silent) alert('Metadata not found!');
+        return;
+      }
+      metadata = readMetadata(await assets[infoId].file.text())
+    }
     const bundle = {
       id: Date.now(),
       song: songFile.id,
       chart: chartFile.id,
       illustration: illustrationFile.id,
       metadata: {
-        title: chart.META.name,
-        composer: chart.META.composer,
-        charter: chart.META.charter,
-        illustrator: chart.META.illustration ?? null,
-        level: chart.META.level,
-        levelType: inferLevelType(chart.META.level),
+        title: metadata.name,
+        composer: metadata.composer,
+        charter: metadata.charter,
+        illustrator: metadata.illustration ?? null,
+        level: metadata.level,
+        levelType: inferLevelType(metadata.level),
         difficulty: null,
       },
     };
