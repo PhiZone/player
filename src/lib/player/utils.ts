@@ -556,6 +556,19 @@ export const position = (
   });
 };
 
+export const beatToArray = (beat: number | string): [number, number, number] => {
+  const number = typeof beat === 'string' ? parseFloat(beat) : beat;
+  const beatInt = Math.floor(number);
+  const beatFloat = number - beatInt;
+
+  if (beatInt === number) return [beatInt, 0, 1];
+
+  const denominator = Math.pow(10, `${beatFloat}`.length);
+  const gcdResult = gcd(beatFloat, denominator);
+
+  return [beatInt, Math.floor(beatFloat / gcdResult), Math.floor(denominator / gcdResult)];
+};
+
 export const calculatePrecedences = (arr: number[]) => {
   const sortedUnique = Array.from(new Set(arr)).sort((a, b) => a - b);
 

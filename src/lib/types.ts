@@ -73,7 +73,7 @@ export interface RecorderOptions {
 
 export interface RpeJson {
   BPMList: Bpm[];
-  META: Meta;
+  META: RpeMeta;
   chartTime: number;
   judgeLineGroup: string[];
   judgeLineList: JudgeLine[];
@@ -240,7 +240,7 @@ export interface AlphaControl {
   x: number;
 }
 
-interface Meta {
+export interface RpeMeta {
   RPEVersion: number;
   background: string;
   charter: string;
