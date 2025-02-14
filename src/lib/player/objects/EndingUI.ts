@@ -166,8 +166,8 @@ export class EndingUI extends GameObjects.Container {
     const container = new GameObjects.Container(this._scene);
     const illustration = new GameObjects.Image(this._scene, 0, 0, 'illustration-cropped');
     illustration.setScale(1080 / illustration.texture.getSourceImage().height);
-    const title = this.createText(this._scene.metadata.title ?? '', -912, 513, 0, 1, 72);
-    const level = this.createText(this._scene.metadata.level ?? '', 912, 513, 1, 1);
+    const title = this.createText(this._scene.metadata.title ?? '', -912, 504, 0, 1, 76);
+    const level = this.createText(this._scene.metadata.level ?? '', 912, 504, 1, 1);
     container.add(illustration);
     container.add(title);
     container.add(level);
@@ -182,7 +182,7 @@ export class EndingUI extends GameObjects.Container {
     y: number,
     originX: number,
     originY: number,
-    size: number = 64,
+    size: number = 68,
   ) {
     return new GameObjects.Text(this._scene, x, y, text, {
       fontFamily: FONT_FAMILY,
