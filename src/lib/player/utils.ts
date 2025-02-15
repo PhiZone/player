@@ -571,14 +571,11 @@ export const beatToArray = (beat: number | string): [number, number, number] => 
   const string = typeof beat === 'string' ? beat : `${beat}`;
   const number = parseFloat(string);
   const beatInt = Math.floor(number);
-  const beatFloat = parseInt(string.split('.')[1]);
+  const beatFloatStr = string.split('.')[1];
 
   if (beatInt === number) return [beatInt, 0, 1];
 
-  const denominator = Math.pow(10, `${beatFloat}`.length);
-  const gcdResult = gcd(beatFloat, denominator);
-
-  return [beatInt, Math.floor(beatFloat / gcdResult), Math.floor(denominator / gcdResult)];
+  return [beatInt, parseInt(beatFloatStr), Math.pow(10, beatFloatStr.length)];
 };
 
 export const calculatePrecedences = (arr: number[]) => {
