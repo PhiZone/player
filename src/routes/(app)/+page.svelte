@@ -119,7 +119,7 @@
     practice: false,
     adjustOffset: false,
     record: false,
-    newTab: false,
+    newTab: true,
     inApp: IS_TAURI || Capacitor.getPlatform() !== 'web' ? 2 : 0,
   };
   let recorderOptions: RecorderOptions = {
