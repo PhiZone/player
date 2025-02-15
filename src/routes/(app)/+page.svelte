@@ -190,30 +190,34 @@
         message.type === 'fileUrlInput'
       ) {
         showCollapse = true;
-        const files: File[] = [];
+        const bundleFileMatrix: File[][] = [];
         let replacee: number | undefined = undefined;
         if (message.type.includes('Url')) {
           const payload = (e.data as UrlInputMessage).payload;
           replacee = payload.replacee;
           if (message.type === 'zipUrlInput') {
-            files.push(...(await decompressZipArchives(await downloadUrls(payload.input))));
+            bundleFileMatrix.push(
+              ...(await decompressZipArchives(await downloadUrls(payload.input))),
+            );
           } else if (message.type === 'fileUrlInput') {
-            files.push(...(await downloadUrls(payload.input)));
+            bundleFileMatrix.push(await downloadUrls(payload.input));
           }
         } else {
           const payload = (e.data as BlobInputMessage).payload;
           replacee = payload.replacee;
           if (message.type === 'zipInput') {
-            files.push(
+            bundleFileMatrix.push(
               ...(await decompressZipArchives(
                 payload.input.map((blob) => new File([blob], 'archive.zip')),
               )),
             );
           } else if (message.type === 'fileInput') {
-            files.push(...payload.input.map((blob) => new File([blob], 'file')));
+            bundleFileMatrix.push(payload.input.map((blob) => new File([blob], 'file')));
           }
         }
-        await handleFiles(files, replacee);
+        for (const files of bundleFileMatrix) {
+          await handleFiles(files, replacee);
+        }
       }
     });
 
@@ -375,7 +379,10 @@
     let promises = await Promise.allSettled(
       filePaths.map(async (filePath) => {
         const data = await readFile(filePath);
-        return new File([data], filePath.split('/').pop() ?? filePath);
+        return new File(
+          [data],
+          filePath.split('/').pop() ?? filePath.split('\\').pop() ?? filePath,
+        );
       }),
     );
     promises
@@ -383,11 +390,19 @@
       .forEach((promise) => {
         console.error((promise as PromiseRejectedResult).reason);
       });
-    handleFiles(
-      promises
-        .filter((promise) => promise.status === 'fulfilled')
-        .map((promise) => (promise as PromiseFulfilledResult<File>).value),
-    );
+    const regularFiles: File[] = [];
+    for (const file of promises
+      .filter((promise) => promise.status === 'fulfilled')
+      .map((promise) => (promise as PromiseFulfilledResult<File>).value)) {
+      try {
+        const files = await decompress(file);
+        await handleFiles(files);
+      } catch (e) {
+        console.debug(`Cannot decompress ${file.name}`, e);
+        regularFiles.push(file);
+      }
+    }
+    await handleFiles(regularFiles);
   };
 
   const shareId = (a: FileEntry, b: FileEntry) =>
@@ -403,9 +418,11 @@
   };
 
   const download = async (url: string) => {
+    const filename = url.split('/').pop() ?? url.split('\\').pop() ?? url;
+
     progress = 0;
     progressSpeed = 0;
-    progressDetail = `Downloading ${url.split('/').pop()}`;
+    progressDetail = `Downloading ${filename}`;
 
     if (IS_TAURI && url.startsWith('https://')) {
       const filePath = (await tempDir()) + random(1e17, 1e18 - 1);
@@ -416,7 +433,7 @@
       });
       const data = await readFile(filePath);
       await remove(filePath);
-      return new File([data], url.split('/').pop() ?? url);
+      return new File([data], filename);
     } else {
       const response = await fetch(url);
       const contentLength = response.headers.get('content-length');
@@ -564,9 +581,7 @@
   };
 
   const decompressZipArchives = async (files: File[]) => {
-    const result: File[] = [];
-    (await Promise.all(files.map(decompress))).flat().forEach((file) => result.push(file));
-    return result;
+    return await Promise.all(files.map(decompress));
   };
 
   const handleFiles = async (files: File[] | null, replacee?: number) => {
@@ -764,7 +779,10 @@
 
     const zipArchives = await downloadUrls(params.getAll('zip'));
     const regularFiles = await downloadUrls(params.getAll('file'));
-    await handleFiles((await decompressZipArchives(zipArchives)).concat(regularFiles));
+    for (const bundleFiles of await decompressZipArchives(zipArchives)) {
+      await handleFiles(bundleFiles);
+    }
+    await handleFiles(regularFiles);
   };
 
   const configureWebviewWindow = (webview: WebviewWindow) => {
@@ -978,10 +996,10 @@
             if (!fileList || fileList.length === 0) return;
             const files = Array.from(fileList);
             const zipArchives = files.filter(isZip);
-            const regularFiles = files
-              .filter((file) => !isZip(file))
-              .concat(await decompressZipArchives(zipArchives));
-            await handleFiles(regularFiles);
+            for (const bundleFiles of await decompressZipArchives(zipArchives)) {
+              await handleFiles(bundleFiles);
+            }
+            await handleFiles(files.filter((file) => !isZip(file)));
           }}
         />
       </label>
