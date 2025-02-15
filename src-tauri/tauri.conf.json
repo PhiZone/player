@@ -53,6 +53,9 @@
       "desktop": {
         "schemes": ["phizone-player"]
       }
+    },
+    "fs": {
+      "requireLiteralLeadingDot": false
     }
   }
 }

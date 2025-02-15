@@ -15,7 +15,15 @@
     "deep-link:default",
     "os:default",
     "upload:default",
-    "fs:allow-temp-read",
-    "fs:allow-remove"
+    "fs:read-all",
+    "fs:allow-remove",
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        {
+          "path": "**"
+        }
+      ]
+    }
   ]
 }

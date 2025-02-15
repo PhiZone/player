@@ -47,9 +47,7 @@
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
 
-                <data android:mimeType="application/zip" />
-                <data android:mimeType="application/x-zip-compressed" />
-                <data android:scheme="file" android:host="*" android:pathPattern=".*\\.pez" />
+                <data android:mimeType="application/*" />
             </intent-filter>
         </activity>
 

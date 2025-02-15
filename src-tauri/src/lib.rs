@@ -45,10 +45,14 @@ pub fn run() {
                         }
                     }
                     if !success {
-                        INCOMING_FILES.lock().unwrap().push(PathBuf::from(maybe_file))
+                        INCOMING_FILES
+                            .lock()
+                            .unwrap()
+                            .push(PathBuf::from(maybe_file))
                     }
                 }
-                println!("incoming files ({:?}): {:?}", INCOMING_FILES.lock().unwrap().len(), INCOMING_FILES);
+                let files = INCOMING_FILES.lock().unwrap();
+                println!("incoming files ({:?}): {:?}", files.len(), files);
             }
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -66,5 +70,11 @@ pub fn run() {
 
 #[tauri::command]
 fn get_incoming_files() -> Vec<String> {
-    INCOMING_FILES.lock().unwrap().clone().into_iter().map(|f| f.to_string_lossy().into_owned()).collect()
+    INCOMING_FILES
+        .lock()
+        .unwrap()
+        .clone()
+        .into_iter()
+        .map(|f| f.to_string_lossy().into_owned())
+        .collect()
 }

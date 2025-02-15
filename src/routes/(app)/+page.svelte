@@ -378,6 +378,11 @@
         return new File([data], filePath.split('/').pop() ?? filePath);
       }),
     );
+    promises
+      .filter((promise) => promise.status === 'rejected')
+      .forEach((promise) => {
+        console.error((promise as PromiseRejectedResult).reason);
+      });
     handleFiles(
       promises
         .filter((promise) => promise.status === 'fulfilled')
