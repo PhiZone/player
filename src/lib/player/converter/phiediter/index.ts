@@ -1,5 +1,5 @@
 import { beatToArray } from '$lib/player/utils';
-import type { RpeJson, RpeMeta, JudgeLine, EventLayer, Event, SpeedEvent } from '$lib/types';
+import type { RpeJson, RpeMeta, JudgeLine, EventLayer, Event, SpeedEvent, Note } from '$lib/types';
 import type { PecCommandBase, PecNote } from './types';
 
 const PhiEditer = (chartRaw: string, meta: Omit<RpeMeta, 'offset'>): RpeJson => {
@@ -47,8 +47,8 @@ const PhiEditer = (chartRaw: string, meta: Omit<RpeMeta, 'offset'>): RpeJson => 
           startBeat: parseFloat(commandArr[2]),
           endTime: beatToArray(commandArr[2]),
           endBeat: parseFloat(commandArr[2]),
-          positionX: ((parseFloat(commandArr[3]) * 9) / 1024) * 675,
-          above: parseInt(commandArr[4]),
+          positionX: (parseFloat(commandArr[3]) / 1024) * 675,
+          above: commandArr[4] === '1' ? 1 : 0,
           isFake: parseInt(commandArr[5]),
           // Not implemented in PhiEditer
           alpha: 255,
@@ -69,8 +69,8 @@ const PhiEditer = (chartRaw: string, meta: Omit<RpeMeta, 'offset'>): RpeJson => 
           startBeat: parseFloat(commandArr[2]),
           endTime: beatToArray(commandArr[3]),
           endBeat: parseFloat(commandArr[3]),
-          positionX: ((parseFloat(commandArr[4]) * 9) / 1024) * 675,
-          above: parseInt(commandArr[5]),
+          positionX: (parseFloat(commandArr[4]) / 1024) * 675,
+          above: commandArr[5] === '1' ? 1 : 0,
           isFake: parseInt(commandArr[6]),
           // Not implemented in PhiEditer
           alpha: 255,
@@ -261,6 +261,44 @@ const PhiEditer = (chartRaw: string, meta: Omit<RpeMeta, 'offset'>): RpeJson => 
     }
   }
 
+  // Parse events
+  for (const id in lineList) {
+    const line = lineList[id];
+    const events = line.eventLayers[0]!;
+
+    events.speedEvents!.sort(sortEvent);
+    events.moveXEvents!.sort(sortEvent);
+    events.moveYEvents!.sort(sortEvent);
+    events.rotateEvents!.sort(sortEvent);
+    events.alphaEvents!.sort(sortEvent);
+
+    parseLineEvents(events.speedEvents!, 1);
+    parseLineEvents(events.moveXEvents!);
+    parseLineEvents(events.moveYEvents!);
+    parseLineEvents(events.rotateEvents!);
+    parseLineEvents(events.alphaEvents!, 255);
+  }
+
+  // Push notes to lines
+  for (const note of noteList) {
+    const newNote: Partial<PecNote> & Note = { ...note };
+    const line = lineList[note.lineID];
+
+    if (!line) {
+      console.warn(`Cannot find line #${note.lineID} for note, skipping...`);
+      continue;
+    }
+
+    delete newNote.lineID;
+    line.notes!.push(newNote);
+  }
+
+  // Push lines to result
+  for (const id in lineList) {
+    const line = lineList[id];
+    result.judgeLineList.push(line);
+  }
+
   return result;
 };
 
@@ -286,16 +324,71 @@ const pushEventToLine = (
       Name: '',
       Group: 0,
       Texture: '',
-      alphaControl: [],
+      alphaControl: [
+        {
+          x: 0,
+          alpha: 255,
+          easing: 1,
+        },
+        {
+          x: 9999999,
+          alpha: 255,
+          easing: 1,
+        },
+      ],
       bpmfactor: 1,
       father: -1,
       isCover: 1,
       notes: [],
       numOfNotes: 0,
-      posControl: [],
-      sizeControl: [],
-      skewControl: [],
-      yControl: [],
+      posControl: [
+        {
+          x: 0,
+          pos: 1,
+          easing: 1,
+        },
+        {
+          x: 9999999,
+          pos: 1,
+          easing: 1,
+        },
+      ],
+      sizeControl: [
+        {
+          x: 0,
+          size: 1,
+          easing: 1,
+        },
+        {
+          x: 9999999,
+          size: 1,
+          easing: 1,
+        },
+      ],
+      skewControl: [
+        {
+          x: 0,
+          skew: 0,
+          easing: 1,
+        },
+        {
+          x: 9999999,
+          skew: 0,
+          easing: 1,
+        },
+      ],
+      yControl: [
+        {
+          x: 0,
+          y: 1,
+          easing: 1,
+        },
+        {
+          x: 9999999,
+          y: 1,
+          easing: 1,
+        },
+      ],
       zOrder: 0,
     };
   }
@@ -304,6 +397,33 @@ const pushEventToLine = (
   const events = line.eventLayers[0]!;
   if (type !== 'speedEvents') events[type]!.push(event as Event);
   else events.speedEvents!.push(event as SpeedEvent);
+};
+
+const sortEvent = (a: Event | SpeedEvent, b: Event | SpeedEvent) => a.startBeat - b.startBeat;
+
+const parseLineEvents = (events: (Event | SpeedEvent)[], defaultValue = 0) => {
+  for (let i = 0; i < events.length; i++) {
+    const event = events[i];
+    const eventPrev = events[i - 1];
+    const eventNext = events[i + 1];
+
+    if (isNaN(event.start)) {
+      if (eventPrev) event.start = eventPrev.end;
+      else event.start = defaultValue;
+    }
+
+    if (isNaN(event.endBeat)) {
+      if (eventNext) {
+        event.endTime = eventNext.startTime;
+        event.endBeat = eventNext.startBeat;
+      } else {
+        event.endTime = [9999, 0, 1];
+        event.endBeat = 9999;
+      }
+    }
+  }
+
+  return events;
 };
 
 export default PhiEditer;

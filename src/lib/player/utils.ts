@@ -35,6 +35,7 @@ import { tempDir } from '@tauri-apps/api/path';
 import { download as tauriDownload } from '@tauri-apps/plugin-upload';
 import { readFile, remove } from '@tauri-apps/plugin-fs';
 import { clamp, IS_IFRAME, IS_TAURI, isPec, send } from '$lib/utils';
+import PhiEditerConverter from './converter/phiediter';
 import 'context-filter-polyfill';
 
 const easingFunctions: ((x: number) => number)[] = [
@@ -152,6 +153,16 @@ export const loadChart = async (url: string, name: string = 'chart'): Promise<Rp
     return JSON.parse(text);
   } catch {
     if (isPec(text.split(/\r?\n/).slice(0, 2))) {
+      return PhiEditerConverter(text, {
+        RPEVersion: 0,
+        background: '',
+        charter: '',
+        composer: '',
+        id: '',
+        level: '',
+        name: '',
+        song: '',
+      });
       // write your PEC to RPE conversion here
     }
     return null;
