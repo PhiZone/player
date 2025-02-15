@@ -112,8 +112,8 @@ const PhiEditer = (chartRaw: string, meta: Omit<RpeMeta, 'offset'>): RpeJson => 
           startBeat: parseFloat(commandArr[2]),
           endTime: [NaN, 0, 1],
           endBeat: NaN,
-          start: parseFloat(commandArr[3]),
-          end: parseFloat(commandArr[3]),
+          start: parseFloat(commandArr[3]) * (9 / 14),
+          end: parseFloat(commandArr[3]) * (9 / 14),
           linkgroup: 0,
         });
         break;
