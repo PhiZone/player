@@ -504,7 +504,8 @@
     chartFile: FileEntry,
     songFile?: FileEntry,
     illustrationFile?: FileEntry,
-    metadata?: MetadataEntry,
+    metadataEntry?: MetadataEntry,
+    metadata?: Metadata,
     fallback: boolean = false,
     silent: boolean = true,
   ) => {
@@ -524,7 +525,7 @@
       }
       illustrationFile = imageFiles[0];
     }
-    if (!metadata) {
+    if (!metadata && !metadataEntry) {
       if (!silent) alert('Metadata not found!');
       return;
     }
@@ -533,15 +534,17 @@
       song: songFile.id,
       chart: chartFile.id,
       illustration: illustrationFile.id,
-      metadata: {
-        title: metadata.name,
-        composer: metadata.composer,
-        charter: metadata.charter,
-        illustrator: metadata.illustration ?? null,
-        level: metadata.level,
-        levelType: inferLevelType(metadata.level),
-        difficulty: null,
-      },
+      metadata: metadataEntry
+        ? {
+            title: metadataEntry.name,
+            composer: metadataEntry.composer,
+            charter: metadataEntry.charter,
+            illustrator: metadataEntry.illustration ?? null,
+            level: metadataEntry.level,
+            levelType: inferLevelType(metadataEntry.level),
+            difficulty: null,
+          }
+        : metadata!,
     };
     chartBundles.push(bundle);
     chartBundles = chartBundles;
@@ -550,7 +553,7 @@
         a.id !== chartFile.id &&
         a.id !== songFile?.id &&
         a.id !== illustrationFile?.id &&
-        a.id !== metadata.id,
+        a.id !== metadataEntry?.id,
     );
     return bundle;
   };
@@ -653,6 +656,7 @@
           undefined,
           undefined,
           readMetadata(undefined, (JSON.parse(await chartFiles[0].file.text()) as RpeJson).META),
+          undefined,
           true,
         );
         bundlesResolved++;
@@ -1072,16 +1076,13 @@
               const song = audioFiles.find((file) => file.id === selectedSong);
               const illustration = imageFiles.find((file) => file.id === selectedIllustration);
               if (chart && song && illustration) {
-                const bundle = await createBundle(chart, song, illustration, {
-                  name: currentBundle.metadata.title ?? '',
-                  song: audioFiles[currentBundle.song].file.name ?? '',
-                  picture: imageFiles[currentBundle.illustration].file.name ?? '',
-                  chart: chartFiles[currentBundle.chart].file.name ?? '',
-                  composer: currentBundle.metadata.composer ?? '',
-                  charter: currentBundle.metadata.charter ?? '',
-                  illustration: currentBundle.metadata.illustrator ?? '',
-                  level: currentBundle.metadata.level ?? '',
-                });
+                const bundle = await createBundle(
+                  chart,
+                  song,
+                  illustration,
+                  undefined,
+                  currentBundle.metadata,
+                );
                 if (!bundle) return;
                 currentBundle = bundle;
                 selectedBundle = bundle.id;
