@@ -88,6 +88,8 @@ export const readMetadata = (text?: string, chartMeta?: RpeMeta): MetadataEntry 
     const [_header, ...rows] = text.split(/\r?\n/);
     const data = rows.map((row) => row.split(','));
     if (data.length > 0 && data[0].length >= 10) {
+      let i = data.length - 1;
+      while (i > 0 && data[i].length < 10) i--;
       const [
         chart,
         song,
@@ -99,7 +101,7 @@ export const readMetadata = (text?: string, chartMeta?: RpeMeta): MetadataEntry 
         level,
         illustrator,
         designer,
-      ] = data[data.length - 1];
+      ] = data[i];
       return {
         name,
         song,
@@ -115,6 +117,7 @@ export const readMetadata = (text?: string, chartMeta?: RpeMeta): MetadataEntry 
       };
     }
     // TODO add support for other metadata formats
+    console.warn('Metadata format not recognized: ', text);
     return {
       name: '',
       song: '',
