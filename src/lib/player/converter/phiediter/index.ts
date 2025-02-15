@@ -392,7 +392,7 @@ const pushEventToLine = (
       // We will ignore all of these props
       Name: '',
       Group: 0,
-      Texture: '',
+      Texture: 'line.png',
       alphaControl: [
         {
           x: 0,
