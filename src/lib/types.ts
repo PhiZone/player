@@ -71,9 +71,21 @@ export interface RecorderOptions {
   audioBitrate?: number | undefined;
 }
 
+export interface MetadataEntry {
+  id?: number;
+  name: string;
+  song: string;
+  picture: string;
+  chart: string;
+  composer: string;
+  charter: string;
+  illustration: string;
+  level: string;
+}
+
 export interface RpeJson {
   BPMList: Bpm[];
-  META: Meta;
+  META: RpeMeta;
   chartTime: number;
   judgeLineGroup: string[];
   judgeLineList: JudgeLine[];
@@ -240,7 +252,7 @@ export interface AlphaControl {
   x: number;
 }
 
-interface Meta {
+export interface RpeMeta {
   RPEVersion: number;
   background: string;
   charter: string;

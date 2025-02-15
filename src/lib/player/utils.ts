@@ -16,6 +16,7 @@ import {
   type SizeControl,
   type SkewControl,
   type YControl,
+  type RpeJson,
   // type RecorderOptions,
 } from '$lib/types';
 import { EventBus } from './EventBus';
@@ -33,7 +34,8 @@ import { ROOT, type Node } from './objects/Node';
 import { tempDir } from '@tauri-apps/api/path';
 import { download as tauriDownload } from '@tauri-apps/plugin-upload';
 import { readFile, remove } from '@tauri-apps/plugin-fs';
-import { clamp, IS_IFRAME, IS_TAURI, send } from '$lib/utils';
+import { clamp, IS_IFRAME, IS_TAURI, isPec, send } from '$lib/utils';
+import PhiEditerConverter from './converter/phiediter';
 import 'context-filter-polyfill';
 
 const easingFunctions: ((x: number) => number)[] = [
@@ -131,7 +133,7 @@ const download = async (url: string, name?: string) => {
   }
 };
 
-export const loadText = async (url: string, name: string) => {
+export const loadText = async (url: string, name: string): Promise<string> => {
   const blob = await download(url, name);
   return blob.text();
 };
@@ -141,6 +143,28 @@ export const loadJson = async (url: string, name: string) => {
     return JSON.parse(await loadText(url, name));
   } catch (e) {
     console.error(e);
+    return null;
+  }
+};
+
+export const loadChart = async (url: string, name: string = 'chart'): Promise<RpeJson | null> => {
+  const text = await loadText(url, name);
+  try {
+    return JSON.parse(text);
+  } catch {
+    if (isPec(text.split(/\r?\n/).slice(0, 2))) {
+      return PhiEditerConverter(text, {
+        RPEVersion: 0,
+        background: '',
+        charter: '',
+        composer: '',
+        id: '',
+        level: '',
+        name: '',
+        song: '',
+      });
+      // write your PEC to RPE conversion here
+    }
     return null;
   }
 };
@@ -541,6 +565,17 @@ export const position = (
     else if (i < count) item.x = array[i - 1].x + array[i - 1].actualWidth + gap;
     else item.x = array[i - 1].x;
   });
+};
+
+export const beatToArray = (beat: number | string): [number, number, number] => {
+  const string = typeof beat === 'string' ? beat : `${beat}`;
+  const number = parseFloat(string);
+  const beatInt = Math.floor(number);
+  const beatFloatStr = string.split('.')[1];
+
+  if (beatInt === number) return [beatInt, 0, 1];
+
+  return [beatInt, parseInt(beatFloatStr), Math.pow(10, beatFloatStr.length)];
 };
 
 export const calculatePrecedences = (arr: number[]) => {

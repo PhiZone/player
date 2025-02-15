@@ -23,9 +23,12 @@
     inferLevelType,
     IS_ANDROID_OR_IOS,
     IS_TAURI,
+    isPec,
     isZip,
     notify,
+    readMetadata,
     send,
+    updateMetadata,
     versionCompare,
   } from '$lib/utils';
   import PreferencesModal from '$lib/components/Preferences.svelte';
@@ -53,6 +56,18 @@
     id: number;
     file: File;
     url?: string;
+  }
+
+  interface MetadataEntry {
+    id?: number;
+    name: string;
+    song: string;
+    picture: string;
+    chart: string;
+    composer: string;
+    charter: string;
+    illustration: string;
+    level: string;
   }
 
   interface ChartBundle {
@@ -489,7 +504,8 @@
     chartFile: FileEntry,
     songFile?: FileEntry,
     illustrationFile?: FileEntry,
-    infoId?: number,
+    metadataEntry?: MetadataEntry,
+    metadata?: Metadata,
     fallback: boolean = false,
     silent: boolean = true,
   ) => {
@@ -509,33 +525,36 @@
       }
       illustrationFile = imageFiles[0];
     }
-    const chart = JSON.parse(await chartFile.file.text()) as RpeJson;
+    if (!metadata && !metadataEntry) {
+      if (!silent) alert('Metadata not found!');
+      return;
+    }
     const bundle = {
       id: Date.now(),
       song: songFile.id,
       chart: chartFile.id,
       illustration: illustrationFile.id,
-      metadata: {
-        title: chart.META.name,
-        composer: chart.META.composer,
-        charter: chart.META.charter,
-        illustrator: chart.META.illustration ?? null,
-        level: chart.META.level,
-        levelType: inferLevelType(chart.META.level),
-        difficulty: null,
-      },
+      metadata: metadataEntry
+        ? {
+            title: metadataEntry.name,
+            composer: metadataEntry.composer,
+            charter: metadataEntry.charter,
+            illustrator: metadataEntry.illustration ?? null,
+            level: metadataEntry.level,
+            levelType: inferLevelType(metadataEntry.level),
+            difficulty: null,
+          }
+        : metadata!,
     };
     chartBundles.push(bundle);
     chartBundles = chartBundles;
-    if (infoId) {
-      assets = assets.filter(
-        (a) =>
-          a.id !== chartFile.id &&
-          a.id !== songFile?.id &&
-          a.id !== illustrationFile?.id &&
-          a.id !== infoId,
-      );
-    }
+    assets = assets.filter(
+      (a) =>
+        a.id !== chartFile.id &&
+        a.id !== songFile?.id &&
+        a.id !== illustrationFile?.id &&
+        a.id !== metadataEntry?.id,
+    );
     return bundle;
   };
 
@@ -551,9 +570,10 @@
     }
     resetProgress();
     progressDetail = 'Processing files';
+    const now = Date.now();
     await Promise.all(
       files.map(async (file, i) => {
-        const id = Date.now() + i;
+        const id = now + i;
         let mimeType: string | null = null;
         try {
           mimeType = (await fileTypeFromBlob(file))?.mime.toString() ?? mime.getType(file.name);
@@ -562,19 +582,27 @@
           mimeType = mime.getType(file.name);
         }
         const type = getFileType(mimeType, file.name);
+        let chartSuccess = false;
+        const chartContent = await file.text();
         if (mimeType === 'application/json') {
           try {
-            const json = JSON.parse(await file.text());
+            const json = JSON.parse(chartContent);
             if (json.META) {
-              chartFiles.push({ id, file });
-              if (replacee !== undefined && replacee < chartBundles.length) {
-                const replaceeBundle = chartBundles[replacee];
-                selectedChart = id;
-                replaceeBundle.chart = id;
-              }
+              chartSuccess = true;
             }
           } catch (e) {
-            console.debug('Chart is not a JSON file:', e);
+            console.debug('Chart is not a valid RPE JSON:', e);
+          }
+        }
+        if (isPec(chartContent.split(/\r?\n/).slice(0, 2))) {
+          chartSuccess = true;
+        }
+        if (chartSuccess) {
+          chartFiles.push({ id, file });
+          if (replacee !== undefined && replacee < chartBundles.length) {
+            const replaceeBundle = chartBundles[replacee];
+            selectedChart = id;
+            replaceeBundle.chart = id;
           }
         } else if (type === 0) {
           imageFiles.push({ id, file, url: URL.createObjectURL(file) });
@@ -594,29 +622,25 @@
         assets.push({ id, type, file, included: isIncluded(file.name) });
       }),
     );
-    const fields = ['Song:', 'Picture:', 'Chart:'];
     progressDetail = 'Seeking for charts';
     const textAssets = assets.filter((asset) => asset.type === 3);
     let bundlesResolved = 0;
     for (let i = 0; i < textAssets.length; i++) {
       progress = i / textAssets.length;
       const asset = textAssets[i];
-      const lines = (await asset.file.text()).split(/\r?\n/);
-      if (
-        lines[0] === '#' &&
-        fields.every((val) => lines.findIndex((line) => line.startsWith(val)) !== -1)
-      ) {
-        const values = fields.map((field) =>
-          lines
-            .find((line) => line.startsWith(field))!
-            .slice(field.length)
-            .trim(),
-        );
-        const chartFile = chartFiles.find((file) => file.file.name === values[2]);
-        const songFile = audioFiles.find((file) => file.file.name === values[0]);
-        const illustrationFile = imageFiles.find((file) => file.file.name === values[1]);
+      let metadata = readMetadata(await asset.file.text());
+      if (metadata) {
+        const chartFile = chartFiles.find((file) => file.file.name === metadata.chart);
+        const songFile = audioFiles.find((file) => file.file.name === metadata.song);
+        const illustrationFile = imageFiles.find((file) => file.file.name === metadata.picture);
         if (!chartFile) continue;
-        await createBundle(chartFile, songFile, illustrationFile, asset.id);
+        try {
+          const chartMeta = (JSON.parse(await chartFile.file.text()) as RpeJson).META;
+          metadata = updateMetadata(metadata, chartMeta);
+        } catch (e) {
+          console.debug('Chart is not a valid RPE JSON:', e);
+        }
+        await createBundle(chartFile, songFile, illustrationFile, { id: asset.id, ...metadata });
         bundlesResolved++;
       }
     }
@@ -626,8 +650,19 @@
       audioFiles.length > 0 &&
       imageFiles.length > 0
     ) {
-      await createBundle(chartFiles[0], undefined, undefined, undefined, true);
-      bundlesResolved++;
+      try {
+        await createBundle(
+          chartFiles[0],
+          undefined,
+          undefined,
+          readMetadata(undefined, (JSON.parse(await chartFiles[0].file.text()) as RpeJson).META),
+          undefined,
+          true,
+        );
+        bundlesResolved++;
+      } catch (e) {
+        console.debug('Chart is not a valid RPE JSON:', e);
+      }
     }
     if (chartBundles.length > 0 && selectedBundle === -1) {
       currentBundle = chartBundles[0];
@@ -931,7 +966,7 @@
           multiple
           accept={IS_ANDROID_OR_IOS || Capacitor.getPlatform() !== 'web'
             ? null
-            : '.pez,.yml,.yaml,.shader,.glsl,.frag,.fsh,.fs,application/zip,application/json,image/*,video/*,audio/*,text/*'}
+            : '.pez,.pec,.yml,.yaml,.shader,.glsl,.frag,.fsh,.fs,application/zip,application/json,image/*,video/*,audio/*,text/*'}
           class="file-input file-input-bordered w-full max-w-xs file:btn dark:file:btn-neutral file:no-animation border-gray-200 rounded-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 dark:border-neutral-700 dark:text-neutral-300 dark:focus:ring-neutral-600"
           on:input={async (e) => {
             const fileList = e.currentTarget.files;
@@ -1041,7 +1076,13 @@
               const song = audioFiles.find((file) => file.id === selectedSong);
               const illustration = imageFiles.find((file) => file.id === selectedIllustration);
               if (chart && song && illustration) {
-                const bundle = await createBundle(chart, song, illustration);
+                const bundle = await createBundle(
+                  chart,
+                  song,
+                  illustration,
+                  undefined,
+                  currentBundle.metadata,
+                );
                 if (!bundle) return;
                 currentBundle = bundle;
                 selectedBundle = bundle.id;

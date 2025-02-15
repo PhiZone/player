@@ -10,6 +10,7 @@ import {
   loadText,
   getSpritesheet,
   findHighlightMoments,
+  loadChart,
 } from '../utils';
 import {
   GameStatus,
@@ -254,7 +255,7 @@ export class Game extends Scene {
         ),
       ]);
       this.createHitEffectsAnimation();
-      const chart = await loadJson(this._chartUrl, 'chart');
+      const chart = await loadChart(this._chartUrl);
       if (!chart) {
         this._status = GameStatus.ERROR;
         alert('Failed to load chart.');
