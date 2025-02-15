@@ -667,7 +667,7 @@
       !equal(gameRef.scene.timeScale, parseFloat(gameRef.scene.timeScale.toFixed(1)))
         ? '~'
         : '×'}
-      {gameRef.scene?.timeScale.toFixed(1)}
+      {gameRef.scene ? gameRef.scene.timeScale.toFixed(1) : '?'}
     </button>
     <button
       class="btn btn-outline join-item"
