@@ -48,6 +48,7 @@ export class Game extends Scene {
   private _illustrationUrl: string;
   private _extraUrl: string | undefined;
   private _extra: PhiraExtra | undefined;
+  private _lineCsvUrl: string | undefined;
   private _animatedAssets: {
     key: string;
     url: string;
@@ -210,16 +211,18 @@ export class Game extends Scene {
         else this.load.image(key, asset);
       else if (assetTypes[i] === 1) this._audioAssets.push({ key, url: asset });
       else if (assetTypes[i] === 2) this.load.video(key, asset, true);
-      else if (assetTypes[i] === 3)
-        if (name.toLowerCase() === 'extra.json') this._extraUrl = asset;
+      else if (assetTypes[i] === 3) {
+        const nameLower = name.toLowerCase();
+        if (nameLower === 'extra.json') this._extraUrl = asset;
+        else if (nameLower === 'line.csv') this._lineCsvUrl = asset;
         else console.log('To be implemented:', name);
-      // TODO
-      else if (assetTypes[i] === 4)
+        // TODO
+      } else if (assetTypes[i] === 4)
         this._shaderAssets.push({
           key,
           url: asset,
         });
-      else console.log('To be implemented:', name); // TODO
+      else console.log('Not supported:', name); // TODO
     });
   }
 
@@ -286,6 +289,21 @@ export class Game extends Scene {
             asset.source = await loadText(asset.url, asset.key);
           }),
         );
+      }
+      if (this._lineCsvUrl) {
+        const lineCsv = await loadText(this._lineCsvUrl, 'line.csv');
+        if (lineCsv) {
+          const [_header, ...rows] = lineCsv.split(/\r?\n/);
+          const data = rows.map((row) => row.split(','));
+          if (data.length > 0 && data[0].length >= 3) {
+            data.forEach((row) => {
+              const line = this._chart.judgeLineList.at(parseInt(row[1]));
+              if (line) {
+                line.Texture = row[2];
+              }
+            });
+          }
+        }
       }
       this.load.audio('ending', `ending/LevelOver${this._levelType}.wav`);
       this.load.once('complete', async () => {
