@@ -22,7 +22,7 @@ const PhiEditer = (chartRaw: string, meta: Omit<RpeMeta, 'offset'>): RpeJson => 
   const lineList: Record<number, JudgeLine> = {};
   const result: RpeJson = {
     BPMList: [],
-    META: { ...meta, offset: chartOffset },
+    META: { ...meta, offset: chartOffset - 175 },
     chartTime: 0,
     judgeLineGroup: [],
     judgeLineList: [],
