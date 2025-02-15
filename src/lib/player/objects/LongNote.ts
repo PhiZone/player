@@ -61,7 +61,7 @@ export class LongNote extends GameObjects.Container {
     this._data.yOffset *= this._data.speed; // bro's intercept depends on slope 👍👍👍
   }
 
-  update(beat: number, songTime: number, height: number, visible = true) {
+  update(beat: number, songTime: number, height: number, lineOpacity: number) {
     this.setX(this._scene.p(this._xModifier * this._data.positionX));
     this.resize();
     if (this._beatJudged && beat < this._beatJudged) {
@@ -76,6 +76,13 @@ export class LongNote extends GameObjects.Container {
     const tailDist =
       this._scene.d((this._targetTailHeight - height) * this._data.speed) +
       this._scene.o(this._data.yOffset);
+
+    let visible = true;
+    if (lineOpacity < 0) {
+      if (lineOpacity === -2 && (headDist * this._data.above === 1 ? -1 : 1) > 0) visible = true;
+      else visible = false;
+    }
+
     if (beat > this._data.startBeat) {
       this._head.setVisible(false);
       headDist = this._scene.o(this._data.yOffset);

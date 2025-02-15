@@ -319,11 +319,7 @@ const PhiEditer = (chartRaw: string, meta: Omit<RpeMeta, 'offset'>): RpeJson => 
       let hasNotesDuring = false;
 
       // XXX:
-      // PhiEditer has four different alpha values, we only support one of them
-      // since Re:PhiEdit has only one prop for that.
-      // However, you can still support another two values since it's quite easy:
-      //   -1: Make all notes on this line invisible
-      //   -2: Reverse notes visibility (note.visible = note.currentFloorPosition <= 0)
+      // PhiEditer has four different alpha values, we will only support three of them.
       if (event.start < -100 && event.start >= -1000) {
         const beatBetween = event.endBeat - event.startBeat;
         const beatBetweenLength = Math.ceil(beatBetween / BEAT_BETWEEN_TIME);

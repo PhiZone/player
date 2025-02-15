@@ -46,11 +46,18 @@ export class PlainNote extends SkewImage {
     this._data.yOffset *= this._data.speed; // bro's intercept depends on slope 👍👍👍
   }
 
-  update(beat: number, songTime: number, height: number, visible = true) {
+  update(beat: number, songTime: number, height: number, lineOpacity: number) {
     const dist =
       this._scene.d((this._targetHeight - height) * this._data.speed) +
       this._scene.o(this._data.yOffset);
     const chartDist = (dist / this._scene.sys.canvas.height) * 900;
+
+    let visible = true;
+    if (lineOpacity < 0) {
+      if (lineOpacity === -2 && (dist * this._data.above === 1 ? -1 : 1) > 0) visible = true;
+      else visible = false;
+    }
+
     this.setX(
       this._scene.p(
         this._xModifier *
