@@ -231,7 +231,6 @@
       });
       const result = await invoke('get_incoming_files');
       if (result) {
-        console.log('Incoming files', result);
         await handleFilePaths(result as string[]);
       }
     }

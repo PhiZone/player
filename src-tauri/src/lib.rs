@@ -55,7 +55,6 @@ pub fn run() {
 fn parse_incoming_files<T: Iterator<Item = String>>(files: &mut Vec<PathBuf>, args: T) {
     // seek for files in the command line arguments
     for maybe_file in args.skip(1) {
-        println!("may-be file: {:?}", maybe_file);
         // skip flags like -f or --flag
         if maybe_file.starts_with('-') {
             continue;
