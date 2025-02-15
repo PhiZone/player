@@ -1,6 +1,17 @@
-import { beatToArray } from '$lib/player/utils';
-import type { RpeJson, RpeMeta, JudgeLine, EventLayer, Event, SpeedEvent, Note } from '$lib/types';
+import { beatToArray, getEventValue } from '$lib/player/utils';
+import type {
+  RpeJson,
+  RpeMeta,
+  JudgeLine,
+  EventLayer,
+  Event,
+  SpeedEvent,
+  Note,
+  Bpm,
+} from '$lib/types';
 import type { PecCommandBase, PecNote } from './types';
+
+const BEAT_BETWEEN_TIME = 0.125;
 
 const PhiEditer = (chartRaw: string, meta: Omit<RpeMeta, 'offset'>): RpeJson => {
   const chartRawArr = chartRaw.split(/[\r\n]+/);
@@ -293,6 +304,64 @@ const PhiEditer = (chartRaw: string, meta: Omit<RpeMeta, 'offset'>): RpeJson => 
     line.notes!.push(newNote);
   }
 
+  // Sort BPM
+  result.BPMList.sort((a, b) => a.startBeat - b.startBeat);
+
+  // Parse advanced alpha events
+  for (const id in lineList) {
+    const line = lineList[id];
+    const alphaEvents = line.eventLayers[0]!.alphaEvents!;
+
+    // Sort notes first
+    line.notes!.sort((a, b) => a.startBeat - b.startBeat);
+
+    for (const event of alphaEvents) {
+      let hasNotesDuring = false;
+
+      // XXX:
+      // PhiEditer has four different alpha values, we only support one of them
+      // since Re:PhiEdit has only one prop for that.
+      // However, you can still support another two values since it's quite easy:
+      //   -1: Make all notes on this line invisible
+      //   -2: Reverse notes visibility (note.visible = !note.above)
+      if (event.start < -100 && event.start >= -1000) {
+        const beatBetween = event.endBeat - event.startBeat;
+        const beatBetweenLength = Math.ceil(beatBetween / BEAT_BETWEEN_TIME);
+
+        for (let i = 0; i < beatBetweenLength; i++) {
+          const beatPassed = i * BEAT_BETWEEN_TIME;
+          const currentBeat =
+            event.startBeat + beatPassed > event.endBeat
+              ? event.endBeat
+              : event.startBeat + i * BEAT_BETWEEN_TIME;
+          const currentValue = getEventValue(currentBeat, event) as number | undefined;
+
+          if (!currentValue || currentValue >= -100) break;
+          const visibleBeat = -(currentValue + 100) / 10;
+
+          for (const note of line.notes!) {
+            if (note.startBeat < currentBeat) continue;
+            if (note.startBeat > currentBeat) break;
+
+            note.visibleTime = getVisibleRealTime(result.BPMList, note.startBeat, visibleBeat);
+            hasNotesDuring = true;
+          }
+        }
+
+        event.start = hasNotesDuring ? 0 : -255;
+      } else if (event.end < -1000) {
+        console.warn(`Unsupported alpha value: ${event.start}, will be set to 0...`);
+        event.start = 0;
+      }
+
+      if (event.end < -100 && event.end >= -1000) event.end = hasNotesDuring ? 0 : -255;
+      else if (event.end < -1000) {
+        console.warn(`Unsupported alpha value: ${event.start}, will be set to 0...`);
+        event.start = 0;
+      }
+    }
+  }
+
   // Push lines to result
   for (const id in lineList) {
     const line = lineList[id];
@@ -424,6 +493,23 @@ const parseLineEvents = (events: (Event | SpeedEvent)[], defaultValue = 0) => {
   }
 
   return events;
+};
+
+const getVisibleRealTime = (bpms: Bpm[], startBeat: number, beat: number) => {
+  const calcRealTime = (bpm: number, beat: number) => {
+    return beat * (60 / bpm);
+  };
+
+  if (bpms.length === 1) return calcRealTime(bpms[0].bpm, beat);
+
+  for (const bpm of bpms) {
+    if (bpm.startBeat < startBeat) continue;
+    if (bpm.startBeat > startBeat) break;
+
+    return calcRealTime(bpm.bpm, beat);
+  }
+
+  return 9999999;
 };
 
 export default PhiEditer;
