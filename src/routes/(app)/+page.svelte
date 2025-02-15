@@ -147,7 +147,7 @@
           const assetsIncluded = assets.filter((asset) => asset.included);
           const { preferences: pref, recorderOptions: rec, ...rest } = message.payload;
           for (const key in rest) {
-            if (!!rest[key as keyof typeof rest]) {
+            if (rest[key as keyof typeof rest]) {
               toggles[key as keyof typeof toggles] = rest[key as keyof typeof rest] as never;
             }
           }
@@ -213,9 +213,9 @@
       });
       const result = await invoke('get_incoming_files');
       if (result) {
-          console.log('Incoming files', result);
-          await handleFilePaths(result as string[]);
-        }
+        console.log('Incoming files', result);
+        await handleFilePaths(result as string[]);
+      }
     }
 
     if (Capacitor.getPlatform() !== 'web') {
@@ -573,7 +573,9 @@
                 replaceeBundle.chart = id;
               }
             }
-          } catch {}
+          } catch (e) {
+            console.debug('Chart is not a JSON file:', e);
+          }
         } else if (type === 0) {
           imageFiles.push({ id, file, url: URL.createObjectURL(file) });
           if (replacee !== undefined && replacee < chartBundles.length) {
@@ -1669,7 +1671,7 @@
               if (params.length <= 15360) {
                 url = `${base}/play?${params}`;
               } else {
-                const config: Config = {
+                const config = {
                   resources: {
                     song:
                       getUrl(audioFiles.find((file) => file.id === currentBundle.song)?.file) ?? '',
