@@ -323,7 +323,7 @@ const PhiEditer = (chartRaw: string, meta: Omit<RpeMeta, 'offset'>): RpeJson => 
       // since Re:PhiEdit has only one prop for that.
       // However, you can still support another two values since it's quite easy:
       //   -1: Make all notes on this line invisible
-      //   -2: Reverse notes visibility (note.visible = !note.above)
+      //   -2: Reverse notes visibility (note.visible = note.above === note.posY <= 0)
       if (event.start < -100 && event.start >= -1000) {
         const beatBetween = event.endBeat - event.startBeat;
         const beatBetweenLength = Math.ceil(beatBetween / BEAT_BETWEEN_TIME);
