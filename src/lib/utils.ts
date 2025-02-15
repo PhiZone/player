@@ -61,7 +61,16 @@ export const isPec = (pecCriteria: string[]) =>
 
 export const readMetadata = (text: string) => {
   const lines = text.split(/\r?\n/);
-  const fields = ['Name', 'Composer', 'Charter', 'Illustration', 'Level'];
+  const fields = [
+    'Name',
+    'Song',
+    'Picture',
+    'Chart',
+    'Composer',
+    'Charter',
+    'Illustration',
+    'Level',
+  ];
   if (
     lines[0] === '#' &&
     fields.every((val) => lines.findIndex((line) => line.startsWith(val)) !== -1)
@@ -71,14 +80,46 @@ export const readMetadata = (text: string) => {
         lines
           .find((line) => line.startsWith(field))
           ?.slice(field.length + 1)
-          .trim() ?? null,
+          .trim() ?? '',
     );
     return {
       name: info[0],
-      composer: info[1],
-      charter: info[2],
-      illustration: info[3],
-      level: info[4],
+      song: info[1],
+      picture: info[2],
+      chart: info[3],
+      composer: info[4],
+      charter: info[5],
+      illustration: info[6],
+      level: info[7],
+    };
+  }
+  const [_header, ...rows] = text.split(/\r?\n/);
+  const data = rows.map((row) => row.split(','));
+  if (data.length > 0 && data[0].length >= 10) {
+    const [
+      chart,
+      song,
+      picture,
+      _aspectRatio,
+      _scaleRatio,
+      _globalAlpha,
+      name,
+      level,
+      illustrator,
+      designer,
+    ] = data[data.length - 1];
+    return {
+      name,
+      song,
+      picture,
+      chart,
+      composer: '',
+      charter: designer,
+      illustration: illustrator,
+      level,
+      // aspectRatio: parseFloat(_aspectRatio),
+      // scaleRatio: parseFloat(_scaleRatio),
+      // globalAlpha: parseFloat(_globalAlpha),
     };
   }
   // TODO add support for other metadata formats

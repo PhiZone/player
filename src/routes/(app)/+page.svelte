@@ -13,7 +13,6 @@
     RecorderOptions,
     Release,
     RpeJson,
-    RpeMeta,
     UrlInputMessage,
   } from '$lib/types';
   import {
@@ -56,6 +55,18 @@
     id: number;
     file: File;
     url?: string;
+  }
+
+  interface MetadataEntry {
+    id?: number;
+    name: string;
+    song: string;
+    picture: string;
+    chart: string;
+    composer: string;
+    charter: string;
+    illustration: string;
+    level: string;
   }
 
   interface ChartBundle {
@@ -492,7 +503,7 @@
     chartFile: FileEntry,
     songFile?: FileEntry,
     illustrationFile?: FileEntry,
-    infoId?: number,
+    metadata?: MetadataEntry,
     fallback: boolean = false,
     silent: boolean = true,
   ) => {
@@ -512,15 +523,9 @@
       }
       illustrationFile = imageFiles[0];
     }
-    let metadata;
-    try {
-      metadata = (JSON.parse(await chartFile.file.text()) as RpeJson).META;
-    } catch {
-      if (!infoId) {
-        if (!silent) alert('Metadata not found!');
-        return;
-      }
-      metadata = readMetadata(await assets[infoId].file.text())
+    if (!metadata) {
+      if (!silent) alert('Metadata not found!');
+      return;
     }
     const bundle = {
       id: Date.now(),
@@ -539,15 +544,13 @@
     };
     chartBundles.push(bundle);
     chartBundles = chartBundles;
-    if (infoId) {
-      assets = assets.filter(
-        (a) =>
-          a.id !== chartFile.id &&
-          a.id !== songFile?.id &&
-          a.id !== illustrationFile?.id &&
-          a.id !== infoId,
-      );
-    }
+    assets = assets.filter(
+      (a) =>
+        a.id !== chartFile.id &&
+        a.id !== songFile?.id &&
+        a.id !== illustrationFile?.id &&
+        a.id !== metadata.id,
+    );
     return bundle;
   };
 
@@ -615,29 +618,32 @@
         assets.push({ id, type, file, included: isIncluded(file.name) });
       }),
     );
-    const fields = ['Song:', 'Picture:', 'Chart:'];
     progressDetail = 'Seeking for charts';
     const textAssets = assets.filter((asset) => asset.type === 3);
     let bundlesResolved = 0;
     for (let i = 0; i < textAssets.length; i++) {
       progress = i / textAssets.length;
       const asset = textAssets[i];
-      const lines = (await asset.file.text()).split(/\r?\n/);
-      if (
-        lines[0] === '#' &&
-        fields.every((val) => lines.findIndex((line) => line.startsWith(val)) !== -1)
-      ) {
-        const values = fields.map((field) =>
-          lines
-            .find((line) => line.startsWith(field))!
-            .slice(field.length)
-            .trim(),
-        );
-        const chartFile = chartFiles.find((file) => file.file.name === values[2]);
-        const songFile = audioFiles.find((file) => file.file.name === values[0]);
-        const illustrationFile = imageFiles.find((file) => file.file.name === values[1]);
+      const metadata = readMetadata(await asset.file.text());
+      if (metadata) {
+        const chartFile = chartFiles.find((file) => file.file.name === metadata.chart);
+        const songFile = audioFiles.find((file) => file.file.name === metadata.song);
+        const illustrationFile = imageFiles.find((file) => file.file.name === metadata.picture);
         if (!chartFile) continue;
-        await createBundle(chartFile, songFile, illustrationFile, asset.id);
+        let metadataEntry = { id: asset.id, ...metadata };
+        try {
+          const chartMeta = (JSON.parse(await chartFile.file.text()) as RpeJson).META;
+          metadataEntry.name = chartMeta.name;
+          metadataEntry.song = chartMeta.song;
+          metadataEntry.picture = chartMeta.background;
+          metadataEntry.composer = chartMeta.composer;
+          metadataEntry.charter = chartMeta.charter;
+          metadataEntry.illustration = chartMeta.illustration ?? metadata.illustration;
+          metadataEntry.level = chartMeta.level;
+        } catch (e) {
+          console.debug('Chart is not a JSON file:', e);
+        }
+        await createBundle(chartFile, songFile, illustrationFile, metadataEntry);
         bundlesResolved++;
       }
     }
@@ -647,7 +653,18 @@
       audioFiles.length > 0 &&
       imageFiles.length > 0
     ) {
-      await createBundle(chartFiles[0], undefined, undefined, undefined, true);
+      const chartMeta = (JSON.parse(await chartFiles[0].file.text()) as RpeJson).META;
+      let metadataEntry: MetadataEntry = {
+        name: chartMeta.name,
+        song: chartMeta.song,
+        picture: chartMeta.background,
+        chart: chartFiles[0].file.name,
+        composer: chartMeta.composer,
+        charter: chartMeta.charter,
+        illustration: chartMeta.illustration ?? '',
+        level: chartMeta.level,
+      };
+      await createBundle(chartFiles[0], undefined, undefined, metadataEntry, true);
       bundlesResolved++;
     }
     if (chartBundles.length > 0 && selectedBundle === -1) {
@@ -1062,7 +1079,16 @@
               const song = audioFiles.find((file) => file.id === selectedSong);
               const illustration = imageFiles.find((file) => file.id === selectedIllustration);
               if (chart && song && illustration) {
-                const bundle = await createBundle(chart, song, illustration);
+                const bundle = await createBundle(chart, song, illustration, {
+                  name: currentBundle.metadata.title ?? '',
+                  song: audioFiles[currentBundle.song].file.name ?? '',
+                  picture: imageFiles[currentBundle.illustration].file.name ?? '',
+                  chart: chartFiles[currentBundle.chart].file.name ?? '',
+                  composer: currentBundle.metadata.composer ?? '',
+                  charter: currentBundle.metadata.charter ?? '',
+                  illustration: currentBundle.metadata.illustrator ?? '',
+                  level: currentBundle.metadata.level ?? '',
+                });
                 if (!bundle) return;
                 currentBundle = bundle;
                 selectedBundle = bundle.id;
