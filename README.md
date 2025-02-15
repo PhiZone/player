@@ -214,9 +214,9 @@ Notice that there are two events that share the same shader code. This is a work
 | New version notification                          | 0.1.1   |                                                                                                                                          | ✅ Done             | 新版本通知                       |
 | Send intent / file association                    | 0.1.2   |                                                                                                                                          | 🚧 Working          | 发送意图 / 文件关联              |
 | Channel messaging                                 | 0.1.2   | Send/receive message events                                                                                                              | ✅ Done             | 频道通信                         |
+| PE support                                        | 0.1.2   |                                                                                                                                          | ✅ Done             | PE 适配                          |
 | Keyboard input                                    | 0.1.3   | Fixed keybinds                                                                                                                           |                     | 键盘输入                         |
-| Customizable resource pack                        | 0.1.3   |                                                                                                                                          |                     | 可自定义资源包                   |
-| Basic PE support                                  | 0.1.4   |                                                                                                                                          | 🚧 Working          | 基本 PE 适配                     |
+| Customizable resource pack                        | 0.1.4   |                                                                                                                                          |                     | 可自定义资源包                   |
 | Local chart bundle storage                        | 0.1.5   |                                                                                                                                          |                     | 本地谱包存储                     |
 | Keybinds UI                                       | 0.1.6   |                                                                                                                                          |                     | 键位关联 UI                      |
 | Alignment with official/RPE constants             | 0.1.6   | Hold tolerances, texture size units, etc.                                                                                                |                     | 官/RPE 常数对齐                  |
@@ -314,6 +314,7 @@ We deeply appreciate those who generously granted us permission to use their wor
 ## Deployments
 
 A list of web deployments is as follows:
+
 - [player.phi.zone](https://player.phi.zone/) - Cloudflare Pages
 - [player.phizone.cn](https://player.phizone.cn/) - self-hosted
 - [phizone.github.io/player](https://phizone.github.io/player/) - GitHub Pages
