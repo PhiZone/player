@@ -150,7 +150,7 @@
           const assetsIncluded = assets.filter((asset) => asset.included);
           const { preferences: pref, recorderOptions: rec, ...rest } = message.payload;
           for (const key in rest) {
-            if (!!rest[key as keyof typeof rest]) {
+            if (rest[key as keyof typeof rest]) {
               toggles[key as keyof typeof toggles] = rest[key as keyof typeof rest] as never;
             }
           }
@@ -583,7 +583,9 @@
             if (json.META) {
               chartSuccess = true;
             }
-          } catch {}
+          } catch (e) {
+            console.debug('Chart is not a JSON file:', e);
+          }
         }
         if (isPec(chartContent.split(/\r?\n/).slice(0, 2))) {
           chartSuccess = true;
@@ -1690,7 +1692,7 @@
               if (params.length <= 15360) {
                 url = `${base}/play?${params}`;
               } else {
-                const config: Config = {
+                const config = {
                   resources: {
                     song:
                       getUrl(audioFiles.find((file) => file.id === currentBundle.song)?.file) ?? '',
