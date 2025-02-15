@@ -28,6 +28,7 @@
     notify,
     readMetadata,
     send,
+    updateMetadata,
     versionCompare,
   } from '$lib/utils';
   import PreferencesModal from '$lib/components/Preferences.svelte';
@@ -587,7 +588,7 @@
               chartSuccess = true;
             }
           } catch (e) {
-            console.debug('Chart is not a JSON file:', e);
+            console.debug('Chart is not a valid RPE JSON:', e);
           }
         }
         if (isPec(chartContent.split(/\r?\n/).slice(0, 2))) {
@@ -624,26 +625,19 @@
     for (let i = 0; i < textAssets.length; i++) {
       progress = i / textAssets.length;
       const asset = textAssets[i];
-      const metadata = readMetadata(await asset.file.text());
+      let metadata = readMetadata(await asset.file.text());
       if (metadata) {
         const chartFile = chartFiles.find((file) => file.file.name === metadata.chart);
         const songFile = audioFiles.find((file) => file.file.name === metadata.song);
         const illustrationFile = imageFiles.find((file) => file.file.name === metadata.picture);
         if (!chartFile) continue;
-        let metadataEntry = { id: asset.id, ...metadata };
         try {
           const chartMeta = (JSON.parse(await chartFile.file.text()) as RpeJson).META;
-          metadataEntry.name = chartMeta.name;
-          metadataEntry.song = chartMeta.song;
-          metadataEntry.picture = chartMeta.background;
-          metadataEntry.composer = chartMeta.composer;
-          metadataEntry.charter = chartMeta.charter;
-          metadataEntry.illustration = chartMeta.illustration ?? metadata.illustration;
-          metadataEntry.level = chartMeta.level;
+          metadata = updateMetadata(metadata, chartMeta);
         } catch (e) {
-          console.debug('Chart is not a JSON file:', e);
+          console.debug('Chart is not a valid RPE JSON:', e);
         }
-        await createBundle(chartFile, songFile, illustrationFile, metadataEntry);
+        await createBundle(chartFile, songFile, illustrationFile, { id: asset.id, ...metadata });
         bundlesResolved++;
       }
     }
@@ -653,19 +647,18 @@
       audioFiles.length > 0 &&
       imageFiles.length > 0
     ) {
-      const chartMeta = (JSON.parse(await chartFiles[0].file.text()) as RpeJson).META;
-      let metadataEntry: MetadataEntry = {
-        name: chartMeta.name,
-        song: chartMeta.song,
-        picture: chartMeta.background,
-        chart: chartFiles[0].file.name,
-        composer: chartMeta.composer,
-        charter: chartMeta.charter,
-        illustration: chartMeta.illustration ?? '',
-        level: chartMeta.level,
-      };
-      await createBundle(chartFiles[0], undefined, undefined, metadataEntry, true);
-      bundlesResolved++;
+      try {
+        await createBundle(
+          chartFiles[0],
+          undefined,
+          undefined,
+          readMetadata(undefined, (JSON.parse(await chartFiles[0].file.text()) as RpeJson).META),
+          true,
+        );
+        bundlesResolved++;
+      } catch (e) {
+        console.debug('Chart is not a valid RPE JSON:', e);
+      }
     }
     if (chartBundles.length > 0 && selectedBundle === -1) {
       currentBundle = chartBundles[0];

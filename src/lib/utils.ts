@@ -1,6 +1,6 @@
 import { get } from 'svelte/store';
 import { page } from '$app/stores';
-import { type Config, type OutgoingMessage } from './types';
+import { type Config, type MetadataEntry, type OutgoingMessage, type RpeMeta } from './types';
 import { AndroidFullScreen } from '@awesome-cordova-plugins/android-full-screen';
 import { Capacitor } from '@capacitor/core';
 import { Clipboard } from '@capacitor/clipboard';
@@ -59,71 +59,90 @@ export const haveSameKeys = (obj1: object, obj2: object): boolean => {
 export const isPec = (pecCriteria: string[]) =>
   !isNaN(parseFloat(pecCriteria[0])) && /^bp \d+(\.\d+)? \d+(\.\d+)?$/.test(pecCriteria[1]);
 
-export const readMetadata = (text: string) => {
-  const lines = text.split(/\r?\n/);
-  const fields = [
-    'Name',
-    'Song',
-    'Picture',
-    'Chart',
-    'Composer',
-    'Charter',
-    'Illustration',
-    'Level',
-  ];
-  if (
-    lines[0] === '#' &&
-    fields.every((val) => lines.findIndex((line) => line.startsWith(val)) !== -1)
-  ) {
-    const info = fields.map(
-      (field) =>
-        lines
-          .find((line) => line.startsWith(field))
-          ?.slice(field.length + 1)
-          .trim() ?? '',
-    );
+export const readMetadata = (text?: string, chartMeta?: RpeMeta): MetadataEntry => {
+  const readFromText = (text: string = '') => {
+    const lines = text.split(/\r?\n/);
+    const fields = ['Name', 'Song', 'Picture', 'Chart', 'Composer', 'Charter', 'Level'];
+    if (
+      lines[0] === '#' &&
+      fields.every((val) => lines.findIndex((line) => line.startsWith(val)) !== -1)
+    ) {
+      const info = fields.map(
+        (field) =>
+          lines
+            .find((line) => line.startsWith(field))
+            ?.slice(field.length + 1)
+            .trim() ?? '',
+      );
+      return {
+        name: info[0],
+        song: info[1],
+        picture: info[2],
+        chart: info[3],
+        composer: info[4],
+        charter: info[5],
+        illustration: '',
+        level: info[6],
+      };
+    }
+    const [_header, ...rows] = text.split(/\r?\n/);
+    const data = rows.map((row) => row.split(','));
+    if (data.length > 0 && data[0].length >= 10) {
+      const [
+        chart,
+        song,
+        picture,
+        _aspectRatio,
+        _scaleRatio,
+        _globalAlpha,
+        name,
+        level,
+        illustrator,
+        designer,
+      ] = data[data.length - 1];
+      return {
+        name,
+        song,
+        picture,
+        chart,
+        composer: '',
+        charter: designer,
+        illustration: illustrator,
+        level,
+        // aspectRatio: parseFloat(_aspectRatio),
+        // scaleRatio: parseFloat(_scaleRatio),
+        // globalAlpha: parseFloat(_globalAlpha),
+      };
+    }
+    // TODO add support for other metadata formats
     return {
-      name: info[0],
-      song: info[1],
-      picture: info[2],
-      chart: info[3],
-      composer: info[4],
-      charter: info[5],
-      illustration: info[6],
-      level: info[7],
-    };
-  }
-  const [_header, ...rows] = text.split(/\r?\n/);
-  const data = rows.map((row) => row.split(','));
-  if (data.length > 0 && data[0].length >= 10) {
-    const [
-      chart,
-      song,
-      picture,
-      _aspectRatio,
-      _scaleRatio,
-      _globalAlpha,
-      name,
-      level,
-      illustrator,
-      designer,
-    ] = data[data.length - 1];
-    return {
-      name,
-      song,
-      picture,
-      chart,
+      name: '',
+      song: '',
+      picture: '',
+      chart: '',
       composer: '',
-      charter: designer,
-      illustration: illustrator,
-      level,
-      // aspectRatio: parseFloat(_aspectRatio),
-      // scaleRatio: parseFloat(_scaleRatio),
-      // globalAlpha: parseFloat(_globalAlpha),
+      charter: '',
+      illustration: '',
+      level: '',
     };
+  };
+
+  let metadata = readFromText(text);
+  if (chartMeta) {
+    metadata = updateMetadata(metadata, chartMeta);
   }
-  // TODO add support for other metadata formats
-  throw new Error('Invalid metadata');
+  return metadata;
+};
+
+export const updateMetadata = (metadata: MetadataEntry, chartMeta: RpeMeta) => {
+  metadata.name = chartMeta.name;
+  metadata.song = chartMeta.song;
+  metadata.picture = chartMeta.background;
+  metadata.composer = chartMeta.composer;
+  metadata.charter = chartMeta.charter;
+  metadata.illustration = chartMeta.illustration ?? metadata.illustration;
+  metadata.level = chartMeta.level;
+  return metadata;
 };
 
 export const inferLevelType = (level: string | null): 0 | 1 | 2 | 3 | 4 => {

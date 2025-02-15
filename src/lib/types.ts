@@ -71,6 +71,18 @@ export interface RecorderOptions {
   audioBitrate?: number | undefined;
 }
 
+export interface MetadataEntry {
+  id?: number;
+  name: string;
+  song: string;
+  picture: string;
+  chart: string;
+  composer: string;
+  charter: string;
+  illustration: string;
+  level: string;
+}
+
 export interface RpeJson {
   BPMList: Bpm[];
   META: RpeMeta;
