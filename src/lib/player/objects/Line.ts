@@ -181,17 +181,18 @@ export class Line {
       }
     }
 
-    // this._noteContainers[0].add(scene.add.rectangle(0, 0, 10, 10, 0x00ff00).setOrigin(0.5));
-    // this._noteContainers[0].add(
-    //   scene.add
-    //     .text(0, 20, num.toString(), {
-    //       fontFamily: 'Outfit',
-    //       fontSize: 25,
-    //       color: '#ffffff',
-    //       align: 'center',
-    //     })
-    //     .setOrigin(0.5),
-    // );
+    // this.createContainer(this._line.depth)
+    //   .add(scene.add.rectangle(0, 0, 10, 10, 0x00ff00).setOrigin(0.5))
+    //   .add(
+    //     scene.add
+    //       .text(0, 20, num.toString(), {
+    //         fontFamily: 'Outfit',
+    //         fontSize: 25,
+    //         color: '#ffffff',
+    //         align: 'center',
+    //       })
+    //       .setOrigin(0.5),
+    //   );
   }
 
   update(beat: number, songTime: number, gameTime: number) {
