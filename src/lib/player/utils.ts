@@ -557,9 +557,10 @@ export const position = (
 };
 
 export const beatToArray = (beat: number | string): [number, number, number] => {
-  const number = typeof beat === 'string' ? parseFloat(beat) : beat;
+  const string = typeof beat === 'string' ? beat : `${beat}`;
+  const number = parseFloat(string);
   const beatInt = Math.floor(number);
-  const beatFloat = number - beatInt;
+  const beatFloat = parseInt(string.split('.')[1]);
 
   if (beatInt === number) return [beatInt, 0, 1];
 
