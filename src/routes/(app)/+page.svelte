@@ -227,7 +227,6 @@
       });
       listen('incoming-files', async (event) => {
         const filePaths = event.payload as string[];
-        console.log(filePaths);
         await handleFilePaths(filePaths);
       });
       const result = await invoke('get_incoming_files');
@@ -376,6 +375,8 @@
   };
 
   const handleFilePaths = async (filePaths: string[]) => {
+    showCollapse = true;
+
     let promises = await Promise.allSettled(
       filePaths.map(async (filePath) => {
         const data = await readFile(filePath);
@@ -385,11 +386,13 @@
         );
       }),
     );
+
     promises
       .filter((promise) => promise.status === 'rejected')
       .forEach((promise) => {
         console.error((promise as PromiseRejectedResult).reason);
       });
+
     const regularFiles: File[] = [];
     for (const file of promises
       .filter((promise) => promise.status === 'fulfilled')
