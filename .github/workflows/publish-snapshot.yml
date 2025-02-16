@@ -27,7 +27,7 @@ jobs:
 
       - name: Specify current week
         id: current-week
-        run: echo "CURRENT_WEEK=$(date +'%Yw%V')" >> $GITHUB_OUTPUT
+        run: echo "CURRENT_WEEK=$(date +'%yw%V')" >> $GITHUB_OUTPUT
 
     outputs:
       version: ${{ steps.version.outputs.VERSION }}
