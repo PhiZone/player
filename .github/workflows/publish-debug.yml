@@ -215,14 +215,15 @@ jobs:
 
       - name: Move and rename build
         run: |
-          mkdir -p $RUNNER_TEMP/artifacts/ios/
-          mv $RUNNER_TEMP/build/App.ipa $RUNNER_TEMP/artifacts/ios/PhiZone.Player_${{ needs.metadata.outputs.version-name }}.ipa
+          mkdir -p ~/artifacts/ios/
+          mv $RUNNER_TEMP/build/App.ipa ~/artifacts/ios/PhiZone.Player_${{ needs.metadata.outputs.version-name }}.ipa
+          ls -l ~/artifacts/ios/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: capacitor-ios-${{ needs.metadata.outputs.version-name }}
-          path: $RUNNER_TEMP/artifacts/ios/*
+          path: ~/artifacts/ios/*
 
       - name: Clean up keychain and provisioning profile
         if: ${{ always() }}
@@ -287,15 +288,16 @@ jobs:
 
       - name: Move and rename builds
         run: |
-          mkdir -p $RUNNER_TEMP/artifacts/android/
-          mv android/app/build/outputs/bundle/release/app-release.aab $RUNNER_TEMP/artifacts/android/PhiZone.Player_${{ needs.metadata.outputs.version-name }}.aab
-          mv ${{ steps.sign-apk.outputs.signedReleaseFile }} $RUNNER_TEMP/artifacts/android/PhiZone.Player_${{ needs.metadata.outputs.version-name }}.apk
+          mkdir -p ~/artifacts/android/
+          mv android/app/build/outputs/bundle/release/app-release.aab ~/artifacts/android/PhiZone.Player_${{ needs.metadata.outputs.version-name }}.aab
+          mv ${{ steps.sign-apk.outputs.signedReleaseFile }} ~/artifacts/android/PhiZone.Player_${{ needs.metadata.outputs.version-name }}.apk
+          ls -l ~/artifacts/android/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: capacitor-android-${{ needs.metadata.outputs.version-name }}
-          path: $RUNNER_TEMP/artifacts/android/*
+          path: ~/artifacts/android/*
 
   publish-tauri:
     name: Build with Tauri
@@ -367,17 +369,19 @@ jobs:
       - name: Move and rename builds
         run: |
           export IFS=','
-          mkdir -p $RUNNER_TEMP/artifacts/tauri/
-          paths="$(echo "${{ steps.build.outputs.artifactPaths }}" | sed -e 's/\[//g; s/\]//g' -e 's/ /./g')"
-          for path in $paths; do
-            renamed_path=$(echo "$path" | sed "s/${{ needs.metadata.outputs.version }}(-1)?/${{ needs.metadata.outputs.version-name }}/g")
-            mv "$path" "$renamed_path"
-            mv "$renamed_path" $RUNNER_TEMP/artifacts/tauri/
+          mkdir -p ~/artifacts/tauri/
+          artifact_paths=$(echo '${{ steps.build.outputs.artifactPaths }}' | sed -e 's/\[//g; s/\]//g' -e 's/ /./g')
+          echo "Paths: $artifact_paths"
+          for artifact_path in $artifact_paths; do
+            renamed_path=$(echo "$artifact_path" | sed "s/${{ needs.metadata.outputs.version }}(-1)?/${{ needs.metadata.outputs.version-name }}/g")
+            echo "Renamed path: $renamed_path"
+            mv "$artifact_path" "$renamed_path"
+            mv "$renamed_path" ~/artifacts/tauri/
           done
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: tauri-${{ matrix.platform }}-$(echo ${{ matrix.args }} | sed 's/.* //')-${{ needs.metadata.outputs.version-name }}
-          path: $RUNNER_TEMP/artifacts/tauri/*
+          path: ~/artifacts/tauri/*
 
