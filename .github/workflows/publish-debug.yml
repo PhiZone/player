@@ -370,11 +370,11 @@ jobs:
         run: |
           export IFS=','
           mkdir -p ~/artifacts/tauri/
-          artifact_paths=$(echo '${{ steps.build.outputs.artifactPaths }}' | sed -e 's/\[//g; s/\]//g' -e 's/ /./g')
+          artifact_paths=$(echo '${{ steps.build.outputs.artifactPaths }}' | sed -e 's/\[//g; s/\]//g' -e 's/["]//g' -e 's/ /./g')
           echo "Paths: $artifact_paths"
           for artifact_path in $artifact_paths; do
-            renamed_path=$(echo "$artifact_path" | sed "s/${{ needs.metadata.outputs.version }}(-1)?/${{ needs.metadata.outputs.version-name }}/g")
-            echo "Renamed path: $renamed_path"
+            renamed_path=$(echo "$artifact_path" | sed -e 's/${{ needs.metadata.outputs.version }}(-1)?/${{ needs.metadata.outputs.version-name }}/g')
+            echo "$artifact_path" -> $renamed_path"
             mv "$artifact_path" "$renamed_path"
             mv "$renamed_path" ~/artifacts/tauri/
           done
