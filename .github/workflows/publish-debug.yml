@@ -380,14 +380,17 @@ jobs:
               continue
             fi
             renamed_path=$(echo "$original_path" | sed -e 's/PhiZone Player_${{ needs.metadata.outputs.version }}(-1)?/PhiZone.Player_${{ needs.metadata.outputs.version-name }}/g')
-            echo "$original_path -> $renamed_path"
+            echo "Renaming: $original_path -> $renamed_path"
             mv "$original_path" "$renamed_path"
             mv "$renamed_path" ~/artifacts/tauri/
           done
 
+      - name: Generate artifact info
+        id: info
+        run: echo "NAME=tauri-${{ matrix.platform }}-$(echo ${{ matrix.args }} | sed 's/.* //')-${{ needs.metadata.outputs.version-name }}" >> $GITHUB_OUTPUT
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tauri-${{ matrix.platform }}-$(echo ${{ matrix.args }} | sed 's/.* //')-${{ needs.metadata.outputs.version-name }}
+          name: ${{ steps.info.outputs.NAME }}
           path: ~/artifacts/tauri/*
-

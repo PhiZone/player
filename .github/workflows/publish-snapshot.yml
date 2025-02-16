@@ -276,12 +276,19 @@ jobs:
 
       - name: Rename builds
         run: |
-          export IFS=','
-          paths="$(echo "${{ steps.build.outputs.artifactPaths }}" | sed -e 's/\[//g; s/\]//g' -e 's/ /./g')"
+          IFS=','
+          SPACE='.SPACE_PLACEHOLDER.'
+          artifact_paths=$(echo '${{ steps.build.outputs.artifactPaths }}' | sed -e 's/\[//g; s/\]//g' -e 's/["]//g' -e 's/ /$SPACE/g')
           renamed_paths=""
-          for path in $paths; do
-            renamed_path=$(echo "$path" | sed "s/${{ needs.metadata.outputs.version }}(-1)?/${{ needs.metadata.outputs.version-name }}/g")
-            mv "$path" "$renamed_path"
+          for artifact_path in $artifact_paths; do
+            original_path=$(echo "$artifact_path" | sed -e 's/$SPACE/ /g')
+            if [[ "$original_path" == *.app ]]; then
+              echo "Skipping $original_path"
+              continue
+            fi
+            renamed_path=$(echo "$original_path" | sed "s/PhiZone Player_${{ needs.metadata.outputs.version }}(-1)?/PhiZone.Player_${{ needs.metadata.outputs.version-name }}/g")
+            echo "Renaming: $original_path -> $renamed_path"
+            mv "$original_path" "$renamed_path"
             renamed_paths="$renamed_paths $renamed_path"
           done
           echo "RENAMED_PATHS=$renamed_paths" >> $GITHUB_ENV
