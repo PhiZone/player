@@ -54,6 +54,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.VERSION }}
       current-datetime: ${{ steps.current-datetime.outputs.CURRENT_DATETIME }}
+      version-name: ${{ steps.version.outputs.VERSION }}_${{ steps.current-datetime.outputs.CURRENT_DATETIME }}
 
   publish-web:
     name: Publish to Sentry and GitHub Pages
@@ -109,7 +110,7 @@ jobs:
           SENTRY_PROJECT: player
         with:
           environment: production
-          version: ${{ needs.metadata.outputs.version }}_${{ needs.metadata.outputs.current-datetime }}
+          version: ${{ needs.metadata.outputs.version-name }}
           sourcemaps: './build'
 
       - name: Setup Pages
@@ -215,14 +216,11 @@ jobs:
       - name: Rename build file
         run: mv $RUNNER_TEMP/build/App.ipa $RUNNER_TEMP/build/PhiZone.Player_${{ needs.metadata.outputs.version }}.ipa
 
-      - name: Publish release
-        run: |
-          gh release create "v${{ needs.metadata.outputs.version }}_${{ needs.metadata.outputs.current-datetime }}" \
-          --title "v${{ needs.metadata.outputs.version }} ${{ needs.metadata.outputs.current-datetime }}" \
-          --notes "Automated release with debug builds. See the assets for downloads." --prerelease \
-          $RUNNER_TEMP/build/PhiZone.Player_${{ needs.metadata.outputs.version }}.ipa
-        env:
-          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: capacitor-ios-${{ needs.metadata.outputs.version-name }}
+          path: $RUNNER_TEMP/build/PhiZone.Player_${{ needs.metadata.outputs.version }}.ipa
 
       - name: Clean up keychain and provisioning profile
         if: ${{ always() }}
@@ -276,9 +274,9 @@ jobs:
       - name: Build app bundle
         run: cd android && chmod +x ./gradlew && ./gradlew bundle && ./gradlew assembleRelease
 
-      - uses: kevin-david/zipalign-sign-android-release@v2
-        name: Sign APK
+      - name: Sign APK
         id: sign-apk
+        uses: kevin-david/zipalign-sign-android-release@v2
         with:
           releaseDirectory: android/app/build/outputs/apk/release/
           signingKeyBase64: ${{ secrets.RELEASE_KEYSTORE }}
@@ -290,13 +288,11 @@ jobs:
           mv android/app/build/outputs/bundle/release/app-release.aab android/app/build/outputs/bundle/release/PhiZone.Player_${{ needs.metadata.outputs.version }}.aab
           mv ${{ steps.sign-apk.outputs.signedReleaseFile }} android/app/build/outputs/apk/release/PhiZone.Player_${{ needs.metadata.outputs.version }}.apk
 
-      - name: Publish release
-        run: |
-          gh release upload "v${{ needs.metadata.outputs.version }}_${{ needs.metadata.outputs.current-datetime }}" \
-          android/app/build/outputs/bundle/release/PhiZone.Player_${{ needs.metadata.outputs.version }}.aab \
-          android/app/build/outputs/apk/release/PhiZone.Player_${{ needs.metadata.outputs.version }}.apk
-        env:
-          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: capacitor-android-${{ needs.metadata.outputs.version-name }}
+          path: android/app/build/outputs/apk/release/*
 
   publish-tauri:
     name: Build with Tauri
@@ -354,20 +350,28 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm i
 
-      - name: Build and publish
+      - name: Build
+        id: build
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           PUBLIC_SENTRY_DSN: ${{ vars.PUBLIC_SENTRY_DSN }}
           PUBLIC_FFMPEG_URL:
         with:
-          tagName: v${{ needs.metadata.outputs.version }}_${{ needs.metadata.outputs.current-datetime }} # the action automatically replaces \_\_VERSION\_\_ with the app version.
-          releaseName: 'v${{ needs.metadata.outputs.version }} ${{ needs.metadata.outputs.current-datetime }}'
-          # releaseBody: |
-          #   Automated release with debug builds. See the assets for downloads.
-          #   *Debug builds for Linux are not included due to unexpectedly lengthy packaging times.*
-          # includeDebug: ${{ matrix.platform == 'ubuntu-22.04' && 'false' || 'true' }}
-          releaseBody: 'Automated release with debug builds. See the assets for downloads.'
           includeDebug: true
           prerelease: true
           args: ${{ matrix.args }}
+
+      - name: Generate artifact info
+        id: info
+        run: |
+          echo "Artifact Paths: ${{ steps.build.outputs.artifactPaths }}"
+          echo "NAME=tauri-${{ matrix.platform }}-$(echo ${{ matrix.args }} | sed 's/.* //')-${{ needs.metadata.outputs.version-name }}" >> $GITHUB_OUTPUT
+          echo "PATH=${{ steps.build.outputs.artifactPaths }}" >> $GITHUB_OUTPUT
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.info.outputs.NAME }}
+          path: ${{ steps.info.outputs.PATH }}
+
