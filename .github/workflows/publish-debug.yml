@@ -378,7 +378,7 @@ jobs:
               echo "Skipping $original_path"
               continue
             fi
-            renamed_path=$(echo "$original_path" | sed -E "s/PhiZone Player_${{ needs.metadata.outputs.version }}(-1)?/PhiZone.Player_${{ needs.metadata.outputs.version-name }}/g")
+            renamed_path=$(echo "$original_path" | sed -E "s/PhiZone Player[_-]${{ needs.metadata.outputs.version }}(-1)?/PhiZone.Player_${{ needs.metadata.outputs.version-name }}/g")
             echo "Renaming: $original_path -> $renamed_path"
             mv "$original_path" "$renamed_path"
             mv "$renamed_path" ~/artifacts/tauri/
