@@ -362,7 +362,6 @@ jobs:
           PUBLIC_FFMPEG_URL:
         with:
           includeDebug: true
-          prerelease: true
           args: ${{ matrix.args }}
 
       - name: Move and rename builds
