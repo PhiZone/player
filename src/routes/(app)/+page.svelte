@@ -247,6 +247,9 @@
       if (result.url) {
         let resultUrl = decodeURIComponent(result.url);
         const file = await Filesystem.readFile({ path: resultUrl });
+        console.log(result.url, resultUrl);
+        console.log(JSON.stringify(file));
+        console.log(file.data);
         const blob = new Blob([file.data]);
         await handleFiles(await decompress(blob));
         SendIntent.finish();
