@@ -105,7 +105,7 @@
     chartOffset: 0,
     fcApIndicator: true,
     goodJudgment: 160,
-    hitSoundVolume: 1,
+    hitSoundVolume: 0.75,
     lineThickness: 1,
     musicVolume: 1,
     noteSize: 1,

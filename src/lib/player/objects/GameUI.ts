@@ -33,8 +33,9 @@ export class GameUI {
     [0, 0],
   ];
   private _fontSizes: number[] = [0, 60, 20, 50, 25, 32, 32];
+  private _targets: (Button | UIComponent | ProgressBar)[];
   private _upperTargets: (Button | UIComponent | ProgressBar)[];
-  private _lowerTargets: (Button | UIComponent | ProgressBar)[];
+  private _lowerTargets: UIComponent[];
   private _visible: boolean = false;
 
   constructor(scene: Game) {
@@ -166,6 +167,7 @@ export class GameUI {
       this._progressBar,
     ];
     this._lowerTargets = [this._songTitle, this._level];
+    this._targets = [...this._upperTargets, ...this._lowerTargets];
     this.setVisible(false);
   }
 
@@ -222,17 +224,14 @@ export class GameUI {
   }
 
   destroy() {
-    [...this._upperTargets, ...this._lowerTargets].forEach((o) => {
+    this._targets.forEach((o) => {
       o.destroy();
     });
   }
 
   in() {
-    if (
-      ![...this._upperTargets, ...this._lowerTargets].every(
-        (o) => o.y === 0 && o.rotation % (2 * Math.PI) === 0,
-      )
-    ) {
+    this.setVisible(true);
+    if (!this._targets.every((o) => o.y === 0 && o.rotation % (2 * Math.PI) === 0)) {
       return;
     }
     this._upperTargets.forEach((o) => {
@@ -242,12 +241,11 @@ export class GameUI {
       o.y = this._scene.p(100);
     });
     this._scene.tweens.add({
-      targets: [...this._upperTargets, ...this._lowerTargets],
+      targets: this._targets,
       y: 0,
       ease: 'Cubic.easeOut',
       duration: 1000,
       onStart: (tween) => {
-        this.setVisible(true);
         tween.targets.forEach((o) => {
           const target = o as Button | ProgressBar | UIComponent;
           target.isAnimationPlaying = true;
@@ -263,11 +261,7 @@ export class GameUI {
   }
 
   out() {
-    if (
-      ![...this._upperTargets, ...this._lowerTargets].every(
-        (o) => o.y === 0 && o.rotation % (2 * Math.PI) === 0,
-      )
-    ) {
+    if (!this._targets.every((o) => o.y === 0 && o.rotation % (2 * Math.PI) === 0)) {
       this.setVisible(false);
       return;
     }
@@ -365,8 +359,9 @@ export class GameUI {
 
   setVisible(visible: boolean) {
     this._visible = visible;
-    [...this._upperTargets, ...this._lowerTargets].forEach((obj) => {
+    this._targets.forEach((obj) => {
       obj.setVisible(visible);
+      console.log(obj.name, visible);
     });
   }
 

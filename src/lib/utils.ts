@@ -208,7 +208,7 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
   const chartOffset = parseInt(searchParams.get('chartOffset') ?? '0');
   const fcApIndicator = ['1', 'true'].some((v) => v == (searchParams.get('fcApIndicator') ?? '1'));
   const goodJudgment = parseInt(searchParams.get('goodJudgment') ?? '160');
-  const hitSoundVolume = parseFloat(searchParams.get('hitSoundVolume') ?? '1');
+  const hitSoundVolume = parseFloat(searchParams.get('hitSoundVolume') ?? '0.75');
   const lineThickness = parseFloat(searchParams.get('lineThickness') ?? '1');
   const musicVolume = parseFloat(searchParams.get('musicVolume') ?? '1');
   const noteSize = parseFloat(searchParams.get('noteSize') ?? '1');

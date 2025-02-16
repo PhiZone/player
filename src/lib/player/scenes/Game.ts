@@ -322,7 +322,6 @@ export class Game extends Scene {
           this._status = GameStatus.READY;
         }
         this._lines.forEach((line) => line.setVisible(true));
-        this._gameUI.setVisible(true);
         if (this._adjustOffset) {
           EventBus.on('offset-adjusted', (offset: number) => {
             this._chart.META.offset = offset;
