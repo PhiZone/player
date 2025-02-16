@@ -276,12 +276,11 @@ jobs:
 
       - name: Rename builds
         run: |
-          VER=${{ needs.metadata.outputs.version }}
-          VERNAME=${{ needs.metadata.outputs.version-name }}
-          paths=$(echo "${{ steps.build.outputs.artifactPaths }}" | sed -e 's/[\[\]"]//g' -e 's/, /\n/g')
+          export IFS=','
+          paths="$(echo "${{ steps.build.outputs.artifactPaths }}" | sed -e 's/\[//g; s/\]//g' -e 's/ /./g')"
           renamed_paths=""
           for path in $paths; do
-            renamed_path=$(echo "$path" | sed "s/PhiZone Player_$VER(-1)?/PhiZone.Player_$VERNAME/g")
+            renamed_path=$(echo "$path" | sed "s/${{ needs.metadata.outputs.version }}(-1)?/${{ needs.metadata.outputs.version-name }}/g")
             mv "$path" "$renamed_path"
             renamed_paths="$renamed_paths $renamed_path"
           done

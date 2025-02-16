@@ -233,7 +233,7 @@ jobs:
   publish-capacitor-android:
     name: Build for Android
     runs-on: ubuntu-22.04
-    needs: [metadata, publish-capacitor-ios]
+    needs: metadata
     permissions:
       contents: write
     steps:
@@ -299,7 +299,7 @@ jobs:
 
   publish-tauri:
     name: Build with Tauri
-    needs: [metadata, publish-capacitor-ios]
+    needs: metadata
     permissions:
       contents: write
     strategy:
@@ -366,10 +366,11 @@ jobs:
 
       - name: Move and rename builds
         run: |
+          export IFS=','
           mkdir -p $RUNNER_TEMP/artifacts/tauri/
-          paths=$(echo "${{ steps.build.outputs.artifactPaths }}" | sed -e 's/[\[\]"]//g' -e 's/, /\n/g')
+          paths="$(echo "${{ steps.build.outputs.artifactPaths }}" | sed -e 's/\[//g; s/\]//g' -e 's/ /./g')"
           for path in $paths; do
-            renamed_path=$(echo "$path" | sed "s/${{ needs.metadata.outputs.version }}/${{ needs.metadata.outputs.version-name }}/g")
+            renamed_path=$(echo "$path" | sed "s/${{ needs.metadata.outputs.version }}(-1)?/${{ needs.metadata.outputs.version-name }}/g")
             mv "$path" "$renamed_path"
             mv "$renamed_path" $RUNNER_TEMP/artifacts/tauri/
           done
