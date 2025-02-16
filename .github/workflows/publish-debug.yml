@@ -367,7 +367,7 @@ jobs:
       - name: Move and rename builds
         run: |
           mkdir -p $RUNNER_TEMP/artifacts/tauri/
-          paths=$(echo "${{ steps.build.outputs.artifactPaths }}" | sed 's/[\[\],]//g')
+          paths=$(echo "${{ steps.build.outputs.artifactPaths }}" | sed -e 's/[\[\]"]//g' -e 's/, /\n/g')
           for path in $paths; do
             renamed_path=$(echo "$path" | sed "s/${{ needs.metadata.outputs.version }}/${{ needs.metadata.outputs.version-name }}/g")
             mv "$path" "$renamed_path"
