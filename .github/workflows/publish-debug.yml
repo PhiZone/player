@@ -1,5 +1,5 @@
-name: Publish with Debug
-run-name: Publish builds with debug targets
+name: Publish (Debug)
+run-name: Publish debug builds
 on:
   push:
     branches:
@@ -213,14 +213,16 @@ jobs:
           -exportArchive -exportOptionsPlist $EXPORT_OPTIONS_PATH \
           -exportPath $RUNNER_TEMP/build -allowProvisioningUpdates
 
-      - name: Rename build file
-        run: mv $RUNNER_TEMP/build/App.ipa $RUNNER_TEMP/build/PhiZone.Player_${{ needs.metadata.outputs.version }}.ipa
+      - name: Move and rename build
+        run: |
+          mkdir -p $RUNNER_TEMP/artifacts/ios/
+          mv $RUNNER_TEMP/build/App.ipa $RUNNER_TEMP/artifacts/ios/PhiZone.Player_${{ needs.metadata.outputs.version }}.ipa
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: capacitor-ios-${{ needs.metadata.outputs.version-name }}
-          path: $RUNNER_TEMP/build/PhiZone.Player_${{ needs.metadata.outputs.version }}.ipa
+          path: $RUNNER_TEMP/artifacts/ios/
 
       - name: Clean up keychain and provisioning profile
         if: ${{ always() }}
@@ -283,16 +285,16 @@ jobs:
           keyStorePassword: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
           zipAlign: true
 
-      - name: Rename builds
+      - name: Move and rename builds
         run: |
-          mv android/app/build/outputs/bundle/release/app-release.aab android/app/build/outputs/bundle/release/PhiZone.Player_${{ needs.metadata.outputs.version }}.aab
-          mv ${{ steps.sign-apk.outputs.signedReleaseFile }} android/app/build/outputs/apk/release/PhiZone.Player_${{ needs.metadata.outputs.version }}.apk
+          mv android/app/build/outputs/bundle/release/app-release.aab $RUNNER_TEMP/artifacts/android/PhiZone.Player_${{ needs.metadata.outputs.version }}.aab
+          mv ${{ steps.sign-apk.outputs.signedReleaseFile }} $RUNNER_TEMP/artifacts/android/PhiZone.Player_${{ needs.metadata.outputs.version }}.apk
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: capacitor-android-${{ needs.metadata.outputs.version-name }}
-          path: android/app/build/outputs/apk/release/*
+          path: $RUNNER_TEMP/artifacts/android/
 
   publish-tauri:
     name: Build with Tauri
@@ -362,16 +364,16 @@ jobs:
           prerelease: true
           args: ${{ matrix.args }}
 
-      - name: Generate artifact info
-        id: info
+      - name: Move builds
         run: |
-          echo "Artifact Paths: ${{ steps.build.outputs.artifactPaths }}"
-          echo "NAME=tauri-${{ matrix.platform }}-$(echo ${{ matrix.args }} | sed 's/.* //')-${{ needs.metadata.outputs.version-name }}" >> $GITHUB_OUTPUT
-          echo "PATH=${{ steps.build.outputs.artifactPaths }}" >> $GITHUB_OUTPUT
+          mkdir -p $RUNNER_TEMP/artifacts/tauri/
+          for path in ${{ steps.build.outputs.artifactPaths }}; do
+            mv "$path" $RUNNER_TEMP/artifacts/tauri/
+          done
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.info.outputs.NAME }}
-          path: ${{ steps.info.outputs.PATH }}
+          name: tauri-${{ matrix.platform }}-$(echo ${{ matrix.args }} | sed 's/.* //')-${{ needs.metadata.outputs.version-name }}
+          path: $RUNNER_TEMP/artifacts/tauri/
 
