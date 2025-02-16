@@ -239,24 +239,18 @@
       App.addListener('appUrlOpen', (event: URLOpenListenerEvent) => {
         handleRedirect(event.url);
       });
-      SendIntent.checkSendIntentReceived()
-        .then((result) => {
-          if (result) {
-            console.log('SendIntent received');
-            console.log(JSON.stringify(result));
-          }
-          if (result.url) {
-            let resultUrl = decodeURIComponent(result.url);
-            Filesystem.readFile({ path: resultUrl })
-              .then((content) => {
-                decompress(content.data as Blob).then((files) => {
-                  handleFiles(files);
-                });
-              })
-              .catch((err) => console.error(err));
-          }
-        })
-        .catch((err) => console.error(err));
+      const result = await SendIntent.checkSendIntentReceived();
+      if (result) {
+        console.log('SendIntent received');
+        console.log(JSON.stringify(result));
+      }
+      if (result.url) {
+        let resultUrl = decodeURIComponent(result.url);
+        const file = await Filesystem.readFile({ path: resultUrl });
+        const blob = new Blob([file.data]);
+        await handleFiles(await decompress(blob));
+        SendIntent.finish();
+      }
     }
 
     send({
