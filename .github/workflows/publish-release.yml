@@ -115,7 +115,7 @@ jobs:
           -exportArchive -exportOptionsPlist $EXPORT_OPTIONS_PATH \
           -exportPath $RUNNER_TEMP/build -allowProvisioningUpdates
 
-      - name: Rename build file
+      - name: Rename build
         run: mv $RUNNER_TEMP/build/App.ipa $RUNNER_TEMP/build/PhiZone.Player_${{ needs.metadata.outputs.version }}.ipa
 
       - name: Publish release
