@@ -1,4 +1,4 @@
-name: Publish
+name: Publish (Release)
 run-name: Publish release builds
 on:
   workflow_dispatch:
