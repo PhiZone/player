@@ -122,15 +122,15 @@ jobs:
           -exportArchive -exportOptionsPlist $EXPORT_OPTIONS_PATH \
           -exportPath $RUNNER_TEMP/build -allowProvisioningUpdates
 
-      - name: Rename build file
-        run: mv $RUNNER_TEMP/build/App.ipa $RUNNER_TEMP/build/PhiZone.Player_${{ needs.metadata.outputs.version }}.ipa
+      - name: Rename build
+        run: mv $RUNNER_TEMP/build/App.ipa $RUNNER_TEMP/build/PhiZone.Player_${{ needs.metadata.outputs.version-name }}.ipa
 
       - name: Publish release
         run: |
           gh release create "v${{ needs.metadata.outputs.version-name }}" \
           --title "v${{ needs.metadata.outputs.version }} ${{ needs.metadata.outputs.current-week }}" \
           --notes "Automated snapshot release. See the assets for downloads." --prerelease \
-          $RUNNER_TEMP/build/PhiZone.Player_${{ needs.metadata.outputs.version }}.ipa
+          $RUNNER_TEMP/build/PhiZone.Player_${{ needs.metadata.outputs.version-name }}.ipa
         env:
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
 
@@ -203,8 +203,8 @@ jobs:
       - name: Publish release
         run: |
           gh release upload "v${{ needs.metadata.outputs.version-name }}" \
-          android/app/build/outputs/bundle/release/PhiZone.Player_${{ needs.metadata.outputs.version }}.aab \
-          android/app/build/outputs/apk/release/PhiZone.Player_${{ needs.metadata.outputs.version }}.apk
+          android/app/build/outputs/bundle/release/PhiZone.Player_${{ needs.metadata.outputs.version-name }}.aab \
+          android/app/build/outputs/apk/release/PhiZone.Player_${{ needs.metadata.outputs.version-name }}.apk
         env:
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
 
@@ -264,15 +264,29 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm i
 
-      - name: Build and publish
+      - name: Build
+        id: build
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           PUBLIC_SENTRY_DSN: ${{ vars.PUBLIC_SENTRY_DSN }}
           PUBLIC_FFMPEG_URL:
         with:
-          tagName: v${{ needs.metadata.outputs.version-name }}
-          releaseName: 'v${{ needs.metadata.outputs.version }} ${{ needs.metadata.outputs.current-week }}'
-          releaseBody: 'Automated snapshot release. See the assets for downloads.'
-          prerelease: true
           args: ${{ matrix.args }}
+
+      - name: Rename builds
+        run: |
+          paths=$(echo "${{ steps.build.outputs.artifactPaths }}" | sed 's/[\[\],]//g')
+          renamed_paths=""
+          for path in $paths; do
+            renamed_path=$(echo "$path" | sed "s/${{ needs.metadata.outputs.version }}/${{ needs.metadata.outputs.version-name }}/g")
+            mv "$path" "$renamed_path"
+            renamed_paths="$renamed_paths $renamed_path"
+          done
+          echo "RENAMED_PATHS=$renamed_paths" >> $GITHUB_ENV
+
+      - name: Publish release
+        run: |
+          gh release upload "v${{ needs.metadata.outputs.version-name }}" $RENAMED_PATHS
+        env:
+          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
