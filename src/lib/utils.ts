@@ -309,19 +309,28 @@ export const versionCompare = (aString: string, bString: string) => {
   return 0;
 };
 
-export const notify = (message: string, clickCallback?: () => void) => {
-  const ID = `notification-${performance.now()}`;
-  Notiflix.Notify.info(message, {
-    ID,
+const notiflix = (message: string, type: 'info' | 'warning' | 'failure' | 'success' = 'info') => {
+  const id = `notiflix-${type}-${performance.now()}`;
+  Notiflix.Notify[type](message, {
+    ID: id,
     cssAnimationStyle: 'from-right',
     showOnlyTheLastOne: false,
     opacity: 0.9,
     borderRadius: '12px',
   });
+  return id;
+};
+
+export const notify = (
+  message: string,
+  type: 'info' | 'warning' | 'failure' | 'success' = 'info',
+  clickCallback?: () => void,
+) => {
+  const id = notiflix(message, type);
   if (!clickCallback) return;
   document
     .querySelectorAll('.notiflix-notify')
-    ?.forEach((e) => e.id.startsWith(ID) && e.addEventListener('click', clickCallback));
+    ?.forEach((e) => e.id.startsWith(id) && e.addEventListener('click', clickCallback));
 };
 
 export const alertError = (error: Error, message?: string) => {
@@ -337,17 +346,10 @@ export const alertError = (error: Error, message?: string) => {
   }
   if (message) message2 = message;
   const errMessage = `(Click to copy) [${type}] ${message2.split('\n')[0]}`;
-  const ID = `msgHandlerErr-${performance.now()}`;
-  Notiflix.Notify.failure(errMessage, {
-    ID,
-    cssAnimationStyle: 'from-right',
-    showOnlyTheLastOne: false,
-    opacity: 0.9,
-    borderRadius: '12px',
-  });
+  const id = notiflix(errMessage, 'failure');
   document.querySelectorAll('.notiflix-notify')?.forEach(
     (e) =>
-      e.id.startsWith(ID) &&
+      e.id.startsWith(id) &&
       e.addEventListener('click', async () => {
         const text = error.stack ?? `${error.name}: ${error.message}`;
         if (Capacitor.getPlatform() === 'web') navigator.clipboard.writeText(text);
