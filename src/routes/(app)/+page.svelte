@@ -251,8 +251,15 @@
         console.log(JSON.stringify(file));
         console.log(file.data);
         const blob = new Blob([file.data]);
-        await handleFiles(await decompress(blob));
-        SendIntent.finish();
+        decompress(blob)
+          .then((files) =>
+            handleFiles(files)
+              .then(() => {
+                SendIntent.finish();
+              })
+              .catch(console.error),
+          )
+          .catch(console.error);
       }
     }
 
