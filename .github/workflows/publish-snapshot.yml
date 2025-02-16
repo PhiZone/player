@@ -289,7 +289,7 @@ jobs:
             renamed_path=$(echo "$original_path" | sed "s/PhiZone Player_${{ needs.metadata.outputs.version }}(-1)?/PhiZone.Player_${{ needs.metadata.outputs.version-name }}/g")
             echo "Renaming: $original_path -> $renamed_path"
             mv "$original_path" "$renamed_path"
-            renamed_paths="$renamed_paths $renamed_path"
+            renamed_paths="$renamed_paths '$renamed_path'"
           done
           echo "RENAMED_PATHS=$renamed_paths" >> $GITHUB_ENV
 
