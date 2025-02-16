@@ -21,16 +21,18 @@ Designed with [Preline UI](https://preline.co/) and [daisyUI](https://daisyui.co
 
 Choose either some files (or .zip/.pez archives) or an entire folder, and chart bundles will be automatically detected according to Re: PhiEdit (or RPE) metadata files (typically named `info.txt`) in which a chart, a song, and an illustration are specified. Any other files that fail to be recognized, which are most likely multimedia that will be referenced by the chart, or the `extra.json` from Phira, will be presented in the assets.
 
+On desktop platforms, you can open .zip/.pez archives directly with the PhiZone Player app.
+
 Additionally, the program can automatically download files from URLs specified in the `zip` and `file` search parameters. A `zip` parameter should be provided a URL to a zip archive, while a `file` parameter should be provided a URL to a regular file.
 
 ### Innovative keyboard controls
 
-Similar to a video player, the program includes handy keyboard controls on autoplay mode:
+Similar to a video player, the program includes handy keyboard controls that are available in autoplay/practice mode:
 
-- Pause/Resume: Press <kbd>Space</kbd> to toggle.
+- Pause/Resume: Press <kbd>Space</kbd> to toggle. (In practice mode, press <kbd>⇧ Shift</kbd>+<kbd>Space</kbd> to pause.)
 - Rewind/Forward: Use <kbd>←</kbd> / <kbd>→</kbd> to jump 5 seconds, or <kbd>⇧ Shift</kbd>+<kbd>←</kbd> / <kbd>⇧ Shift</kbd>+<kbd>→</kbd> for precise 0.1-second adjustments.
 
-Besides, <kbd>ESC</kbd> is always available to pause with the pause screen.
+Besides, <kbd>ESC</kbd> is always available to pause with/resume from the pause screen, and you can use alphanumeric and punctuation keys on your keyboard to hit the notes when autoplay is off.
 
 ### APNG support
 
@@ -218,11 +220,11 @@ Notice that there are two events that share the same shader code. This is a work
 | PE support                                        | 0.1.2   |                                                                                                                                          | ✅ Done             | PE 适配                          |
 | Keyboard input                                    | 0.1.2   |                                                                                                                                          | ✅ Done             | 键盘输入                         |
 | Send intent for iOS                               | 0.1.3   |                                                                                                                                          | 🚧 Working          | 适用于 iOS 的发送意图            |
-| Customizable resource pack                        | 0.1.4   |                                                                                                                                          |                     | 可自定义资源包                   |
-| Local chart bundle storage                        | 0.1.5   |                                                                                                                                          |                     | 本地谱包存储                     |
-| Alignment with official/RPE constants             | 0.1.6   | Hold tolerances, texture size units, etc.                                                                                                |                     | 官/RPE 常数对齐                  |
-| Masking lines                                     | 0.1.7   | Polygon-shaped masks applied to notes (or optionally lines), defined by one or several lines (masking lines) and the screen edges        |                     | 遮罩线                           |
-| Recording mode                                    | 0.1.8   | Will possibly implement streaming mode instead, in consideration of the native media recorder API only exporting janky/broken recordings | ⏳ Postponed        | 录制模式                         |
+| Customizable resource pack                        | 0.1.3   |                                                                                                                                          |                     | 可自定义资源包                   |
+| Local chart bundle storage                        | 0.1.4   |                                                                                                                                          |                     | 本地谱包存储                     |
+| Alignment with official/RPE constants             | 0.1.5   | Hold tolerances, texture size units, etc.                                                                                                |                     | 官/RPE 常数对齐                  |
+| Masking lines                                     | 0.1.6   | Polygon-shaped masks applied to notes (or optionally lines), defined by one or several lines (masking lines) and the screen edges        |                     | 遮罩线                           |
+| Recording mode                                    | 0.1.7   | Will possibly implement streaming mode instead, in consideration of the native media recorder API only exporting janky/broken recordings | ⏳ Postponed        | 录制模式                         |
 | PhiZone integration                               | 0.2.0   |                                                                                                                                          |                     | PhiZone 集成                     |
 | (Shader enhancement) Support for sampler uniforms | 0.2.1   |                                                                                                                                          | ⏳ Postponed        | （着色器增强）sampler 型变量支持 |
 | Refactoring with MonoGame                         | 1.0.0   |                                                                                                                                          |                     | 使用 MonoGame 重构               |
