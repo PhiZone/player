@@ -372,14 +372,13 @@ jobs:
           SPACE='.SPACE_PLACEHOLDER.'
           mkdir -p ~/artifacts/tauri/
           artifact_paths=$(echo '${{ steps.build.outputs.artifactPaths }}' | sed -e 's/\[//g; s/\]//g' -e 's/["]//g' -e 's/ /$SPACE/g')
-          echo "Paths: $artifact_paths"
           for artifact_path in $artifact_paths; do
             original_path=$(echo "$artifact_path" | sed -e 's/$SPACE/ /g')
             if [[ "$original_path" == *.app ]]; then
               echo "Skipping $original_path"
               continue
             fi
-            renamed_path=$(echo "$original_path" | sed -E "s/PhiZone Player_${{ needs.metadata.outputs.version }}/PhiZone.Player_${{ needs.metadata.outputs.version-name }}/g")
+            renamed_path=$(echo "$original_path" | sed -E "s/PhiZone Player_${{ needs.metadata.outputs.version }}(-1)?/PhiZone.Player_${{ needs.metadata.outputs.version-name }}/g")
             echo "Renaming: $original_path -> $renamed_path"
             mv "$original_path" "$renamed_path"
             mv "$renamed_path" ~/artifacts/tauri/
