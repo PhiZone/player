@@ -429,6 +429,8 @@ export class Game extends Scene {
     if (this._status === GameStatus.ERROR) return;
     this._status = GameStatus.LOADING;
     this._song.pause();
+    this._pointerHandler.reset();
+    this._keyboardHandler.reset();
     this._judgmentHandler.reset();
     this._song.setSeek(0);
     this._endingUI?.destroy();

@@ -60,3 +60,8 @@ export const JUDGMENT_THRESHOLD = 180;
     0 for no rounding; 100 for full rounding.
 */
 export const ENDING_ILLUSTRATION_CORNER_RADIUS = 12;
+
+/*
+    The regular expression to match keyboard inputs for playing.
+*/
+export const KEYBOARD_INPUT_REGEX = /^[0-9a-z`\-=[\]\\;',./ ]$/;

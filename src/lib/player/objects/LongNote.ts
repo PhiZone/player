@@ -29,7 +29,7 @@ export class LongNote extends GameObjects.Container {
   private _beatTempJudged: number | undefined = undefined;
   private _isInJudgeWindow: boolean = false;
   private _lastInputBeat: number = 0;
-  private _hasTapInput: boolean = false;
+  private _isTapped: 0 | 1 | 2 = 0;
   private _consumeTap: boolean = true;
 
   constructor(scene: Game, data: Note, highlight: boolean = false) {
@@ -147,7 +147,7 @@ export class LongNote extends GameObjects.Container {
           this._line.addToJudgeWindow(this);
           this._isInJudgeWindow = true;
         }
-        if (!this._hasTapInput) return;
+        if (!this._isTapped) return;
         if (delta < -perfectJudgment) {
           this._scene.judgment.hold(JudgmentType.GOOD_EARLY, deltaSec, this);
         } else if (delta <= perfectJudgment) {
@@ -156,11 +156,11 @@ export class LongNote extends GameObjects.Container {
           this._scene.judgment.hold(JudgmentType.GOOD_LATE, deltaSec, this);
         }
         this._lastInputBeat = beat;
-        this._hasTapInput = false;
+        this._isTapped = 0;
       }
     } else if (this._judgmentType === JudgmentType.UNJUDGED) {
       if (!this._scene.autoplay) {
-        const input = this._scene.pointer.findDrag(this);
+        const input = this._scene[this._isTapped === 1 ? 'pointer' : 'keyboard'].findDrag(this);
         if (input) {
           this._lastInputBeat = beat;
         } else if (
@@ -261,12 +261,12 @@ export class LongNote extends GameObjects.Container {
     return this._hitTime;
   }
 
-  public get hasTapInput() {
-    return this._hasTapInput;
+  public get isTapped() {
+    return this._isTapped;
   }
 
-  public set hasTapInput(hasTapInput: boolean) {
-    this._hasTapInput = hasTapInput;
+  public set isTapped(isTapped: 0 | 1 | 2) {
+    this._isTapped = isTapped;
   }
 
   public get tempJudgmentType() {

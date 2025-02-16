@@ -22,7 +22,7 @@ export class PlainNote extends SkewImage {
   private _beatJudged: number | undefined = undefined;
   private _isInJudgeWindow: boolean = false;
   private _pendingPerfect: boolean = false;
-  private _hasTapInput: boolean = false;
+  private _isTapped: 0 | 1 | 2 = 0;
   private _consumeTap: boolean = true;
 
   constructor(scene: Game, data: Note, highlight: boolean = false) {
@@ -139,9 +139,10 @@ export class PlainNote extends SkewImage {
           this._line.addToJudgeWindow(this);
           this._isInJudgeWindow = true;
         }
-        if (isTap && !this._hasTapInput) return;
-        this._hasTapInput = false;
-        if (!this._scene.pointer.findDrag(this, isFlick)) return;
+        if (isTap && !this._isTapped) return;
+        if (!this._scene[this._isTapped === 1 ? 'pointer' : 'keyboard'].findDrag(this, isFlick))
+          return;
+        this._isTapped = 0;
         if (isTap && delta < -goodJudgment) {
           this._scene.judgment.hit(JudgmentType.BAD, deltaSec, this);
         } else if (delta < -perfectJudgment) {
@@ -217,12 +218,12 @@ export class PlainNote extends SkewImage {
     return this._hitTime;
   }
 
-  public get hasTapInput() {
-    return this._hasTapInput;
+  public get isTapped() {
+    return this._isTapped;
   }
 
-  public set hasTapInput(hasTapInput: boolean) {
-    this._hasTapInput = hasTapInput;
+  public set isTapped(isTapped: 0 | 1 | 2) {
+    this._isTapped = isTapped;
   }
 
   public get consumeTap() {

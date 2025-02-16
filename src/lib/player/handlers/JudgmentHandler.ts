@@ -182,7 +182,7 @@ export class JudgmentHandler {
     this._judgmentDeltas = [];
   }
 
-  judgeTap(input: PointerTap) {
+  judgeTap(input?: PointerTap) {
     const threshold = this._scene.p(JUDGMENT_THRESHOLD);
 
     let nearestNote: PlainNote | LongNote | undefined = undefined;
@@ -190,25 +190,27 @@ export class JudgmentHandler {
     let minDistance: number = Infinity;
     let minType: number = Infinity;
 
-    const currentJudgeWindow = this._scene.lines
-      .flatMap((line) => line.judgeWindow)
-      .filter(
-        (note) =>
-          (Phaser.Math.Distance.BetweenPoints(
-            note.judgmentPosition,
-            getJudgmentPosition(input, note.line),
-          ) *
-            1350) /
-            this._scene.sys.canvas.width <=
-          threshold,
-      );
+    const judgeWindow = this._scene.lines.flatMap((line) => line.judgeWindow);
+    const currentJudgeWindow = !input
+      ? judgeWindow
+      : judgeWindow.filter(
+          (note) =>
+            (Phaser.Math.Distance.BetweenPoints(
+              note.judgmentPosition,
+              getJudgmentPosition(input, note.line),
+            ) *
+              1350) /
+              this._scene.sys.canvas.width <=
+            threshold,
+        );
     for (const note of currentJudgeWindow) {
-      if (!note.consumeTap || note.hasTapInput || note.judgmentType !== JudgmentType.UNJUDGED) {
+      if (!note.consumeTap || note.isTapped || note.judgmentType !== JudgmentType.UNJUDGED) {
         continue;
       }
-      const distanceActual =
-        (Phaser.Math.Distance.BetweenPoints(note.judgmentPosition, input.position) * 1350) /
-        this._scene.sys.canvas.width;
+      const distanceActual = input
+        ? (Phaser.Math.Distance.BetweenPoints(note.judgmentPosition, input.position) * 1350) /
+          this._scene.sys.canvas.width
+        : 0;
       // if (distanceRelative > threshold) {
       //   this._scene.tweens.add({
       //     targets: [
@@ -257,11 +259,11 @@ export class JudgmentHandler {
       }
     }
     if (nearestNote) {
-      nearestNote.hasTapInput = true;
+      nearestNote.isTapped = input ? 1 : 2;
       if (nearestNote.note.type >= 3) {
         for (const note of currentJudgeWindow) {
           if (!equal(note.note.startBeat, nearestNote.note.startBeat)) continue;
-          note.hasTapInput = true;
+          note.isTapped = input ? 1 : 2;
         }
       }
       // nearestNote.setTint(0x00ff00);

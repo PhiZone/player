@@ -361,7 +361,6 @@ export class GameUI {
     this._visible = visible;
     this._targets.forEach((obj) => {
       obj.setVisible(visible);
-      console.log(obj.name, visible);
     });
   }
 

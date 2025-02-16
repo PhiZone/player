@@ -169,4 +169,8 @@ export class PointerHandler {
   public get pointerDrags() {
     return this._pointerDrags;
   }
+
+  reset() {
+    this._pointerDrags = [];
+  }
 }
