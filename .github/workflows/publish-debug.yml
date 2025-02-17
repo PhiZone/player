@@ -108,7 +108,7 @@ jobs:
         env:
           PUBLIC_SENTRY_DSN: ${{ vars.PUBLIC_SENTRY_DSN }}
           PUBLIC_FFMPEG_URL:
-          PATH_BASE: /player
+          PATH_BASE: /player/
 
       - name: Create Sentry release
         uses: getsentry/action-release@v1

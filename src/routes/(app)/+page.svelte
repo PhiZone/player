@@ -788,7 +788,7 @@
       skipNull: true,
       sort: false,
     });
-    start(paramsString.length <= 15360 ? `${base}/play?${paramsString}` : `${base}/play`);
+    start(paramsString.length <= 15360 ? `${base}/play/?${paramsString}` : `${base}/play/`);
   };
 
   const downloadUrls = async (urls: string[]) => {
@@ -1756,9 +1756,9 @@
                   sort: false,
                 },
               );
-              let url = `${base}/play`;
+              let url = `${base}/play/`;
               if (params.length <= 15360) {
-                url = `${base}/play?${params}`;
+                url = `${base}/play/?${params}`;
               } else {
                 const config = {
                   resources: {
