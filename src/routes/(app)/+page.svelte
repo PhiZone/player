@@ -239,26 +239,8 @@
       App.addListener('appUrlOpen', (event: URLOpenListenerEvent) => {
         handleRedirect(event.url);
       });
-      addEventListener('sendIntentReceived', async () => {
-        const result = await SendIntent.checkSendIntentReceived();
-        if (result.url) {
-          showCollapse = true;
-          let resultUrl = decodeURIComponent(result.url);
-          const file = await Filesystem.readFile({ path: resultUrl });
-          const blob =
-            typeof file.data === 'string'
-              ? new Blob([
-                  new Uint8Array(
-                    atob(file.data as string)
-                      .split('')
-                      .map((char) => char.charCodeAt(0)),
-                  ),
-                ])
-              : file.data;
-          const files = await decompress(blob);
-          await handleFiles(files);
-        }
-      });
+      await handleSendIntent();
+      addEventListener('sendIntentReceived', handleSendIntent);
     }
 
     send({
@@ -383,6 +365,28 @@
     } else {
       const searchParams = new URL(url).searchParams;
       handleParamFiles(searchParams);
+    }
+  };
+
+  const handleSendIntent = async () => {
+    const result = await SendIntent.checkSendIntentReceived();
+    if (result.url) {
+      showCollapse = true;
+      let resultUrl = decodeURIComponent(result.url);
+      const file = await Filesystem.readFile({ path: resultUrl });
+      notify(JSON.stringify(file), 'info');
+      const blob =
+        typeof file.data === 'string'
+          ? new Blob([
+              new Uint8Array(
+                atob(file.data as string)
+                  .split('')
+                  .map((char) => char.charCodeAt(0)),
+              ),
+            ])
+          : file.data;
+      const files = await decompress(blob);
+      await handleFiles(files);
     }
   };
 
