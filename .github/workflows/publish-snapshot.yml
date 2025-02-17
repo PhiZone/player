@@ -2,12 +2,13 @@ name: Publish (Snapshot)
 run-name: Publish snapshot builds
 on:
   schedule:
-    - cron: '0 0 * * 1'
+    - cron: '0 4 * * 1'
   workflow_dispatch:
     inputs:
       iteration:
         description: The iteration for the snapshot
-        required: false
+        required: true
+        default: 'b'
 
 defaults:
   run:
