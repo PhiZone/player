@@ -37,12 +37,6 @@
                 <data android:scheme="https" android:host="player.phizone.cn" />
             </intent-filter>
 
-        </activity>
-
-        <activity
-            android:name="de.mindlib.sendIntent.SendIntentActivity"
-            android:label="@string/app_name" android:exported="true"
-            android:theme="@style/AppTheme.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
