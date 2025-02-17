@@ -240,11 +240,8 @@
         handleRedirect(event.url);
       });
       const result = await SendIntent.checkSendIntentReceived();
-      if (result) {
-        console.log('SendIntent received');
-        console.log(JSON.stringify(result));
-      }
       if (result.url) {
+        showCollapse = true;
         let resultUrl = decodeURIComponent(result.url);
         const file = await Filesystem.readFile({ path: resultUrl });
         const blob =
@@ -259,7 +256,6 @@
             : file.data;
         const files = await decompress(blob);
         await handleFiles(files);
-        // SendIntent.finish();
       }
     }
 
