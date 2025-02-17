@@ -51,6 +51,7 @@
   import { base } from '$app/paths';
   import { listen } from '@tauri-apps/api/event';
   import { invoke } from '@tauri-apps/api/core';
+  import { Clipboard } from '@capacitor/clipboard';
 
   interface FileEntry {
     id: number;
@@ -250,24 +251,23 @@
         console.log(result.url, resultUrl);
         console.log(JSON.stringify(file));
         console.log(file.data);
-        notify(result.url + ' === ' + resultUrl, 'info', async () => {
-          const text = JSON.stringify(file) + ' === ' + file.data;
-          navigator.clipboard.writeText(text);
+        const paste = `${JSON.stringify(result)}\n\n${resultUrl}\n\n${JSON.stringify(file)}\n\n${file.data}`;
+        const response = await fetch('https://paste.rs', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/plain',
+          },
+          body: paste,
+        });
+        const text = await response.text();
+        notify(text, 'warning', async () => {
+          if (Capacitor.getPlatform() === 'web') navigator.clipboard.writeText(text);
+          else await Clipboard.write({ string: text });
         });
         const blob = new Blob([file.data]);
-        decompress(blob)
-          .then((files) =>
-            handleFiles(files)
-              .then(() => {
-                SendIntent.finish();
-              })
-              .catch((e) => {
-                console.error(e);
-              }),
-          )
-          .catch((e) => {
-            console.error(e);
-          });
+        const files = await decompress(blob);
+        await handleFiles(files);
+        SendIntent.finish();
       }
     }
 
