@@ -1,5 +1,2 @@
-.github
-.prettierignore
-android
-ios
-src-tauri
+/*
+!build
