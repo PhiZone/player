@@ -4,4 +4,4 @@ This line of code is to tell sveltekit to not render the page in the server and 
 */
 export const prerender = true;
 export const ssr = false;
-export const trailingSlash = 'always';
+// export const trailingSlash = 'always';
