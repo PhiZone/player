@@ -250,6 +250,10 @@
         console.log(result.url, resultUrl);
         console.log(JSON.stringify(file));
         console.log(file.data);
+        notify(result.url + ' === ' + resultUrl, 'info', async () => {
+          const text = JSON.stringify(file) + ' === ' + file.data;
+          navigator.clipboard.writeText(text);
+        });
         const blob = new Blob([file.data]);
         decompress(blob)
           .then((files) =>
@@ -257,9 +261,13 @@
               .then(() => {
                 SendIntent.finish();
               })
-              .catch(console.error),
+              .catch((e) => {
+                console.error(e);
+              }),
           )
-          .catch(console.error);
+          .catch((e) => {
+            console.error(e);
+          });
       }
     }
 
