@@ -259,7 +259,7 @@
             : file.data;
         const files = await decompress(blob);
         await handleFiles(files);
-        SendIntent.finish();
+        // SendIntent.finish();
       }
     }
 
