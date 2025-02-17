@@ -96,7 +96,7 @@ jobs:
         run: pnpm i
 
       - name: Create build
-        run: pnpm build
+        run: pnpm build:only
         env:
           PUBLIC_SENTRY_DSN: ${{ vars.PUBLIC_SENTRY_DSN }}
           PUBLIC_FFMPEG_URL:
