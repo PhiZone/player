@@ -51,7 +51,6 @@
   import { base } from '$app/paths';
   import { listen } from '@tauri-apps/api/event';
   import { invoke } from '@tauri-apps/api/core';
-  import { Clipboard } from '@capacitor/clipboard';
 
   interface FileEntry {
     id: number;
@@ -248,33 +247,8 @@
       if (result.url) {
         let resultUrl = decodeURIComponent(result.url);
         const file = await Filesystem.readFile({ path: resultUrl });
-        console.log(result.url, resultUrl);
-        console.log(JSON.stringify(file));
-        console.log(file.data);
-        // const response = await fetch('https://paste.rs', {
-        //   method: 'POST',
-        //   headers: {
-        //     'Content-Type': 'text/plain',
-        //   },
-        //   body: paste,
-        // });
-        // const text = await response.text();
-        let text = `${JSON.stringify(result)}\n\n${resultUrl}`;
-        notify(text, 'warning', async () => {
-          if (Capacitor.getPlatform() === 'web') navigator.clipboard.writeText(text);
-          else await Clipboard.write({ string: text });
-        });
-        text = `${JSON.stringify(file)}`;
-        notify(text, 'warning', async () => {
-          if (Capacitor.getPlatform() === 'web') navigator.clipboard.writeText(text);
-          else await Clipboard.write({ string: text });
-        });
-        text = `${file.data}`;
-        notify(text, 'warning', async () => {
-          if (Capacitor.getPlatform() === 'web') navigator.clipboard.writeText(text);
-          else await Clipboard.write({ string: text });
-        });
-        const blob = new Blob([file.data]);
+        test = file.data as string;
+        const blob = new Blob([file.data], { type: 'application/zip' });
         const files = await decompress(blob);
         await handleFiles(files);
         SendIntent.finish();
@@ -288,6 +262,8 @@
       },
     });
   });
+
+  let test: string = '';
 
   const init = async () => {
     if (!$page.url.searchParams.get('t')) {
@@ -1727,7 +1703,7 @@
           {/if}
         </div>
         <div class="flex gap-2">
-          <PreferencesModal bind:preferences class="w-1/2" />
+          <PreferencesModal bind:preferences bind:test class="w-1/2" />
           <button
             class="w-1/2 inline-flex justify-center items-center gap-x-3 text-center bg-gradient-to-tl from-blue-500 via-violet-500 to-fuchsia-500 dark:from-blue-700 dark:via-violet-700 dark:to-fuchsia-700 text-white text-sm font-medium rounded-md focus:outline-none py-3 px-4 transition-all duration-300 bg-size-200 bg-pos-0 hover:bg-pos-100"
             on:click={() => {
