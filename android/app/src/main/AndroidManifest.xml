@@ -46,16 +46,22 @@
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="application/zip" />
+                <data android:scheme="file" />
+                <data android:scheme="content" />
+                <data android:pathPattern=".*\\.pez" />
+                <data android:pathPattern=".*\\..*\\.pez" />
+                <data android:pathPattern=".*\\..*\\..*\\.pez" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\.pez" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\.pez" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\..*\\.pez" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\..*\\..*\\..*\\.pez" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
-                <data
-                    android:scheme="file"
-                    android:host="*"
-                    android:pathPattern="/.*\\.pez"
-                    android:mimeType="text/plain" />
+                <data android:scheme="file" />
+                <data android:scheme="content" />
+                <data android:mimeType="application/zip" />
             </intent-filter>
         </activity>
 
