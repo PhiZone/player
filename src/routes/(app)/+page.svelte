@@ -251,7 +251,6 @@
         console.log(result.url, resultUrl);
         console.log(JSON.stringify(file));
         console.log(file.data);
-        const text = `${JSON.stringify(result)}\n\n${resultUrl}\n\n${JSON.stringify(file)}\n\n${file.data}`;
         // const response = await fetch('https://paste.rs', {
         //   method: 'POST',
         //   headers: {
@@ -260,6 +259,17 @@
         //   body: paste,
         // });
         // const text = await response.text();
+        let text = `${JSON.stringify(result)}\n\n${resultUrl}`;
+        notify(text, 'warning', async () => {
+          if (Capacitor.getPlatform() === 'web') navigator.clipboard.writeText(text);
+          else await Clipboard.write({ string: text });
+        });
+        text = `${JSON.stringify(file)}`;
+        notify(text, 'warning', async () => {
+          if (Capacitor.getPlatform() === 'web') navigator.clipboard.writeText(text);
+          else await Clipboard.write({ string: text });
+        });
+        text = `${file.data}`;
         notify(text, 'warning', async () => {
           if (Capacitor.getPlatform() === 'web') navigator.clipboard.writeText(text);
           else await Clipboard.write({ string: text });
