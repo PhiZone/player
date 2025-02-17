@@ -3,12 +3,10 @@
 
   interface $$Props {
     preferences: Preferences;
-    test: string;
     class: string;
   }
 
   export let preferences: Preferences;
-  export let test: string;
 
   const minJudgment = 5;
 
@@ -533,9 +531,6 @@
           {/if}
         </select>
       </label>
-      {#if test}
-        <p>+ {test}</p>
-      {/if}
     </div>
   </div>
 </dialog>

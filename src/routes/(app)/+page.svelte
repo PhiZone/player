@@ -247,8 +247,16 @@
       if (result.url) {
         let resultUrl = decodeURIComponent(result.url);
         const file = await Filesystem.readFile({ path: resultUrl });
-        test = file.data as string;
-        const blob = new Blob([file.data], { type: 'application/zip' });
+        const blob =
+          typeof file.data === 'string'
+            ? new Blob([
+                new Uint8Array(
+                  atob(file.data as string)
+                    .split('')
+                    .map((char) => char.charCodeAt(0)),
+                ),
+              ])
+            : file.data;
         const files = await decompress(blob);
         await handleFiles(files);
         SendIntent.finish();
@@ -262,8 +270,6 @@
       },
     });
   });
-
-  let test: string = '';
 
   const init = async () => {
     if (!$page.url.searchParams.get('t')) {
@@ -1703,7 +1709,7 @@
           {/if}
         </div>
         <div class="flex gap-2">
-          <PreferencesModal bind:preferences bind:test class="w-1/2" />
+          <PreferencesModal bind:preferences class="w-1/2" />
           <button
             class="w-1/2 inline-flex justify-center items-center gap-x-3 text-center bg-gradient-to-tl from-blue-500 via-violet-500 to-fuchsia-500 dark:from-blue-700 dark:via-violet-700 dark:to-fuchsia-700 text-white text-sm font-medium rounded-md focus:outline-none py-3 px-4 transition-all duration-300 bg-size-200 bg-pos-0 hover:bg-pos-100"
             on:click={() => {
