@@ -239,24 +239,26 @@
       App.addListener('appUrlOpen', (event: URLOpenListenerEvent) => {
         handleRedirect(event.url);
       });
-      const result = await SendIntent.checkSendIntentReceived();
-      if (result.url) {
-        showCollapse = true;
-        let resultUrl = decodeURIComponent(result.url);
-        const file = await Filesystem.readFile({ path: resultUrl });
-        const blob =
-          typeof file.data === 'string'
-            ? new Blob([
-                new Uint8Array(
-                  atob(file.data as string)
-                    .split('')
-                    .map((char) => char.charCodeAt(0)),
-                ),
-              ])
-            : file.data;
-        const files = await decompress(blob);
-        await handleFiles(files);
-      }
+      addEventListener('sendIntentReceived', async () => {
+        const result = await SendIntent.checkSendIntentReceived();
+        if (result.url) {
+          showCollapse = true;
+          let resultUrl = decodeURIComponent(result.url);
+          const file = await Filesystem.readFile({ path: resultUrl });
+          const blob =
+            typeof file.data === 'string'
+              ? new Blob([
+                  new Uint8Array(
+                    atob(file.data as string)
+                      .split('')
+                      .map((char) => char.charCodeAt(0)),
+                  ),
+                ])
+              : file.data;
+          const files = await decompress(blob);
+          await handleFiles(files);
+        }
+      });
     }
 
     send({
