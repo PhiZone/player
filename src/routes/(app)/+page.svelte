@@ -225,11 +225,11 @@
       onOpenUrl((urls) => {
         handleRedirect(urls[0]);
       });
-      listen('incoming-files', async (event) => {
+      listen('files-opened', async (event) => {
         const filePaths = event.payload as string[];
         await handleFilePaths(filePaths);
       });
-      const result = await invoke('get_incoming_files');
+      const result = await invoke('get_files_opened');
       if (result) {
         await handleFilePaths(result as string[]);
       }
@@ -370,11 +370,11 @@
 
   const handleSendIntent = async () => {
     const result = await SendIntent.checkSendIntentReceived();
+    notify(JSON.stringify(result), 'info');
     if (result.url) {
       showCollapse = true;
       let resultUrl = decodeURIComponent(result.url);
       const file = await Filesystem.readFile({ path: resultUrl });
-      notify(JSON.stringify(file), 'info');
       const blob =
         typeof file.data === 'string'
           ? new Blob([
@@ -391,6 +391,7 @@
   };
 
   const handleFilePaths = async (filePaths: string[]) => {
+    if (filePaths.length === 0) return;
     showCollapse = true;
 
     let promises = await Promise.allSettled(

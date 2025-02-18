@@ -4,7 +4,7 @@ use tauri::Emitter;
 use tauri::Manager;
 use url::Url;
 
-static INCOMING_FILES: LazyLock<Mutex<Vec<PathBuf>>> = LazyLock::new(|| Mutex::new(vec![]));
+static FILES_OPENED: LazyLock<Mutex<Vec<PathBuf>>> = LazyLock::new(|| Mutex::new(vec![]));
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -14,11 +14,11 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             let mut files: Vec<PathBuf> = Vec::new();
-            parse_incoming_files(&mut files, args.iter().map(|s| s.to_string()));
+            parse_files_opened(&mut files, args.iter().map(|s| s.to_string()));
             let window = app.get_webview_window("main").expect("no main window");
             window
                 .emit(
-                    "incoming-files",
+                    "files-opened",
                     files
                         .into_iter()
                         .map(|f| f.to_string_lossy().into_owned())
@@ -36,7 +36,7 @@ pub fn run() {
                 app.deep_link().register_all()?;
 
                 // handle associated files
-                parse_incoming_files(&mut INCOMING_FILES.lock().unwrap(), std::env::args());
+                parse_files_opened(&mut FILES_OPENED.lock().unwrap(), std::env::args());
             }
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -47,12 +47,12 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_incoming_files])
+        .invoke_handler(tauri::generate_handler![get_files_opened])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
 
-fn parse_incoming_files<T: Iterator<Item = String>>(files: &mut Vec<PathBuf>, args: T) {
+fn parse_files_opened<T: Iterator<Item = String>>(files: &mut Vec<PathBuf>, args: T) {
     // seek for files in the command line arguments
     for maybe_file in args.skip(1) {
         // skip flags like -f or --flag
@@ -74,12 +74,12 @@ fn parse_incoming_files<T: Iterator<Item = String>>(files: &mut Vec<PathBuf>, ar
             files.push(PathBuf::from(maybe_file))
         }
     }
-    println!("incoming files ({:?}): {:?}", files.len(), files);
+    println!("files opened ({:?}): {:?}", files.len(), files);
 }
 
 #[tauri::command]
-fn get_incoming_files() -> Vec<String> {
-    INCOMING_FILES
+fn get_files_opened() -> Vec<String> {
+    FILES_OPENED
         .lock()
         .unwrap()
         .clone()
