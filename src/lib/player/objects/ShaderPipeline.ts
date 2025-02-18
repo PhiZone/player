@@ -108,7 +108,7 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
       });
     }
     this._isLoaded = true;
-    console.log('Shader', this._data.shader, 'loaded');
+    console.debug('Shader', this._data.shader, 'loaded');
   }
 
   update(beat: number, time: number) {
@@ -125,7 +125,7 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
         })
         .sort((a, b) => a.depth - b.depth);
       if (targets.length === 0) return;
-      console.log('Potential targets for', this._node.name, targets);
+      console.debug('Potential targets for', this._node.name, targets);
       let parent;
       if (targets.length === 1) {
         parent = targets[0].parent;
@@ -147,17 +147,17 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
         }
         targets = Array.from(result);
       }
-      console.log('Parent:', parent?.name);
+      console.debug('Parent:', parent?.name);
       if (parent !== ROOT) {
         parent.addChild(this._node);
         (parent as ShaderNode).object.add(this._node.object);
       }
-      console.log('Adding targets to', this.name, this._data, targets);
+      console.debug('Adding targets to', this.name, this._data, targets);
       targets.forEach((target) => {
         this._node!.addChild(target);
         this._node!.object.add(target.object);
       });
-      console.log(
+      console.debug(
         'Current tree:',
         this._scene.objects
           .map((o) => `\n${o.name} ${o.parent === ROOT ? 'ROOT' : o.parent.name}`)
@@ -181,7 +181,7 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
     if (!this.active) {
       if (this._targetsCollected && !this._node.parent) {
         this._targetsCollected = false;
-        console.log('Removing targets from', this.name);
+        console.debug('Removing targets from', this.name);
         this._node.object.removeAll();
         this._node.removeAll();
       }
