@@ -40,6 +40,7 @@ export class KeyboardHandler {
     if (!KEYBOARD_INPUT_REGEX.test(e.key)) {
       return;
     }
+    if (this._scene.autoplay || this._scene.status !== GameStatus.PLAYING) return;
     this._keysDown.add(e.key);
     console.debug('+', e.key, this._keysDown);
     this._scene.judgment.judgeTap();
@@ -52,6 +53,7 @@ export class KeyboardHandler {
     if (!KEYBOARD_INPUT_REGEX.test(e.key)) {
       return;
     }
+    if (this._scene.autoplay || this._scene.status !== GameStatus.PLAYING) return;
     this._keysDown.delete(e.key);
     console.debug('-', e.key, this._keysDown);
   }
