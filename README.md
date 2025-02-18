@@ -1,8 +1,6 @@
 # PhiZone Player
 
-<p align="center">
-  <img src="resources/icon-only.png" alt="PhiZone Player Logo" width="300" />
-</p>
+![PhiZone Player Banner](resources/banner.png)
 
 PhiZone Player is an HTML5 Phigros chart player/simulator based on Phaser.
 
