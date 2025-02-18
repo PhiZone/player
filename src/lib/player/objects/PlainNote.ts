@@ -22,7 +22,7 @@ export class PlainNote extends SkewImage {
   private _beatJudged: number | undefined = undefined;
   private _isInJudgeWindow: boolean = false;
   private _pendingPerfect: boolean = false;
-  private _isTapped: 0 | 1 | 2 = 0;
+  private _isTapped: boolean = false;
   private _consumeTap: boolean = true;
 
   constructor(scene: Game, data: Note, highlight: boolean = false) {
@@ -140,9 +140,12 @@ export class PlainNote extends SkewImage {
           this._isInJudgeWindow = true;
         }
         if (isTap && !this._isTapped) return;
-        if (!this._scene[this._isTapped === 1 ? 'pointer' : 'keyboard'].findDrag(this, isFlick))
+        this._isTapped = false;
+        if (
+          !this._scene.keyboard.findDrag(this, isFlick) &&
+          !this._scene.pointer.findDrag(this, isFlick)
+        )
           return;
-        this._isTapped = 0;
         if (isTap && delta < -goodJudgment) {
           this._scene.judgment.hit(JudgmentType.BAD, deltaSec, this);
         } else if (delta < -perfectJudgment) {
@@ -222,7 +225,7 @@ export class PlainNote extends SkewImage {
     return this._isTapped;
   }
 
-  public set isTapped(isTapped: 0 | 1 | 2) {
+  public set isTapped(isTapped: boolean) {
     this._isTapped = isTapped;
   }
 

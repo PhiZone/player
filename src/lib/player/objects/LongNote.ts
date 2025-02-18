@@ -29,7 +29,7 @@ export class LongNote extends GameObjects.Container {
   private _beatTempJudged: number | undefined = undefined;
   private _isInJudgeWindow: boolean = false;
   private _lastInputBeat: number = 0;
-  private _isTapped: 0 | 1 | 2 = 0;
+  private _isTapped: boolean = false;
   private _consumeTap: boolean = true;
 
   constructor(scene: Game, data: Note, highlight: boolean = false) {
@@ -156,11 +156,11 @@ export class LongNote extends GameObjects.Container {
           this._scene.judgment.hold(JudgmentType.GOOD_LATE, deltaSec, this);
         }
         this._lastInputBeat = beat;
-        this._isTapped = 0;
+        this._isTapped = false;
       }
     } else if (this._judgmentType === JudgmentType.UNJUDGED) {
       if (!this._scene.autoplay) {
-        const input = this._scene[this._isTapped === 1 ? 'pointer' : 'keyboard'].findDrag(this);
+        const input = this._scene.keyboard.findDrag(this) || this._scene.pointer.findDrag(this);
         if (input) {
           this._lastInputBeat = beat;
         } else if (
@@ -265,7 +265,7 @@ export class LongNote extends GameObjects.Container {
     return this._isTapped;
   }
 
-  public set isTapped(isTapped: 0 | 1 | 2) {
+  public set isTapped(isTapped: boolean) {
     this._isTapped = isTapped;
   }
 

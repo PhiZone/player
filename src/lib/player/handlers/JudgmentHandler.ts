@@ -259,11 +259,11 @@ export class JudgmentHandler {
       }
     }
     if (nearestNote) {
-      nearestNote.isTapped = input ? 1 : 2;
+      nearestNote.isTapped = true;
       if (nearestNote.note.type >= 3) {
         for (const note of currentJudgeWindow) {
           if (!equal(note.note.startBeat, nearestNote.note.startBeat)) continue;
-          note.isTapped = input ? 1 : 2;
+          note.isTapped = true;
         }
       }
       // nearestNote.setTint(0x00ff00);
