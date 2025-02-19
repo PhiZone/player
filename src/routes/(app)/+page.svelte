@@ -266,7 +266,7 @@
       }
 
       if (
-        IS_TAURI ||
+        (IS_TAURI && navigator.onLine) ||
         (Capacitor.getPlatform() !== 'web' && (await Network.getStatus()).connected)
       ) {
         checkForUpdates();
