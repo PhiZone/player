@@ -25,6 +25,8 @@ Choose either some files (or .zip/.pez archives) or an entire folder, and chart 
 
 On desktop platforms, you can open .zip/.pez archives directly with the PhiZone Player app.
 
+On Android, you can share chart archives to the app so that it can receive and resolve them.
+
 Additionally, the program can automatically download files from URLs specified in the `zip` and `file` search parameters. A `zip` parameter should be provided a URL to a zip archive, while a `file` parameter should be provided a URL to a regular file.
 
 ### Innovative keyboard controls
@@ -217,7 +219,7 @@ Notice that there are two events that share the same shader code. This is a work
 | Optimized shader node insertion logic             | 0.1.1   |                                                                                                                                          | ✅ Done             | 着色器节点插入逻辑优化           |
 | New version notification                          | 0.1.1   |                                                                                                                                          | ✅ Done             | 新版本通知                       |
 | File association                                  | 0.1.2   | For desktop distributions                                                                                                                | ✅ Done             | 文件关联                         |
-| Send intent for Android                           | 0.1.2   |                                                                                                                                          | 🚧 Working          | 适用于 Android 的发送意图        |
+| Send intent for Android                           | 0.1.2   |                                                                                                                                          | ✅ Done<sup>2</sup> | 适用于 Android 的发送意图        |
 | Channel messaging                                 | 0.1.2   | Send/receive message events                                                                                                              | ✅ Done             | 频道通信                         |
 | PE support                                        | 0.1.2   |                                                                                                                                          | ✅ Done             | PE 适配                          |
 | Keyboard input                                    | 0.1.2   |                                                                                                                                          | ✅ Done             | 键盘输入                         |
@@ -234,7 +236,8 @@ Notice that there are two events that share the same shader code. This is a work
 | Editor mode                                       | 2.0.0   |                                                                                                                                          |                     | 编辑模式                         |
 | Sceneplex                                         | 2.1.0   | UML/DSL for fully-customizable scenes                                                                                                    |                     | 场景综合演绎                     |
 
-<sup>1</sup> Support for fragment shaders is partial, due to WebGL relying on an older version of GLSL.
+<sup>1</sup> Support for fragment shaders is partial, due to WebGL relying on an older version of GLSL.  
+<sup>2</sup> The app currently shows up for `application/zip` and `application/octet-stream` files. This is not the desired behavior and is subject to change.
 
 A version is reached whenever at least one feature from this version is marked as `🚧 Working`, and all features from the previous versions are marked as `✅ Done`. A version is released only when all features from this version and the previous versions are marked as `✅ Done`.
 
