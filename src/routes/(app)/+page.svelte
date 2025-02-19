@@ -409,7 +409,8 @@
     }
   };
 
-  const handleFilePaths = async (paths: any[], handler: (path: any) => Promise<File>) => {
+  // SvelteKit somehow does not support the lambda form of this function
+  async function handleFilePaths<T>(paths: T[], handler: (path: T) => Promise<File>) {
     if (paths.length === 0) return;
     showCollapse = true;
 
@@ -438,7 +439,7 @@
       }
     }
     await handleFiles(regularFiles);
-  };
+  }
 
   const shareId = (a: FileEntry, b: FileEntry) =>
     a.file.name.split('.').slice(0, -1).join('.') === b.file.name.split('.').slice(0, -1).join('.');
