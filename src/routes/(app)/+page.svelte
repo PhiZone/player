@@ -147,6 +147,8 @@
 
   let timeouts: NodeJS.Timeout[] = [];
 
+  let isFirstLoad = !$page.url.searchParams.get('t');
+
   onMount(async () => {
     if (directoryInput) directoryInput.webkitdirectory = true;
 
@@ -234,9 +236,11 @@
         const filePaths = event.payload as string[];
         await handleFilePaths(filePaths, handler);
       });
-      const result = await invoke('get_files_opened');
-      if (result) {
-        await handleFilePaths(result as string[], handler);
+      if (isFirstLoad) {
+        const result = await invoke('get_files_opened');
+        if (result) {
+          await handleFilePaths(result as string[], handler);
+        }
       }
     }
 
@@ -244,7 +248,7 @@
       App.addListener('appUrlOpen', (event: URLOpenListenerEvent) => {
         handleRedirect(event.url);
       });
-      await handleSendIntent();
+      if (isFirstLoad) await handleSendIntent();
       addEventListener('sendIntentReceived', handleSendIntent);
     }
 
@@ -257,7 +261,7 @@
   });
 
   const init = async () => {
-    if (!$page.url.searchParams.get('t')) {
+    if (isFirstLoad) {
       const url = IS_TAURI ? (await getCurrent())?.at(0) : undefined;
       if (url) {
         const params = getParams(url, false);
