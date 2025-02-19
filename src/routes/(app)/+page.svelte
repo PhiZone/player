@@ -43,7 +43,7 @@
   import { App, type URLOpenListenerEvent } from '@capacitor/app';
   import { page } from '$app/stores';
   import { REPO_API_LINK, REPO_LINK, VERSION } from '$lib';
-  import { SendIntent } from 'send-intent';
+  import { SendIntent, type Intent } from 'send-intent';
   import { Filesystem } from '@capacitor/filesystem';
   import { tempDir } from '@tauri-apps/api/path';
   import { download as tauriDownload } from '@tauri-apps/plugin-upload';
@@ -226,13 +226,17 @@
       onOpenUrl((urls) => {
         handleRedirect(urls[0]);
       });
+      const handler = async (path: string) => {
+        const data = await readFile(path);
+        return new File([data], path.split('/').pop() ?? path.split('\\').pop() ?? path);
+      };
       listen('files-opened', async (event) => {
         const filePaths = event.payload as string[];
-        await handleFilePaths(filePaths);
+        await handleFilePaths(filePaths, handler);
       });
       const result = await invoke('get_files_opened');
       if (result) {
-        await handleFilePaths(result as string[]);
+        await handleFilePaths(result as string[], handler);
       }
     }
 
@@ -382,35 +386,31 @@
     const result = await SendIntent.checkSendIntentReceived();
     notify(JSON.stringify(result), 'info');
     if (result.url) {
-      showCollapse = true;
-      let resultUrl = decodeURIComponent(result.url);
-      const file = await Filesystem.readFile({ path: resultUrl });
-      const blob =
-        typeof file.data === 'string'
-          ? new Blob([
-              new Uint8Array(
-                atob(file.data as string)
-                  .split('')
-                  .map((char) => char.charCodeAt(0)),
-              ),
-            ])
-          : file.data;
-      const files = await decompress(blob);
-      await handleFiles(files);
+      await handleFilePaths([result], async (result: Intent) => {
+        let resultUrl = decodeURIComponent(result.url!);
+        const file = await Filesystem.readFile({ path: resultUrl });
+        const blob =
+          typeof file.data === 'string'
+            ? new Blob([
+                new Uint8Array(
+                  atob(file.data as string)
+                    .split('')
+                    .map((char) => char.charCodeAt(0)),
+                ),
+              ])
+            : file.data;
+        return new File([blob], result.title ?? '');
+      });
     }
   };
 
-  const handleFilePaths = async (filePaths: string[]) => {
-    if (filePaths.length === 0) return;
+  const handleFilePaths = async (paths: any[], handler: (path: any) => Promise<File>) => {
+    if (paths.length === 0) return;
     showCollapse = true;
 
     let promises = await Promise.allSettled(
-      filePaths.map(async (filePath) => {
-        const data = await readFile(filePath);
-        return new File(
-          [data],
-          filePath.split('/').pop() ?? filePath.split('\\').pop() ?? filePath,
-        );
+      paths.map(async (filePath) => {
+        return handler(filePath);
       }),
     );
 
