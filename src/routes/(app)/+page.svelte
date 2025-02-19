@@ -18,6 +18,7 @@
   import {
     clamp,
     fit,
+    getLines,
     getParams,
     haveSameKeys,
     inferLevelType,
@@ -648,7 +649,7 @@
             console.debug('Chart is not a valid RPE JSON:', e);
           }
         }
-        if (isPec(chartContent.split(/\r?\n/).slice(0, 2))) {
+        if (isPec(getLines(chartContent).slice(0, 2))) {
           chartSuccess = true;
         }
         if (chartSuccess) {
@@ -704,19 +705,26 @@
       audioFiles.length > 0 &&
       imageFiles.length > 0
     ) {
+      let metadata = {
+        name: '',
+        song: '',
+        picture: '',
+        chart: '',
+        composer: '',
+        charter: '',
+        illustration: '',
+        level: '',
+      };
       try {
-        await createBundle(
-          chartFiles[0],
+        metadata = readMetadata(
           undefined,
-          undefined,
-          readMetadata(undefined, (JSON.parse(await chartFiles[0].file.text()) as RpeJson).META),
-          undefined,
-          true,
+          (JSON.parse(await chartFiles[0].file.text()) as RpeJson).META,
         );
-        bundlesResolved++;
       } catch (e) {
         console.debug('Chart is not a valid RPE JSON:', e);
       }
+      await createBundle(chartFiles[0], undefined, undefined, metadata, undefined, true);
+      bundlesResolved++;
     }
     if (chartBundles.length > 0 && selectedBundle === -1) {
       currentBundle = chartBundles[0];

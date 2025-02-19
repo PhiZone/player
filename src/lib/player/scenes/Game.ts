@@ -1,6 +1,6 @@
 import { Cameras, GameObjects, Renderer, Scene, Sound } from 'phaser';
 import { EventBus } from '../EventBus';
-import { inferLevelType, fit, send } from '$lib/utils';
+import { inferLevelType, fit, send, getLines } from '$lib/utils';
 import {
   processIllustration,
   loadJson,
@@ -293,7 +293,7 @@ export class Game extends Scene {
       if (this._lineCsvUrl) {
         const lineCsv = await loadText(this._lineCsvUrl, 'line.csv');
         if (lineCsv) {
-          const [_header, ...rows] = lineCsv.split(/\r?\n/);
+          const [_header, ...rows] = getLines(lineCsv);
           const data = rows.map((row) => row.split(','));
           if (data.length > 0 && data[0].length >= 3) {
             data.forEach((row) => {

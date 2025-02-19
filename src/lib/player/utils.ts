@@ -34,7 +34,7 @@ import { ROOT, type Node } from './objects/Node';
 import { tempDir } from '@tauri-apps/api/path';
 import { download as tauriDownload } from '@tauri-apps/plugin-upload';
 import { readFile, remove } from '@tauri-apps/plugin-fs';
-import { clamp, IS_IFRAME, IS_TAURI, isPec, send } from '$lib/utils';
+import { clamp, getLines, IS_IFRAME, IS_TAURI, isPec, send } from '$lib/utils';
 import PhiEditerConverter from './converter/phiediter';
 import 'context-filter-polyfill';
 
@@ -152,7 +152,7 @@ export const loadChart = async (url: string, name: string = 'chart'): Promise<Rp
   try {
     return JSON.parse(text);
   } catch {
-    if (isPec(text.split(/\r?\n/).slice(0, 2))) {
+    if (isPec(getLines(text).slice(0, 2))) {
       return PhiEditerConverter(text, {
         RPEVersion: 0,
         background: '',

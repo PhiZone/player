@@ -56,12 +56,15 @@ export const haveSameKeys = (obj1: object, obj2: object): boolean => {
   return JSON.stringify(keys1) === JSON.stringify(keys2);
 };
 
+export const getLines = (text: string) =>
+  text.split(/\r?\n/).filter((line) => line.trim().length > 0);
+
 export const isPec = (pecCriteria: string[]) =>
   !isNaN(parseFloat(pecCriteria[0])) && /^bp \d+(\.\d+)? \d+(\.\d+)?$/.test(pecCriteria[1]);
 
 export const readMetadata = (text?: string, chartMeta?: RpeMeta): MetadataEntry => {
   const readFromText = (text: string = '') => {
-    const lines = text.split(/\r?\n/);
+    const lines = getLines(text);
     const fields = ['Name', 'Song', 'Picture', 'Chart', 'Composer', 'Charter', 'Level'];
     if (
       lines[0] === '#' &&
@@ -85,7 +88,7 @@ export const readMetadata = (text?: string, chartMeta?: RpeMeta): MetadataEntry 
         level: info[6],
       };
     }
-    const [_header, ...rows] = text.split(/\r?\n/);
+    const [_header, ...rows] = getLines(text);
     const data = rows.map((row) => row.split(','));
     if (data.length > 0 && data[0].length >= 10) {
       let i = data.length - 1;
