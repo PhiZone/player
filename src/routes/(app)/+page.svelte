@@ -34,6 +34,7 @@
   import PreferencesModal from '$lib/components/Preferences.svelte';
   import { goto } from '$app/navigation';
   import { Capacitor } from '@capacitor/core';
+  import { Network } from '@capacitor/network';
   import { getCurrentWebviewWindow, WebviewWindow } from '@tauri-apps/api/webviewWindow';
   import { PhysicalPosition, PhysicalSize } from '@tauri-apps/api/dpi';
   import { currentMonitor, type Monitor } from '@tauri-apps/api/window';
@@ -264,7 +265,10 @@
         handleParamFiles(searchParams);
       }
 
-      if (IS_TAURI || Capacitor.getPlatform() !== 'web') {
+      if (
+        IS_TAURI ||
+        (Capacitor.getPlatform() !== 'web' && (await Network.getStatus()).connected)
+      ) {
         checkForUpdates();
       }
     }
@@ -311,50 +315,56 @@
   };
 
   const checkForUpdates = async () => {
-    const response = await fetch(`${REPO_API_LINK}/releases/latest`, {
-      headers: {
-        'User-Agent': 'PhiZone Player',
-      },
-    });
-    if (!response.ok) {
-      notify('Failed to contact GitHub to check for updates.', 'warning');
-    }
-    const latestRelease = (await response.json()) as Release;
-    if (versionCompare(latestRelease.tag_name.slice(1), VERSION) > 0) {
-      const clickToDownload =
-        (IS_TAURI && platform() === 'windows') ||
-        platform() === 'macos' ||
-        Capacitor.getPlatform() === 'android';
-      notify(
-        `A new version (${latestRelease.tag_name}) is available. ${clickToDownload ? 'Click to download.' : Capacitor.getPlatform() === 'ios' ? 'Please update the app via TestFlight.' : 'Click to go to the GitHub releases page.'}`,
-        'info',
-        Capacitor.getPlatform() === 'ios'
-          ? undefined
-          : () => {
-              if (clickToDownload) {
-                const isWindows = platform() === 'windows';
-                const isX86 = arch().startsWith('x86');
-                const asset = latestRelease.assets.find((asset) =>
-                  asset.name.endsWith(
-                    Capacitor.getPlatform() === 'android'
-                      ? '.apk'
-                      : isWindows
-                        ? isX86
-                          ? 'x64-setup.exe'
-                          : 'arm64-setup.exe'
-                        : isX86
-                          ? 'x64.dmg'
-                          : 'aarch64.dmg',
-                  ),
-                );
-                if (asset) {
-                  window.location.href = asset?.browser_download_url;
-                  return;
+    let success = false;
+    try {
+      const response = await fetch(`${REPO_API_LINK}/releases/latest`, {
+        headers: {
+          'User-Agent': 'PhiZone Player',
+        },
+      });
+      success = response.ok;
+      const latestRelease = (await response.json()) as Release;
+      if (versionCompare(latestRelease.tag_name.slice(1), VERSION) > 0) {
+        const clickToDownload =
+          (IS_TAURI && platform() === 'windows') ||
+          platform() === 'macos' ||
+          Capacitor.getPlatform() === 'android';
+        notify(
+          `A new version (${latestRelease.tag_name}) is available. ${clickToDownload ? 'Click to download.' : Capacitor.getPlatform() === 'ios' ? 'Please update the app via TestFlight.' : 'Click to go to the GitHub releases page.'}`,
+          'info',
+          Capacitor.getPlatform() === 'ios'
+            ? undefined
+            : () => {
+                if (clickToDownload) {
+                  const isWindows = platform() === 'windows';
+                  const isX86 = arch().startsWith('x86');
+                  const asset = latestRelease.assets.find((asset) =>
+                    asset.name.endsWith(
+                      Capacitor.getPlatform() === 'android'
+                        ? '.apk'
+                        : isWindows
+                          ? isX86
+                            ? 'x64-setup.exe'
+                            : 'arm64-setup.exe'
+                          : isX86
+                            ? 'x64.dmg'
+                            : 'aarch64.dmg',
+                    ),
+                  );
+                  if (asset) {
+                    window.location.href = asset?.browser_download_url;
+                    return;
+                  }
                 }
-              }
-              window.open(latestRelease.html_url);
-            },
-      );
+                window.open(latestRelease.html_url);
+              },
+        );
+      }
+    } catch (e) {
+      console.warn(e);
+    }
+    if (!success) {
+      notify('Failed to contact GitHub to check for updates.', 'warning');
     }
   };
 

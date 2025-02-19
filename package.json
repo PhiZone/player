@@ -84,6 +84,7 @@
     "@awesome-cordova-plugins/core": "6.14.0",
     "@capacitor/clipboard": "^7.0.0",
     "@capacitor/filesystem": "^7.0.0",
+    "@capacitor/network": "^7.0.0",
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
     "@fix-webm-duration/fix": "^1.0.1",
