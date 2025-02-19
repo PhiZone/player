@@ -43,8 +43,7 @@
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="*/*" />
-                <data android:scheme="file" android:host="*" android:pathPattern=".*\\.pez" />
+                <data android:mimeType="application/octet-stream" />
             </intent-filter>
         </activity>
 
