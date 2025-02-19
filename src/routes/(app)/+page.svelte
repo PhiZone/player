@@ -120,7 +120,7 @@
     practice: false,
     adjustOffset: false,
     record: false,
-    newTab: true,
+    newTab: Capacitor.getPlatform() === 'web',
     inApp: IS_TAURI || Capacitor.getPlatform() !== 'web' ? 2 : 0,
   };
   let recorderOptions: RecorderOptions = {
