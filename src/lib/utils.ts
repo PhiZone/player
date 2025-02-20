@@ -38,6 +38,11 @@ export const IS_ANDROID_OR_IOS =
 
 export const IS_IFRAME = window.self !== window.top;
 
+export const isDebug = () =>
+  ['1', 'true'].some(
+    (v) => v === get(page).url.searchParams.get('debug') || v === localStorage.getItem('debug'),
+  );
+
 export const setFullscreen = () => {
   if (Capacitor.getPlatform() === 'android') {
     AndroidFullScreen.isImmersiveModeSupported()

@@ -151,6 +151,15 @@
   let isFirstLoad = !$page.url.searchParams.get('t');
 
   onMount(async () => {
+    const checkDebug = (values: string[]) =>
+      values.some((v) => v === $page.url.searchParams.get('debug'));
+    if (checkDebug(['1', 'true'])) {
+      localStorage.setItem('debug', 'true');
+      notify('Debug enabled.', 'info');
+    } else if (checkDebug(['0', 'false']) && localStorage.getItem('debug')) {
+      localStorage.removeItem('debug');
+      notify('Debug disabled.', 'info');
+    }
     if (directoryInput) directoryInput.webkitdirectory = true;
 
     await init();

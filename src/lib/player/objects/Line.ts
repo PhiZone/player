@@ -21,13 +21,14 @@ import {
   isEqual,
 } from '../utils';
 import type { Game } from '../scenes/Game';
-import { FONT_FAMILY } from '../constants';
+import { FONT_FAMILY, NOTE_BASE_SIZE } from '../constants';
 import { dot } from 'mathjs';
 import type { Video } from './Video';
+import { isDebug } from '$lib/utils';
 
 export class Line {
   private _scene: Game;
-  private _num: number;
+  private _index: number;
   private _data: JudgeLine;
   private _line: GameObjects.Image | GameObjects.Sprite | GameObjects.Text;
   private _parent: Line | null = null;
@@ -68,12 +69,14 @@ export class Line {
   private _scaleY: number | undefined = undefined;
   private _text: string | undefined = undefined;
   private _height: number = 0;
+  private _lastUpdate: number = -Infinity;
 
   private _attachedVideos: Video[] = [];
 
   private _judgeWindow: (PlainNote | LongNote)[] = [];
 
-  private _lastUpdate: number = -Infinity;
+  private _debug: GameObjects.Container | undefined = undefined;
+  private _selfDebug: GameObjects.Container | undefined = undefined;
 
   constructor(
     scene: Game,
@@ -83,7 +86,7 @@ export class Line {
     highlightMoments: [number, number, number][],
   ) {
     this._scene = scene;
-    this._num = num;
+    this._index = num;
     this._data = lineData;
     this._hasText = (this._data.extended?.textEvents?.length ?? 0) > 0;
     this._hasCustomTexture = this._hasText || lineData.Texture !== 'line.png';
@@ -152,21 +155,38 @@ export class Line {
     processControlNodes(this._data.skewControl);
     processControlNodes(this._data.yControl);
 
+    if (isDebug()) {
+      this._debug = this.createContainer(Infinity);
+      this._selfDebug = new GameObjects.Container(scene)
+        .add(scene.add.rectangle(0, 0, 40, 40, 0x00ff00).setOrigin(0.5))
+        .add(
+          scene.add
+            .text(0, 60, num.toString(), {
+              fontFamily: 'Outfit',
+              fontSize: 80,
+              color: '#e2e2e2',
+              align: 'center',
+            })
+            .setOrigin(0.5),
+        );
+      this._debug.add(this._selfDebug);
+    }
+
     if (this._data.notes) {
       this._data.notes.forEach((note) => {
         note.startBeat = toBeats(note.startTime);
         note.endBeat = toBeats(note.endTime);
       });
       this._data.notes.sort((a, b) => a.startBeat - b.startBeat);
-      this._data.notes.forEach((data) => {
+      this._data.notes.forEach((data, i) => {
         let note: PlainNote | LongNote;
         const highlight = highlightMoments.some((moment) => isEqual(moment, data.startTime));
         if (data.type === 2) {
-          note = new LongNote(scene, data, highlight);
+          note = new LongNote(scene, data, i, highlight);
           note.setHeadHeight(this.calculateHeight(data.startBeat));
           note.setTailHeight(this.calculateHeight(data.endBeat));
         } else {
-          note = new PlainNote(scene, data, highlight);
+          note = new PlainNote(scene, data, i, highlight);
           note.setHeight(this.calculateHeight(data.startBeat));
         }
         this.addNote(note, this._noteContainers[note.zIndex] ?? this.createContainer(note.zIndex));
@@ -180,19 +200,6 @@ export class Line {
         });
       }
     }
-
-    // this.createContainer(this._line.depth)
-    //   .add(scene.add.rectangle(0, 0, 10, 10, 0x00ff00).setOrigin(0.5))
-    //   .add(
-    //     scene.add
-    //       .text(0, 20, num.toString(), {
-    //         fontFamily: 'Outfit',
-    //         fontSize: 25,
-    //         color: '#ffffff',
-    //         align: 'center',
-    //       })
-    //       .setOrigin(0.5),
-    //   );
   }
 
   update(beat: number, songTime: number, gameTime: number) {
@@ -251,6 +258,16 @@ export class Line {
     });
     this.updateMask();
     this.updateAttachments();
+
+    if (this._selfDebug) {
+      this._selfDebug.setVisible(
+        this._notes.findIndex(
+          (note) =>
+            Math.abs(note.x) < this._scene.p(20) && Math.abs(note.floor) < this._scene.o(20),
+        ) === -1,
+      );
+      this._selfDebug.setScale(this._scene.p(1.4 * NOTE_BASE_SIZE));
+    }
   }
 
   updateAttachments() {
@@ -349,7 +366,7 @@ export class Line {
     const container = new GameObjects.Container(this._scene);
     container.setDepth(depth);
     this._noteContainers[depth] = container;
-    this._scene.registerNode(container, `line-${this._num}-cont-${depth}`);
+    this._scene.registerNode(container, `line-${this._index}-cont-${depth}`);
     return container;
   }
 
@@ -614,6 +631,14 @@ export class Line {
 
   public get elements() {
     return [this._line, ...Object.values(this._noteContainers)];
+  }
+
+  public get index() {
+    return this._index;
+  }
+
+  public get debug() {
+    return this._debug;
   }
 
   setVisible(visible: boolean) {
