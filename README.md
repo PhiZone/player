@@ -338,6 +338,10 @@ App distributions for Windows, macOS, Linux, Android and iOS/iPadOS can be found
 
 We use [Sentry](https://sentry.io/) and [Google Analytics](https://analytics.google.com/) for error tracking and usage data analysis.
 
+## Contributors
+
+<a href="https://github.com/PhiZone/player/graphs/contributors"><img src="https://opencollective.com/phizone-player/contributors.svg?width=720&button=false" /></a>
+
 ## Stargazers over time
 
 [![Stargazers over time](https://starchart.cc/PhiZone/player.svg?variant=adaptive)](https://starchart.cc/PhiZone/player)
