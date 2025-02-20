@@ -263,7 +263,7 @@ export class PlainNote extends SkewImage {
 
     if (this._debug) {
       line.debug?.add(
-        this._debug.add(this._scene.add.circle(0, 0, 36, 0xffff00).setOrigin(0.5)).add(
+        this._debug.add(this._scene.add.circle(0, 0, 32, 0xffff00).setOrigin(0.5)).add(
           this._scene.add
             .text(0, 72, `${this._line.index}/${this._index}`, {
               fontFamily: 'Outfit',
