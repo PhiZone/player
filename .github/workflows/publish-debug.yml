@@ -219,7 +219,6 @@ jobs:
 
       - name: Build project
         run: |
-          xcodebuild -showsdks
           xcodebuild -workspace ios/App/App.xcworkspace -scheme App \
           -archivePath $RUNNER_TEMP/App.xcarchive \
           -destination generic/platform=iOS \
@@ -252,7 +251,8 @@ jobs:
         if: ${{ always() }}
         run: |
           security delete-keychain $RUNNER_TEMP/app-signing.keychain-db
-          rm ~/Library/MobileDevice/Provisioning\ Profiles/build_pp.mobileprovision
+          rm ~/Library/MobileDevice/Provisioning\ Profiles/app.mobileprovision
+          rm ~/Library/MobileDevice/Provisioning\ Profiles/share-extension.mobileprovision
 
   publish-capacitor-android:
     name: Build for Android
