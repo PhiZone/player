@@ -30,6 +30,7 @@
   import { NOTE_PRIORITIES } from './constants';
   import { equal } from 'mathjs';
   import { base } from '$app/paths';
+  import { Capacitor } from '@capacitor/core';
 
   export let gameRef: GameReference;
 
@@ -39,7 +40,7 @@
 
   config ??= getParams();
   if (!config) {
-    goto(`${base}/${IS_TAURI ? `?t=${Date.now()}` : ''}`);
+    goto(`${base}/${IS_TAURI || Capacitor.getPlatform() !== 'web' ? `?t=${Date.now()}` : ''}`);
   }
 
   let progress = 0;
@@ -215,14 +216,12 @@
 
     EventBus.on('update', (t: number) => {
       if (t !== timeSec) {
-        if (IS_TAURI) {
-          if (t < duration) {
-            getCurrentWebviewWindow().setProgressBar({
-              status:
-                status === GameStatus.PLAYING ? ProgressBarStatus.Normal : ProgressBarStatus.Paused,
-              progress: Math.round((t * 100) / duration),
-            });
-          }
+        if (IS_TAURI && t < duration) {
+          getCurrentWebviewWindow().setProgressBar({
+            status:
+              status === GameStatus.PLAYING ? ProgressBarStatus.Normal : ProgressBarStatus.Paused,
+            progress: Math.round((t * 100) / duration),
+          });
         }
         wavesurfer?.setTime(t);
         if (t === duration && enableOffsetHelper && !isOffsetAdjustedChartExported) {
@@ -283,7 +282,7 @@
         window.close();
       }
     } else {
-      goto(`${base}/${IS_TAURI ? `?t=${Date.now()}` : ''}`);
+      goto(`${base}/${IS_TAURI || Capacitor.getPlatform() !== 'web' ? `?t=${Date.now()}` : ''}`);
     }
   };
 
