@@ -352,8 +352,6 @@ const PhiEditer = (chartRaw: string, meta: Omit<RpeMeta, 'offset'>): RpeJson => 
     result.judgeLineList.push(line);
   }
 
-  console.log(lineList);
-
   return result;
 };
 
