@@ -58,7 +58,7 @@ export class GameUI {
       8,
       'pause',
     );
-    this._pause.image.on('pointerup', () => {
+    this._pause.image.on('pointerdown', () => {
       if (scene.status !== GameStatus.PLAYING || !scene.song.isPlaying) return;
       const background = this._pause.background;
       if (background.alpha > 0.3) {
@@ -233,7 +233,7 @@ export class GameUI {
         this._scene.h(this._positions[i][1]),
       );
       if ('resize' in obj) {
-        obj.resize(this._scene.p(0.5));
+        obj.resize(this._scene.p(0.36));
       } else {
         obj.text.setFontSize(this._scene.p(this._fontSizes[i]));
         obj.text.setPosition(
@@ -690,7 +690,7 @@ class Button extends GameObjects.Container {
   isInvokeable(x: number, y: number, area: GameObjects.Arc = this._background) {
     const refX = area.x + area.width / 2;
     const refY = area.y + area.height / 2;
-    const radius = area.radius * 3;
+    const radius = area.radius * 2;
     return radius ** 2 > (x - refX) ** 2 + (y - refY) ** 2;
   }
 
