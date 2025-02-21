@@ -222,7 +222,7 @@ jobs:
       - name: Build project
         run: |
           xcodebuild -workspace ios/App/App.xcworkspace -scheme App \
-          -destination generic/platform=iOS -archivePath $RUNNER_TEMP/App.xcarchive \
+          -destination 'platform=iOS Simulator,name=iPhone 14,OS=16.2' -archivePath $RUNNER_TEMP/App.xcarchive \
           clean archive
 
       - name: Assemble IPA
