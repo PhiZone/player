@@ -179,9 +179,9 @@ jobs:
 
       - name: Setup Xcode environment
         run: |
-          sudo xcode-select --switch /Applications/Xcode_16.0.app/Contents/Developer
+          sudo xcode-select --switch /Applications/Xcode_16.2.app/Contents/Developer
           sudo xcodebuild -runFirstLaunch
-          sudo xcode-select --switch /Applications/Xcode_16.0.app/Contents/Developer
+          sudo xcode-select --switch /Applications/Xcode_16.2.app/Contents/Developer
 
       - name: Install dependencies
         run: pnpm i
