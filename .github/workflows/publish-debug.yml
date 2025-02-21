@@ -177,13 +177,17 @@ jobs:
         with:
           xcode-version: latest
 
+      - name: Setup Xcode environment
+        run: |
+          sudo xcode-select --switch /Applications/Xcode_16.0.app/Contents/Developer
+          sudo xcodebuild -runFirstLaunch
+          sudo xcode-select --switch /Applications/Xcode_16.0.app/Contents/Developer
+
       - name: Install dependencies
         run: pnpm i
 
-      - name: Install iOS and app dependencies
+      - name: Install iOS dependencies
         run: |
-          gem install xcode-install
-          xcversion simulators --install='iOS 18.2'
           cd ios/App
           pod install
 
@@ -224,7 +228,7 @@ jobs:
       - name: Build project
         run: |
           xcodebuild -workspace ios/App/App.xcworkspace -scheme App \
-          -destination 'platform=iOS Simulator,name=iPhone 14,OS=16.2' -archivePath $RUNNER_TEMP/App.xcarchive \
+          -destination generic/platform=iOS -archivePath $RUNNER_TEMP/App.xcarchive \
           clean archive
 
       - name: Assemble IPA
