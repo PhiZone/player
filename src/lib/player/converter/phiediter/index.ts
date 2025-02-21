@@ -11,8 +11,6 @@ import type {
 } from '$lib/types';
 import type { PecCommandBase, PecNote } from './types';
 
-const BEAT_BETWEEN_TIME = 0.125;
-
 const PhiEditer = (chartRaw: string, meta: Omit<RpeMeta, 'offset'>): RpeJson => {
   const chartRawArr = chartRaw.split(/[\r\n]+/);
   const chartOffset = parseInt(chartRawArr.shift()!);
@@ -321,36 +319,26 @@ const PhiEditer = (chartRaw: string, meta: Omit<RpeMeta, 'offset'>): RpeJson => 
       // XXX:
       // PhiEditer has four different alpha values, we will only support three of them.
       if (event.start < -100 && event.start >= -1000) {
-        const beatBetween = event.endBeat - event.startBeat;
-        const beatBetweenLength = Math.ceil(beatBetween / BEAT_BETWEEN_TIME);
+        for (const note of line.notes!) {
+          if (note.startBeat < event.startBeat) continue;
+          if (note.startBeat > event.endBeat) break;
 
-        for (let i = 0; i < beatBetweenLength; i++) {
-          const beatPassed = i * BEAT_BETWEEN_TIME;
-          const currentBeat =
-            event.startBeat + beatPassed > event.endBeat
-              ? event.endBeat
-              : event.startBeat + i * BEAT_BETWEEN_TIME;
-          const currentValue = getEventValue(currentBeat, event) as number | undefined;
-
+          const currentValue = getEventValue(note.startBeat, event) as number | undefined;
           if (!currentValue || currentValue >= -100) break;
+
           const visibleBeat = -(currentValue + 100) / 10;
+          note.visibleTime = getVisibleRealTime(result.BPMList, note.startBeat, visibleBeat);
 
-          for (const note of line.notes!) {
-            if (note.startBeat < currentBeat) continue;
-            if (note.startBeat > currentBeat) break;
-
-            note.visibleTime = getVisibleRealTime(result.BPMList, note.startBeat, visibleBeat);
-            hasNotesDuring = true;
-          }
+          hasNotesDuring = true;
         }
 
-        event.start = hasNotesDuring ? 0 : -255;
+        event.start = hasNotesDuring ? 0 : -1;
       } else if (event.end < -1000) {
         console.warn(`Unsupported alpha value: ${event.start}, will be set to 0...`);
         event.start = 0;
       }
 
-      if (event.end < -100 && event.end >= -1000) event.end = hasNotesDuring ? 0 : -255;
+      if (event.end < -100 && event.end >= -1000) event.end = hasNotesDuring ? 0 : -1;
       else if (event.end < -1000) {
         console.warn(`Unsupported alpha value: ${event.start}, will be set to 0...`);
         event.start = 0;
@@ -363,6 +351,8 @@ const PhiEditer = (chartRaw: string, meta: Omit<RpeMeta, 'offset'>): RpeJson => 
     const line = lineList[id];
     result.judgeLineList.push(line);
   }
+
+  console.log(lineList);
 
   return result;
 };
