@@ -36,6 +36,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
+        NSLog("URL: %@", url.absoluteString)
         var success = true
         if CAPBridge.handleOpenUrl(url, options) {
             success = ApplicationDelegateProxy.shared.application(app, open: url, options: options)

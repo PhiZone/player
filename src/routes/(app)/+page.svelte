@@ -400,8 +400,8 @@
 
   const handleSendIntent = async () => {
     const result = await SendIntent.checkSendIntentReceived();
-    notify(JSON.stringify(result), 'info');
     if (result.url) {
+      console.log('Send intent received:', JSON.stringify(result));
       await handleFilePaths([result], async (result: Intent) => {
         let resultUrl = decodeURIComponent(result.url!);
         const file = await Filesystem.readFile({ path: resultUrl });

@@ -8,6 +8,9 @@ project(':capacitor-clipboard').projectDir = new File('../node_modules/.pnpm/@ca
 include ':capacitor-filesystem'
 project(':capacitor-filesystem').projectDir = new File('../node_modules/.pnpm/@capacitor+filesystem@7.0.0_@capacitor+core@7.0.0/node_modules/@capacitor/filesystem/android')
 
+include ':capacitor-network'
+project(':capacitor-network').projectDir = new File('../node_modules/.pnpm/@capacitor+network@7.0.0_@capacitor+core@7.0.0/node_modules/@capacitor/network/android')
+
 include ':send-intent'
 project(':send-intent').projectDir = new File('../node_modules/.pnpm/send-intent@6.0.3_@capacitor+core@7.0.0/node_modules/send-intent/android')
 

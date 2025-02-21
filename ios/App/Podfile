@@ -13,6 +13,7 @@ def capacitor_pods
   pod 'CapacitorCordova', :path => '../../node_modules/.pnpm/@capacitor+ios@7.0.0_@capacitor+core@7.0.0/node_modules/@capacitor/ios'
   pod 'CapacitorClipboard', :path => '../../node_modules/.pnpm/@capacitor+clipboard@7.0.0_@capacitor+core@7.0.0/node_modules/@capacitor/clipboard'
   pod 'CapacitorFilesystem', :path => '../../node_modules/.pnpm/@capacitor+filesystem@7.0.0_@capacitor+core@7.0.0/node_modules/@capacitor/filesystem'
+  pod 'CapacitorNetwork', :path => '../../node_modules/.pnpm/@capacitor+network@7.0.0_@capacitor+core@7.0.0/node_modules/@capacitor/network'
   pod 'SendIntent', :path => '../../node_modules/.pnpm/send-intent@6.0.3_@capacitor+core@7.0.0/node_modules/send-intent'
   pod 'CapacitorApp', :path => '../../node_modules/.pnpm/@capacitor+app@7.0.0_@capacitor+core@7.0.0/node_modules/@capacitor/app'
 end

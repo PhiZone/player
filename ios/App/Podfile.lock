@@ -8,6 +8,8 @@ PODS:
   - CapacitorCordova (7.0.0)
   - CapacitorFilesystem (7.0.0):
     - Capacitor
+  - CapacitorNetwork (7.0.0):
+    - Capacitor
   - SendIntent (6.0.3):
     - Capacitor
 
@@ -17,6 +19,7 @@ DEPENDENCIES:
   - "CapacitorClipboard (from `../../node_modules/.pnpm/@capacitor+clipboard@7.0.0_@capacitor+core@7.0.0/node_modules/@capacitor/clipboard`)"
   - "CapacitorCordova (from `../../node_modules/.pnpm/@capacitor+ios@7.0.0_@capacitor+core@7.0.0/node_modules/@capacitor/ios`)"
   - "CapacitorFilesystem (from `../../node_modules/.pnpm/@capacitor+filesystem@7.0.0_@capacitor+core@7.0.0/node_modules/@capacitor/filesystem`)"
+  - "CapacitorNetwork (from `../../node_modules/.pnpm/@capacitor+network@7.0.0_@capacitor+core@7.0.0/node_modules/@capacitor/network`)"
   - "SendIntent (from `../../node_modules/.pnpm/send-intent@6.0.3_@capacitor+core@7.0.0/node_modules/send-intent`)"
 
 EXTERNAL SOURCES:
@@ -30,17 +33,20 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/.pnpm/@capacitor+ios@7.0.0_@capacitor+core@7.0.0/node_modules/@capacitor/ios"
   CapacitorFilesystem:
     :path: "../../node_modules/.pnpm/@capacitor+filesystem@7.0.0_@capacitor+core@7.0.0/node_modules/@capacitor/filesystem"
+  CapacitorNetwork:
+    :path: "../../node_modules/.pnpm/@capacitor+network@7.0.0_@capacitor+core@7.0.0/node_modules/@capacitor/network"
   SendIntent:
     :path: "../../node_modules/.pnpm/send-intent@6.0.3_@capacitor+core@7.0.0/node_modules/send-intent"
 
 SPEC CHECKSUMS:
-  Capacitor: fcbee427ff437f414bbb3bc2d39364ad9bd2b8a5
-  CapacitorApp: 45cb7cbef4aa380b9236fd6980033eb5cde6fcd2
-  CapacitorClipboard: 2afc5e21902233d7990978c8f41f023ddcee3e3d
+  Capacitor: 82d1f3b4480d66b5996814f74500dcbc0908558c
+  CapacitorApp: 9cb31064a6c6bb2b1438583733a7bf45557fc1da
+  CapacitorClipboard: 007d79cd6c104002b274546d13873526ca20beb7
   CapacitorCordova: 345f93b7edd121db98e4ec20ac94d6d7bcaf7e48
-  CapacitorFilesystem: 2881ad012b5c8d0ffbfed1216aadfc2cca16d5b5
-  SendIntent: 11aca22f5a2992dfd0bb661db87af3891a32006b
+  CapacitorFilesystem: 59a2b7b56a897c6a3de4d04c5718e1d80de9d2f5
+  CapacitorNetwork: 30c2e78a0ed32530656cb426c8ee6c2caec10dbf
+  SendIntent: 20ca8a9cb829cfc599b1a01c4663bff2890ba452
 
-PODFILE CHECKSUM: 8872c7def206f56cc9b183bb2060ab5be94070e8
+PODFILE CHECKSUM: c00dcf4849560e4802fb33e59730c03d4f74aa45
 
 COCOAPODS: 1.16.2
