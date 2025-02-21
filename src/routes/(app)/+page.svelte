@@ -285,7 +285,9 @@
 
       if (
         (IS_TAURI && navigator.onLine) ||
-        (Capacitor.getPlatform() !== 'web' && (await Network.getStatus()).connected)
+        (Capacitor.getPlatform() !== 'web' &&
+          ((Capacitor.getPlatform() !== 'ios' && (await Network.getStatus()).connected) ||
+            (Capacitor.getPlatform() === 'ios' && navigator.onLine)))
       ) {
         checkForUpdates();
       }
