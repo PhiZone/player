@@ -180,8 +180,10 @@ jobs:
       - name: Install dependencies
         run: pnpm i
 
-      - name: Install iOS dependencies
+      - name: Install iOS and app dependencies
         run: |
+          gem install xcode-install
+          xcversion simulators --install='iOS 18.2'
           cd ios/App
           pod install
 
