@@ -474,7 +474,7 @@
     if (IS_TAURI && url.startsWith('https://')) {
       const filePath = (await tempDir()) + random(1e17, 1e18 - 1);
       await tauriDownload(url, filePath, (payload) => {
-        console.log(payload);
+        if (progressSpeed === -1) return;
         progress = clamp(payload.progressTotal / payload.total, 0, 1);
         progressSpeed = payload.transferSpeed;
       });
