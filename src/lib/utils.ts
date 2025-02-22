@@ -341,7 +341,7 @@ export const notify = (
     ?.forEach((e) => e.id.startsWith(id) && e.addEventListener('click', clickCallback));
 };
 
-export const alertError = (error: Error, message?: string) => {
+export const alertError = (error?: Error, message?: string) => {
   const type = error === null ? 'null' : error === undefined ? 'undefined' : error.constructor.name;
   let message2 = String(error);
   // let _detail = String(error);
@@ -359,7 +359,7 @@ export const alertError = (error: Error, message?: string) => {
     (e) =>
       e.id.startsWith(id) &&
       e.addEventListener('click', async () => {
-        const text = error.stack ?? `${error.name}: ${error.message}`;
+        const text = error?.stack ?? (error ? `${error.name}: ${error.message}` : errMessage);
         if (Capacitor.getPlatform() === 'web') navigator.clipboard.writeText(text);
         else await Clipboard.write({ string: text });
         Notiflix.Notify.success('Error copied to clipboard', {
