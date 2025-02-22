@@ -37,7 +37,7 @@ jobs:
 
   publish-capacitor-ios:
     name: Build for iOS
-    runs-on: macos-latest
+    runs-on: macos-15
     needs: metadata
     permissions:
       contents: write
