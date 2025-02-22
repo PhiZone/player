@@ -239,10 +239,9 @@ jobs:
           name: capacitor-ios-${{ needs.metadata.outputs.version-name }}
           path: ~/artifacts/ios/*
 
-      - name: Clean up keychain and provisioning profile
+      - name: Clean up provisioning profiles
         if: ${{ always() }}
         run: |
-          security delete-keychain $RUNNER_TEMP/app-signing.keychain-db
           rm ~/Library/MobileDevice/Provisioning\ Profiles/app.mobileprovision
           rm ~/Library/MobileDevice/Provisioning\ Profiles/share-extension.mobileprovision
 
