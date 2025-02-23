@@ -114,7 +114,7 @@
           <input
             type="text"
             value={preferences.perfectJudgment}
-            class="border-transparent shadow-sm rounded-lg focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 w-1/6 text-right"
+            class="form-input border-transparent shadow-sm rounded-lg focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 w-1/6 text-right"
             on:focusout={(e) => {
               if (!/^[+-]?[0-9]+$/.test(e.currentTarget.value)) {
                 e.currentTarget.value = `${preferences.perfectJudgment}`;
@@ -162,7 +162,7 @@
           <input
             type="text"
             value={preferences.goodJudgment}
-            class="border-transparent shadow-sm rounded-lg focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 w-1/6 text-right"
+            class="form-input border-transparent shadow-sm rounded-lg focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 w-1/6 text-right"
             on:focusout={(e) => {
               if (!/^[+-]?[0-9]+$/.test(e.currentTarget.value)) {
                 e.currentTarget.value = `${Math.round(preferences.goodJudgment)}`;
@@ -202,7 +202,7 @@
               id="simultaneous_note_hint"
               name="simultaneousNoteHint"
               bind:checked={preferences.simultaneousNoteHint}
-              class="w-6 h-6 shrink-0 rounded-lg mt-0.5 transition border-gray-200 text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
+              class="form-checkbox w-6 h-6 shrink-0 rounded-lg mt-0.5 transition border-gray-200 text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
             />
           </div>
           <span class="w-1/4 text-sm dark:text-neutral-300">FC/AP indicator</span>
@@ -212,7 +212,7 @@
               id="fc_ap_indicator"
               name="fcApIndicator"
               bind:checked={preferences.fcApIndicator}
-              class="w-6 h-6 shrink-0 rounded-lg mt-0.5 transition border-gray-200 text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
+              class="form-checkbox w-6 h-6 shrink-0 rounded-lg mt-0.5 transition border-gray-200 text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
             />
           </div>
         </div>
@@ -231,7 +231,7 @@
           <input
             type="text"
             value={preferences.noteSize}
-            class="border-transparent shadow-sm rounded-lg focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 w-1/6 text-right"
+            class="form-input border-transparent shadow-sm rounded-lg focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 w-1/6 text-right"
             on:focusout={(e) => {
               if (!/^[+-]?([0-9]*[.])?[0-9]+$/.test(e.currentTarget.value)) {
                 e.currentTarget.value = `${preferences.noteSize}`;
@@ -261,7 +261,7 @@
           <input
             type="text"
             value={preferences.lineThickness}
-            class="border-transparent shadow-sm rounded-lg focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 w-1/6 text-right"
+            class="form-input border-transparent shadow-sm rounded-lg focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 w-1/6 text-right"
             on:focusout={(e) => {
               if (!/^[+-]?([0-9]*[.])?[0-9]+$/.test(e.currentTarget.value)) {
                 e.currentTarget.value = `${preferences.lineThickness}`;
@@ -294,7 +294,7 @@
           <input
             type="text"
             value={preferences.backgroundLuminance}
-            class="border-transparent shadow-sm rounded-lg focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 w-1/6 text-right"
+            class="form-input border-transparent shadow-sm rounded-lg focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 w-1/6 text-right"
             on:focusout={(e) => {
               if (!/^[+-]?[0-9]+$/.test(e.currentTarget.value)) {
                 e.currentTarget.value = `${preferences.backgroundLuminance}`;
@@ -324,7 +324,7 @@
           <input
             type="text"
             value={preferences.backgroundBlur}
-            class="border-transparent shadow-sm rounded-lg focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 w-1/6 text-right"
+            class="form-input border-transparent shadow-sm rounded-lg focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 w-1/6 text-right"
             on:focusout={(e) => {
               if (!/^[+-]?([0-9]*[.])?[0-9]+$/.test(e.currentTarget.value)) {
                 e.currentTarget.value = `${preferences.backgroundBlur}`;
@@ -353,7 +353,7 @@
           <input
             type="text"
             value={preferences.chartOffset}
-            class="border-transparent shadow-sm rounded-lg focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 w-1/6 text-right"
+            class="form-input border-transparent shadow-sm rounded-lg focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 w-1/6 text-right"
             on:focusout={(e) => {
               if (!/^[+-]?[0-9]+$/.test(e.currentTarget.value)) {
                 e.currentTarget.value = `${preferences.chartOffset}`;
@@ -386,7 +386,7 @@
           <input
             type="text"
             value={preferences.hitSoundVolume}
-            class="border-transparent shadow-sm rounded-lg focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 w-1/6 text-right"
+            class="form-input border-transparent shadow-sm rounded-lg focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 w-1/6 text-right"
             on:focusout={(e) => {
               if (!/^[+-]?[0-9]+$/.test(e.currentTarget.value)) {
                 e.currentTarget.value = `${preferences.hitSoundVolume}`;
@@ -419,7 +419,7 @@
           <input
             type="text"
             value={preferences.musicVolume}
-            class="border-transparent shadow-sm rounded-lg focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 w-1/6 text-right"
+            class="form-input border-transparent shadow-sm rounded-lg focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 w-1/6 text-right"
             on:focusout={(e) => {
               if (!/^[+-]?[0-9]+$/.test(e.currentTarget.value)) {
                 e.currentTarget.value = `${preferences.musicVolume}`;
@@ -449,7 +449,7 @@
           <input
             type="text"
             value={preferences.timeScale}
-            class="border-transparent shadow-sm rounded-lg focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 w-1/6 text-right"
+            class="form-input border-transparent shadow-sm rounded-lg focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 w-1/6 text-right"
             on:focusout={(e) => {
               if (!/^[+-]?([0-9]*[.])?[0-9]+$/.test(e.currentTarget.value)) {
                 e.currentTarget.value = `${preferences.timeScale}`;
@@ -475,7 +475,7 @@
           id="chart_flipping"
           name="chartFlipping"
           bind:value={preferences.chartFlipping}
-          class="border-gray-200 rounded-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:focus:ring-neutral-600 join-item w-3/4"
+          class="form-select border-gray-200 rounded-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:focus:ring-neutral-600 join-item w-3/4"
         >
           {#each ['Off', 'Horizontal', 'Vertical', 'Horizontal and Vertical'] as text, value}
             <option {value}>
@@ -494,7 +494,7 @@
           id="aspect_ratio_1"
           name="aspectRatio1"
           value={aspectRatio1}
-          class="border-gray-200 rounded-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:focus:ring-neutral-600 join-item w-[37.5%]"
+          class="form-select border-gray-200 rounded-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:focus:ring-neutral-600 join-item w-[37.5%]"
           on:input={(e) => {
             aspectRatio1 = parseInt(e.currentTarget.value);
             preferences.aspectRatio =
@@ -515,7 +515,7 @@
           id="aspect_ratio_2"
           name="aspectRatio2"
           value={aspectRatio2}
-          class="border-gray-200 rounded-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:focus:ring-neutral-600 join-item w-[37.5%]"
+          class="form-select border-gray-200 rounded-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:focus:ring-neutral-600 join-item w-[37.5%]"
           on:input={(e) => {
             aspectRatio2 = parseInt(e.currentTarget.value);
             preferences.aspectRatio =

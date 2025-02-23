@@ -15,7 +15,12 @@ export default {
       },
     },
   },
-  plugins: [daisyui, forms],
+  plugins: [
+    daisyui,
+    forms({
+      strategy: 'class',
+    }),
+  ],
   daisyui: {
     themes: ['winter', 'night'],
     darkTheme: 'night',
