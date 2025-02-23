@@ -69,7 +69,6 @@ jobs:
         run: pnpm build
         env:
           PUBLIC_SENTRY_DSN: ${{ vars.PUBLIC_SENTRY_DSN }}
-          PUBLIC_FFMPEG_URL:
 
       - name: Generate icons and splash screen
         run: if [ -d "./resources" ]; then pnpm i -D @capacitor/assets && pnpm capacitor-assets generate --ios; fi
@@ -209,7 +208,6 @@ jobs:
         run: pnpm build
         env:
           PUBLIC_SENTRY_DSN: ${{ vars.PUBLIC_SENTRY_DSN }}
-          PUBLIC_FFMPEG_URL:
 
       - name: Generate icons and splash screen
         run: if [ -d "./resources" ]; then pnpm i -D @capacitor/assets && pnpm capacitor-assets generate --android; fi
@@ -300,7 +298,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           PUBLIC_SENTRY_DSN: ${{ vars.PUBLIC_SENTRY_DSN }}
-          PUBLIC_FFMPEG_URL:
         with:
           tagName: v${{ needs.metadata.outputs.version }}
           releaseName: 'v${{ needs.metadata.outputs.version }}'

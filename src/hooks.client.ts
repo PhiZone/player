@@ -4,7 +4,7 @@ import * as Sentry from '@sentry/sveltekit';
 
 if ('PUBLIC_SENTRY_DSN' in env) {
   Sentry.init({
-    dsn: env.PUBLIC_SENTRY_DSN,
+    dsn: env.PUBLIC_SENTRY_DSN as string,
 
     tracesSampleRate: 1.0,
 
@@ -22,4 +22,4 @@ if ('PUBLIC_SENTRY_DSN' in env) {
 }
 
 // If you have a custom error handler, pass it to `handleErrorWithSentry`
-export const handleError = 'PUBLIC_SENTRY_DSN' in env ? handleErrorWithSentry() : () => {};
+export const handleError = 'PUBLIC_SENTRY_DSN' in env ? handleErrorWithSentry() : undefined;
