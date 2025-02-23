@@ -32,12 +32,12 @@ export const NOTE_BASE_SIZE = 0.19;
 /*
     The priorities for each note type. A note with a higher priority will be rendered on top of those with relatively lower priorities.
 */
-export const NOTE_PRIORITIES = [0, 3, 1, 2, 4];
+export const NOTE_PRIORITIES = [0, 3, 1, 4, 2];
 
 /*
     Minimum velocity (in chart pixels per second) required to Perfect a Flick note.
 */
-export const FLICK_VELOCTY_THRESHOLD = 10;
+export const FLICK_VELOCTY_THRESHOLD = 100;
 
 /*
     Maximum no-input interval (in milliseconds) allowed before a Hold note is considered missed.
