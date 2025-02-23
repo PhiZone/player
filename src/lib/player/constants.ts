@@ -37,7 +37,7 @@ export const NOTE_PRIORITIES = [0, 3, 1, 4, 2];
 /*
     Minimum velocity (in chart pixels per second) required to Perfect a Flick note.
 */
-export const FLICK_VELOCTY_THRESHOLD = 100;
+export const FLICK_VELOCTY_THRESHOLD = 75;
 
 /*
     Maximum no-input interval (in milliseconds) allowed before a Hold note is considered missed.
