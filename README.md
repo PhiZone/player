@@ -329,7 +329,6 @@ A list of web deployments is as follows:
 - [phizone.github.io/player](https://phizone.github.io/player/) - GitHub Pages
 - [www.phi.zone/player](https://www.phi.zone/player/) - Vercel
 - [www.phizone.cn/player](https://www.phizone.cn/player/) - self-hosted
-- [insider.phizone.cn/player](https://insider.phizone.cn/player/) - self-hosted
 
 App distributions for Windows, macOS, Linux, Android and iOS/iPadOS can be found in the GitHub releases.
 
