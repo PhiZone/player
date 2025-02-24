@@ -125,7 +125,7 @@ export const readMetadata = (text?: string, chartMeta?: RpeMeta): MetadataEntry 
       };
     }
     // TODO add support for other metadata formats
-    console.warn('Metadata format not recognized: ', text);
+    console.debug('Metadata format not recognized: ', text);
     return {
       name: '',
       song: '',
