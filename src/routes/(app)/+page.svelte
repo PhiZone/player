@@ -927,7 +927,7 @@
   <button
     type="button"
     class="inline-flex justify-center items-center gap-x-3 text-center bg-gradient-to-tl from-blue-500 via-violet-500 to-fuchsia-500 dark:from-blue-700 dark:via-violet-700 dark:to-fuchsia-700 text-white text-sm font-medium rounded-md focus:outline-none py-3 px-4 transition-all duration-300 bg-size-200 bg-pos-0 hover:bg-pos-100"
-    on:click={() => {
+    onclick={() => {
       showCollapse = !showCollapse;
     }}
   >
@@ -992,7 +992,7 @@
           <form method="dialog" class="gap-3 flex justify-center">
             <button
               class="inline-flex justify-center items-center gap-x-3 text-center bg-gradient-to-tl from-blue-500 via-violet-500 to-fuchsia-500 dark:from-blue-700 dark:via-violet-700 dark:to-fuchsia-700 text-white text-sm font-medium rounded-md focus:outline-none py-3 px-4 transition-all duration-300 bg-size-200 bg-pos-0 hover:bg-pos-100"
-              on:click={() => {
+              onclick={() => {
                 window.open(
                   `${IS_ANDROID_OR_IOS ? `${base}/app` : 'phizone-player://'}${$page.url.search}`,
                 );
@@ -1006,7 +1006,7 @@
             </button>
             <button
               class="py-3 px-4 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-100 focus:outline-none focus:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-700 dark:focus:bg-neutral-700 transition"
-              on:click={async () => {
+              onclick={async () => {
                 await handleParamFiles($page.url.searchParams);
                 if (modalMem) {
                   toggles.inApp = 2;
@@ -1056,7 +1056,7 @@
             ? null
             : '.pez,.pec,.yml,.yaml,.shader,.glsl,.frag,.fsh,.fs,application/zip,application/json,image/*,video/*,audio/*,text/*'}
           class="file-input file-input-bordered w-full max-w-xs file:btn dark:file:btn-neutral file:no-animation border-gray-200 rounded-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 dark:border-neutral-700 dark:text-neutral-300 dark:focus:ring-neutral-600"
-          on:input={async (e) => {
+          oninput={async (e) => {
             const fileList = e.currentTarget.files;
             if (!fileList || fileList.length === 0) return;
             const files = Array.from(fileList);
@@ -1079,7 +1079,7 @@
             type="file"
             multiple
             class="file-input file-input-bordered w-full max-w-xs file:btn dark:file:btn-neutral file:no-animation border-gray-200 rounded-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 dark:border-neutral-700 dark:text-neutral-300 dark:focus:ring-neutral-600"
-            on:input={async () =>
+            oninput={async () =>
               await handleFiles(directoryInput.files ? Array.from(directoryInput.files) : null)}
           />
         </label>
@@ -1128,38 +1128,67 @@
       <div class="flex md:w-2/3 flex-col gap-3">
         <div class="carousel-with-bar rounded-box w-fit">
           {#key chartBundles}
-            {#each chartBundles as bundle}
-              <button
-                class="carousel-item relative transition hover:brightness-75"
-                on:click={() => {
-                  currentBundle = bundle;
-                  selectedBundle = bundle.id;
-                  selectedChart = bundle.chart;
-                  selectedSong = bundle.song;
-                  selectedIllustration = bundle.illustration;
-                }}
-              >
-                <img
-                  class="h-48 transition"
-                  src={imageFiles.find((file) => file.id === bundle.illustration)?.url}
-                  class:brightness-50={selectedBundle === bundle.id}
-                  alt="Illustration"
-                />
-                <div
-                  class="absolute inset-0 opacity-0 transition flex justify-center items-center gap-2"
-                  class:opacity-100={selectedBundle === bundle.id}
+            {#each chartBundles as bundle, i}
+              <div class="carousel-item relative">
+                <button
+                  class="transition hover:brightness-75"
+                  onclick={() => {
+                    currentBundle = bundle;
+                    selectedBundle = bundle.id;
+                    selectedChart = bundle.chart;
+                    selectedSong = bundle.song;
+                    selectedIllustration = bundle.illustration;
+                  }}
                 >
-                  <span class="btn btn-xs btn-circle btn-success no-animation">
-                    <i class="fa-solid fa-check"></i>
-                  </span>
-                  <p class="text-success">SELECTED</p>
-                </div>
-              </button>
+                  <img
+                    class="h-48 transition"
+                    src={imageFiles.find((file) => file.id === bundle.illustration)?.url}
+                    class:brightness-50={selectedBundle === bundle.id}
+                    alt="Illustration"
+                  />
+                  <div
+                    class="absolute inset-0 opacity-0 transition flex justify-center items-center gap-2"
+                    class:opacity-100={selectedBundle === bundle.id}
+                  >
+                    <span class="btn btn-xs btn-circle btn-success no-animation">
+                      <i class="fa-solid fa-check"></i>
+                    </span>
+                    <p class="text-success">SELECTED</p>
+                  </div>
+                </button>
+                {#if chartBundles.length > 1}
+                  <button
+                    class="absolute bottom-1 right-1 btn btn-sm btn-circle btn-outline btn-error backdrop-blur-xl"
+                    aria-label="Delete"
+                    onclick={() => {
+                      chartBundles = chartBundles.filter((b) => b.id !== bundle.id);
+                      if (selectedBundle === bundle.id) {
+                        currentBundle = chartBundles[0];
+                        selectedBundle = chartBundles[0].id;
+                        selectedChart = chartBundles[0].chart;
+                        selectedSong = chartBundles[0].song;
+                        selectedIllustration = chartBundles[0].illustration;
+                      }
+                      if (chartBundles.every((b) => b.chart !== bundle.chart)) {
+                        chartFiles = chartFiles.filter((file) => file.id !== bundle.chart);
+                      }
+                      if (chartBundles.every((b) => b.song !== bundle.song)) {
+                        audioFiles = audioFiles.filter((file) => file.id !== bundle.song);
+                      }
+                      if (chartBundles.every((b) => b.illustration !== bundle.illustration)) {
+                        imageFiles = imageFiles.filter((file) => file.id !== bundle.illustration);
+                      }
+                    }}
+                  >
+                    <i class="fa-solid fa-trash-can"></i>
+                  </button>
+                {/if}
+              </div>
             {/each}
           {/key}
           <button
             class="carousel-item relative w-48 h-48 bg-neutral-200 dark:bg-neutral transition hover:brightness-75"
-            on:click={async () => {
+            onclick={async () => {
               const chart = chartFiles.find((file) => file.id === selectedChart);
               const song = audioFiles.find((file) => file.id === selectedSong);
               const illustration = imageFiles.find((file) => file.id === selectedIllustration);
@@ -1335,7 +1364,7 @@
                         <button
                           type="button"
                           class="inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg transition border border-transparent text-blue-500 hover:text-blue-800 focus:outline-none focus:text-blue-800 disabled:opacity-50 disabled:pointer-events-none dark:text-blue-500 dark:hover:text-blue-400 dark:focus:text-blue-400"
-                          on:click={() => {
+                          onclick={() => {
                             asset.included = !asset.included;
                           }}
                         >
@@ -1344,7 +1373,7 @@
                         <button
                           type="button"
                           class="inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg transition border border-transparent text-blue-500 hover:text-blue-800 focus:outline-none focus:text-blue-800 disabled:opacity-50 disabled:pointer-events-none dark:text-blue-500 dark:hover:text-blue-400 dark:focus:text-blue-400"
-                          on:click={() => {
+                          onclick={() => {
                             assets = assets.filter((a) => a.id !== asset.id);
                           }}
                         >
@@ -1370,7 +1399,7 @@
               autofill:pt-6
               autofill:pb-2"
             value={selectedChart}
-            on:input={(e) => {
+            oninput={(e) => {
               selectedChart = parseInt(e.currentTarget.value);
               if (currentBundle) currentBundle.chart = selectedChart;
               chartBundles = chartBundles;
@@ -1404,7 +1433,7 @@
               autofill:pt-6
               autofill:pb-2"
             value={selectedSong}
-            on:input={(e) => {
+            oninput={(e) => {
               selectedSong = parseInt(e.currentTarget.value);
               if (currentBundle) currentBundle.song = selectedSong;
               chartBundles = chartBundles;
@@ -1438,7 +1467,7 @@
               autofill:pt-6
               autofill:pb-2"
             value={selectedIllustration}
-            on:input={(e) => {
+            oninput={(e) => {
               selectedIllustration = parseInt(e.currentTarget.value);
               if (currentBundle) currentBundle.illustration = selectedIllustration;
               chartBundles = chartBundles;
@@ -1472,7 +1501,7 @@
                 class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
                 aria-describedby="autoplay-description"
                 checked={toggles.autoplay}
-                on:input={(e) => {
+                oninput={(e) => {
                   toggles.autoplay = e.currentTarget.checked;
                   if (toggles.autoplay) {
                     toggles.practice = false;
@@ -1558,7 +1587,7 @@
               <label for="record" class="ms-3">
                 <button
                   class="flex items-center gap-1 text-sm font-semibold text-gray-800 dark:text-neutral-300"
-                  on:click={() => {
+                  onclick={() => {
                     showRecorderCollapse = !showRecorderCollapse;
                   }}
                 >
@@ -1768,7 +1797,7 @@
           <PreferencesModal bind:preferences class="w-1/2" />
           <button
             class="w-1/2 inline-flex justify-center items-center gap-x-3 text-center bg-gradient-to-tl from-blue-500 via-violet-500 to-fuchsia-500 dark:from-blue-700 dark:via-violet-700 dark:to-fuchsia-700 text-white text-sm font-medium rounded-md focus:outline-none py-3 px-4 transition-all duration-300 bg-size-200 bg-pos-0 hover:bg-pos-100"
-            on:click={() => {
+            onclick={() => {
               localStorage.setItem('preferences', JSON.stringify(preferences));
               localStorage.setItem('toggles', JSON.stringify(toggles));
               if (toggles.record) {
