@@ -98,7 +98,7 @@
   let selectedSong = -1;
   let selectedIllustration = -1;
   let selectedBundle = -1;
-  let currentBundle: ChartBundle;
+  let currentBundle: ChartBundle | undefined;
   let preferences: Preferences = {
     aspectRatio: null,
     backgroundBlur: 1,
@@ -179,12 +179,17 @@
               toggles[key as keyof typeof toggles] = rest[key as keyof typeof rest] as never;
             }
           }
+          if (!currentBundle) {
+            alert('No bundle is available.');
+            return;
+          }
           config = {
             resources: {
-              song: getUrl(audioFiles.find((file) => file.id === currentBundle.song)?.file) ?? '',
-              chart: getUrl(chartFiles.find((file) => file.id === currentBundle.chart)?.file) ?? '',
+              song: getUrl(audioFiles.find((file) => file.id === currentBundle!.song)?.file) ?? '',
+              chart:
+                getUrl(chartFiles.find((file) => file.id === currentBundle!.chart)?.file) ?? '',
               illustration:
-                imageFiles.find((file) => file.id === currentBundle.illustration)?.url ?? '',
+                imageFiles.find((file) => file.id === currentBundle!.illustration)?.url ?? '',
               assetNames: assetsIncluded.map((asset) => asset.file.name),
               assetTypes: assetsIncluded.map((asset) => asset.type),
               assets: assetsIncluded.map((asset) => getUrl(asset.file) ?? ''),
@@ -195,7 +200,7 @@
             ...toggles,
           };
         }
-        handleParams(config);
+        await handleParams(config);
       } else if (
         message.type === 'zipInput' ||
         message.type === 'fileInput' ||
@@ -235,8 +240,8 @@
     });
 
     if (IS_TAURI) {
-      onOpenUrl((urls) => {
-        handleRedirect(urls[0]);
+      onOpenUrl(async (urls) => {
+        await handleRedirect(urls[0]);
       });
       const handler = async (path: string) => {
         const data = await readFile(path);
@@ -276,11 +281,11 @@
       if (url) {
         const params = getParams(url, false);
         if (params) {
-          handleParams(params);
+          await handleParams(params);
           return;
         }
         const searchParams = new URL(url).searchParams;
-        handleParamFiles(searchParams);
+        await handleParamFiles(searchParams);
       }
 
       if (
@@ -329,7 +334,7 @@
           `${IS_ANDROID_OR_IOS ? `${base}/app` : 'phizone-player://'}${$page.url.search}`,
         );
       } else {
-        handleParamFiles($page.url.searchParams);
+        await handleParamFiles($page.url.searchParams);
       }
     }
   };
@@ -388,13 +393,13 @@
     }
   };
 
-  const handleRedirect = (url: string) => {
+  const handleRedirect = async (url: string) => {
     const params = getParams(url, false);
     if (params) {
-      handleParams(params);
+      await handleParams(params);
     } else {
       const searchParams = new URL(url).searchParams;
-      handleParamFiles(searchParams);
+      await handleParamFiles(searchParams);
     }
   };
 
@@ -779,7 +784,7 @@
     return (size / Math.pow(1024, i)).toFixed(2) + ' ' + ['B', 'KiB', 'MiB', 'GiB', 'TiB'][i];
   };
 
-  const handleParams = (params: Config) => {
+  const handleParams = async (params: Config) => {
     localStorage.setItem('player', JSON.stringify(params));
     preferences = params.preferences;
     recorderOptions = params.recorderOptions;
@@ -797,9 +802,15 @@
       payload: {
         metadata: params.metadata,
         resources: {
-          song: audioFiles.find((file) => file.id === currentBundle.song)!.file,
-          chart: chartFiles.find((file) => file.id === currentBundle.chart)!.file,
-          illustration: imageFiles.find((file) => file.id === currentBundle.illustration)!.file,
+          song:
+            audioFiles.find((file) => file.id === currentBundle?.song)?.file ??
+            (await download(params.resources.song)),
+          chart:
+            chartFiles.find((file) => file.id === currentBundle?.chart)?.file ??
+            (await download(params.resources.chart)),
+          illustration:
+            imageFiles.find((file) => file.id === currentBundle?.illustration)?.file ??
+            (await download(params.resources.illustration)),
           assets: params.resources.assetNames.map((name) => {
             const asset = assets.find((asset) => asset.file.name === name)!;
             return {
@@ -995,8 +1006,8 @@
             </button>
             <button
               class="py-3 px-4 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-100 focus:outline-none focus:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-700 dark:focus:bg-neutral-700 transition"
-              on:click={() => {
-                handleParamFiles($page.url.searchParams);
+              on:click={async () => {
+                await handleParamFiles($page.url.searchParams);
                 if (modalMem) {
                   toggles.inApp = 2;
                   localStorage.setItem('toggles', JSON.stringify(toggles));
@@ -1158,7 +1169,15 @@
                   song,
                   illustration,
                   undefined,
-                  currentBundle.metadata,
+                  currentBundle?.metadata ?? {
+                    title: '',
+                    composer: '',
+                    charter: '',
+                    illustrator: '',
+                    levelType: 2,
+                    level: '',
+                    difficulty: null,
+                  },
                 );
                 if (!bundle) return;
                 currentBundle = bundle;
@@ -1177,7 +1196,7 @@
             </div>
           </button>
         </div>
-        {#if selectedBundle !== -1}
+        {#if selectedBundle !== -1 && currentBundle}
           <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div>
               <span class="block text-sm font-medium mb-1 dark:text-white">Title</span>
@@ -1353,7 +1372,7 @@
             value={selectedChart}
             on:input={(e) => {
               selectedChart = parseInt(e.currentTarget.value);
-              currentBundle.chart = selectedChart;
+              if (currentBundle) currentBundle.chart = selectedChart;
               chartBundles = chartBundles;
             }}
           >
@@ -1387,7 +1406,7 @@
             value={selectedSong}
             on:input={(e) => {
               selectedSong = parseInt(e.currentTarget.value);
-              currentBundle.song = selectedSong;
+              if (currentBundle) currentBundle.song = selectedSong;
               chartBundles = chartBundles;
             }}
           >
@@ -1421,7 +1440,7 @@
             value={selectedIllustration}
             on:input={(e) => {
               selectedIllustration = parseInt(e.currentTarget.value);
-              currentBundle.illustration = selectedIllustration;
+              if (currentBundle) currentBundle.illustration = selectedIllustration;
               chartBundles = chartBundles;
             }}
           >
@@ -1763,12 +1782,16 @@
                   recorderOptions.overrideResolution = null;
                 }
               }
+              if (!currentBundle) {
+                alert('No bundle is available.');
+                return;
+              }
               const assetsIncluded = assets.filter((asset) => asset.included);
               const params = queryString.stringify(
                 {
-                  song: getUrl(audioFiles.find((file) => file.id === currentBundle.song)?.file),
-                  chart: getUrl(chartFiles.find((file) => file.id === currentBundle.chart)?.file),
-                  illustration: imageFiles.find((file) => file.id === currentBundle.illustration)
+                  song: getUrl(audioFiles.find((file) => file.id === currentBundle!.song)?.file),
+                  chart: getUrl(chartFiles.find((file) => file.id === currentBundle!.chart)?.file),
+                  illustration: imageFiles.find((file) => file.id === currentBundle!.illustration)
                     ?.url,
                   assetNames: assetsIncluded.map((asset) => asset.file.name),
                   assetTypes: assetsIncluded.map((asset) => asset.type),
@@ -1792,12 +1815,13 @@
                 const config = {
                   resources: {
                     song:
-                      getUrl(audioFiles.find((file) => file.id === currentBundle.song)?.file) ?? '',
+                      getUrl(audioFiles.find((file) => file.id === currentBundle!.song)?.file) ??
+                      '',
                     chart:
-                      getUrl(chartFiles.find((file) => file.id === currentBundle.chart)?.file) ??
+                      getUrl(chartFiles.find((file) => file.id === currentBundle!.chart)?.file) ??
                       '',
                     illustration:
-                      imageFiles.find((file) => file.id === currentBundle.illustration)?.url ?? '',
+                      imageFiles.find((file) => file.id === currentBundle!.illustration)?.url ?? '',
                     assetNames: assetsIncluded.map((asset) => asset.file.name),
                     assetTypes: assetsIncluded.map((asset) => asset.type),
                     assets: assetsIncluded.map((asset) => getUrl(asset.file) ?? ''),
