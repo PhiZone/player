@@ -17,6 +17,7 @@ import {
   type SkewControl,
   type YControl,
   type RpeJson,
+  type JudgeLine,
   // type RecorderOptions,
 } from '$lib/types';
 import { EventBus } from './EventBus';
@@ -147,10 +148,91 @@ export const loadJson = async (url: string, name: string) => {
   }
 };
 
+export const parseRPEVersion = (chart: RpeJson): RpeJson => {
+  if (isNaN(chart.META.RPEVersion))
+    throw new Error(`Not a valid RPE verion: ${chart.META.RPEVersion}`);
+
+  const result = { ...chart };
+
+  for (const line of result.judgeLineList) {
+    if (isNaN(line.bpmfactor)) line.bpmfactor = 1;
+    if (isNaN(line.father)) line.father = -1;
+    if (isNaN(line.zOrder)) line.zOrder = 0;
+
+    if (!line.alphaControl || line.alphaControl.length < 1)
+      line.alphaControl = [
+        {
+          x: 0,
+          alpha: 255,
+          easing: 1,
+        },
+        {
+          x: 9999999,
+          alpha: 255,
+          easing: 1,
+        },
+      ];
+    if (!line.posControl || line.posControl.length < 1)
+      line.posControl = [
+        {
+          x: 0,
+          pos: 1,
+          easing: 1,
+        },
+        {
+          x: 9999999,
+          pos: 1,
+          easing: 1,
+        },
+      ];
+    if (!line.sizeControl || line.sizeControl.length < 1)
+      line.sizeControl = [
+        {
+          x: 0,
+          size: 1,
+          easing: 1,
+        },
+        {
+          x: 9999999,
+          size: 1,
+          easing: 1,
+        },
+      ];
+    if (!line.skewControl || line.skewControl.length < 1)
+      line.skewControl = [
+        {
+          x: 0,
+          skew: 0,
+          easing: 1,
+        },
+        {
+          x: 9999999,
+          skew: 0,
+          easing: 1,
+        },
+      ];
+    if (!line.yControl || line.yControl.length < 1)
+      line.yControl = [
+        {
+          x: 0,
+          y: 1,
+          easing: 1,
+        },
+        {
+          x: 9999999,
+          y: 1,
+          easing: 1,
+        },
+      ];
+  }
+
+  return result;
+};
+
 export const loadChart = async (url: string, name: string = 'chart'): Promise<RpeJson | null> => {
   const text = await loadText(url, name);
   try {
-    return JSON.parse(text);
+    return parseRPEVersion(JSON.parse(text));
   } catch {
     if (isPec(getLines(text).slice(0, 2))) {
       return PhiEditerConverter(text, {
@@ -163,7 +245,6 @@ export const loadChart = async (url: string, name: string = 'chart'): Promise<Rp
         name: '',
         song: '',
       });
-      // write your PEC to RPE conversion here
     }
     return null;
   }
