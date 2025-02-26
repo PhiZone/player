@@ -308,11 +308,11 @@ export const isZip = (file: File) =>
 export const send = (message: OutgoingMessage) => parent.postMessage(message, '*');
 
 export const versionCompare = (aString: string, bString: string) => {
-  const a = aString.split('.').map(parseInt);
-  const b = bString.split('.').map(parseInt);
-  for (let i = 0; i < Math.min(a.length, b.length); i++) {
-    if (a[i] < b[i]) return -1;
-    if (a[i] > b[i]) return 1;
+  const a = aString.split('.').map((e) => parseInt(e));
+  const b = bString.split('.').map((e) => parseInt(e));
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    if ((a.at(i) ?? 0) < (b.at(i) ?? 0)) return -1;
+    if ((a.at(i) ?? 0) > (b.at(i) ?? 0)) return 1;
   }
   return 0;
 };
