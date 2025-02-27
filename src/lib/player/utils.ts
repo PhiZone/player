@@ -147,10 +147,115 @@ export const loadJson = async (url: string, name: string) => {
   }
 };
 
+export const parseRPEVersion = (chart: RpeJson): RpeJson => {
+  const parseEvents = (events: Event[]) => {
+    const result = [...events];
+
+    for (const event of events) {
+      if (isNaN(event.easingLeft)) event.easingLeft = 0;
+      if (isNaN(event.easingRight)) event.easingRight = 1;
+
+      if (isNaN(event.bezier)) event.bezier = 0;
+      if (!(event.bezierPoints instanceof Array) || event.bezierPoints.length !== 4)
+        event.bezierPoints = [0, 0, 1, 1];
+    }
+
+    return result;
+  };
+
+  if (isNaN(chart.META.RPEVersion))
+    throw new Error(`Not a valid RPE verion: ${chart.META.RPEVersion}`);
+
+  const result = { ...chart };
+
+  for (const line of result.judgeLineList) {
+    if (isNaN(line.bpmfactor)) line.bpmfactor = 1;
+    if (isNaN(line.father)) line.father = -1;
+    if (isNaN(line.zOrder)) line.zOrder = 0;
+
+    if (!line.alphaControl || line.alphaControl.length < 1)
+      line.alphaControl = [
+        {
+          x: 0,
+          alpha: 255,
+          easing: 1,
+        },
+        {
+          x: 9999999,
+          alpha: 255,
+          easing: 1,
+        },
+      ];
+    if (!line.posControl || line.posControl.length < 1)
+      line.posControl = [
+        {
+          x: 0,
+          pos: 1,
+          easing: 1,
+        },
+        {
+          x: 9999999,
+          pos: 1,
+          easing: 1,
+        },
+      ];
+    if (!line.sizeControl || line.sizeControl.length < 1)
+      line.sizeControl = [
+        {
+          x: 0,
+          size: 1,
+          easing: 1,
+        },
+        {
+          x: 9999999,
+          size: 1,
+          easing: 1,
+        },
+      ];
+    if (!line.skewControl || line.skewControl.length < 1)
+      line.skewControl = [
+        {
+          x: 0,
+          skew: 0,
+          easing: 1,
+        },
+        {
+          x: 9999999,
+          skew: 0,
+          easing: 1,
+        },
+      ];
+    if (!line.yControl || line.yControl.length < 1)
+      line.yControl = [
+        {
+          x: 0,
+          y: 1,
+          easing: 1,
+        },
+        {
+          x: 9999999,
+          y: 1,
+          easing: 1,
+        },
+      ];
+
+    for (const eventLayer of line.eventLayers) {
+      if (!eventLayer) continue;
+
+      if (eventLayer.alphaEvents) eventLayer.alphaEvents = parseEvents(eventLayer.alphaEvents);
+      if (eventLayer.moveXEvents) eventLayer.moveXEvents = parseEvents(eventLayer.moveXEvents);
+      if (eventLayer.moveYEvents) eventLayer.moveYEvents = parseEvents(eventLayer.moveYEvents);
+      if (eventLayer.rotateEvents) eventLayer.rotateEvents = parseEvents(eventLayer.rotateEvents);
+    }
+  }
+
+  return result;
+};
+
 export const loadChart = async (url: string, name: string = 'chart'): Promise<RpeJson | null> => {
   const text = await loadText(url, name);
   try {
-    return JSON.parse(text);
+    return parseRPEVersion(JSON.parse(text));
   } catch {
     if (isPec(getLines(text).slice(0, 2))) {
       return PhiEditerConverter(text, {
@@ -163,7 +268,6 @@ export const loadChart = async (url: string, name: string = 'chart'): Promise<Rp
         name: '',
         song: '',
       });
-      // write your PEC to RPE conversion here
     }
     return null;
   }
