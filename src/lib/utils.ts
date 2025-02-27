@@ -38,9 +38,13 @@ export const IS_ANDROID_OR_IOS =
 
 export const IS_IFRAME = window.self !== window.top;
 
-export const isDebug = () =>
+export const isDebug = () => checkIfEnabled('debug');
+
+export const showPerformance = () => checkIfEnabled('performance');
+
+export const checkIfEnabled = (key: string) =>
   ['1', 'true'].some(
-    (v) => v === get(page).url.searchParams.get('debug') || v === localStorage.getItem('debug'),
+    (v) => v === get(page).url.searchParams.get(key) || v === localStorage.getItem(key),
   );
 
 export const setFullscreen = () => {
