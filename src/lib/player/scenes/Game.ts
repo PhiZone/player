@@ -37,6 +37,7 @@ import { SignalHandler } from '../handlers/SignalHandler';
 import { Node, ROOT } from '../objects/Node';
 import { ShaderNode } from '../objects/ShaderNode';
 import { base } from '$app/paths';
+import StatsJS from 'stats-js';
 
 export class Game extends Scene {
   private _status: GameStatus = GameStatus.LOADING;
@@ -106,6 +107,7 @@ export class Game extends Scene {
   private _keyboardHandler: KeyboardHandler;
   private _judgmentHandler: JudgmentHandler;
   private _statisticsHandler: StatisticsHandler;
+  private _performance: StatsJS;
 
   constructor() {
     super('Game');
@@ -224,6 +226,14 @@ export class Game extends Scene {
         });
       else console.log('Not supported:', name); // TODO
     });
+
+    // Add stats.js
+    this._performance = new StatsJS();
+    this.events.on('preupdate', this._performance.begin);
+    this.events.on('render', this._performance.end);
+    this._performance.dom.style.top = '50%';
+    this._performance.dom.style.transform = 'translateY(-50%)';
+    document.body.appendChild(this._performance.dom);
   }
 
   create() {
@@ -530,6 +540,11 @@ export class Game extends Scene {
     this._gameUI.destroy();
     if (this._endingUI) this._endingUI.destroy();
     terminateFFmpeg();
+
+    // Remove stats.js
+    this.events.off('preupdate', this._performance.begin);
+    this.events.off('render', this._performance.end);
+    document.body.removeChild(this._performance.dom);
   }
 
   updateChart(beat: number, songTime: number, gameTime: number) {
