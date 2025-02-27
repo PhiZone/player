@@ -17,7 +17,6 @@ import {
   type SkewControl,
   type YControl,
   type RpeJson,
-  type JudgeLine,
   // type RecorderOptions,
 } from '$lib/types';
 import { EventBus } from './EventBus';
@@ -149,7 +148,7 @@ export const loadJson = async (url: string, name: string) => {
 };
 
 export const parseRPEVersion = (chart: RpeJson): RpeJson => {
-  const parseLineEvent = (events: Event[]) => {
+  const parseEvents = (events: Event[]) => {
     const result = [...events];
 
     for (const event of events) {
@@ -243,10 +242,10 @@ export const parseRPEVersion = (chart: RpeJson): RpeJson => {
     for (const eventLayer of line.eventLayers) {
       if (!eventLayer) continue;
 
-      if (eventLayer.alphaEvents) eventLayer.moveXEvents = parseLineEvent(eventLayer.alphaEvents);
-      if (eventLayer.moveXEvents) eventLayer.moveXEvents = parseLineEvent(eventLayer.moveXEvents);
-      if (eventLayer.moveYEvents) eventLayer.moveXEvents = parseLineEvent(eventLayer.moveYEvents);
-      if (eventLayer.rotateEvents) eventLayer.moveXEvents = parseLineEvent(eventLayer.rotateEvents);
+      if (eventLayer.alphaEvents) eventLayer.alphaEvents = parseEvents(eventLayer.alphaEvents);
+      if (eventLayer.moveXEvents) eventLayer.moveXEvents = parseEvents(eventLayer.moveXEvents);
+      if (eventLayer.moveYEvents) eventLayer.moveYEvents = parseEvents(eventLayer.moveYEvents);
+      if (eventLayer.rotateEvents) eventLayer.rotateEvents = parseEvents(eventLayer.rotateEvents);
     }
   }
 
