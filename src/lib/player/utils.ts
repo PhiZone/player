@@ -149,6 +149,21 @@ export const loadJson = async (url: string, name: string) => {
 };
 
 export const parseRPEVersion = (chart: RpeJson): RpeJson => {
+  const parseLineEvent = (events: Event[]) => {
+    const result = [...events];
+
+    for (const event of events) {
+      if (isNaN(event.easingLeft)) event.easingLeft = 0;
+      if (isNaN(event.easingRight)) event.easingRight = 1;
+
+      if (isNaN(event.bezier)) event.bezier = 0;
+      if (!(event.bezierPoints instanceof Array) || event.bezierPoints.length !== 4)
+        event.bezierPoints = [0, 0, 1, 1];
+    }
+
+    return result;
+  };
+
   if (isNaN(chart.META.RPEVersion))
     throw new Error(`Not a valid RPE verion: ${chart.META.RPEVersion}`);
 
@@ -224,6 +239,15 @@ export const parseRPEVersion = (chart: RpeJson): RpeJson => {
           easing: 1,
         },
       ];
+
+    for (const eventLayer of line.eventLayers) {
+      if (!eventLayer) continue;
+
+      if (eventLayer.alphaEvents) eventLayer.moveXEvents = parseLineEvent(eventLayer.alphaEvents);
+      if (eventLayer.moveXEvents) eventLayer.moveXEvents = parseLineEvent(eventLayer.moveXEvents);
+      if (eventLayer.moveYEvents) eventLayer.moveXEvents = parseLineEvent(eventLayer.moveYEvents);
+      if (eventLayer.rotateEvents) eventLayer.moveXEvents = parseLineEvent(eventLayer.rotateEvents);
+    }
   }
 
   return result;
