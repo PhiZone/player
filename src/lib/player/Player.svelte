@@ -1,5 +1,5 @@
 <script context="module" lang="ts">
-  import type { Game } from 'phaser';
+  import { Scene, type Game } from 'phaser';
   import type { Game as GameScene } from './scenes/Game';
 
   export type GameReference = {
@@ -14,7 +14,7 @@
   import start from './main';
   import { EventBus } from './EventBus';
   import { GameStatus, type Config } from '$lib/types';
-  import { getParams, IS_TAURI } from '$lib/utils';
+  import { getParams, IS_TAURI, showPerformance } from '$lib/utils';
   import {
     convertTime,
     findPredominantBpm,
@@ -31,6 +31,7 @@
   import { equal } from 'mathjs';
   import { base } from '$app/paths';
   import { Capacitor } from '@capacitor/core';
+  import StatsJS from 'stats-js';
 
   export let gameRef: GameReference;
 
@@ -86,6 +87,9 @@
   let wavesurfer: WaveSurfer | undefined;
   let regions: Regions | undefined;
   let isOffsetAdjustedChartExported = false;
+
+  let performanceEnabled = showPerformance();
+  let performanceStats: StatsJS | undefined;
 
   onMount(() => {
     if (!config) return;
@@ -212,7 +216,19 @@
       if (currentActiveScene) {
         currentActiveScene(scene);
       }
+
+      if (performanceStats) {
+        gameRef.scene?.events.on('preupdate', performanceStats.begin);
+        gameRef.scene?.events.on('render', performanceStats.end);
+      }
     });
+
+    if (performanceEnabled) {
+      performanceStats = new StatsJS();
+      performanceStats.dom.style.top = '50%';
+      performanceStats.dom.style.transform = 'translateY(-50%)';
+      document.body.appendChild(performanceStats.dom);
+    }
 
     EventBus.on('update', (t: number) => {
       if (t !== timeSec) {
@@ -267,6 +283,11 @@
     audioRecorder?.stop();
     gameRef.scene?.destroy();
     gameRef.game?.destroy(true);
+    if (performanceStats) {
+      gameRef.scene?.events.off('preupdate', performanceStats.begin);
+      gameRef.scene?.events.off('render', performanceStats.end);
+      document.body.removeChild(performanceStats.dom);
+    }
   });
 
   const exit = () => {
