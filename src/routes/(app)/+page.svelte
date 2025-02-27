@@ -1128,7 +1128,7 @@
       <div class="flex md:w-2/3 flex-col gap-3">
         <div class="carousel-with-bar rounded-box w-fit">
           {#key chartBundles}
-            {#each chartBundles as bundle, i}
+            {#each chartBundles as bundle}
               <div class="carousel-item relative">
                 <button
                   class="transition hover:brightness-75"
