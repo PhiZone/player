@@ -1,7 +1,7 @@
-name: Publish (Debug)
-run-name: Publish debug builds
+name: PR Artifacts
+run-name: Generate artifacts for PR
 on:
-  push:
+  pull_request:
     branches:
       - main
     paths:
@@ -16,7 +16,7 @@ on:
       - 'tailwind.config.js'
       - 'capacitor.config.ts'
       - 'vite/config.prod.mjs'
-      - '.github/workflows/publish-debug.yml'
+      - '.github/workflows/pr-artifacts.yml'
   workflow_dispatch:
 
 defaults:
@@ -28,7 +28,7 @@ jobs:
     name: Retrieve metadata
     runs-on: ubuntu-22.04
     concurrency:
-      group: 'publish-debug'
+      group: 'pr-artifacts'
       cancel-in-progress: false
 
     steps:
@@ -48,92 +48,14 @@ jobs:
       current-datetime: ${{ steps.current-datetime.outputs.CURRENT_DATETIME }}
       version-name: ${{ steps.version.outputs.VERSION }}_${{ steps.current-datetime.outputs.CURRENT_DATETIME }}
 
-  publish-web:
-    name: Publish to Sentry, GitHub Pages and Vercel
-    runs-on: ubuntu-22.04
-    if: github.event_name == 'push'
-    needs: metadata
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    concurrency:
-      group: 'publish-debug-web'
-      cancel-in-progress: false
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    steps:
-      - name: Confirm build version and datetime
-        run: |
-          echo "Version: ${{ needs.metadata.outputs.version }}"
-          echo "Build datetime: ${{ needs.metadata.outputs.current-datetime }}"
-
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - name: Install dependencies
-        run: pnpm i
-
-      - name: Create build
-        run: pnpm build:only
-        env:
-          PUBLIC_SENTRY_DSN: ${{ vars.PUBLIC_SENTRY_DSN }}
-          PATH_BASE: /player
-
-      - name: Create Sentry release
-        uses: getsentry/action-release@v1
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: phizone
-          SENTRY_PROJECT: player
-        with:
-          environment: production
-          version: ${{ needs.metadata.outputs.version-name }}
-          sourcemaps: './build'
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: './build'
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-
-      - name: Deploy to Vercel
-        env:
-          PROJECT_JSON: ${{ secrets.VERCEL_PROJECT_JSON }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          mkdir .vercel
-          echo -n "$PROJECT_JSON" > .vercel/project.json
-          npx vercel --prod --token $VERCEL_TOKEN
-
-  publish-capacitor-ios:
+  generate-capacitor-ios:
     name: Build for iOS
     runs-on: macos-15
     needs: metadata
     permissions:
       contents: write
     concurrency:
-      group: 'publish-debug-ios'
+      group: 'pr-artifacts-ios'
       cancel-in-progress: false
 
     steps:
@@ -256,14 +178,14 @@ jobs:
           rm ~/Library/MobileDevice/Provisioning\ Profiles/share-extension.mobileprovision
           rm -rf ~/artifacts/
 
-  publish-capacitor-android:
+  generate-capacitor-android:
     name: Build for Android
     runs-on: ubuntu-22.04
     needs: metadata
     permissions:
       contents: write
     concurrency:
-      group: 'publish-debug-android'
+      group: 'pr-artifacts-android'
       cancel-in-progress: false
 
     steps:
@@ -332,13 +254,13 @@ jobs:
         run: |
           rm -rf ~/artifacts/
 
-  publish-tauri:
+  generate-tauri:
     name: Build with Tauri
     needs: metadata
     permissions:
       contents: write
     concurrency:
-      group: 'publish-debug-tauri-${{ matrix.platform }}-${{ matrix.args }}'
+      group: 'pr-artifacts-tauri-${{ matrix.platform }}-${{ matrix.args }}'
       cancel-in-progress: false
 
     strategy:
