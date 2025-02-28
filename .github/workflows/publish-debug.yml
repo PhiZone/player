@@ -17,36 +17,20 @@ on:
       - 'capacitor.config.ts'
       - 'vite/config.prod.mjs'
       - '.github/workflows/publish-debug.yml'
-  pull_request:
-    branches:
-      - main
-    paths:
-      - 'android/**'
-      - 'ios/**'
-      - 'src/**'
-      - 'src-tauri/**'
-      - 'static/**'
-      - 'package.json'
-      - '.vercelignore'
-      - 'svelte.config.js'
-      - 'tailwind.config.js'
-      - 'capacitor.config.ts'
-      - 'vite/config.prod.mjs'
-      - '.github/workflows/publish-debug.yml'
   workflow_dispatch:
 
 defaults:
   run:
     shell: bash
 
-concurrency:
-  group: 'publish-debug'
-  cancel-in-progress: false
-
 jobs:
   metadata:
     name: Retrieve metadata
     runs-on: ubuntu-22.04
+    concurrency:
+      group: 'publish-debug'
+      cancel-in-progress: false
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -74,11 +58,12 @@ jobs:
       pages: write
       id-token: write
     concurrency:
-      group: 'pages'
+      group: 'publish-debug-web'
       cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+
     steps:
       - name: Confirm build version and datetime
         run: |
@@ -147,6 +132,10 @@ jobs:
     needs: metadata
     permissions:
       contents: write
+    concurrency:
+      group: 'publish-debug-ios'
+      cancel-in-progress: false
+
     steps:
       - name: Confirm build version and datetime
         run: |
@@ -273,6 +262,10 @@ jobs:
     needs: metadata
     permissions:
       contents: write
+    concurrency:
+      group: 'publish-debug-android'
+      cancel-in-progress: false
+
     steps:
       - name: Confirm build version and datetime
         run: |
@@ -344,6 +337,10 @@ jobs:
     needs: metadata
     permissions:
       contents: write
+    concurrency:
+      group: 'publish-debug-tauri-${{ matrix.platform }}-${{ matrix.args }}'
+      cancel-in-progress: false
+
     strategy:
       fail-fast: false
       matrix:
