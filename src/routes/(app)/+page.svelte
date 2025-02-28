@@ -153,13 +153,16 @@
   onMount(async () => {
     const checkParam = (key: string, values: string[]) =>
       values.some((v) => v === $page.url.searchParams.get(key));
-    ['debug', 'performance'].forEach((key) => {
-      if (checkParam(key, ['1', 'true'])) {
-        localStorage.setItem(key, 'true');
-        notify(`Enabled ${key}.`, 'info');
-      } else if (checkParam(key, ['0', 'false']) && localStorage.getItem(key)) {
-        localStorage.removeItem(key);
-        notify(`Disabled ${key}.`, 'info');
+    [
+      { key: 'debug', name: 'debug mode' },
+      { key: 'performance', name: 'performance metrics' },
+    ].forEach((e) => {
+      if (checkParam(e.key, ['1', 'true'])) {
+        localStorage.setItem(e.key, 'true');
+        notify(`Enabled ${e.name}.`, 'info');
+      } else if (checkParam(e.key, ['0', 'false']) && localStorage.getItem(e.key)) {
+        localStorage.removeItem(e.key);
+        notify(`Disabled ${e.name}.`, 'info');
       }
     });
     if (directoryInput) directoryInput.webkitdirectory = true;
