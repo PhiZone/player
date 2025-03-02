@@ -68,14 +68,14 @@ export class KeyboardHandler {
   }
 
   handleLeftArrowDown() {
-    this.setSeek(Math.max(0, this._scene.song.seek - this._increment * this._scene.timeScale));
+    this.setSeek(Math.max(0, this._scene.clock.seek - this._increment * this._scene.timeScale));
   }
 
   handleRightArrowDown() {
     this.setSeek(
       Math.min(
         this._scene.song.duration,
-        this._scene.song.seek + this._increment * this._scene.timeScale,
+        this._scene.clock.seek + this._increment * this._scene.timeScale,
       ),
     );
   }

@@ -37,6 +37,7 @@ import { SignalHandler } from '../handlers/SignalHandler';
 import { Node, ROOT } from '../objects/Node';
 import { ShaderNode } from '../objects/ShaderNode';
 import { base } from '$app/paths';
+import { ClockHandler } from '../handlers/ClockHandler';
 
 export class Game extends Scene {
   private _status: GameStatus = GameStatus.LOADING;
@@ -102,6 +103,7 @@ export class Game extends Scene {
   private _gameUI: GameUI;
   private _endingUI?: EndingUI;
 
+  private _clock: ClockHandler;
   private _pointerHandler: PointerHandler;
   private _keyboardHandler: KeyboardHandler;
   private _judgmentHandler: JudgmentHandler;
@@ -374,7 +376,7 @@ export class Game extends Scene {
     this.updateChart(this.beat, this.timeSec, Date.now());
     this.in();
     this._timeout = setTimeout(() => {
-      this._song.play();
+      this._clock.play();
     }, 1000 / this.tweens.timeScale);
     EventBus.emit('started');
     send({
@@ -399,7 +401,7 @@ export class Game extends Scene {
     if (this._status === GameStatus.ERROR || !this._song.isPlaying) return;
     clearTimeout(this._timeout);
     this._status = GameStatus.PAUSED;
-    this._song.pause();
+    this._clock.pause();
     this._videos?.forEach((video) => video.pause());
     EventBus.emit('paused', emittedBySpace);
     send({
@@ -414,7 +416,7 @@ export class Game extends Scene {
     if (this._status === GameStatus.ERROR) return;
     this.updateChart(this.beat, this.timeSec, Date.now());
     this._status = GameStatus.PLAYING;
-    this._song.resume();
+    this._clock.resume();
     this._videos?.forEach((video) => video.resume());
     EventBus.emit('started');
     send({
@@ -428,11 +430,11 @@ export class Game extends Scene {
   async restart() {
     if (this._status === GameStatus.ERROR) return;
     this._status = GameStatus.LOADING;
-    this._song.pause();
+    this._clock.pause();
     this._pointerHandler.reset();
     this._keyboardHandler.reset();
     this._judgmentHandler.reset();
-    this._song.setSeek(0);
+    this._clock.setSeek(0);
     this._endingUI?.destroy();
     this.resetShadersAndVideos();
     this.initializeShaders();
@@ -440,7 +442,7 @@ export class Game extends Scene {
     this._objects.sort((a, b) => a.depth - b.depth);
     this.in();
     this._timeout = setTimeout(() => {
-      this._song.play();
+      this._clock.play();
     }, 1000 / this.tweens.timeScale);
     this._status = GameStatus.PLAYING;
     this._objects.sort((a, b) => a.depth - b.depth);
@@ -475,7 +477,7 @@ export class Game extends Scene {
 
   setSeek(value: number) {
     this._isSeeking = true;
-    this._song.setSeek(value);
+    this._clock.setSeek(value);
     this._videos?.forEach((video) => video.setSeek(value));
   }
 
@@ -505,17 +507,17 @@ export class Game extends Scene {
       this._gameUI.update();
       this.positionBackground(this._background);
     }
-    let timeSec = this.realTimeSec;
-    EventBus.emit('update', timeSec);
+    this._clock.update();
+    const realTimeSec = this.realTimeSec;
+    EventBus.emit('update', realTimeSec);
     send({
       type: 'event',
       payload: {
         name: 'progress',
-        value: timeSec,
+        value: realTimeSec,
       },
     });
-    timeSec -= this._offset / 1000;
-    this.updateChart(this.getBeat(timeSec), timeSec, time);
+    this.updateChart(this.beat, this.timeSec, time);
     this.statistics.updateDisplay(delta);
     if (this._isSeeking) {
       this._status = status;
@@ -560,6 +562,7 @@ export class Game extends Scene {
     this.sound.pauseOnBlur = false;
     this._song = this.sound.add('song');
     this._song.setVolume(this._data.preferences.musicVolume);
+    this._clock = new ClockHandler(this._song, this.sound);
     this.timeScale = this._data.preferences.timeScale;
   }
 
@@ -831,8 +834,9 @@ export class Game extends Scene {
       this.sound.setRate(value);
       this.anims.globalTimeScale = value;
       this.tweens.timeScale = value;
+      this._clock.sync();
     } else {
-      this._song.setRate(value);
+      this._clock.setRate(value);
     }
   }
 
@@ -842,6 +846,10 @@ export class Game extends Scene {
 
   public get endingUI() {
     return this._endingUI;
+  }
+
+  public get clock() {
+    return this._clock;
   }
 
   public get pointer() {
@@ -891,14 +899,11 @@ export class Game extends Scene {
   }
 
   public get timeSec() {
-    return (
-      (this._status === GameStatus.FINISHED ? this._song.duration : this._song.seek) -
-      this._offset / 1000
-    );
+    return this.realTimeSec - this._offset / 1000;
   }
 
   public get realTimeSec() {
-    return this._status === GameStatus.FINISHED ? this._song.duration : this._song.seek;
+    return this._status === GameStatus.FINISHED ? this._song.duration : this._clock.seek;
   }
 
   public get bpm() {
