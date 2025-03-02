@@ -96,7 +96,7 @@ export class Line {
     this._line = this._hasText
       ? new GameObjects.Text(scene, 0, 0, this._text ?? '', {
           fontFamily: FONT_FAMILY,
-          fontSize: 60,
+          fontSize: 50,
           color: '#ffffff',
           align: 'left',
         }).setOrigin(0.5)
