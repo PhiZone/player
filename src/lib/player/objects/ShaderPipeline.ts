@@ -84,7 +84,11 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
         }
       });
     }
-    this.bootFX();
+    try {
+      this.bootFX();
+    } catch (e) {
+      console.error(e);
+    }
   }
 
   onBoot(): void {
