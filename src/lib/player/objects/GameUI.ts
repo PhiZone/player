@@ -243,13 +243,14 @@ export class GameUI {
       }
     });
 
-    const song = this._scene.song;
     this._progressBar.bar.setScale(
       this._scene.p(1350) / this._progressBar.bar.texture.getSourceImage().width,
     );
     this._progressBar.bar.setX(
       this._scene.p(
-        (this._scene.status === GameStatus.FINISHED ? 1 : song.seek / song.duration) * 1350,
+        (this._scene.status === GameStatus.FINISHED
+          ? 1
+          : this._scene.clock.seek / this._scene.song.duration) * 1350,
       ),
     );
   }
