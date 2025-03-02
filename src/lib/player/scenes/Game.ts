@@ -507,17 +507,17 @@ export class Game extends Scene {
       this._gameUI.update();
       this.positionBackground(this._background);
     }
-    let timeSec = this.realTimeSec;
-    EventBus.emit('update', timeSec);
+    this._clock.update();
+    const realTimeSec = this.realTimeSec;
+    EventBus.emit('update', realTimeSec);
     send({
       type: 'event',
       payload: {
         name: 'progress',
-        value: timeSec,
+        value: realTimeSec,
       },
     });
-    timeSec -= this._offset / 1000;
-    this.updateChart(this.getBeat(timeSec), timeSec, time);
+    this.updateChart(this.beat, this.timeSec, time);
     this.statistics.updateDisplay(delta);
     if (this._isSeeking) {
       this._status = status;
@@ -899,10 +899,7 @@ export class Game extends Scene {
   }
 
   public get timeSec() {
-    return (
-      (this._status === GameStatus.FINISHED ? this._song.duration : this._clock.seek) -
-      this._offset / 1000
-    );
+    return this.realTimeSec - this._offset / 1000;
   }
 
   public get realTimeSec() {

@@ -25,6 +25,7 @@ export class ClockHandler {
     this._sound = sound;
     this._soundManager = soundManager;
     this.sync();
+    this.update();
   }
 
   play() {
@@ -60,7 +61,6 @@ export class ClockHandler {
       biases: [],
       biasSum: 0,
     };
-    this.update();
   }
 
   update() {
@@ -77,7 +77,6 @@ export class ClockHandler {
   }
 
   public get seek() {
-    this.update();
     return this._time;
   }
 }
