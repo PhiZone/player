@@ -249,9 +249,10 @@ export class LongNote extends GameObjects.Container {
   }
 
   public get judgmentPosition() {
+    const y = this._yModifier * this._scene.o(this._data.yOffset);
     return {
-      x: this._line.x + this.x * Math.cos(this._line.rotation),
-      y: this._line.y + this.x * Math.sin(this._line.rotation),
+      x: this._line.x + this.x * Math.cos(this._line.rotation) - y * Math.sin(this._line.rotation),
+      y: this._line.y + this.x * Math.sin(this._line.rotation) + y * Math.cos(this._line.rotation),
     };
   }
 
