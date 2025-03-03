@@ -240,7 +240,7 @@ Notice that there are two events that share the same shader code. This is a work
 <sup>1</sup> Support for fragment shaders is partial, due to WebGL relying on an older version of GLSL.  
 <sup>2</sup> The app currently shows up for `application/zip` and `application/octet-stream` files on Android and any type of files on iOS/iPadOS. This is not the desired behavior and is subject to change.
 
-A version is reached whenever at least one feature from this version is marked as `🚧 Working`, and all features from the previous versions are marked as `✅ Done`. A version is released only when all features from this version and the previous versions are marked as `✅ Done`.
+A version is reached when at least one feature from this version or its future versions is marked as `🚧 Working`, and all features from the previous versions are marked as `✅ Done`. A version is released only when all features from this version and the previous versions are marked as `✅ Done`.
 
 ## Assets
 
