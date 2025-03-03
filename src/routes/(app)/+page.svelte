@@ -180,7 +180,7 @@
           const assetsIncluded = assets.filter((asset) => asset.included);
           const { preferences: pref, recorderOptions: rec, ...rest } = message.payload;
           for (const key in rest) {
-            if (rest[key as keyof typeof rest]) {
+            if (rest[key as keyof typeof rest] !== undefined) {
               toggles[key as keyof typeof toggles] = rest[key as keyof typeof rest] as never;
             }
           }
