@@ -634,6 +634,24 @@
         a.id !== illustrationFile?.id &&
         a.id !== metadataEntry?.id,
     );
+    send({
+      type: 'bundle',
+      payload: {
+        metadata: bundle.metadata,
+        resources: {
+          song: audioFiles.find((file) => file.id === bundle.song)!.file,
+          chart: chartFiles.find((file) => file.id === bundle.chart)!.file,
+          illustration: imageFiles.find((file) => file.id === bundle.illustration)!.file,
+          assets: assets.map((asset) => {
+            return {
+              name: asset.file.name,
+              type: asset.type,
+              file: asset.file,
+            };
+          }),
+        },
+      },
+    });
     return bundle;
   };
 
