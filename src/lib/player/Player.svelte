@@ -1,5 +1,5 @@
 <script context="module" lang="ts">
-  import { Scene, type Game } from 'phaser';
+  import { type Game } from 'phaser';
   import type { Game as GameScene } from './scenes/Game';
 
   export type GameReference = {
