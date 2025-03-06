@@ -95,6 +95,7 @@ export class Game extends Scene {
   private _timeout: NodeJS.Timeout;
   private _isSeeking: boolean = false;
   private _timeScale: number = 1;
+  private _lastProgressUpdate: number | undefined;
 
   private _objects: Node[] = [];
 
@@ -499,6 +500,7 @@ export class Game extends Scene {
       }
       return;
     }
+    this._clock.update();
     if (this._endingUI) this._endingUI.update();
     const status = this._status;
     if (this._isSeeking) this._status = GameStatus.SEEKING;
@@ -507,21 +509,27 @@ export class Game extends Scene {
       this._gameUI.update();
       this.positionBackground(this._background);
     }
-    this._clock.update();
     const realTimeSec = this.realTimeSec;
-    EventBus.emit('update', realTimeSec);
-    send({
-      type: 'event',
-      payload: {
-        name: 'progress',
-        value: realTimeSec,
-      },
-    });
+    this.report(time, realTimeSec);
     this.updateChart(this.beat, this.timeSec, time);
     this.statistics.updateDisplay(delta);
     if (this._isSeeking) {
       this._status = status;
       this._isSeeking = false;
+    }
+  }
+
+  report(gameTime: number, songTime: number) {
+    EventBus.emit('update', songTime);
+    if (!this._lastProgressUpdate || gameTime - this._lastProgressUpdate >= 100) {
+      this._lastProgressUpdate = gameTime;
+      send({
+        type: 'event',
+        payload: {
+          name: 'progress',
+          value: songTime,
+        },
+      });
     }
   }
 

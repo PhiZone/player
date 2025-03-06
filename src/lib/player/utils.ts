@@ -133,6 +133,14 @@ const download = async (url: string, name?: string) => {
   }
 };
 
+export enum ControlTypes {
+  ALPHA = 0,
+  POS = 1,
+  SIZE = 2,
+  SKEW = 3,
+  Y = 4,
+}
+
 export const loadText = async (url: string, name: string): Promise<string> => {
   const blob = await download(url, name);
   return blob.text();
@@ -443,7 +451,7 @@ export const easing = (
   return (progress - progressStart) / (progressEnd - progressStart);
 };
 
-const calculateValue = (
+export const calculateValue = (
   start: number | number[] | string,
   end: number | number[] | string,
   progress: number,
@@ -501,31 +509,31 @@ const calculateValue = (
   return undefined;
 };
 
-export const getControlValue = (
-  x: number,
-  control:
-    | { type: 'alpha'; payload: AlphaControl[] }
-    | { type: 'pos'; payload: PosControl[] }
-    | { type: 'size'; payload: SizeControl[] }
-    | { type: 'skew'; payload: SkewControl[] }
-    | { type: 'y'; payload: YControl[] },
-): number => {
-  let currentIndex = control.payload.findLastIndex((node) => node.x >= x);
-  if (currentIndex === -1) currentIndex = 0;
-  const nextIndex = currentIndex + 1 < control.payload.length ? currentIndex + 1 : currentIndex;
-  return calculateValue(
-    control.payload[currentIndex][control.type as keyof (typeof control.payload)[number]],
-    control.payload[nextIndex][control.type as keyof (typeof control.payload)[number]],
-    nextIndex === currentIndex
-      ? 0
-      : easing(
-          control.payload[currentIndex].easing,
-          undefined,
-          (x - control.payload[currentIndex].x) /
-            (control.payload[nextIndex].x - control.payload[currentIndex].x),
-        ),
-  ) as number;
-};
+// export const getControlValue = (
+//   x: number,
+//   control:
+//     | { type: 'alpha'; payload: AlphaControl[] }
+//     | { type: 'pos'; payload: PosControl[] }
+//     | { type: 'size'; payload: SizeControl[] }
+//     | { type: 'skew'; payload: SkewControl[] }
+//     | { type: 'y'; payload: YControl[] },
+// ): number => {
+//   let currentIndex = control.payload.findLastIndex((node) => node.x >= x);
+//   if (currentIndex === -1) currentIndex = 0;
+//   const nextIndex = currentIndex + 1 < control.payload.length ? currentIndex + 1 : currentIndex;
+//   return calculateValue(
+//     control.payload[currentIndex][control.type as keyof (typeof control.payload)[number]],
+//     control.payload[nextIndex][control.type as keyof (typeof control.payload)[number]],
+//     nextIndex === currentIndex
+//       ? 0
+//       : easing(
+//           control.payload[currentIndex].easing,
+//           undefined,
+//           (x - control.payload[currentIndex].x) /
+//             (control.payload[nextIndex].x - control.payload[currentIndex].x),
+//         ),
+//   ) as number;
+// };
 
 export const getEventValue = (
   beat: number,

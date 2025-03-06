@@ -1,8 +1,16 @@
 // import { GameObjects } from 'phaser';
 import { SkewImage } from 'phaser3-rex-plugins/plugins/quadimage.js';
-import { JudgmentType, type Note } from '$lib/types';
+import {
+  JudgmentType,
+  type AlphaControl,
+  type Note,
+  type PosControl,
+  type SizeControl,
+  type SkewControl,
+  type YControl,
+} from '$lib/types';
 import { clamp, isDebug } from '$lib/utils';
-import { getControlValue, getTimeSec, rgbToHex } from '../utils';
+import { calculateValue, ControlTypes, easing, getTimeSec, rgbToHex } from '../utils';
 import type { Game } from '../scenes/Game';
 import type { Line } from './Line';
 import { NOTE_BASE_SIZE, NOTE_PRIORITIES } from '../constants';
@@ -26,6 +34,14 @@ export class PlainNote extends SkewImage {
   private _pendingPerfect: boolean = false;
   private _isTapped: boolean = false;
   private _consumeTap: boolean = true;
+
+  private _controlIndex: { type: string; index: number }[] = [
+    { type: 'alpha', index: 0 },
+    { type: 'pos', index: 0 },
+    { type: 'size', index: 0 },
+    { type: 'skew', index: 0 },
+    { type: 'y', index: 0 },
+  ];
 
   private _debug: GameObjects.Container | undefined = undefined;
 
@@ -71,7 +87,7 @@ export class PlainNote extends SkewImage {
       this._scene.p(
         this._xModifier *
           this._data.positionX *
-          getControlValue(chartDist, { type: 'pos', payload: this._line.data.posControl }) +
+          this.getControlValue(chartDist, ControlTypes.POS, this._line.data.posControl) +
           Math.tan(
             ((this._xModifier * this._data.positionX) / 675) *
               -(this._line.incline ?? 0) *
@@ -80,17 +96,14 @@ export class PlainNote extends SkewImage {
             chartDist,
       ),
     );
-    this.setSkewXDeg(
+    this.applySkewX(
       -this._xModifier *
         this._data.positionX *
-        getControlValue(chartDist, { type: 'skew', payload: this._line.data.skewControl }),
+        this.getControlValue(chartDist, ControlTypes.SKEW, this._line.data.skewControl),
     );
     this._alpha =
       (this._data.alpha *
-        getControlValue(chartDist, {
-          type: 'alpha',
-          payload: this._line.data.alphaControl,
-        })) /
+        this.getControlValue(chartDist, ControlTypes.ALPHA, this._line.data.alphaControl)) /
       255;
     this.resize(chartDist);
     if (this._beatJudged && beat < this._beatJudged) {
@@ -100,7 +113,7 @@ export class PlainNote extends SkewImage {
       this.setY(
         this._yModifier *
           dist *
-          getControlValue(chartDist, { type: 'y', payload: this._line.data.yControl }),
+          this.getControlValue(chartDist, ControlTypes.Y, this._line.data.yControl),
       );
     }
     if (beat >= this._data.startBeat) {
@@ -186,17 +199,48 @@ export class PlainNote extends SkewImage {
     this._targetHeight = height;
   }
 
+  applySkewX(deg: number) {
+    if (deg === 0) return;
+    super.setSkewXDeg(deg);
+  }
+
   resize(chartDist: number | undefined = undefined) {
     const scale =
       (989 / this._scene.skinSize) *
       this._scene.p(NOTE_BASE_SIZE * this._scene.preferences.noteSize);
     const control = chartDist
-      ? getControlValue(chartDist, {
-          type: 'size',
-          payload: this._line.data.sizeControl,
-        })
+      ? this.getControlValue(chartDist, ControlTypes.SIZE, this._line.data.sizeControl)
       : 1;
     this.setScale(this._data.size * control * scale, -this._yModifier * control * scale);
+  }
+
+  getControlValue(
+    x: number,
+    type: number,
+    control: AlphaControl[] | PosControl[] | SizeControl[] | SkewControl[] | YControl[],
+  ): number {
+    let next = control.at(this._controlIndex[type].index + 1);
+    while (next && next.x >= x) {
+      this._controlIndex[type].index++;
+      next = control.at(this._controlIndex[type].index + 1);
+    }
+    let current = control.at(this._controlIndex[type].index);
+    while (current && current.x < x) {
+      this._controlIndex[type].index--;
+      current = control.at(this._controlIndex[type].index);
+    }
+    if (!current) {
+      this._controlIndex[type].index = 0;
+      current = control[0];
+    }
+    next = control.at(this._controlIndex[type].index + 1) ?? current;
+    return calculateValue(
+      current[this._controlIndex[type].type as keyof (typeof control)[number]],
+      next[this._controlIndex[type].type as keyof (typeof control)[number]],
+      next.x === current.x
+        ? 0
+        : easing(current.easing, undefined, (x - current.x) / (next.x - current.x)),
+    ) as number;
   }
 
   reset() {
