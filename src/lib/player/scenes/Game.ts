@@ -437,6 +437,7 @@ export class Game extends Scene {
     this._judgmentHandler.reset();
     this._clock.setSeek(0);
     this._endingUI?.destroy();
+    this._endingUI = undefined;
     this.resetShadersAndVideos();
     this.initializeShaders();
     await this.initializeVideos();
