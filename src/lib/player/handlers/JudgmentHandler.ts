@@ -28,10 +28,8 @@ export class JudgmentHandler {
 
   hit(type: JudgmentType, delta: number, note: PlainNote) {
     delta /= this._scene.timeScale;
-    if (
-      this._scene.status === GameStatus.PLAYING &&
-      (!this._scene.autoplay || Math.abs(delta) < 1e-1)
-    ) {
+    const deltaAbs = Math.abs(delta);
+    if (this._scene.status === GameStatus.PLAYING && (!this._scene.autoplay || deltaAbs < 0.1)) {
       if (isPerfectOrGood(type)) {
         this.createHitsound(note);
         this.createHitEffects(type, note);
@@ -50,6 +48,7 @@ export class JudgmentHandler {
       note,
       this._scene.status === GameStatus.PLAYING &&
         note.note.type === 1 &&
+        (!this._scene.autoplay || deltaAbs < 0.1) &&
         (isPerfectOrGood(type) || type === JudgmentType.BAD)
         ? delta
         : undefined,

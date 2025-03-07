@@ -372,13 +372,13 @@ export class Game extends Scene {
 
   start() {
     if (this._status === GameStatus.ERROR) return;
-    this._status = GameStatus.PLAYING;
     this._objects.sort((a, b) => a.depth - b.depth);
-    this.updateChart(this.beat, this.timeSec, Date.now());
     this.in();
     this._timeout = setTimeout(() => {
       this._clock.play();
     }, 1000 / this.tweens.timeScale);
+    this._status = GameStatus.PLAYING;
+    this.updateChart(this.beat, this.timeSec, Date.now());
     EventBus.emit('started');
     send({
       type: 'event',
@@ -447,7 +447,6 @@ export class Game extends Scene {
       this._clock.play();
     }, 1000 / this.tweens.timeScale);
     this._status = GameStatus.PLAYING;
-    this._objects.sort((a, b) => a.depth - b.depth);
     EventBus.emit('started');
     send({
       type: 'event',
