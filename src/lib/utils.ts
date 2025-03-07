@@ -51,7 +51,7 @@ export const setFullscreen = () => {
   if (Capacitor.getPlatform() === 'android') {
     AndroidFullScreen.isImmersiveModeSupported()
       .then(() => AndroidFullScreen.immersiveMode())
-      .catch(console.warn);
+      .catch((e) => console.warn('Immersive mode not supported', e));
   }
 };
 
