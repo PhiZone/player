@@ -1,5 +1,4 @@
-import { get } from 'svelte/store';
-import { page } from '$app/stores';
+import { page } from '$app/state';
 import { type Config, type MetadataEntry, type OutgoingMessage, type RpeMeta } from './types';
 import { AndroidFullScreen } from '@awesome-cordova-plugins/android-full-screen';
 import { Capacitor } from '@capacitor/core';
@@ -44,7 +43,7 @@ export const showPerformance = () => checkIfEnabled('performance');
 
 export const checkIfEnabled = (key: string) =>
   ['1', 'true'].some(
-    (v) => v === get(page).url.searchParams.get(key) || v === localStorage.getItem(key),
+    (v) => v === page.url.searchParams.get(key) || v === localStorage.getItem(key),
   );
 
 export const setFullscreen = () => {
@@ -195,7 +194,7 @@ export const fit = (
 };
 
 export const getParams = (url?: string, loadFromStorage = true): Config | null => {
-  const searchParams = (url ? new URL(url) : get(page).url).searchParams;
+  const searchParams = (url ? new URL(url) : page.url).searchParams;
   const song = searchParams.get('song');
   const chart = searchParams.get('chart');
   const illustration = searchParams.get('illustration');

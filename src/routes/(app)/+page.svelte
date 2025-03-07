@@ -42,7 +42,7 @@
   import { getCurrent, onOpenUrl } from '@tauri-apps/plugin-deep-link';
   import { platform, arch } from '@tauri-apps/plugin-os';
   import { App, type URLOpenListenerEvent } from '@capacitor/app';
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   import { REPO_API_LINK, REPO_LINK, VERSION } from '$lib';
   import { SendIntent, type Intent } from 'send-intent';
   import { Filesystem } from '@capacitor/filesystem';
@@ -148,11 +148,11 @@
 
   let timeouts: NodeJS.Timeout[] = [];
 
-  let isFirstLoad = !$page.url.searchParams.get('t');
+  let isFirstLoad = !page.url.searchParams.get('t');
 
   onMount(async () => {
     const checkParam = (key: string, values: string[]) =>
-      values.some((v) => v === $page.url.searchParams.get(key));
+      values.some((v) => v === page.url.searchParams.get(key));
     [
       { key: 'debug', name: 'debug mode' },
       { key: 'performance', name: 'performance metrics' },
@@ -330,16 +330,14 @@
     if (
       !IS_TAURI &&
       Capacitor.getPlatform() === 'web' &&
-      ($page.url.searchParams.has('file') || $page.url.searchParams.has('zip'))
+      (page.url.searchParams.has('file') || page.url.searchParams.has('zip'))
     ) {
       if (toggles.inApp === 0) {
         modal.showModal();
       } else if (toggles.inApp === 1) {
-        window.open(
-          `${IS_ANDROID_OR_IOS ? `${base}/app` : 'phizone-player://'}${$page.url.search}`,
-        );
+        window.open(`${IS_ANDROID_OR_IOS ? `${base}/app` : 'phizone-player://'}${page.url.search}`);
       } else {
-        await handleParamFiles($page.url.searchParams);
+        await handleParamFiles(page.url.searchParams);
       }
     }
   };
@@ -1017,7 +1015,7 @@
               class="inline-flex justify-center items-center gap-x-3 text-center bg-gradient-to-tl from-blue-500 via-violet-500 to-fuchsia-500 dark:from-blue-700 dark:via-violet-700 dark:to-fuchsia-700 text-white text-sm font-medium rounded-md focus:outline-none py-3 px-4 transition-all duration-300 bg-size-200 bg-pos-0 hover:bg-pos-100"
               onclick={() => {
                 window.open(
-                  `${IS_ANDROID_OR_IOS ? `${base}/app` : 'phizone-player://'}${$page.url.search}`,
+                  `${IS_ANDROID_OR_IOS ? `${base}/app` : 'phizone-player://'}${page.url.search}`,
                 );
                 if (modalMem) {
                   toggles.inApp = 1;
@@ -1030,7 +1028,7 @@
             <button
               class="py-3 px-4 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-100 focus:outline-none focus:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-700 dark:focus:bg-neutral-700 transition"
               onclick={async () => {
-                await handleParamFiles($page.url.searchParams);
+                await handleParamFiles(page.url.searchParams);
                 if (modalMem) {
                   toggles.inApp = 2;
                   localStorage.setItem('toggles', JSON.stringify(toggles));

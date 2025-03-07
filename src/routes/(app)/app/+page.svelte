@@ -3,7 +3,7 @@
   import Distribution from '$lib/components/Distribution.svelte';
   import { IS_ANDROID_OR_IOS, IS_TAURI } from '$lib/utils';
   import { Capacitor } from '@capacitor/core';
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   import { onMount } from 'svelte';
   import { base } from '$app/paths';
 
@@ -74,7 +74,7 @@
     if (
       !IS_TAURI &&
       Capacitor.getPlatform() === 'web' &&
-      ($page.url.searchParams.has('file') || $page.url.searchParams.has('zip'))
+      (page.url.searchParams.has('file') || page.url.searchParams.has('zip'))
     ) {
       modal.showModal();
     }
@@ -99,7 +99,7 @@
           class="w-full inline-flex justify-center items-center gap-x-3 text-center bg-gradient-to-tl from-blue-500 via-violet-500 to-fuchsia-500 dark:from-blue-700 dark:via-violet-700 dark:to-fuchsia-700 text-white text-sm font-medium rounded-md focus:outline-none py-3 px-4 transition-all duration-300 bg-size-200 bg-pos-0 hover:bg-pos-100"
           on:click={() => {
             window.open(
-              `${IS_ANDROID_OR_IOS ? `${base}/app` : 'phizone-player://'}${$page.url.search}`,
+              `${IS_ANDROID_OR_IOS ? `${base}/app` : 'phizone-player://'}${page.url.search}`,
             );
           }}
         >
