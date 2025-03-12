@@ -9,9 +9,8 @@ import 'context-filter-polyfill';
 export const IS_TAURI = '__TAURI_INTERNALS__' in window;
 
 export const IS_IOS = (() => {
-  const iosQuirkPresent = function () {
+  const iosQuirkPresent = () => {
     const audio = new Audio();
-
     audio.volume = 0.5;
     return audio.volume === 1; // volume cannot be changed from "1" on iOS 12 and below
   };
