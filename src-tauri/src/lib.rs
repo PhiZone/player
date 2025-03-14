@@ -3,8 +3,11 @@ use std::sync::{LazyLock, Mutex};
 use tauri::Emitter;
 use tauri::Manager;
 use url::Url;
+use std::process::{Command, Stdin};
+use std::io::Write;
 
 static FILES_OPENED: LazyLock<Mutex<Vec<PathBuf>>> = LazyLock::new(|| Mutex::new(vec![]));
+static FFmpeg_STDIN: LazyLock<Mutex<Option<Stdin>>> = LazyLock::new(|| Mutex::new(None));
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -47,7 +50,7 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_files_opened])
+        .invoke_handler(tauri::generate_handler![get_files_opened, setup_ffmpeg, receive_frame])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
@@ -86,4 +89,49 @@ fn get_files_opened() -> Vec<String> {
         .into_iter()
         .map(|f| f.to_string_lossy().into_owned())
         .collect()
+}
+
+#[tauri::command]
+fn setup_ffmpeg(resolution: String, fps: u32, codec: String) -> Result<(), String> {
+    let mut command = Command::new("ffmpeg");
+    command.args(&[
+        "-y",
+        "-f",
+        "rawvideo",
+        "-pix_fmt",
+        "rgb24",
+        "-s",
+        &resolution,
+        "-r",
+        &fps.to_string(),
+        "-i",
+        "-",
+        "-c:v",
+        &codec,
+        "output.mp4",
+    ]);
+
+    let mut child = command
+        .stdin(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| e.to_string())?;
+
+    let stdin = child.stdin.take().ok_or("Failed to open stdin")?;
+    *FFmpeg_STDIN.lock().unwrap() = Some(stdin);
+
+    std::thread::spawn(move || {
+        let _ = child.wait();
+    });
+
+    Ok(())
+}
+
+#[tauri::command]
+fn receive_frame(frame: Vec<u8>) -> Result<(), String> {
+    if let Some(stdin) = &mut *FFmpeg_STDIN.lock().unwrap() {
+        stdin.write_all(&frame).map_err(|e| e.to_string())?;
+    } else {
+        return Err("FFmpeg stdin is not available".into());
+    }
+    Ok(())
 }
