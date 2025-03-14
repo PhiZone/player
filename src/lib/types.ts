@@ -4,11 +4,11 @@ export interface Config {
   resources: Resources;
   metadata: Metadata;
   preferences: Preferences;
-  recorderOptions: RecorderOptions;
+  mediaOptions: MediaOptions;
   autoplay: boolean;
   practice: boolean;
   adjustOffset: boolean;
-  record: boolean;
+  render: boolean;
   autostart: boolean;
   newTab: boolean;
   inApp: number;
@@ -35,11 +35,11 @@ export interface Metadata {
 
 export interface PlayOptions {
   preferences?: Preferences;
-  recorderOptions?: RecorderOptions;
+  mediaOptions?: MediaOptions;
   autoplay?: boolean;
   practice?: boolean;
   adjustOffset?: boolean;
-  record?: boolean;
+  render?: boolean;
   autostart?: boolean;
   newTab?: boolean;
   inApp?: number;
@@ -62,10 +62,10 @@ export interface Preferences {
   timeScale: number;
 }
 
-export interface RecorderOptions {
+export interface MediaOptions {
   frameRate: number;
   overrideResolution: [number, number] | null;
-  endingLoopsToRecord: number;
+  endingLoopsToRender: number;
   outputFormat: string;
   videoBitrate: number;
   audioBitrate?: number | undefined;
@@ -545,7 +545,7 @@ export interface ChartBundleMessage {
 export interface FileOutputMessage {
   type: 'fileOutput';
   payload: {
-    purpose: 'adjustedOffset' | 'recordedVideo';
+    purpose: 'adjustedOffset' | 'renderedVideo';
     file: File;
   };
 }

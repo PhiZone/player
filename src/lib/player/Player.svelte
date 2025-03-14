@@ -19,7 +19,6 @@
     convertTime,
     findPredominantBpm,
     getTimeSec,
-    outputRecording,
     triggerDownload,
   } from './utils';
   import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
@@ -72,8 +71,6 @@
   let timeout: NodeJS.Timeout;
 
   let gameStart: number;
-  let videoRecorder: MediaRecorder | null = null;
-  let audioRecorder: MediaRecorder | null = null;
   let video: Blob;
   let audio: Blob;
 
@@ -98,46 +95,7 @@
       stillLoading = true;
     }, 10000);
 
-    if (config.record) {
-      const videoStream = gameRef.game.canvas.captureStream();
-      const peerConnection = new RTCPeerConnection();
-      videoStream.getTracks().forEach((track) => peerConnection.addTrack(track, videoStream));
-      videoRecorder = new MediaRecorder(videoStream, {
-        mimeType: 'video/webm; codecs=vp9',
-        videoBitsPerSecond: config.recorderOptions.videoBitrate * 1000,
-      });
-      videoRecorder.ondataavailable = (e) => {
-        video = e.data;
-        if (audio) {
-          outputRecording(
-            video,
-            audio,
-            Date.now() - gameStart,
-            // config.recorderOptions,
-          );
-        }
-      };
-      if ('context' in gameRef.game.sound) {
-        const audioDest = gameRef.game.sound.context.createMediaStreamDestination();
-        gameRef.game.sound.destination.connect(audioDest);
-        audioRecorder = new MediaRecorder(audioDest.stream, {
-          mimeType: 'audio/webm; codecs=opus',
-          audioBitsPerSecond: config.recorderOptions.audioBitrate
-            ? config.recorderOptions.audioBitrate * 1000
-            : undefined,
-        });
-        audioRecorder.ondataavailable = (e) => {
-          audio = e.data;
-          if (video) {
-            outputRecording(
-              video,
-              audio,
-              Date.now() - gameStart,
-              // config.recorderOptions,
-            );
-          }
-        };
-      }
+    if (config.render) {
     }
 
     EventBus.on('loading', (p: number) => {
@@ -209,8 +167,6 @@
         }).observe(offsetHelperElement);
       }
 
-      videoRecorder?.start();
-      audioRecorder?.start();
       gameStart = Date.now();
 
       if (currentActiveScene) {
@@ -272,15 +228,11 @@
       }
     });
 
-    EventBus.on('recording-stop', () => {
-      videoRecorder?.stop();
-      audioRecorder?.stop();
+    EventBus.on('render-stop', () => {
     });
   });
 
   onDestroy(() => {
-    videoRecorder?.stop();
-    audioRecorder?.stop();
     gameRef.scene?.destroy();
     gameRef.game?.destroy(true);
     if (performanceStats) {

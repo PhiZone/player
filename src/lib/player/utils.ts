@@ -17,7 +17,6 @@ import {
   type SkewControl,
   type YControl,
   type RpeJson,
-  // type RecorderOptions,
 } from '$lib/types';
 import { EventBus } from './EventBus';
 import { getFFmpeg, loadFFmpeg } from './ffmpeg';
@@ -27,7 +26,6 @@ import { parseGIF, decompressFrames, type ParsedFrame } from 'gifuct-js';
 import { dot, gcd, random } from 'mathjs';
 import { fileTypeFromBlob } from 'file-type';
 import parseAPNG, { type Frame } from 'apng-js';
-import { fixWebmDuration } from '@fix-webm-duration/fix';
 import bezier from 'bezier-easing';
 import type { Line } from './objects/Line';
 import { ROOT, type Node } from './objects/Node';
@@ -806,65 +804,10 @@ export const getAudio = async (url: string): Promise<string> => {
   );
 };
 
-export const outputRecording = async (
-  video: Blob,
-  audio: Blob,
-  duration: number,
-  // recorderOptions: RecorderOptions,
-) => {
-  video = await fixWebmDuration(video, duration);
-  audio = await fixWebmDuration(audio, duration);
-  triggerDownload(video, 'recording.webm', 'recordedVideo');
-  triggerDownload(audio, 'recording.opus', 'recordedVideo');
-  // const outputFile = `output.${recorderOptions.outputFormat.toLowerCase()}`;
-  // const ffmpeg = getFFmpeg();
-  // ffmpeg.on('progress', (progress) => {
-  //   EventBus.emit('recording-processing', clamp(progress.progress, 0, 1));
-  //   console.log(clamp(progress.progress, 0, 1));
-  // });
-  // if (!ffmpeg.loaded) {
-  //   console.log('loading ffmpeg');
-  //   EventBus.emit('recording-processing-detail', 'Loading FFmpeg');
-  //   await loadFFmpeg(({ url, received, total }) => {
-  //     EventBus.emit('recording-processing', clamp(received / total, 0, 1));
-  //     console.log(clamp(received / total, 0, 1));
-  //     EventBus.emit(
-  //       'recording-processing-detail',
-  //       `Downloading ${url.toString().split('/').pop()}`,
-  //     );
-  //   });
-  // }
-  // EventBus.emit('recording-processing-detail', 'Processing video');
-  // await ffmpeg.writeFile('video', await fetchFile(video));
-  // await ffmpeg.writeFile('audio', await fetchFile(audio));
-  // ffmpeg.on('log', (e) => {
-  //   console.log(e);
-  // });
-  // await ffmpeg.exec([
-  //   '-i',
-  //   'video',
-  //   '-i',
-  //   'audio',
-  //   '-b:v',
-  //   (recorderOptions.videoBitrate * 1000).toString(),
-  //   ...(recorderOptions.audioBitrate
-  //     ? ['-b:a', (recorderOptions.audioBitrate * 1000).toString()]
-  //     : []),
-  //   '-r',
-  //   recorderOptions.frameRate.toString(),
-  //   outputFile,
-  // ]);
-  // const data = await ffmpeg.readFile(outputFile);
-  // triggerDownload(
-  //   new Blob([(data as Uint8Array).buffer]),
-  //   `recording.${recorderOptions.outputFormat.toLowerCase()}`,
-  // );
-};
-
 export const triggerDownload = (
   blob: Blob,
   name: string,
-  purpose: 'adjustedOffset' | 'recordedVideo',
+  purpose: 'adjustedOffset',
   always = false,
 ) => {
   if (IS_IFRAME) {

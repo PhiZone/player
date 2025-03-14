@@ -25,9 +25,9 @@ export class EndingUI extends GameObjects.Container {
   private _late: DataBoard;
   private _tweening: boolean = true;
   private _timer: NodeJS.Timeout | undefined;
-  private _loopsToRecord: number;
+  private _loopsToRender: number;
 
-  constructor(scene: Game, loopsToRecord: number) {
+  constructor(scene: Game, loopsToRender: number) {
     super(scene, scene.w(0), scene.h(-500) + scene.d(0.41));
 
     this._scene = scene;
@@ -96,7 +96,7 @@ export class EndingUI extends GameObjects.Container {
     this._illustration = this.createIllustration();
     this._overlay = this.createOverlay();
     this._grade = this.createGrade(stats.grade);
-    this._loopsToRecord = loopsToRecord;
+    this._loopsToRender = loopsToRender;
 
     position(
       [this._accuracy, this._maxCombo, this._stdDev],
@@ -231,9 +231,9 @@ export class EndingUI extends GameObjects.Container {
     );
     setTimeout(
       () => {
-        EventBus.emit('recording-stop');
+        EventBus.emit('render-stop');
       },
-      (this._loopsToRecord * 192e3) / 7 / this._scene.tweens.timeScale,
+      (this._loopsToRender * 192e3) / 7 / this._scene.tweens.timeScale,
     );
     this._tweening = true;
     if (Capacitor.getPlatform() !== 'android')

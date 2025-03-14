@@ -30,14 +30,14 @@ const start = (parent: string, sceneConfig: Config | null) => {
     if (
       Capacitor.getPlatform() !== 'web' ||
       sceneConfig.preferences.aspectRatio !== null ||
-      (sceneConfig.record && sceneConfig.recorderOptions.overrideResolution !== null)
+      (sceneConfig.render && sceneConfig.mediaOptions.overrideResolution !== null)
     ) {
       if (
-        sceneConfig.recorderOptions.overrideResolution &&
-        (!sceneConfig.recorderOptions.overrideResolution[0] ||
-          !sceneConfig.recorderOptions.overrideResolution[1])
+        sceneConfig.mediaOptions.overrideResolution &&
+        (!sceneConfig.mediaOptions.overrideResolution[0] ||
+          !sceneConfig.mediaOptions.overrideResolution[1])
       )
-        sceneConfig.recorderOptions.overrideResolution = null;
+        sceneConfig.mediaOptions.overrideResolution = null;
       let dimensions: { width: number; height: number } = { width: 0, height: 0 };
       if (Capacitor.getPlatform() !== 'web') {
         dimensions = {
@@ -55,10 +55,10 @@ const start = (parent: string, sceneConfig: Config | null) => {
           true,
         );
       }
-      if (sceneConfig.record && sceneConfig.recorderOptions.overrideResolution !== null) {
+      if (sceneConfig.render && sceneConfig.mediaOptions.overrideResolution !== null) {
         dimensions = {
-          width: sceneConfig.recorderOptions.overrideResolution[0],
-          height: sceneConfig.recorderOptions.overrideResolution[1],
+          width: sceneConfig.mediaOptions.overrideResolution[0],
+          height: sceneConfig.mediaOptions.overrideResolution[1],
         };
       }
       config.width = dimensions.width;

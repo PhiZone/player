@@ -75,7 +75,7 @@ export class Game extends Scene {
   private _practice = false;
   private _autostart = false;
   private _adjustOffset = false;
-  private _record = false;
+  private _render = false;
 
   private _bpmIndex: number = 0;
   private _lines: Line[];
@@ -461,7 +461,7 @@ export class Game extends Scene {
     this._status = GameStatus.FINISHED;
     this.out();
     setTimeout(() => {
-      this._endingUI = new EndingUI(this, this._data.recorderOptions.endingLoopsToRecord);
+      this._endingUI = new EndingUI(this, this._data.mediaOptions.endingLoopsToRender);
     }, 500 / this.tweens.timeScale);
     setTimeout(() => {
       this.resetShadersAndVideos();

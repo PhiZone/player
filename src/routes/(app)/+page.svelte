@@ -10,7 +10,7 @@
     IncomingMessage,
     Metadata,
     Preferences,
-    RecorderOptions,
+    MediaOptions,
     Release,
     RpeJson,
     UrlInputMessage,
@@ -81,7 +81,7 @@
   }
 
   let showCollapse = false;
-  let showRecorderCollapse = false;
+  let showMediaCollapse = false;
   let overrideResolution = false;
   let modalMem = false;
   let directoryInput: HTMLInputElement;
@@ -120,20 +120,20 @@
     autoplay: false,
     practice: false,
     adjustOffset: false,
-    record: false,
+    render: false,
     newTab: Capacitor.getPlatform() === 'web',
     inApp: IS_TAURI || Capacitor.getPlatform() !== 'web' ? 2 : 0,
   };
-  let recorderOptions: RecorderOptions = {
+  let mediaOptions: MediaOptions = {
     frameRate: 60,
     overrideResolution: [1620, 1080],
-    endingLoopsToRecord: 1,
+    endingLoopsToRender: 1,
     outputFormat: 'mp4',
     videoBitrate: 6000,
     audioBitrate: 320,
   };
-  let recorderResolutionWidth = 1620;
-  let recorderResolutionHeight = 1080;
+  let mediaResolutionWidth = 1620;
+  let mediaResolutionHeight = 1080;
 
   let chartFiles: FileEntry[] = [];
   let audioFiles: FileEntry[] = [];
@@ -178,7 +178,7 @@
           config = message.payload;
         } else {
           const assetsIncluded = assets.filter((asset) => asset.included);
-          const { preferences: pref, recorderOptions: rec, ...rest } = message.payload;
+          const { preferences: pref, mediaOptions: rec, ...rest } = message.payload;
           for (const key in rest) {
             if (rest[key as keyof typeof rest] !== undefined) {
               toggles[key as keyof typeof toggles] = rest[key as keyof typeof rest] as never;
@@ -201,7 +201,7 @@
             },
             metadata: currentBundle.metadata,
             preferences: pref ?? preferences,
-            recorderOptions: rec ?? recorderOptions,
+            mediaOptions: rec ?? mediaOptions,
             ...toggles,
           };
         }
@@ -306,7 +306,7 @@
     let pref, tgs, rec;
     pref = localStorage.getItem('preferences');
     tgs = localStorage.getItem('toggles');
-    rec = localStorage.getItem('recorderOptions');
+    rec = localStorage.getItem('mediaOptions');
 
     if (pref) {
       pref = JSON.parse(pref);
@@ -318,13 +318,13 @@
     }
     if (rec) {
       rec = JSON.parse(rec);
-      if (haveSameKeys(rec, recorderOptions)) recorderOptions = rec;
+      if (haveSameKeys(rec, mediaOptions)) mediaOptions = rec;
     }
 
-    if (recorderOptions.overrideResolution && recorderOptions.overrideResolution.length === 2) {
+    if (mediaOptions.overrideResolution && mediaOptions.overrideResolution.length === 2) {
       overrideResolution = true;
-      recorderResolutionWidth = recorderOptions.overrideResolution[0];
-      recorderResolutionHeight = recorderOptions.overrideResolution[1];
+      mediaResolutionWidth = mediaOptions.overrideResolution[0];
+      mediaResolutionHeight = mediaOptions.overrideResolution[1];
     }
 
     if (
@@ -808,13 +808,13 @@
   const handleParams = async (params: Config) => {
     localStorage.setItem('player', JSON.stringify(params));
     preferences = params.preferences;
-    recorderOptions = params.recorderOptions;
+    mediaOptions = params.mediaOptions;
     toggles = {
       autostart: params.autostart,
       autoplay: params.autoplay,
       practice: params.practice,
       adjustOffset: params.adjustOffset,
-      record: params.record,
+      render: params.render,
       newTab: params.newTab,
       inApp: params.inApp,
     };
@@ -1597,31 +1597,31 @@
             <div class="relative flex items-start">
               <div class="flex items-center h-5 mt-1">
                 <input
-                  id="record"
-                  name="record"
+                  id="render"
+                  name="render"
                   type="checkbox"
                   class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
-                  aria-describedby="record-description"
-                  bind:checked={toggles.record}
+                  aria-describedby="render-description"
+                  bind:checked={toggles.render}
                 />
               </div>
-              <label for="record" class="ms-3">
+              <label for="render" class="ms-3">
                 <button
                   class="flex items-center gap-1 text-sm font-semibold text-gray-800 dark:text-neutral-300"
                   onclick={() => {
-                    showRecorderCollapse = !showRecorderCollapse;
+                    showMediaCollapse = !showMediaCollapse;
                   }}
                 >
-                  <p>Record</p>
-                  <span class="transition {showRecorderCollapse ? '-rotate-180' : 'rotate-0'}">
+                  <p>Render</p>
+                  <span class="transition {showMediaCollapse ? '-rotate-180' : 'rotate-0'}">
                     <i class="fa-solid fa-angle-down fa-sm"></i>
                   </span>
                 </button>
                 <span
-                  id="record-description"
+                  id="render-description"
                   class="block text-sm text-gray-600 dark:text-neutral-500"
                 >
-                  The canvas will be recorded and saved as a video file.
+                  The canvas will be rendered and saved as a video file.
                   <br />
                   Note that this feature is still a work in progress.
                 </span>
@@ -1629,15 +1629,15 @@
             </div>
             <div
               class="collapse h-0 border hover:shadow-sm rounded-xl dark:border-neutral-700 dark:shadow-neutral-700/70 bg-base-200 bg-opacity-30 backdrop-blur-2xl collapse-transition"
-              class:collapse-open={showRecorderCollapse}
-              class:min-h-fit={showRecorderCollapse}
-              class:h-full={showRecorderCollapse}
-              class:mt-2={showRecorderCollapse}
-              class:opacity-0={!showRecorderCollapse}
+              class:collapse-open={showMediaCollapse}
+              class:min-h-fit={showMediaCollapse}
+              class:h-full={showMediaCollapse}
+              class:mt-2={showMediaCollapse}
+              class:opacity-0={!showMediaCollapse}
             >
               <div
                 class="collapse-content flex flex-col gap-4 items-center pt-0 transition-[padding] duration-300"
-                class:pt-4={showRecorderCollapse}
+                class:pt-4={showMediaCollapse}
               >
                 <div class="grid sm:grid-cols-3 md:grid-cols-1 lg:grid-cols-3 gap-3">
                   <div>
@@ -1645,7 +1645,7 @@
                     <div class="relative">
                       <input
                         type="number"
-                        bind:value={recorderOptions.frameRate}
+                        bind:value={mediaOptions.frameRate}
                         class="form-input py-3 px-4 pe-12 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
                       />
                       <div
@@ -1671,7 +1671,7 @@
                         type="number"
                         class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm -ms-px first:rounded-s-lg mt-0 first:ms-0 first:rounded-se-none last:rounded-es-none last:rounded-e-lg text-sm relative focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
                         disabled={!overrideResolution}
-                        bind:value={recorderResolutionWidth}
+                        bind:value={mediaResolutionWidth}
                       />
                       <span
                         class="py-3 px-2 inline-flex items-center min-w-fit border border-gray-200 text-sm text-gray-500 -ms-px w-auto first:rounded-s-lg mt-0 first:ms-0 first:rounded-se-none last:rounded-es-none last:rounded-e-lg bg-base-100 dark:border-neutral-700 dark:text-neutral-400"
@@ -1683,7 +1683,7 @@
                         type="number"
                         class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm -ms-px first:rounded-s-lg mt-0 first:ms-0 first:rounded-se-none last:rounded-es-none last:rounded-e-lg text-sm relative focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
                         disabled={!overrideResolution}
-                        bind:value={recorderResolutionHeight}
+                        bind:value={mediaResolutionHeight}
                       />
                     </div>
                   </div>
@@ -1700,7 +1700,7 @@
                       />
                       <!-- <input
                             type="text"
-                            bind:value={recorderOptions.outputFormat}
+                            bind:value={mediaOptions.outputFormat}
                             class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
                           /> -->
                     </div>
@@ -1712,7 +1712,7 @@
                     <div class="relative">
                       <input
                         type="number"
-                        bind:value={recorderOptions.videoBitrate}
+                        bind:value={mediaOptions.videoBitrate}
                         class="form-input py-3 px-4 pe-14 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
                       />
                       <div
@@ -1729,7 +1729,7 @@
                         type="number"
                         min={0}
                         step={0.1}
-                        bind:value={recorderOptions.endingLoopsToRecord}
+                        bind:value={mediaOptions.endingLoopsToRender}
                         class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
                       />
                     </div>
@@ -1741,7 +1741,7 @@
                     <div class="relative">
                       <input
                         type="number"
-                        bind:value={recorderOptions.audioBitrate}
+                        bind:value={mediaOptions.audioBitrate}
                         class="form-input py-3 px-4 pe-14 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
                       />
                       <div
@@ -1821,15 +1821,15 @@
             onclick={() => {
               localStorage.setItem('preferences', JSON.stringify(preferences));
               localStorage.setItem('toggles', JSON.stringify(toggles));
-              if (toggles.record) {
-                localStorage.setItem('recorderOptions', JSON.stringify(recorderOptions));
+              if (toggles.render) {
+                localStorage.setItem('mediaOptions', JSON.stringify(mediaOptions));
                 if (overrideResolution) {
-                  recorderOptions.overrideResolution = [
-                    recorderResolutionWidth,
-                    recorderResolutionHeight,
+                  mediaOptions.overrideResolution = [
+                    mediaResolutionWidth,
+                    mediaResolutionHeight,
                   ];
                 } else {
-                  recorderOptions.overrideResolution = null;
+                  mediaOptions.overrideResolution = null;
                 }
               }
               if (!currentBundle) {
@@ -1849,7 +1849,7 @@
                   ...currentBundle.metadata,
                   ...preferences,
                   ...toggles,
-                  ...(toggles.record ? recorderOptions : []),
+                  ...(toggles.render ? mediaOptions : []),
                 },
                 {
                   arrayFormat: 'none',
@@ -1878,7 +1878,7 @@
                   },
                   metadata: currentBundle.metadata,
                   preferences,
-                  recorderOptions,
+                  mediaOptions,
                   ...toggles,
                 };
                 localStorage.setItem('player', JSON.stringify(config));
