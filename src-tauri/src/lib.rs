@@ -4,6 +4,8 @@ use tauri::Emitter;
 use tauri::Manager;
 use url::Url;
 
+mod ffmpeg;
+
 static FILES_OPENED: LazyLock<Mutex<Vec<PathBuf>>> = LazyLock::new(|| Mutex::new(vec![]));
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -47,7 +49,12 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_files_opened])
+        .invoke_handler(tauri::generate_handler![
+            get_files_opened,
+            setup_ffmpeg_video,
+            render_frame,
+            finish_ffmpeg_video
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
@@ -86,4 +93,19 @@ fn get_files_opened() -> Vec<String> {
         .into_iter()
         .map(|f| f.to_string_lossy().into_owned())
         .collect()
+}
+
+#[tauri::command]
+fn setup_ffmpeg_video(resolution: String, fps: u32, codec: String) -> Result<(), String> {
+    ffmpeg::setup_video(resolution, fps, codec)
+}
+
+#[tauri::command]
+fn render_frame(frame: Vec<u8>) -> Result<(), String> {
+    ffmpeg::receive_frame(frame)
+}
+
+#[tauri::command]
+fn finish_ffmpeg_video() -> Result<(), String> {
+    ffmpeg::finish_video()
 }
