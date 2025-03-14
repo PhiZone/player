@@ -76,6 +76,10 @@ export class ClockHandler {
     this._time = this._reference.songTime + diff * this._reference.rate;
   }
 
+  setTime(time: number) {
+    this._time = time;
+  }
+
   public get seek() {
     return this._time;
   }
