@@ -198,6 +198,7 @@ export class Game extends Scene {
     this._practice = this._data.practice;
     this._autostart = this._data.autostart;
     this._adjustOffset = this._data.adjustOffset;
+    this._render = this._data.render;
 
     if (new window.AudioContext().state === 'suspended') {
       this._autostart = false;
@@ -374,9 +375,10 @@ export class Game extends Scene {
     if (this._status === GameStatus.ERROR) return;
     this._objects.sort((a, b) => a.depth - b.depth);
     this.in();
-    this._timeout = setTimeout(() => {
-      this._clock.play();
-    }, 1000 / this.tweens.timeScale);
+    if (!this._render)
+      this._timeout = setTimeout(() => {
+        this._clock.play();
+      }, 1000 / this.tweens.timeScale);
     this._status = GameStatus.PLAYING;
     this.updateChart(this.beat, this.timeSec, Date.now());
     EventBus.emit('started');
@@ -402,7 +404,7 @@ export class Game extends Scene {
     if (this._status === GameStatus.ERROR || !this._song.isPlaying) return;
     clearTimeout(this._timeout);
     this._status = GameStatus.PAUSED;
-    this._clock.pause();
+    if (!this._render) this._clock.pause();
     this._videos?.forEach((video) => video.pause());
     EventBus.emit('paused', emittedBySpace);
     send({
@@ -417,7 +419,7 @@ export class Game extends Scene {
     if (this._status === GameStatus.ERROR) return;
     this.updateChart(this.beat, this.timeSec, Date.now());
     this._status = GameStatus.PLAYING;
-    this._clock.resume();
+    if (!this._render) this._clock.resume();
     this._videos?.forEach((video) => video.resume());
     EventBus.emit('started');
     send({
@@ -431,7 +433,7 @@ export class Game extends Scene {
   async restart() {
     if (this._status === GameStatus.ERROR) return;
     this._status = GameStatus.LOADING;
-    this._clock.pause();
+    if (!this._render) this._clock.pause();
     this._pointerHandler.reset();
     this._keyboardHandler.reset();
     this._judgmentHandler.reset();
@@ -443,9 +445,10 @@ export class Game extends Scene {
     await this.initializeVideos();
     this._objects.sort((a, b) => a.depth - b.depth);
     this.in();
-    this._timeout = setTimeout(() => {
-      this._clock.play();
-    }, 1000 / this.tweens.timeScale);
+    if (!this._render)
+      this._timeout = setTimeout(() => {
+        this._clock.play();
+      }, 1000 / this.tweens.timeScale);
     this._status = GameStatus.PLAYING;
     EventBus.emit('started');
     send({
@@ -500,7 +503,9 @@ export class Game extends Scene {
       }
       return;
     }
-    this._clock.update();
+    if (!this._render) {
+      this._clock.update();
+    }
     if (this._endingUI) this._endingUI.update();
     const status = this._status;
     if (this._isSeeking) this._status = GameStatus.SEEKING;
@@ -570,7 +575,11 @@ export class Game extends Scene {
     this.sound.pauseOnBlur = false;
     this._song = this.sound.add('song');
     this._song.setVolume(this._data.preferences.musicVolume);
-    this._clock = new ClockHandler(this._song, this.sound);
+    this._clock = new ClockHandler(
+      this._song,
+      this.sound,
+      () => this._status === GameStatus.FINISHED || this.end(),
+    );
     this.timeScale = this._data.preferences.timeScale;
   }
 
@@ -959,6 +968,10 @@ export class Game extends Scene {
 
   public get adjustOffset() {
     return this._adjustOffset;
+  }
+
+  public get render() {
+    return this._render;
   }
 
   public get objects() {

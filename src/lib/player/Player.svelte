@@ -15,12 +15,7 @@
   import { EventBus } from './EventBus';
   import { GameStatus, type Config } from '$lib/types';
   import { getParams, IS_TAURI, showPerformance } from '$lib/utils';
-  import {
-    convertTime,
-    findPredominantBpm,
-    getTimeSec,
-    triggerDownload,
-  } from './utils';
+  import { convertTime, findPredominantBpm, getTimeSec, triggerDownload } from './utils';
   import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
   import { ProgressBarStatus } from '@tauri-apps/api/window';
   import WaveSurfer, { type WaveSurferOptions } from 'wavesurfer.js';
@@ -31,6 +26,9 @@
   import { base } from '$app/paths';
   import { Capacitor } from '@capacitor/core';
   import StatsJS from 'stats-js';
+  import { pngToVideo } from './ffmpeg/tauri';
+  import { appDataDir, join, sep } from '@tauri-apps/api/path';
+  import { exists, mkdir, remove, writeFile } from '@tauri-apps/plugin-fs';
 
   export let gameRef: GameReference;
 
@@ -70,9 +68,10 @@
   let counter: NodeJS.Timeout;
   let timeout: NodeJS.Timeout;
 
-  let gameStart: number;
-  let video: Blob;
-  let audio: Blob;
+  let gameStart: DOMHighResTimeStamp;
+  let renderId: string;
+  let framesDir: string;
+  let isRendering = false;
 
   let offsetHelperElement: HTMLDivElement;
   let waveformElement: HTMLDivElement;
@@ -95,7 +94,15 @@
       stillLoading = true;
     }, 10000);
 
-    if (config.render) {
+    if (IS_TAURI && config.render) {
+      renderId = crypto.randomUUID();
+      (async () => {
+        framesDir = await join(await appDataDir(), 'rendered', 'frames', renderId);
+        if (await exists(framesDir)) {
+          await remove(framesDir, { recursive: true });
+        }
+        await mkdir(framesDir, { recursive: true });
+      })();
     }
 
     EventBus.on('loading', (p: number) => {
@@ -167,15 +174,68 @@
         }).observe(offsetHelperElement);
       }
 
-      gameStart = Date.now();
+      gameStart = performance.now();
 
       if (currentActiveScene) {
         currentActiveScene(scene);
       }
 
       if (performanceStats) {
-        gameRef.scene?.events.on('preupdate', performanceStats.begin);
-        gameRef.scene?.events.on('render', performanceStats.end);
+        scene.events.on('preupdate', performanceStats.begin);
+        scene.events.on('render', performanceStats.end);
+      }
+
+      if (IS_TAURI && config.render) {
+        const setTick = (progress: number) => {
+          requestAnimationFrame(() => {
+            scene.game.loop.step(gameStart + progress * 1000);
+            scene.clock.setTime(progress);
+          });
+        };
+        scene.game.loop.stop();
+        setTick(0);
+        const frameRate = config.mediaOptions.frameRate;
+        // TODO restore this stdin approach
+        // let frameCache: Uint8Array[] = [];
+        // let lastRenderTime = Date.now();
+        // setupVideo([width, height], frameRate, 'libx264');
+        isRendering = true;
+
+        let count = 0;
+        scene.events.on('render', async () => {
+          if (isRendering) {
+            scene.renderer.snapshot((element) => {
+              // const resp = await fetch((element as HTMLImageElement).src);
+              // const buffer = await resp.arrayBuffer();
+              // frameCache.push(new Uint8Array(buffer));
+
+              // const currentTime = Date.now();
+              // if (currentTime - lastRenderTime >= 10000) {
+              //   await renderFrame(
+              //     new Uint8Array(
+              //       frameCache.reduce((acc, curr) => {
+              //         const merged = new Uint8Array(acc.length + curr.length);
+              //         merged.set(acc);
+              //         merged.set(curr, acc.length);
+              //         return merged;
+              //       }),
+              //     ),
+              //   );
+              //   frameCache = [];
+              //   lastRenderTime = currentTime;
+              // }
+              writeFile(
+                `${framesDir}${sep()}${count}.png`,
+                Uint8Array.from(
+                  atob((element as HTMLImageElement).src.split(',')[1])
+                    .split('')
+                    .map((c) => c.charCodeAt(0)),
+                ),
+              );
+              setTick(++count / frameRate);
+            });
+          }
+        });
       }
     });
 
@@ -228,7 +288,21 @@
       }
     });
 
-    EventBus.on('render-stop', () => {
+    EventBus.on('render-stop', async () => {
+      // finishVideo();
+      isRendering = false;
+      const renderedDir = await join(await appDataDir(), 'rendered');
+      let outputFile = await join(renderedDir, `${title} [${level}].mp4`);
+      for (let i = 1; await exists(outputFile); i++) {
+        outputFile = await join(renderedDir, `${title} [${level}] ${i}.mp4`);
+      }
+      await pngToVideo(
+        await join(renderedDir, 'frames', renderId, '%d.png'),
+        outputFile,
+        [gameRef.game!.canvas.width, gameRef.game!.canvas.height],
+        config.mediaOptions.frameRate,
+        'libx264',
+      );
     });
   });
 

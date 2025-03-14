@@ -220,15 +220,17 @@ export class EndingUI extends GameObjects.Container {
     this.setVisible(true);
     this._innerContainer.setScale(0.75);
     this._overlay.setAlpha(0);
-    this._sound = this._scene.sound.add('ending');
-    this._sound.setVolume(this._scene.preferences.musicVolume).play();
-    this._scene.sound.add('grade-hit').setVolume(this._scene.preferences.hitSoundVolume).play();
-    this._timer = setInterval(
-      () => {
-        this._sound.play();
-      },
-      192e3 / 7 / this._scene.tweens.timeScale,
-    );
+    if (!this._scene.render) {
+      this._sound = this._scene.sound.add('ending');
+      this._sound.setVolume(this._scene.preferences.musicVolume).play();
+      this._scene.sound.add('grade-hit').setVolume(this._scene.preferences.hitSoundVolume).play();
+      this._timer = setInterval(
+        () => {
+          this._sound.play();
+        },
+        192e3 / 7 / this._scene.tweens.timeScale,
+      );
+    }
     setTimeout(
       () => {
         EventBus.emit('render-stop');

@@ -4,36 +4,51 @@ use std::sync::{LazyLock, Mutex};
 
 static FFMPEG_STDIN: LazyLock<Mutex<Option<ChildStdin>>> = LazyLock::new(|| Mutex::new(None));
 
-pub fn setup_video(resolution: String, fps: u32, codec: String) -> Result<(), String> {
-    let mut command = Command::new("ffmpeg");
-    command.args(&[
+pub fn png_sequence_to_video(input: String, output: String, resolution: String, fps: u32, codec: String) -> Result<(), String> {
+    let fps_str = fps.to_string();
+    let args = vec![
+        "-f", "image2",
+        "-r", &fps_str,
+        "-i", &input,
+        "-s", &resolution,
+        "-r", &fps_str,
+        "-c:v", &codec,
+        "-pixel_format", "yuv420p",
         "-y",
-        "-f",
-        "rawvideo",
-        "-pix_fmt",
-        "rgb24",
-        "-s",
-        &resolution,
-        "-r",
-        &fps.to_string(),
-        "-i",
-        "-",
-        "-c:v",
-        &codec,
-        "output.mp4",
-    ]);
+        &output
+    ];
 
-    let mut child = command
+    let process = Command::new("ffmpeg")
+        .args(&args)
         .stdin(std::process::Stdio::piped())
         .spawn()
         .map_err(|e| e.to_string())?;
 
-    let stdin = child.stdin.take().ok_or("Failed to open stdin")?;
-    *FFMPEG_STDIN.lock().unwrap() = Some(stdin);
+    *FFMPEG_STDIN.lock().unwrap() = process.stdin;
 
-    std::thread::spawn(move || {
-        let _ = child.wait();
-    });
+    Ok(())
+}
+
+pub fn setup_video(resolution: String, fps: u32, codec: String) -> Result<(), String> {
+    let fps_str = fps.to_string();
+    let args = vec![
+        "-f", "rawvideo",
+        "-pixel_format", "yuv420p",
+        "-video_size", &resolution,
+        "-framerate", &fps_str,
+        "-i", "pipe:0",
+        "-c:v", &codec,
+        "-y",
+        "../../output.mp4"
+    ];
+
+    let process = Command::new("ffmpeg")
+        .args(&args)
+        .stdin(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| e.to_string())?;
+
+    *FFMPEG_STDIN.lock().unwrap() = process.stdin;
 
     Ok(())
 }

@@ -16,6 +16,7 @@
     "os:default",
     "upload:default",
     "fs:read-all",
+    "fs:allow-app-write-recursive",
     "fs:allow-remove",
     {
       "identifier": "fs:scope",

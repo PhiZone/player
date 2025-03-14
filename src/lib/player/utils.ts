@@ -1091,3 +1091,39 @@ export const getSpritesheet = async (url: string, isGif = false) => {
   const buffer = await resp.arrayBuffer();
   return isGif ? convertGifToSpritesheet(buffer) : convertApngToSpritesheet(buffer);
 };
+
+export const captureFrame = (
+  gl: WebGLRenderingContext,
+  pixels: Uint8Array<ArrayBuffer>,
+  width: number,
+  height: number,
+) => {
+  pixels = new Uint8Array(width * height * 4);
+  gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+  console.log(pixels);
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const data = imageData.data;
+
+  for (let py = 0; py < height; py++) {
+    for (let px = 0; px < width; px++) {
+      const sourceIndex = ((height - py - 1) * width + px) * 4;
+      const destIndex = (py * width + px) * 4;
+
+      data[destIndex + 0] = pixels[sourceIndex + 0];
+      data[destIndex + 1] = pixels[sourceIndex + 1];
+      data[destIndex + 2] = pixels[sourceIndex + 2];
+      data[destIndex + 3] = pixels[sourceIndex + 3];
+    }
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+  const a = document.createElement('a');
+  a.href = canvas.toDataURL();
+  a.download = 'test.png';
+  a.click();
+  return imageData.data;
+};

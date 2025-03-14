@@ -13,7 +13,9 @@ export class ClockHandler {
     biases: number[];
     biasSum: number;
   };
+  private _completeCallback: () => void;
   private _time: number = 0;
+  private _completed: boolean = false;
 
   constructor(
     sound: Sound.NoAudioSound | Sound.HTML5AudioSound | Sound.WebAudioSound,
@@ -21,9 +23,11 @@ export class ClockHandler {
       | Sound.NoAudioSoundManager
       | Sound.HTML5AudioSoundManager
       | Sound.WebAudioSoundManager,
+    completeCallback: () => void,
   ) {
     this._sound = sound;
     this._soundManager = soundManager;
+    this._completeCallback = completeCallback;
     this.sync();
     this.update();
   }
@@ -78,6 +82,10 @@ export class ClockHandler {
 
   setTime(time: number) {
     this._time = time;
+    if (this._time > this._sound.duration) {
+      this._time = this._sound.duration;
+      if (!this._completed) this._completeCallback();
+    }
   }
 
   public get seek() {
