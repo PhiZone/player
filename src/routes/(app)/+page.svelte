@@ -874,10 +874,10 @@
   const configureWebviewWindow = (webview: WebviewWindow) => {
     if (monitor) {
       const factor = 0.8;
-      let { width, height } = recorderOptions.overrideResolution || preferences.aspectRatio
+      let { width, height } = mediaOptions.overrideResolution || preferences.aspectRatio
         ? fit(
-            (recorderOptions.overrideResolution ?? preferences.aspectRatio)![0],
-            (recorderOptions.overrideResolution ?? preferences.aspectRatio)![1],
+            (mediaOptions.overrideResolution ?? preferences.aspectRatio)![0],
+            (mediaOptions.overrideResolution ?? preferences.aspectRatio)![1],
             monitor.size.width,
             monitor.size.height,
             true,
