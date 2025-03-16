@@ -23,15 +23,17 @@ export const pngToVideo = async (
 
 export const setupVideo = async (
   resolution: [number, number],
-  frameRate: number,
+  framerate: number,
   codec: string,
+  bitrate: number,
 ) => {
   if (!USABLE) return;
   frameStreaming = true;
   return await invoke('setup_ffmpeg_video', {
     resolution: `${resolution[0]}x${resolution[1]}`,
-    fps: frameRate,
+    framerate,
     codec,
+    bitrate: `${bitrate}k`,
   });
 };
 

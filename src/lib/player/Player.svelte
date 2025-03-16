@@ -26,7 +26,7 @@
   import { base } from '$app/paths';
   import { Capacitor } from '@capacitor/core';
   import StatsJS from 'stats-js';
-  import { pngToVideo } from './ffmpeg/tauri';
+  import { finishVideo, pngToVideo, renderFrame, setupVideo } from './ffmpeg/tauri';
   import { appDataDir, join, sep } from '@tauri-apps/api/path';
   import { exists, mkdir, remove, writeFile } from '@tauri-apps/plugin-fs';
 
@@ -198,42 +198,69 @@
         // TODO restore this stdin approach
         // let frameCache: Uint8Array[] = [];
         // let lastRenderTime = Date.now();
-        // setupVideo([width, height], frameRate, 'libx264');
+        const canvas = scene.game.canvas;
+        const width = canvas.width;
+        const height = canvas.height;
+        const canvas2d = document.createElement('canvas').getContext('2d')!;
+        setupVideo([width, height], frameRate, 'libx264', config.mediaOptions.videoBitrate);
         isRendering = true;
 
         let count = 0;
-        scene.events.on('render', async () => {
+        scene.game.events.addListener('postrender', async () => {
           if (isRendering) {
-            scene.renderer.snapshot((element) => {
-              // const resp = await fetch((element as HTMLImageElement).src);
-              // const buffer = await resp.arrayBuffer();
-              // frameCache.push(new Uint8Array(buffer));
+            // canvas2d.drawImage(canvas, 0, 0, width, height);
+            // const data = canvas2d.getImageData(0, 0, width, height).data;
+            // const buffer = new Uint8Array((data.length / 4) * 3);
 
-              // const currentTime = Date.now();
-              // if (currentTime - lastRenderTime >= 10000) {
-              //   await renderFrame(
-              //     new Uint8Array(
-              //       frameCache.reduce((acc, curr) => {
-              //         const merged = new Uint8Array(acc.length + curr.length);
-              //         merged.set(acc);
-              //         merged.set(curr, acc.length);
-              //         return merged;
-              //       }),
-              //     ),
-              //   );
-              //   frameCache = [];
-              //   lastRenderTime = currentTime;
-              // }
-              writeFile(
-                `${framesDir}${sep()}${count}.png`,
-                Uint8Array.from(
-                  atob((element as HTMLImageElement).src.split(',')[1])
-                    .split('')
-                    .map((c) => c.charCodeAt(0)),
-                ),
+            // for (let i = 0, j = 0; i < data.length; i += 4, j += 3) {
+            //   buffer[j] = data[i]; // Red
+            //   buffer[j + 1] = data[i + 1]; // Green
+            //   buffer[j + 2] = data[i + 2]; // Blue
+            // }
+            const buffer = new Uint8Array(width * height * 3);
+            canvas
+              .getContext('webgl', { preserveDrawingBuffer: true })
+              ?.readPixels(
+                0,
+                0,
+                width,
+                height,
+                WebGLRenderingContext.RGB,
+                WebGLRenderingContext.UNSIGNED_BYTE,
+                buffer,
               );
-              setTick(++count / frameRate);
-            });
+            console.log(buffer);
+            await renderFrame(new Uint8Array(buffer));
+            // scene.renderer.snapshot((element) => {
+            //   // const resp = await fetch((element as HTMLImageElement).src);
+            //   // const buffer = await resp.arrayBuffer();
+            //   // frameCache.push(new Uint8Array(buffer));
+
+            //   // const currentTime = Date.now();
+            //   // if (currentTime - lastRenderTime >= 10000) {
+            //   //   await renderFrame(
+            //   //     new Uint8Array(
+            //   //       frameCache.reduce((acc, curr) => {
+            //   //         const merged = new Uint8Array(acc.length + curr.length);
+            //   //         merged.set(acc);
+            //   //         merged.set(curr, acc.length);
+            //   //         return merged;
+            //   //       }),
+            //   //     ),
+            //   //   );
+            //   //   frameCache = [];
+            //   //   lastRenderTime = currentTime;
+            //   // }
+            //   writeFile(
+            //     `${framesDir}${sep()}${count}.png`,
+            //     Uint8Array.from(
+            //       atob((element as HTMLImageElement).src.split(',')[1])
+            //         .split('')
+            //         .map((c) => c.charCodeAt(0)),
+            //     ),
+            //   );
+            setTick(++count / frameRate);
+            // });
           }
         });
       }
@@ -289,20 +316,20 @@
     });
 
     EventBus.on('render-stop', async () => {
-      // finishVideo();
+      finishVideo();
       isRendering = false;
-      const renderedDir = await join(await appDataDir(), 'rendered');
-      let outputFile = await join(renderedDir, `${title} [${level}].mp4`);
-      for (let i = 1; await exists(outputFile); i++) {
-        outputFile = await join(renderedDir, `${title} [${level}] ${i}.mp4`);
-      }
-      await pngToVideo(
-        await join(renderedDir, 'frames', renderId, '%d.png'),
-        outputFile,
-        [gameRef.game!.canvas.width, gameRef.game!.canvas.height],
-        config.mediaOptions.frameRate,
-        'libx264',
-      );
+      // const renderedDir = await join(await appDataDir(), 'rendered');
+      // let outputFile = await join(renderedDir, `${title} [${level}].mp4`);
+      // for (let i = 1; await exists(outputFile); i++) {
+      //   outputFile = await join(renderedDir, `${title} [${level}] ${i}.mp4`);
+      // }
+      // await pngToVideo(
+      //   await join(renderedDir, 'frames', renderId, '%d.png'),
+      //   outputFile,
+      //   [gameRef.game!.canvas.width, gameRef.game!.canvas.height],
+      //   config.mediaOptions.frameRate,
+      //   'libx264',
+      // );
     });
   });
 

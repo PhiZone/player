@@ -102,8 +102,8 @@ fn ffmpeg_png_sequence_to_video(input: String, output: String, resolution: Strin
 }
 
 #[tauri::command]
-fn setup_ffmpeg_video(resolution: String, fps: u32, codec: String) -> Result<(), String> {
-    ffmpeg::setup_video(resolution, fps, codec)
+fn setup_ffmpeg_video(resolution: String, framerate: u32, codec: String, bitrate: String) -> Result<(), String> {
+    ffmpeg::setup_video(resolution, framerate, codec, bitrate)
 }
 
 #[tauri::command]

@@ -12,6 +12,9 @@ const start = (parent: string, sceneConfig: Config | null) => {
   const config: Types.Core.GameConfig = {
     type: WEBGL,
     width: parentElement.clientWidth * window.devicePixelRatio,
+    render: {
+      preserveDrawingBuffer: true,
+    },
     height: parentElement.clientHeight * window.devicePixelRatio,
     scale: {
       mode: Scale.EXPAND,
