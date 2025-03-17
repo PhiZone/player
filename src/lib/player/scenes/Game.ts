@@ -1,4 +1,4 @@
-import { Cameras, GameObjects, Renderer, Scene, Sound } from 'phaser';
+import { Cameras, GameObjects, Scene, Sound } from 'phaser';
 import { EventBus } from '../EventBus';
 import { inferLevelType, fit, send, getLines, IS_TAURI } from '$lib/utils';
 import {
@@ -37,7 +37,8 @@ import { SignalHandler } from '../handlers/SignalHandler';
 import { Node, ROOT } from '../objects/Node';
 import { ShaderNode } from '../objects/ShaderNode';
 import { base } from '$app/paths';
-import { ClockHandler } from '../handlers/ClockHandler';
+import { Clock } from '../services/Clock';
+import { Renderer } from '../services/Renderer';
 
 export class Game extends Scene {
   private _status: GameStatus = GameStatus.LOADING;
@@ -104,7 +105,8 @@ export class Game extends Scene {
   private _gameUI: GameUI;
   private _endingUI?: EndingUI;
 
-  private _clock: ClockHandler;
+  private _clock: Clock;
+  private _renderer: Renderer;
   private _pointerHandler: PointerHandler;
   private _keyboardHandler: KeyboardHandler;
   private _judgmentHandler: JudgmentHandler;
@@ -319,6 +321,7 @@ export class Game extends Scene {
         this.createBackground();
         this.createAudio();
         await this.initializeVideos();
+        this.initializeRenderer();
         if (this._autostart) {
           this.start();
         } else {
@@ -578,7 +581,7 @@ export class Game extends Scene {
     this.sound.pauseOnBlur = false;
     this._song = this.sound.add('song');
     this._song.setVolume(this._data.preferences.musicVolume);
-    this._clock = new ClockHandler(
+    this._clock = new Clock(
       this._song,
       this.sound,
       () => this._status === GameStatus.FINISHED || this.end(),
@@ -692,6 +695,10 @@ export class Game extends Scene {
     this._statisticsHandler = new StatisticsHandler(this);
   }
 
+  initializeRenderer() {
+    this._renderer = new Renderer(this, this._data.mediaOptions);
+  }
+
   setupUI() {
     EventBus.emit('loading-detail', 'Setting up UI');
     this._gameUI = new GameUI(this);
@@ -736,10 +743,11 @@ export class Game extends Scene {
         return undefined;
       }
       const key = `sh-${effect.shader.slice(6)}-${i}`;
-      (this.renderer as Renderer.WebGL.WebGLRenderer).pipelines.addPostPipeline(
-        key,
-        ShaderPipeline,
-      );
+      if (!('pipelines' in this.renderer)) {
+        alert('Shader effects are not supported in this environment.');
+        return undefined;
+      }
+      this.renderer.pipelines.addPostPipeline(key, ShaderPipeline);
       let target;
       if (effect.global) {
         target = this.cameras.main;

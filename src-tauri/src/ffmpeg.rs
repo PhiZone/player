@@ -1,6 +1,9 @@
+use futures::{SinkExt, StreamExt};
 use std::io::Write;
 use std::process::{ChildStdin, Command};
 use std::sync::{LazyLock, Mutex};
+use tokio::net::TcpListener;
+use tokio_tungstenite::accept_async;
 
 static FFMPEG_STDIN: LazyLock<Mutex<Option<ChildStdin>>> = LazyLock::new(|| Mutex::new(None));
 
@@ -107,7 +110,7 @@ pub fn png_sequence_to_video(
     Ok(())
 }
 
-pub fn setup_video(
+pub async fn setup_video(
     output: String,
     resolution: String,
     framerate: u32,
@@ -147,6 +150,62 @@ pub fn setup_video(
         .map_err(|e| e.to_string())?;
 
     *FFMPEG_STDIN.lock().unwrap() = process.stdin;
+
+    let listener = TcpListener::bind("127.0.0.1:63401")
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let mut frames_received = 0;
+
+    tokio::spawn(async move {
+        while let Ok((stream, _)) = listener.accept().await {
+            let ws_stream = match accept_async(stream).await {
+                Ok(s) => s,
+                Err(e) => {
+                    eprintln!("WebSocket handshake failed: {}", e);
+                    continue;
+                }
+            };
+            let (mut write, mut read) = ws_stream.split();
+
+            while let Some(Ok(message)) = read.next().await {
+                if message.is_binary() {
+                    frames_received += 1;
+                    println!("BIN {} {:?}", frames_received, std::time::SystemTime::now());
+                    let data = message.into_data();
+                    if let Some(stdin) = &mut *FFMPEG_STDIN.lock().unwrap() {
+                        if let Err(e) = stdin.write_all(&data) {
+                            eprintln!("Error writing to FFmpeg: {}", e);
+                            break;
+                        }
+                        if let Err(e) = stdin.flush() {
+                            eprintln!("Error flushing FFmpeg: {}", e);
+                            break;
+                        }
+                    } else {
+                        eprintln!("FFmpeg stdin not available");
+                        break;
+                    }
+                } else if message.is_text() {
+                    let text = message.to_text().unwrap();
+                    if text == "finish" {
+                        println!("FIN {} {:?}", frames_received, std::time::SystemTime::now());
+                        let mut guard = FFMPEG_STDIN.lock().unwrap();
+                        if let Some(stdin) = guard.take() {
+                            drop(stdin); // This closes the stdin pipe
+                        }
+                        return; // Exit the task completely
+                    } else if text == "pause" {
+                        println!("PAU {} {:?}", frames_received, std::time::SystemTime::now());
+                        write
+                            .send(frames_received.to_string().into())
+                            .await
+                            .unwrap();
+                    }
+                }
+            }
+        }
+    });
 
     Ok(())
 }

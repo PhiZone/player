@@ -1,6 +1,6 @@
 import type { Sound } from 'phaser';
 
-export class ClockHandler {
+export class Clock {
   private _sound: Sound.NoAudioSound | Sound.HTML5AudioSound | Sound.WebAudioSound;
   private _soundManager:
     | Sound.NoAudioSoundManager
