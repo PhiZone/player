@@ -26,9 +26,9 @@
   import { base } from '$app/paths';
   import { Capacitor } from '@capacitor/core';
   import StatsJS from 'stats-js';
-  import { finishVideo, isFrameStreaming, pngToVideo, renderFrame, setupVideo } from './ffmpeg/tauri';
-  import { appDataDir, join, sep } from '@tauri-apps/api/path';
-  import { exists, mkdir, remove, writeFile } from '@tauri-apps/plugin-fs';
+  import { finishVideo, isFrameStreaming, renderFrame, setupVideo } from './ffmpeg/tauri';
+  import { appDataDir, join } from '@tauri-apps/api/path';
+  import { exists, mkdir } from '@tauri-apps/plugin-fs';
 
   export let gameRef: GameReference;
 
@@ -193,9 +193,6 @@
         scene.game.loop.stop();
         setTick(0);
         const frameRate = config.mediaOptions.frameRate;
-        // TODO restore this stdin approach
-        // let frameCache: Uint8Array[] = [];
-        // let lastRenderTime = Date.now();
         const canvas = scene.game.canvas;
         const width = canvas.width;
         const height = canvas.height;
@@ -211,29 +208,6 @@
         let count = 0;
         scene.game.events.addListener('postrender', async () => {
           if (isFrameStreaming()) {
-            // canvas2d.drawImage(canvas, 0, 0, width, height);
-            // const data = canvas2d.getImageData(0, 0, width, height).data;
-            // const buffer = new Uint8Array((data.length / 4) * 3);
-
-            // for (let i = 0, j = 0; i < data.length; i += 4, j += 3) {
-            //   buffer[j] = data[i]; // Red
-            //   buffer[j + 1] = data[i + 1]; // Green
-            //   buffer[j + 2] = data[i + 2]; // Blue
-            // }
-            // const buffer = new Uint8Array(width * height * 3);
-            // canvas
-            //   .getContext('webgl', { preserveDrawingBuffer: true })
-            //   ?.readPixels(
-            //     0,
-            //     0,
-            //     width,
-            //     height,
-            //     WebGLRenderingContext.RGB,
-            //     WebGLRenderingContext.UNSIGNED_BYTE,
-            //     buffer,
-            //   );
-            // console.log(buffer);
-            // await renderFrame(new Uint8Array(buffer));
             scene.renderer.snapshot((param) => {
               const rgbaBuffer = param as Uint8Array<ArrayBuffer>;
               const buffer = new Uint8Array((rgbaBuffer.length / 4) * 3);
@@ -246,36 +220,7 @@
 
               renderFrame(buffer);
             }, 'raw/rgba');
-            // scene.renderer.snapshot((element) => {
-            //   // const resp = await fetch((element as HTMLImageElement).src);
-            //   // const buffer = await resp.arrayBuffer();
-            //   // frameCache.push(new Uint8Array(buffer));
-
-            //   // const currentTime = Date.now();
-            //   // if (currentTime - lastRenderTime >= 10000) {
-            //   //   await renderFrame(
-            //   //     new Uint8Array(
-            //   //       frameCache.reduce((acc, curr) => {
-            //   //         const merged = new Uint8Array(acc.length + curr.length);
-            //   //         merged.set(acc);
-            //   //         merged.set(curr, acc.length);
-            //   //         return merged;
-            //   //       }),
-            //   //     ),
-            //   //   );
-            //   //   frameCache = [];
-            //   //   lastRenderTime = currentTime;
-            //   // }
-            //   writeFile(
-            //     `${framesDir}${sep()}${count}.png`,
-            //     Uint8Array.from(
-            //       atob((element as HTMLImageElement).src.split(',')[1])
-            //         .split('')
-            //         .map((c) => c.charCodeAt(0)),
-            //     ),
-            //   );
             setTick(++count / frameRate);
-            // });
           }
         });
       }
@@ -332,18 +277,6 @@
 
     EventBus.on('render-stop', async () => {
       finishVideo();
-      // const renderedDir = await join(await appDataDir(), 'rendered');
-      // let outputFile = await join(renderedDir, `${title} [${level}].mp4`);
-      // for (let i = 1; await exists(outputFile); i++) {
-      //   outputFile = await join(renderedDir, `${title} [${level}] ${i}.mp4`);
-      // }
-      // await pngToVideo(
-      //   await join(renderedDir, 'frames', renderId, '%d.png'),
-      //   outputFile,
-      //   [gameRef.game!.canvas.width, gameRef.game!.canvas.height],
-      //   config.mediaOptions.frameRate,
-      //   'libx264',
-      // );
     });
   });
 
