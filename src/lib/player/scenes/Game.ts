@@ -1,6 +1,6 @@
 import { Cameras, GameObjects, Renderer, Scene, Sound } from 'phaser';
 import { EventBus } from '../EventBus';
-import { inferLevelType, fit, send, getLines } from '$lib/utils';
+import { inferLevelType, fit, send, getLines, IS_TAURI } from '$lib/utils';
 import {
   processIllustration,
   loadJson,
@@ -198,7 +198,7 @@ export class Game extends Scene {
     this._practice = this._data.practice;
     this._autostart = this._data.autostart;
     this._adjustOffset = this._data.adjustOffset;
-    this._render = this._data.render;
+    this._render = this._data.render && IS_TAURI;
 
     if (new window.AudioContext().state === 'suspended') {
       this._autostart = false;
@@ -360,6 +360,17 @@ export class Game extends Scene {
       alpha: 0,
       duration: 1000,
       ease: 'Sine.easeIn',
+      onComplete: () => {
+        this.resetShadersAndVideos();
+        this._endingUI!.play();
+        EventBus.emit('finished');
+        send({
+          type: 'event',
+          payload: {
+            name: 'finished',
+          },
+        });
+      },
     });
   }
 
@@ -463,20 +474,7 @@ export class Game extends Scene {
     if (this._status === GameStatus.ERROR) return;
     this._status = GameStatus.FINISHED;
     this.out();
-    setTimeout(() => {
-      this._endingUI = new EndingUI(this, this._data.mediaOptions.endingLoopsToRender);
-    }, 500 / this.tweens.timeScale);
-    setTimeout(() => {
-      this.resetShadersAndVideos();
-      this._endingUI!.play();
-      EventBus.emit('finished');
-      send({
-        type: 'event',
-        payload: {
-          name: 'finished',
-        },
-      });
-    }, 1000 / this.tweens.timeScale);
+    this._endingUI = new EndingUI(this, this._data.mediaOptions.endingLoopsToRender);
   }
 
   setSeek(value: number) {
