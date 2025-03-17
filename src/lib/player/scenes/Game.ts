@@ -139,6 +139,31 @@ export class Game extends Scene {
           : `Loading ${e.url.split('/').pop()}`,
       );
     });
+
+    const { song, chart, illustration, assetNames, assetTypes, assets } = this._data.resources;
+
+    this._songUrl = song;
+    this._chartUrl = chart;
+    this._illustrationUrl = illustration;
+    this._title = this._data.metadata.title;
+    this._composer = this._data.metadata.composer;
+    this._charter = this._data.metadata.charter;
+    this._illustrator = this._data.metadata.illustrator;
+    this._levelType = this._data.metadata.levelType;
+    this._level =
+      this._data.metadata.level !== null && this._data.metadata.difficulty !== null
+        ? `${this._data.metadata.level}  Lv.${this._data.metadata.difficulty?.toFixed(0)}`
+        : this._data.metadata.level;
+    this._autoplay = this._data.autoplay;
+    this._practice = this._data.practice;
+    this._autostart = this._data.autostart;
+    this._adjustOffset = this._data.adjustOffset;
+    this._render = this._data.render && IS_TAURI;
+
+    if (new window.AudioContext().state === 'suspended') {
+      this._autostart = false;
+    }
+
     this.load.setPath(`${base}/game`);
 
     this.load.bitmapFont('Outfit', 'fonts/Outfit/Outfit.png', 'fonts/Outfit/Outfit.fnt');
@@ -146,11 +171,11 @@ export class Game extends Scene {
     this.load.svg('pause', 'Pause.svg', { width: 128, height: 128 });
     this.load.image('progress-bar', 'Progress.png');
 
-    this.load.audio('4', 'hitsounds/Drag.wav');
-    this.load.audio('3', 'hitsounds/Flick.wav');
-    this.load.audio('2', 'hitsounds/Tap.wav');
-    this.load.audio('1', 'hitsounds/Tap.wav');
-    this.load.audio('grade-hit', 'ending/GradeHit.wav');
+    this.loadAudio('4', 'hitsounds/Drag.wav');
+    this.loadAudio('3', 'hitsounds/Flick.wav');
+    this.loadAudio('2', 'hitsounds/Tap.wav');
+    this.loadAudio('1', 'hitsounds/Tap.wav');
+    this.loadAudio('grade-hit', 'ending/GradeHit.wav');
 
     this.load.image('4', 'notes/Drag.png');
     this.load.image('4-hl', 'notes/DragHL.png');
@@ -179,30 +204,6 @@ export class Game extends Scene {
       frameWidth: 375,
       frameHeight: 375,
     });
-
-    const { song, chart, illustration, assetNames, assetTypes, assets } = this._data.resources;
-
-    this._songUrl = song;
-    this._chartUrl = chart;
-    this._illustrationUrl = illustration;
-    this._title = this._data.metadata.title;
-    this._composer = this._data.metadata.composer;
-    this._charter = this._data.metadata.charter;
-    this._illustrator = this._data.metadata.illustrator;
-    this._levelType = this._data.metadata.levelType;
-    this._level =
-      this._data.metadata.level !== null && this._data.metadata.difficulty !== null
-        ? `${this._data.metadata.level}  Lv.${this._data.metadata.difficulty?.toFixed(0)}`
-        : this._data.metadata.level;
-    this._autoplay = this._data.autoplay;
-    this._practice = this._data.practice;
-    this._autostart = this._data.autostart;
-    this._adjustOffset = this._data.adjustOffset;
-    this._render = this._data.render && IS_TAURI;
-
-    if (new window.AudioContext().state === 'suspended') {
-      this._autostart = false;
-    }
 
     assets.forEach((asset, i) => {
       const name = assetNames[i];
@@ -244,21 +245,19 @@ export class Game extends Scene {
       await Promise.all([
         ...this._animatedAssets.map(async (asset) => {
           const spritesheet = await getSpritesheet(asset.url, asset.isGif);
-          // console.log(spritesheet.frameSize, spritesheet.frameCount, spritesheet.frameRate);
-          // spritesheet.spritesheet.toBlob((e) => {
-          //   if (e) console.log(URL.createObjectURL(e));
-          // });
+
           this.load.spritesheet(
             asset.key,
             spritesheet.spritesheet.toDataURL(),
             spritesheet.frameSize,
           );
+
           asset.frameCount = spritesheet.frameCount;
           asset.frameRate = spritesheet.frameRate;
           asset.repeat = spritesheet.repeat;
         }),
         ...this._audioAssets.map(async (asset) =>
-          this.load.audio(asset.key, await getAudio(asset.url)),
+          this.loadAudio(asset.key, await getAudio(asset.url)),
         ),
       ]);
       this.createHitEffectsAnimation();
@@ -309,7 +308,7 @@ export class Game extends Scene {
           }
         }
       }
-      this.load.audio('ending', `ending/LevelOver${this._levelType}.wav`);
+      this.loadAudio('ending', `ending/LevelOver${this._levelType}.wav`);
       this.load.once('complete', async () => {
         this.createTextureAnimations();
         this.initializeChart();
@@ -337,6 +336,11 @@ export class Game extends Scene {
       this.load.start();
     };
     load();
+  }
+
+  loadAudio(key: string, url: string) {
+    if (this._render) return;
+    this.load.audio(key, url);
   }
 
   in() {
