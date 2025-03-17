@@ -353,24 +353,14 @@ export class Game extends Scene {
     });
   }
 
-  out() {
+  out(onComplete: () => void) {
     this._gameUI.out();
     this.tweens.add({
       targets: [...this._lines.map((l) => l.elements).flat(), ...(this._videos ?? [])],
       alpha: 0,
       duration: 1000,
       ease: 'Sine.easeIn',
-      onComplete: () => {
-        this.resetShadersAndVideos();
-        this._endingUI!.play();
-        EventBus.emit('finished');
-        send({
-          type: 'event',
-          payload: {
-            name: 'finished',
-          },
-        });
-      },
+      onComplete,
     });
   }
 
@@ -473,7 +463,17 @@ export class Game extends Scene {
   end() {
     if (this._status === GameStatus.ERROR) return;
     this._status = GameStatus.FINISHED;
-    this.out();
+    this.out(() => {
+      this.resetShadersAndVideos();
+      this._endingUI!.play();
+      EventBus.emit('finished');
+      send({
+        type: 'event',
+        payload: {
+          name: 'finished',
+        },
+      });
+    });
     this._endingUI = new EndingUI(this, this._data.mediaOptions.endingLoopsToRender);
   }
 
