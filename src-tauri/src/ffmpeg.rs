@@ -2,9 +2,6 @@ use std::io::Write;
 use std::process::{ChildStdin, Command};
 use std::sync::{LazyLock, Mutex};
 
-use chrono::Local;
-use image::RgbImage;
-
 static FFMPEG_STDIN: LazyLock<Mutex<Option<ChildStdin>>> = LazyLock::new(|| Mutex::new(None));
 
 pub fn png_sequence_to_video(
@@ -67,14 +64,6 @@ pub fn setup_video(output: String,resolution: String, framerate: u32, codec: Str
 }
 
 pub fn receive_frame(frame: Vec<u8>) -> Result<(), String> {
-    let timestamp = Local::now().format("%Y%m%d_%H%M%S%.3f").to_string();
-    let filename = format!("../../frame_{}.png", timestamp);
-    let img = RgbImage::from_raw(480, 320, frame.clone())
-        .ok_or_else(|| {
-            eprintln!("Failed to create image from raw data, {}", frame.len());
-            "Failed to create image"
-        })?;
-    img.save(&filename).map_err(|e| e.to_string())?;
     if let Some(stdin) = &mut *FFMPEG_STDIN.lock().unwrap() {
         stdin.write_all(&frame).map_err(|e| e.to_string())?;
         stdin.flush().map_err(|e| e.to_string())?;
