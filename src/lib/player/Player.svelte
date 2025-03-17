@@ -26,7 +26,7 @@
   import { base } from '$app/paths';
   import { Capacitor } from '@capacitor/core';
   import StatsJS from 'stats-js';
-  import { finishVideo, pngToVideo, renderFrame, setupVideo } from './ffmpeg/tauri';
+  import { finishVideo, isFrameStreaming, pngToVideo, renderFrame, setupVideo } from './ffmpeg/tauri';
   import { appDataDir, join, sep } from '@tauri-apps/api/path';
   import { exists, mkdir, remove, writeFile } from '@tauri-apps/plugin-fs';
 
@@ -69,9 +69,7 @@
   let timeout: NodeJS.Timeout;
 
   let gameStart: DOMHighResTimeStamp;
-  let renderId: string;
-  let framesDir: string;
-  let isRendering = false;
+  let renderOutput: string;
 
   let offsetHelperElement: HTMLDivElement;
   let waveformElement: HTMLDivElement;
@@ -95,13 +93,13 @@
     }, 10000);
 
     if (IS_TAURI && config.render) {
-      renderId = crypto.randomUUID();
       (async () => {
-        framesDir = await join(await appDataDir(), 'rendered', 'frames', renderId);
-        if (await exists(framesDir)) {
-          await remove(framesDir, { recursive: true });
+        const renderedDir = await join(await appDataDir(), 'rendered');
+        await mkdir(renderedDir, { recursive: true });
+        renderOutput = await join(renderedDir, `${title} [${level}].mp4`);
+        for (let i = 1; await exists(renderOutput); i++) {
+          renderOutput = await join(renderedDir, `${title} [${level}] ${i}.mp4`);
         }
-        await mkdir(framesDir, { recursive: true });
       })();
     }
 
@@ -201,13 +199,18 @@
         const canvas = scene.game.canvas;
         const width = canvas.width;
         const height = canvas.height;
-        const canvas2d = document.createElement('canvas').getContext('2d')!;
-        setupVideo([width, height], frameRate, 'libx264', config.mediaOptions.videoBitrate);
-        isRendering = true;
+
+        setupVideo(
+          renderOutput,
+          [width, height],
+          frameRate,
+          'libx264',
+          config.mediaOptions.videoBitrate,
+        );
 
         let count = 0;
         scene.game.events.addListener('postrender', async () => {
-          if (isRendering) {
+          if (isFrameStreaming()) {
             // canvas2d.drawImage(canvas, 0, 0, width, height);
             // const data = canvas2d.getImageData(0, 0, width, height).data;
             // const buffer = new Uint8Array((data.length / 4) * 3);
@@ -217,20 +220,32 @@
             //   buffer[j + 1] = data[i + 1]; // Green
             //   buffer[j + 2] = data[i + 2]; // Blue
             // }
-            const buffer = new Uint8Array(width * height * 3);
-            canvas
-              .getContext('webgl', { preserveDrawingBuffer: true })
-              ?.readPixels(
-                0,
-                0,
-                width,
-                height,
-                WebGLRenderingContext.RGB,
-                WebGLRenderingContext.UNSIGNED_BYTE,
-                buffer,
-              );
-            console.log(buffer);
-            await renderFrame(new Uint8Array(buffer));
+            // const buffer = new Uint8Array(width * height * 3);
+            // canvas
+            //   .getContext('webgl', { preserveDrawingBuffer: true })
+            //   ?.readPixels(
+            //     0,
+            //     0,
+            //     width,
+            //     height,
+            //     WebGLRenderingContext.RGB,
+            //     WebGLRenderingContext.UNSIGNED_BYTE,
+            //     buffer,
+            //   );
+            // console.log(buffer);
+            // await renderFrame(new Uint8Array(buffer));
+            scene.renderer.snapshot((param) => {
+              const rgbaBuffer = param as Uint8Array<ArrayBuffer>;
+              const buffer = new Uint8Array((rgbaBuffer.length / 4) * 3);
+
+              for (let i = 0, j = 0; i < rgbaBuffer.length; i += 4, j += 3) {
+                buffer[j] = rgbaBuffer[i]; // Red
+                buffer[j + 1] = rgbaBuffer[i + 1]; // Green
+                buffer[j + 2] = rgbaBuffer[i + 2]; // Blue
+              }
+
+              renderFrame(buffer);
+            }, 'raw/rgba');
             // scene.renderer.snapshot((element) => {
             //   // const resp = await fetch((element as HTMLImageElement).src);
             //   // const buffer = await resp.arrayBuffer();
@@ -317,7 +332,6 @@
 
     EventBus.on('render-stop', async () => {
       finishVideo();
-      isRendering = false;
       // const renderedDir = await join(await appDataDir(), 'rendered');
       // let outputFile = await join(renderedDir, `${title} [${level}].mp4`);
       // for (let i = 1; await exists(outputFile); i++) {

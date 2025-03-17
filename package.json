@@ -118,6 +118,9 @@
   "pnpm": {
     "onlyBuiltDependencies": [
       "sharp"
-    ]
+    ],
+    "patchedDependencies": {
+      "phaser@3.88.2": "patches/phaser@3.88.2.patch"
+    }
   }
 }

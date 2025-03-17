@@ -7,6 +7,11 @@ settings:
 overrides:
   cookie: '>=0.7.0'
 
+patchedDependencies:
+  phaser@3.88.2:
+    hash: mj4h6bbglkp4ckbu2x7gjey7nm
+    path: patches/phaser@3.88.2.patch
+
 importers:
 
   .:
@@ -88,7 +93,7 @@ importers:
         version: 3.2.8
       phaser:
         specifier: ^3.88.2
-        version: 3.88.2
+        version: 3.88.2(patch_hash=mj4h6bbglkp4ckbu2x7gjey7nm)
       phaser3-rex-plugins:
         specifier: ^1.80.12
         version: 1.80.12(graphology-types@0.24.8)
@@ -7276,7 +7281,7 @@ snapshots:
       - encoding
       - graphology-types
 
-  phaser@3.88.2:
+  phaser@3.88.2(patch_hash=mj4h6bbglkp4ckbu2x7gjey7nm):
     dependencies:
       eventemitter3: 5.0.1
 

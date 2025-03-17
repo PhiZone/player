@@ -38,7 +38,7 @@ pub fn png_sequence_to_video(
     Ok(())
 }
 
-pub fn setup_video(resolution: String, framerate: u32, codec: String, bitrate: String) -> Result<(), String> {
+pub fn setup_video(output: String,resolution: String, framerate: u32, codec: String, bitrate: String) -> Result<(), String> {
     let framerate_str = framerate.to_string();
     let args = vec![
         "-f", "rawvideo",
@@ -48,10 +48,11 @@ pub fn setup_video(resolution: String, framerate: u32, codec: String, bitrate: S
         "-i", "pipe:0",
         "-c:v", &codec,
         "-b:v", &bitrate,
+        "-vf", "vflip",
         "-pix_fmt", "yuv420p",
         "-movflags", "+faststart",
         "-y",
-        "../../output.mp4",
+        &output,
     ];
 
     let process = Command::new("ffmpeg")
