@@ -26,7 +26,7 @@
   import { base } from '$app/paths';
   import { Capacitor } from '@capacitor/core';
   import StatsJS from 'stats-js';
-  import { finishVideo, isFrameStreaming, renderFrame, setupVideo } from './ffmpeg/tauri';
+  import { finishVideo, renderFrame, setupVideo } from './ffmpeg/tauri';
 
   export let gameRef: GameReference;
 
@@ -67,6 +67,9 @@
   let timeout: NodeJS.Timeout;
 
   let gameStart: DOMHighResTimeStamp;
+  let frameQueue: (Uint8Array<ArrayBuffer> | false)[] = [];
+  let isRendering = false;
+  let isSendingFrame = false;
 
   let offsetHelperElement: HTMLDivElement;
   let waveformElement: HTMLDivElement;
@@ -195,8 +198,9 @@
         );
 
         let count = 0;
+        isRendering = true;
         scene.game.events.addListener('postrender', () => {
-          if (isFrameStreaming()) {
+          if (isRendering) {
             scene.renderer.snapshot((param) => {
               const rgbaBuffer = param as Uint8Array<ArrayBuffer>;
               const buffer = new Uint8Array((rgbaBuffer.length / 4) * 3);
@@ -207,7 +211,8 @@
                 buffer[j + 2] = rgbaBuffer[i + 2];
               }
 
-              renderFrame(buffer);
+              frameQueue.push(buffer);
+              sendFrame();
             }, 'raw');
           }
           setTick(++count / frameRate / 2); // halving is somehow necessary
@@ -356,9 +361,26 @@
     isOffsetAdjustedChartExported = true;
   };
 
-  const stopRendering = () => {
-    if (IS_TAURI && config?.render && isFrameStreaming()) {
+  const sendFrame = async () => {
+    if (isSendingFrame || frameQueue.length === 0) return;
+    isSendingFrame = true;
+
+    const frame = frameQueue.shift()!;
+    if (frame === false) {
       finishVideo();
+      return;
+    }
+    await renderFrame(frame);
+
+    isSendingFrame = false;
+    sendFrame();
+  };
+
+  const stopRendering = () => {
+    if (IS_TAURI && config?.render && isRendering) {
+      isRendering = false;
+      frameQueue.push(false);
+      sendFrame();
     }
   };
 </script>
