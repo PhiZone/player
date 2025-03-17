@@ -97,8 +97,9 @@
         const renderedDir = await join(await appDataDir(), 'rendered');
         await mkdir(renderedDir, { recursive: true });
         renderOutput = await join(renderedDir, `${title} [${level}].mp4`);
-        for (let i = 1; await exists(renderOutput); i++) {
-          renderOutput = await join(renderedDir, `${title} [${level}] ${i}.mp4`);
+        let i = 1;
+        while (await exists(renderOutput)) {
+          renderOutput = await join(renderedDir, `${title} [${level}] ${i++}.mp4`);
         }
       })();
     }
@@ -201,12 +202,13 @@
           renderOutput,
           [width, height],
           frameRate,
-          'libx264',
+          config.mediaOptions.videoCodec,
           config.mediaOptions.videoBitrate,
         );
 
         let count = 0;
         scene.game.events.addListener('postrender', async () => {
+          console.log(gameStart + (++count / frameRate) * 1000, scene.game.getTime());
           if (isFrameStreaming()) {
             scene.renderer.snapshot((param) => {
               const rgbaBuffer = param as Uint8Array<ArrayBuffer>;
@@ -219,9 +221,9 @@
               }
 
               renderFrame(buffer);
-            }, 'raw/rgba');
-            setTick(++count / frameRate);
+            }, 'raw');
           }
+          setTick(++count / frameRate / 2); // halving is somehow necessary
         });
       }
     });

@@ -51,6 +51,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             get_files_opened,
+            get_ffmpeg_encoders,
             ffmpeg_png_sequence_to_video,
             setup_ffmpeg_video,
             render_frame,
@@ -97,12 +98,29 @@ fn get_files_opened() -> Vec<String> {
 }
 
 #[tauri::command]
-fn ffmpeg_png_sequence_to_video(input: String, output: String, resolution: String, fps: u32, codec: String) -> Result<(), String> {
+fn get_ffmpeg_encoders() -> Result<Vec<ffmpeg::Encoder>, String> {
+    ffmpeg::get_encoders()
+}
+
+#[tauri::command]
+fn ffmpeg_png_sequence_to_video(
+    input: String,
+    output: String,
+    resolution: String,
+    fps: u32,
+    codec: String,
+) -> Result<(), String> {
     ffmpeg::png_sequence_to_video(input, output, resolution, fps, codec)
 }
 
 #[tauri::command]
-fn setup_ffmpeg_video(output: String, resolution: String, framerate: u32, codec: String, bitrate: String) -> Result<(), String> {
+fn setup_ffmpeg_video(
+    output: String,
+    resolution: String,
+    framerate: u32,
+    codec: String,
+    bitrate: String,
+) -> Result<(), String> {
     ffmpeg::setup_video(output, resolution, framerate, codec, bitrate)
 }
 

@@ -66,7 +66,7 @@ export interface MediaOptions {
   frameRate: number;
   overrideResolution: [number, number] | null;
   endingLoopsToRender: number;
-  outputFormat: string;
+  videoCodec: string;
   videoBitrate: number;
   audioBitrate?: number | undefined;
 }
@@ -487,6 +487,12 @@ export interface Release {
   tarball_url: string;
   zipball_url: string;
   body: string;
+}
+
+export interface FFmpegEncoder {
+  name: string;
+  displayName: string;
+  codec: string | null;
 }
 
 export type IncomingMessage = BlobInputMessage | UrlInputMessage | PlayMessage;

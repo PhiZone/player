@@ -1,8 +1,19 @@
+import type { FFmpegEncoder } from '$lib/types';
 import { IS_TAURI } from '$lib/utils';
 import { invoke } from '@tauri-apps/api/core';
 
-const USABLE = IS_TAURI;
+let isUsable = IS_TAURI;
 let frameStreaming = false;
+
+export const getEncoders = async () => {
+  if (!isUsable) return;
+  try {
+    return (await invoke('get_ffmpeg_encoders')) as FFmpegEncoder[];
+  } catch (e) {
+    console.error(e);
+    isUsable = false;
+  }
+};
 
 export const pngToVideo = async (
   input: string,
@@ -11,7 +22,7 @@ export const pngToVideo = async (
   frameRate: number,
   codec: string,
 ) => {
-  if (!USABLE) return;
+  if (!isUsable) return;
   return await invoke('ffmpeg_png_sequence_to_video', {
     input,
     output,
@@ -28,7 +39,7 @@ export const setupVideo = async (
   codec: string,
   bitrate: number,
 ) => {
-  if (!USABLE) return;
+  if (!isUsable) return;
   frameStreaming = true;
   return await invoke('setup_ffmpeg_video', {
     output,
@@ -40,12 +51,12 @@ export const setupVideo = async (
 };
 
 export const renderFrame = async (frame: Uint8Array) => {
-  if (!USABLE || !frameStreaming) return;
+  if (!isUsable || !frameStreaming) return;
   return await invoke('render_frame', { frame });
 };
 
 export const finishVideo = async () => {
-  if (!USABLE) return;
+  if (!isUsable) return;
   frameStreaming = false;
   return await invoke('finish_ffmpeg_video');
 };
