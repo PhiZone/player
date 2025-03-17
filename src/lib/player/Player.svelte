@@ -187,7 +187,7 @@
         const setTick = (progress: number) => {
           requestAnimationFrame(() => {
             scene.game.loop.step(gameStart + progress * 1000);
-            scene.clock.setTime(progress);
+            scene.clock.setTime(progress - 1);
           });
         };
         scene.game.loop.stop();
