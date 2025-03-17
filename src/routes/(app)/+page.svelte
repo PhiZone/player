@@ -47,14 +47,15 @@
   import { REPO_API_LINK, REPO_LINK, VERSION } from '$lib';
   import { SendIntent, type Intent } from 'send-intent';
   import { Filesystem } from '@capacitor/filesystem';
-  import { tempDir } from '@tauri-apps/api/path';
+  import { appDataDir, join, tempDir } from '@tauri-apps/api/path';
   import { download as tauriDownload } from '@tauri-apps/plugin-upload';
-  import { readFile, remove } from '@tauri-apps/plugin-fs';
+  import { mkdir, readFile, remove } from '@tauri-apps/plugin-fs';
   import { random } from 'mathjs';
   import { base } from '$app/paths';
   import { listen } from '@tauri-apps/api/event';
   import { invoke } from '@tauri-apps/api/core';
   import { getEncoders } from '$lib/player/ffmpeg/tauri';
+    import moment from 'moment';
 
   interface FileEntry {
     id: number;
@@ -811,7 +812,6 @@
   };
 
   const handleParams = async (params: Config) => {
-    localStorage.setItem('player', JSON.stringify(params));
     preferences = params.preferences;
     mediaOptions = params.mediaOptions;
     toggles = {
@@ -848,13 +848,7 @@
         },
       },
     });
-    const paramsString = queryString.stringify(params, {
-      arrayFormat: 'none',
-      skipEmptyString: true,
-      skipNull: true,
-      sort: false,
-    });
-    start(paramsString.length <= 15360 ? `${base}/play/?${paramsString}` : `${base}/play/`);
+    start(params);
   };
 
   const downloadUrls = async (urls: string[]) => {
@@ -904,8 +898,29 @@
     }
   };
 
-  const start = async (url: string) => {
+  const start = async (config: Config) => {
+    localStorage.setItem('player', JSON.stringify(config));
+
+    const paramsString = queryString.stringify(config, {
+      arrayFormat: 'none',
+      skipEmptyString: true,
+      skipNull: true,
+      sort: false,
+    });
+    const url = paramsString.length <= 15360 ? `${base}/play/?${paramsString}` : `${base}/play/`;
+
     if (IS_TAURI) {
+      if (toggles.render) {
+        const renderDestDir = await join(
+          await appDataDir(),
+          'rendered',
+          `${config.metadata.title} [${config.metadata.level}]`,
+        );
+        await mkdir(renderDestDir, { recursive: true });
+        const renderOutput = await join(renderDestDir, `${moment().format('YYYY-MM-DD_HHmmss')}.mp4`);
+        localStorage.setItem('renderOutput', renderOutput);
+      }
+
       monitor = await currentMonitor();
       if (Capacitor.getPlatform() === 'web' && toggles.newTab) {
         const webview = new WebviewWindow(`player-${Date.now()}`, {
@@ -923,6 +938,7 @@
         configureWebviewWindow(getCurrentWebviewWindow());
       }
     }
+
     if (Capacitor.getPlatform() === 'web' && toggles.newTab) {
       window.open(url);
     } else {
@@ -1838,65 +1854,35 @@
               localStorage.setItem('preferences', JSON.stringify(preferences));
               localStorage.setItem('toggles', JSON.stringify(toggles));
               if (toggles.render) {
-                localStorage.setItem('mediaOptions', JSON.stringify(mediaOptions));
                 if (overrideResolution) {
                   mediaOptions.overrideResolution = [mediaResolutionWidth, mediaResolutionHeight];
                 } else {
                   mediaOptions.overrideResolution = null;
                 }
+                localStorage.setItem('mediaOptions', JSON.stringify(mediaOptions));
               }
               if (!currentBundle) {
                 alert('No bundle is available.');
                 return;
               }
               const assetsIncluded = assets.filter((asset) => asset.included);
-              const params = queryString.stringify(
-                {
-                  song: getUrl(audioFiles.find((file) => file.id === currentBundle!.song)?.file),
-                  chart: getUrl(chartFiles.find((file) => file.id === currentBundle!.chart)?.file),
-                  illustration: imageFiles.find((file) => file.id === currentBundle!.illustration)
-                    ?.url,
+              start({
+                resources: {
+                  song:
+                    getUrl(audioFiles.find((file) => file.id === currentBundle!.song)?.file) ?? '',
+                  chart:
+                    getUrl(chartFiles.find((file) => file.id === currentBundle!.chart)?.file) ?? '',
+                  illustration:
+                    imageFiles.find((file) => file.id === currentBundle!.illustration)?.url ?? '',
                   assetNames: assetsIncluded.map((asset) => asset.file.name),
                   assetTypes: assetsIncluded.map((asset) => asset.type),
-                  assets: assetsIncluded.map((asset) => getUrl(asset.file)),
-                  ...currentBundle.metadata,
-                  ...preferences,
-                  ...toggles,
-                  ...(toggles.render ? mediaOptions : []),
+                  assets: assetsIncluded.map((asset) => getUrl(asset.file) ?? ''),
                 },
-                {
-                  arrayFormat: 'none',
-                  skipEmptyString: true,
-                  skipNull: true,
-                  sort: false,
-                },
-              );
-              let url = `${base}/play/`;
-              if (params.length <= 15360) {
-                url = `${base}/play/?${params}`;
-              } else {
-                const config = {
-                  resources: {
-                    song:
-                      getUrl(audioFiles.find((file) => file.id === currentBundle!.song)?.file) ??
-                      '',
-                    chart:
-                      getUrl(chartFiles.find((file) => file.id === currentBundle!.chart)?.file) ??
-                      '',
-                    illustration:
-                      imageFiles.find((file) => file.id === currentBundle!.illustration)?.url ?? '',
-                    assetNames: assetsIncluded.map((asset) => asset.file.name),
-                    assetTypes: assetsIncluded.map((asset) => asset.type),
-                    assets: assetsIncluded.map((asset) => getUrl(asset.file) ?? ''),
-                  },
-                  metadata: currentBundle.metadata,
-                  preferences,
-                  mediaOptions,
-                  ...toggles,
-                };
-                localStorage.setItem('player', JSON.stringify(config));
-              }
-              start(url);
+                metadata: currentBundle.metadata,
+                preferences,
+                mediaOptions,
+                ...toggles,
+              });
             }}
           >
             Play

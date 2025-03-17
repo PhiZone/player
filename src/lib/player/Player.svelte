@@ -17,7 +17,7 @@
   import { getParams, IS_TAURI, showPerformance } from '$lib/utils';
   import { convertTime, findPredominantBpm, getTimeSec, triggerDownload } from './utils';
   import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
-  import { ProgressBarStatus } from '@tauri-apps/api/window';
+  import { getCurrentWindow, ProgressBarStatus } from '@tauri-apps/api/window';
   import WaveSurfer, { type WaveSurferOptions } from 'wavesurfer.js';
   import Minimap from 'wavesurfer.js/dist/plugins/minimap.esm.js';
   import Regions from 'wavesurfer.js/dist/plugins/regions.esm.js';
@@ -27,8 +27,6 @@
   import { Capacitor } from '@capacitor/core';
   import StatsJS from 'stats-js';
   import { finishVideo, isFrameStreaming, renderFrame, setupVideo } from './ffmpeg/tauri';
-  import { appDataDir, join } from '@tauri-apps/api/path';
-  import { exists, mkdir } from '@tauri-apps/plugin-fs';
 
   export let gameRef: GameReference;
 
@@ -69,7 +67,6 @@
   let timeout: NodeJS.Timeout;
 
   let gameStart: DOMHighResTimeStamp;
-  let renderOutput: string;
 
   let offsetHelperElement: HTMLDivElement;
   let waveformElement: HTMLDivElement;
@@ -91,18 +88,6 @@
     timeout = setTimeout(() => {
       stillLoading = true;
     }, 10000);
-
-    if (IS_TAURI && config.render) {
-      (async () => {
-        const renderedDir = await join(await appDataDir(), 'rendered');
-        await mkdir(renderedDir, { recursive: true });
-        renderOutput = await join(renderedDir, `${title} [${level}].mp4`);
-        let i = 1;
-        while (await exists(renderOutput)) {
-          renderOutput = await join(renderedDir, `${title} [${level}] ${i++}.mp4`);
-        }
-      })();
-    }
 
     EventBus.on('loading', (p: number) => {
       progress = p;
@@ -191,12 +176,15 @@
             scene.clock.setTime(progress - 1);
           });
         };
+
         scene.game.loop.stop();
         setTick(0);
+
         const frameRate = config.mediaOptions.frameRate;
         const canvas = scene.game.canvas;
         const width = canvas.width;
         const height = canvas.height;
+        const renderOutput = localStorage.getItem('renderOutput') ?? 'output.mp4';
 
         setupVideo(
           renderOutput,
@@ -207,17 +195,16 @@
         );
 
         let count = 0;
-        scene.game.events.addListener('postrender', async () => {
-          console.log(gameStart + (++count / frameRate) * 1000, scene.game.getTime());
+        scene.game.events.addListener('postrender', () => {
           if (isFrameStreaming()) {
             scene.renderer.snapshot((param) => {
               const rgbaBuffer = param as Uint8Array<ArrayBuffer>;
               const buffer = new Uint8Array((rgbaBuffer.length / 4) * 3);
 
               for (let i = 0, j = 0; i < rgbaBuffer.length; i += 4, j += 3) {
-                buffer[j] = rgbaBuffer[i]; // Red
-                buffer[j + 1] = rgbaBuffer[i + 1]; // Green
-                buffer[j + 2] = rgbaBuffer[i + 2]; // Blue
+                buffer[j] = rgbaBuffer[i];
+                buffer[j + 1] = rgbaBuffer[i + 1];
+                buffer[j + 2] = rgbaBuffer[i + 2];
               }
 
               renderFrame(buffer);
@@ -278,11 +265,17 @@
     });
 
     EventBus.on('render-stop', async () => {
-      finishVideo();
+      stopRendering();
     });
   });
 
-  onDestroy(() => {
+  const unlisten = getCurrentWindow().onCloseRequested((_) => {
+    stopRendering();
+  });
+
+  onDestroy(async () => {
+    stopRendering();
+    (await unlisten)();
     gameRef.scene?.destroy();
     gameRef.game?.destroy(true);
     if (performanceStats) {
@@ -361,6 +354,12 @@
       'adjustedOffset',
     );
     isOffsetAdjustedChartExported = true;
+  };
+
+  const stopRendering = () => {
+    if (IS_TAURI && config?.render && isFrameStreaming()) {
+      finishVideo();
+    }
   };
 </script>
 
