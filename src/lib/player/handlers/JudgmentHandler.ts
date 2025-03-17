@@ -18,12 +18,31 @@ export class JudgmentHandler {
   private _judgmentCount: number = 0;
   private _judgmentDeltas: { delta: number; beat: number }[] = [];
   private _hitEffectsContainers: Record<number, GameObjects.Container> = {};
+  private _judgingHolds: { note: LongNote; beatLastExecuted: number }[] = [];
 
   constructor(scene: Game) {
     this._scene = scene;
     [...new Set(scene.notes.map((note) => note.note.zIndexHitEffects))].forEach((zIndex) => {
       this.createHitEffectsContainer(zIndex ?? 7);
     });
+  }
+
+  update(beat: number) {
+    for (let i = 0; i < this._judgingHolds.length; i++) {
+      const { note, beatLastExecuted } = this._judgingHolds[i];
+      if (
+        note.judgmentType !== JudgmentType.UNJUDGED ||
+        this._scene.beat < note.note.startBeat ||
+        this._scene.beat > note.note.endBeat
+      ) {
+        this._judgingHolds.splice(i, 1);
+        return;
+      }
+      if (beat - beatLastExecuted >= 0.5 && this._scene.status === GameStatus.PLAYING) {
+        this.createHitEffects(note.tempJudgmentType, note);
+        this._judgingHolds[i].beatLastExecuted = beat;
+      }
+    }
   }
 
   hit(type: JudgmentType, delta: number, note: PlainNote) {
@@ -126,22 +145,7 @@ export class JudgmentHandler {
     ) {
       this.createHitsound(note);
       this.createHitEffects(type, note);
-      const timer = setInterval(
-        () => {
-          if (
-            note.judgmentType !== JudgmentType.UNJUDGED ||
-            this._scene.beat < note.note.startBeat ||
-            this._scene.beat > note.note.endBeat
-          ) {
-            clearInterval(timer);
-            return;
-          }
-          if (this._scene.status === GameStatus.PLAYING) {
-            this.createHitEffects(type, note);
-          }
-        },
-        30000 / this._scene.bpm / this._scene.timeScale,
-      );
+      this._judgingHolds.push({ note, beatLastExecuted: beat });
       this._judgmentDeltas.push({ delta, beat });
     }
     note.setTempJudgment(type, beat);
@@ -163,6 +167,7 @@ export class JudgmentHandler {
   }
 
   createHitsound(note: PlainNote | LongNote) {
+    if (this._scene.render) return;
     this._scene.sound
       .add(note.note.hitsound ? `asset-${note.note.hitsound}` : note.note.type.toString())
       .setVolume(this._scene.preferences.hitSoundVolume)

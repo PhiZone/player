@@ -519,6 +519,7 @@ export class Game extends Scene {
     const realTimeSec = this.realTimeSec;
     this.report(time, realTimeSec);
     this.updateChart(this.beat, this.timeSec, time);
+    this._judgmentHandler.update(this.beat);
     this.statistics.updateDisplay(delta);
     if (this._isSeeking) {
       this._status = status;
