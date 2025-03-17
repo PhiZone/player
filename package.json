@@ -27,8 +27,8 @@
   },
   "scripts": {
     "dev": "vite --config vite/config.dev.mjs --host",
-    "build:only": "vite build --config vite/config.prod.mjs",
-    "build": "vite build --config vite/config.prod.mjs && pnpm cap sync",
+    "build:only": "svelte-kit sync && vite build --config vite/config.prod.mjs",
+    "build": "svelte-kit sync && vite build --config vite/config.prod.mjs && pnpm cap sync",
     "preview": "vite preview --outDir build --host",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
