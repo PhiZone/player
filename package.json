@@ -117,6 +117,8 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
+      "@sentry/cli",
+      "esbuild",
       "sharp"
     ],
     "patchedDependencies": {
