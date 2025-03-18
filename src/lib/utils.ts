@@ -336,7 +336,7 @@ export const ensafeFilename = (filename: string) => {
     .split(' ')
     .filter((s) => s.trim().length > 0)
     .join(' ')
-    .replaceAll(/[#%&{}\\<>*?/$!'":@+`|=]/g, '');
+    .replaceAll(/[#%&{}\\<>*?/$!'":@`|]/g, '');
 };
 
 export const notify = (
