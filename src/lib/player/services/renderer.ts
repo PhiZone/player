@@ -47,20 +47,27 @@ export class Renderer {
       const { proceed, finished } = event.data;
       if (finished) {
         EventBus.emit('render-finish');
+        EventBus.emit('rendering-detail', 'Composing audio');
         await mixAudio(
           [{ key: 'song', data: await urlToBase64(scene.songUrl) }],
           [{ sound: 'song', time: 1000, volume: 1 }],
           await join(await tempDir(), 'test.wav'),
         );
+        EventBus.emit('rendering-detail', 'Finished');
         return;
       }
       this._isRendering = proceed;
+      EventBus.emit(
+        'rendering-detail',
+        proceed ? 'Rendering frames' : 'Waiting for FFmpeg to catch up',
+      );
       if (proceed) {
         this.setTick(++this._frameCount / frameRate);
       }
     };
 
     this._isRendering = true;
+    EventBus.emit('rendering-detail', 'Rendering frames');
 
     scene.game.events.addListener('postrender', () => {
       scene.renderer.snapshot((param) => {
@@ -74,6 +81,7 @@ export class Renderer {
         }
 
         this._worker.postMessage({ data: buffer }, [buffer.buffer]);
+        EventBus.emit('rendering', this._frameCount);
       }, 'raw');
       if (this._isRendering) {
         this.setTick(++this._frameCount / frameRate);
