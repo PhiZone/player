@@ -54,6 +54,7 @@ pub fn run() {
             get_files_opened,
             get_ffmpeg_encoders,
             ffmpeg_png_sequence_to_video,
+            compose_audio,
             setup_ffmpeg_video,
             finish_ffmpeg_video,
             mix_audio
@@ -115,6 +116,11 @@ fn ffmpeg_png_sequence_to_video(
 }
 
 #[tauri::command]
+fn compose_audio(hitsounds: String, music: String, output: String) -> Result<(), String> {
+    ffmpeg::compose_audio(hitsounds, music, output)
+}
+
+#[tauri::command]
 async fn setup_ffmpeg_video(
     output: String,
     resolution: String,
@@ -134,7 +140,8 @@ fn finish_ffmpeg_video() -> Result<(), String> {
 fn mix_audio(
     sounds: Vec<rodio::Sound>,
     timestamps: Vec<rodio::Timestamp>,
+    length: f64,
     output: String,
 ) -> Result<(), String> {
-    rodio::mix_audio(sounds, timestamps, output)
+    rodio::mix_audio(sounds, timestamps, length, output)
 }

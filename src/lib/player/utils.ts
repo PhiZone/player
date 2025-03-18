@@ -91,7 +91,7 @@ const easingFunctions: ((x: number) => number)[] = [
     x < 0.5 ? (1 - easingFunctions[25](1 - 2 * x)) / 2 : (1 + easingFunctions[25](2 * x - 1)) / 2,
 ];
 
-const download = async (url: string, name?: string) => {
+export const download = async (url: string, name?: string) => {
   EventBus.emit('loading', 0);
   EventBus.emit(
     'loading-detail',

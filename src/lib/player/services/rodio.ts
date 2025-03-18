@@ -7,9 +7,10 @@ const IS_USABLE = IS_TAURI;
 export const mixAudio = async (
   sounds: RodioSound[],
   timestamps: RodioTimestamp[],
+  length: number,
   output: string,
 ) => {
   if (!IS_USABLE) return;
   console.log(sounds, timestamps, output);
-  return await invoke('mix_audio', { sounds, timestamps, output });
+  return await invoke('mix_audio', { sounds, timestamps, length, output });
 };

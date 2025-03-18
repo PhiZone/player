@@ -99,13 +99,36 @@ pub fn png_sequence_to_video(
         &output,
     ];
 
-    let process = Command::new("ffmpeg")
+    let _ = Command::new("ffmpeg")
         .args(&args)
-        .stdin(std::process::Stdio::piped())
         .spawn()
         .map_err(|e| e.to_string())?;
 
-    *FFMPEG_STDIN.lock().unwrap() = process.stdin;
+    Ok(())
+}
+
+pub fn compose_audio(hitsounds: String, music: String, output: String) -> Result<(), String> {
+    let args = vec![
+        "-i",
+        &hitsounds,
+        "-i",
+        &music,
+        "-filter_complex",
+        "[1:a]adelay=1000|1000[a2];[0:a][a2]amix=inputs=2:normalize=1[a]",
+        "-map",
+        "[a]",
+        "-c:a",
+        "aac",
+        "-fflags",
+        "+genpts",
+        "-y",
+        &output,
+    ];
+
+    let _ = Command::new("ffmpeg")
+        .args(&args)
+        .spawn()
+        .map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -192,10 +215,7 @@ pub async fn setup_video(
                 } else if message.is_text() {
                     let text = message.to_text().unwrap();
                     if text == "finish" {
-                        write
-                            .send("finished".into())
-                            .await
-                            .unwrap();
+                        write.send("finished".into()).await.unwrap();
                         finish_video().unwrap();
                         return;
                     } else if text == "pause" {

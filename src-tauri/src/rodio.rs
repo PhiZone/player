@@ -1,4 +1,4 @@
-use base64::Engine;
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 use hound::{SampleFormat, WavSpec, WavWriter};
 use rodio::{Decoder, Source};
 use std::collections::HashMap;
@@ -14,20 +14,21 @@ pub struct Sound {
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct Timestamp {
     sound: String,
-    time: u64,   // Time in milliseconds after stream start
+    time: f64,   // Time in seconds after stream start
     volume: f32, // Volume level (0.0 - 1.0)
 }
 
 pub fn mix_audio(
     sounds: Vec<Sound>,
     timestamps: Vec<Timestamp>,
+    length: f64,
     output_path: String,
 ) -> Result<(), String> {
     // Decoding sounds
     let mut sound_map: HashMap<String, Vec<u8>> = HashMap::new();
 
     for sound in sounds {
-        let decoded_data = match base64::engine::general_purpose::STANDARD.decode(&sound.data) {
+        let decoded_data = match STANDARD.decode(&sound.data) {
             Ok(data) => data,
             Err(e) => {
                 return Err(format!(
@@ -39,7 +40,6 @@ pub fn mix_audio(
         sound_map.insert(sound.key, decoded_data);
     }
 
-    // Initialize WAV writer
     let spec = WavSpec {
         channels: 2,         // Stereo output
         sample_rate: 44100,  // Standard audio sample rate
@@ -51,7 +51,7 @@ pub fn mix_audio(
     let mut writer = WavWriter::new(output_file, spec).map_err(|e| e.to_string())?;
 
     // Initialize a vector to store combined audio samples
-    let mut combined_samples: Vec<i16> = Vec::new();
+    let mut combined_samples = vec![0i16; (length * spec.sample_rate as f64) as usize * 2];
 
     // Process each timestamp to mix audio
     for timestamp in timestamps {
@@ -72,17 +72,16 @@ pub fn mix_audio(
             }
         };
 
-        // Apply the volume and mix the sound data
         let adjusted_source = source.amplify(timestamp.volume);
+
+        let position_begin = (timestamp.time * spec.sample_rate as f64).round() as usize * 2;
 
         // Convert to i16 samples and apply timestamp-based mixing
         for (i, sample) in adjusted_source.enumerate() {
-            let position = (timestamp.time as usize + i) / 1000; // Convert ms to sample position
+            let position = position_begin + i;
 
             if position < combined_samples.len() {
-                // Mix the samples by adding them together
                 combined_samples[position] = combined_samples[position].saturating_add(sample);
-            } else {
             }
         }
     }

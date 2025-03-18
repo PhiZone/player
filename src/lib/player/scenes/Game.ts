@@ -884,7 +884,7 @@ export class Game extends Scene {
     return this._clock;
   }
 
-  public get canvasRenderer() {
+  public get chartRenderer() {
     return this._renderer;
   }
 
@@ -922,12 +922,25 @@ export class Game extends Scene {
       composer: this._composer,
       charter: this._charter,
       illustrator: this._illustrator,
+      levelType: this._levelType,
       level: this._level,
     };
   }
 
   public get preferences() {
     return this._data.preferences;
+  }
+
+  public get resources() {
+    return this._data.resources;
+  }
+
+  public get mediaOptions() {
+    return this._data.mediaOptions;
+  }
+
+  public get audioAssets() {
+    return this._audioAssets;
   }
 
   public get beat() {
@@ -948,6 +961,10 @@ export class Game extends Scene {
 
   public get bpmList() {
     return this._bpmList;
+  }
+
+  public get offset() {
+    return this._offset;
   }
 
   public get chart() {
@@ -991,10 +1008,6 @@ export class Game extends Scene {
 
   public get render() {
     return this._render;
-  }
-
-  public get mediaOptions() {
-    return this._data.mediaOptions;
   }
 
   public get objects() {
