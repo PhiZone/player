@@ -134,7 +134,7 @@ fn finish_ffmpeg_video() -> Result<(), String> {
 fn mix_audio(
     sounds: Vec<rodio::Sound>,
     timestamps: Vec<rodio::Timestamp>,
-    output_path: String,
+    output: String,
 ) -> Result<(), String> {
-    rodio::mix_audio(sounds, timestamps, output_path)
+    rodio::mix_audio(sounds, timestamps, output)
 }

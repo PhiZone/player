@@ -495,6 +495,17 @@ export interface FFmpegEncoder {
   codec: string | null;
 }
 
+export interface RodioSound {
+  key: string;
+  data: string;
+}
+
+export interface RodioTimestamp {
+  sound: string;
+  time: number;
+  volume: number;
+}
+
 export type IncomingMessage = BlobInputMessage | UrlInputMessage | PlayMessage;
 
 export type OutgoingMessage =
