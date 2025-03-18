@@ -101,9 +101,7 @@ export class Renderer {
   }
 
   stopRendering() {
-    if (this._isRendering) {
-      this._isRendering = false;
-      this._worker.postMessage({ data: false });
-    }
+    this._isRendering = false;
+    this._worker.postMessage({ data: false });
   }
 }
