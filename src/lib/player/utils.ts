@@ -19,7 +19,7 @@ import {
   type RpeJson,
 } from '$lib/types';
 import { EventBus } from './EventBus';
-import { getFFmpeg, loadFFmpeg } from './ffmpeg';
+import { getFFmpeg, loadFFmpeg } from './services/ffmpeg';
 import type { Game } from './scenes/Game';
 import { ENDING_ILLUSTRATION_CORNER_RADIUS } from './constants';
 import { parseGIF, decompressFrames, type ParsedFrame } from 'gifuct-js';

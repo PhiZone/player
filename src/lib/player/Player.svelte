@@ -649,7 +649,7 @@
     class:opacity-100={status === GameStatus.FINISHED || stillLoading}
     class:pointer-events-none={status !== GameStatus.FINISHED && !stillLoading}
   >
-    {#if status === GameStatus.FINISHED}
+    {#if status === GameStatus.FINISHED && !config?.render}
       <button
         class="btn btn-outline border-2 btn-lg btn-circle"
         aria-label="Restart"

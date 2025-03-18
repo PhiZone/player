@@ -55,7 +55,7 @@
   import { base } from '$app/paths';
   import { listen } from '@tauri-apps/api/event';
   import { invoke } from '@tauri-apps/api/core';
-  import { getEncoders } from '$lib/player/ffmpeg/tauri';
+  import { getEncoders } from '$lib/player/services/ffmpeg/tauri';
   import moment from 'moment';
 
   interface FileEntry {

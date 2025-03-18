@@ -30,15 +30,15 @@ import { PointerHandler } from '../handlers/PointerHandler';
 import { KeyboardHandler } from '../handlers/KeyboardHandler';
 import { JudgmentHandler } from '../handlers/JudgmentHandler';
 import { StatisticsHandler } from '../handlers/StatisticsHandler';
-import { terminateFFmpeg } from '../ffmpeg';
+import { terminateFFmpeg } from '../services/ffmpeg';
 import { ShaderPipeline } from '../objects/ShaderPipeline';
 import { Video } from '../objects/Video';
 import { SignalHandler } from '../handlers/SignalHandler';
 import { Node, ROOT } from '../objects/Node';
 import { ShaderNode } from '../objects/ShaderNode';
 import { base } from '$app/paths';
-import { Clock } from '../services/Clock';
-import { Renderer } from '../services/Renderer';
+import { Clock } from '../services/clock';
+import { Renderer } from '../services/renderer';
 
 export class Game extends Scene {
   private _status: GameStatus = GameStatus.LOADING;
@@ -321,8 +321,9 @@ export class Game extends Scene {
         this.createBackground();
         this.createAudio();
         await this.initializeVideos();
-        this.initializeRenderer();
-        if (this._autostart) {
+        if (this._render) {
+          this.startRendering();
+        } else if (this._autostart) {
           this.start();
         } else {
           this._status = GameStatus.READY;
@@ -695,8 +696,9 @@ export class Game extends Scene {
     this._statisticsHandler = new StatisticsHandler(this);
   }
 
-  initializeRenderer() {
+  startRendering() {
     this._renderer = new Renderer(this, this._data.mediaOptions);
+    this.start();
   }
 
   setupUI() {
