@@ -587,7 +587,7 @@ export class Game extends Scene {
       this.sound,
       () => this._status === GameStatus.FINISHED || this.end(),
     );
-    this.timeScale = this._data.preferences.timeScale;
+    if (!this._render) this.timeScale = this._data.preferences.timeScale;
   }
 
   createBackground() {
@@ -991,6 +991,10 @@ export class Game extends Scene {
 
   public get render() {
     return this._render;
+  }
+
+  public get mediaOptions() {
+    return this._data.mediaOptions;
   }
 
   public get objects() {

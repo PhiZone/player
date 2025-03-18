@@ -120,8 +120,7 @@ export class EndingUI extends GameObjects.Container {
   update() {
     if (
       this._render &&
-      this._scene.game.getTime() - this._started >
-        (this._loopsToRender * 192e3) / 7 / this._scene.tweens.timeScale
+      this._scene.game.getTime() - this._started > (this._loopsToRender * 192e3) / 7
     ) {
       EventBus.emit('render-stop');
       this._render = false;
