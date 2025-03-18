@@ -875,18 +875,26 @@
     if (monitor) {
       const factor = 0.8;
       let { width, height } =
-        mediaOptions.overrideResolution || preferences.aspectRatio
+        toggles.render && mediaOptions.overrideResolution
           ? fit(
-              (mediaOptions.overrideResolution ?? preferences.aspectRatio)![0],
-              (mediaOptions.overrideResolution ?? preferences.aspectRatio)![1],
+              mediaOptions.overrideResolution[0],
+              mediaOptions.overrideResolution[1],
               monitor.size.width,
               monitor.size.height,
               true,
             )
-          : {
-              width: monitor.size.width,
-              height: monitor.size.height,
-            };
+          : preferences.aspectRatio
+            ? fit(
+                preferences.aspectRatio[0],
+                preferences.aspectRatio[1],
+                monitor.size.width,
+                monitor.size.height,
+                true,
+              )
+            : {
+                width: monitor.size.width,
+                height: monitor.size.height,
+              };
       width = width * factor;
       height = height * factor;
       webview.setPosition(
