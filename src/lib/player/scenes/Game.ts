@@ -882,6 +882,10 @@ export class Game extends Scene {
     return this._clock;
   }
 
+  public get canvasRenderer() {
+    return this._renderer;
+  }
+
   public get pointer() {
     return this._pointerHandler;
   }
