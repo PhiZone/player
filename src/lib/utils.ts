@@ -331,6 +331,14 @@ const notiflix = (message: string, type: 'info' | 'warning' | 'failure' | 'succe
   return id;
 };
 
+export const ensafeFilename = (filename: string) => {
+  return filename
+    .split(' ')
+    .filter((s) => s.trim().length > 0)
+    .join(' ')
+    .replaceAll(/[#%&{}\\<>*?/$!'":@+`|=]/g, '');
+};
+
 export const notify = (
   message: string,
   type: 'info' | 'warning' | 'failure' | 'success' = 'info',

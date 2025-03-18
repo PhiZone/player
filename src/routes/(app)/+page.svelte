@@ -18,6 +18,7 @@
   } from '$lib/types';
   import {
     clamp,
+    ensafeFilename,
     fit,
     getLines,
     getParams,
@@ -914,7 +915,7 @@
         const renderDestDir = await join(
           await appDataDir(),
           'rendered',
-          `${config.metadata.title} [${config.metadata.level}]`,
+          ensafeFilename(`${config.metadata.title} [${config.metadata.level}]`),
         );
         await mkdir(renderDestDir, { recursive: true });
         const renderOutput = await join(
