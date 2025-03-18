@@ -9,7 +9,7 @@ const FALLBACK_OUTPUT_FILE = 'output.mp4';
 export class Renderer {
   private _scene: Game;
   private _started: number;
-  private _generatedFrameCount: number = 0;
+  private _frameCount: number = 0;
   private _isRendering: boolean = false;
   private _worker: Worker;
 
@@ -43,27 +43,27 @@ export class Renderer {
       const { proceed } = event.data;
       this._isRendering = proceed;
       if (proceed) {
-        this.setTick(this._generatedFrameCount / frameRate);
+        this.setTick(++this._frameCount / frameRate);
       }
     };
 
     this._isRendering = true;
 
     scene.game.events.addListener('postrender', () => {
+      scene.renderer.snapshot((param) => {
+        const rgbaBuffer = param as Uint8Array<ArrayBuffer>;
+        const buffer = new Uint8Array((rgbaBuffer.length / 4) * 3);
+
+        for (let i = 0, j = 0; i < rgbaBuffer.length; i += 4, j += 3) {
+          buffer[j] = rgbaBuffer[i];
+          buffer[j + 1] = rgbaBuffer[i + 1];
+          buffer[j + 2] = rgbaBuffer[i + 2];
+        }
+
+        this._worker.postMessage({ data: buffer }, [buffer.buffer]);
+      }, 'raw');
       if (this._isRendering) {
-        scene.renderer.snapshot((param) => {
-          const rgbaBuffer = param as Uint8Array<ArrayBuffer>;
-          const buffer = new Uint8Array((rgbaBuffer.length / 4) * 3);
-
-          for (let i = 0, j = 0; i < rgbaBuffer.length; i += 4, j += 3) {
-            buffer[j] = rgbaBuffer[i];
-            buffer[j + 1] = rgbaBuffer[i + 1];
-            buffer[j + 2] = rgbaBuffer[i + 2];
-          }
-
-          this._worker.postMessage({ data: buffer }, [buffer.buffer]);
-        }, 'raw');
-        this.setTick(++this._generatedFrameCount / frameRate);
+        this.setTick(++this._frameCount / frameRate);
       }
     });
 
