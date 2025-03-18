@@ -55,7 +55,7 @@
   import { listen } from '@tauri-apps/api/event';
   import { invoke } from '@tauri-apps/api/core';
   import { getEncoders } from '$lib/player/ffmpeg/tauri';
-    import moment from 'moment';
+  import moment from 'moment';
 
   interface FileEntry {
     id: number;
@@ -917,7 +917,10 @@
           `${config.metadata.title} [${config.metadata.level}]`,
         );
         await mkdir(renderDestDir, { recursive: true });
-        const renderOutput = await join(renderDestDir, `${moment().format('YYYY-MM-DD_HHmmss')}.mp4`);
+        const renderOutput = await join(
+          renderDestDir,
+          `${moment().format('YYYY-MM-DD_HHmmss')}.mp4`,
+        );
         localStorage.setItem('renderOutput', renderOutput);
       }
 

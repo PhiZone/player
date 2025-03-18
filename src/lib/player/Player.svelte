@@ -65,11 +65,6 @@
   let counter: NodeJS.Timeout;
   let timeout: NodeJS.Timeout;
 
-  let gameStart: DOMHighResTimeStamp;
-  let frameQueue: (Uint8Array<ArrayBuffer> | false)[] = [];
-  let isRendering = false;
-  let isSendingFrame = false;
-
   let offsetHelperElement: HTMLDivElement;
   let waveformElement: HTMLDivElement;
   let minimapElement: HTMLDivElement;
@@ -83,8 +78,6 @@
 
   let performanceEnabled = showPerformance();
   let performanceStats: StatsJS | undefined;
-
-  let ws: WebSocket;
 
   onMount(() => {
     if (!config) return;
@@ -161,8 +154,6 @@
           }
         }).observe(offsetHelperElement);
       }
-
-      gameStart = performance.now();
 
       if (currentActiveScene) {
         currentActiveScene(scene);
