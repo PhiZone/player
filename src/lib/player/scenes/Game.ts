@@ -107,8 +107,8 @@ export class Game extends Scene {
 
   private _clock: Clock;
   private _renderer: Renderer;
-  private _pointerHandler: PointerHandler;
-  private _keyboardHandler: KeyboardHandler;
+  private _pointerHandler?: PointerHandler;
+  private _keyboardHandler?: KeyboardHandler;
   private _judgmentHandler: JudgmentHandler;
   private _statisticsHandler: StatisticsHandler;
 
@@ -443,8 +443,8 @@ export class Game extends Scene {
     if (this._status === GameStatus.ERROR) return;
     this._status = GameStatus.LOADING;
     if (!this._render) this._clock.pause();
-    this._pointerHandler.reset();
-    this._keyboardHandler.reset();
+    this._pointerHandler?.reset();
+    this._keyboardHandler?.reset();
     this._judgmentHandler.reset();
     this._clock.setSeek(0);
     this._endingUI?.destroy();
@@ -515,7 +515,7 @@ export class Game extends Scene {
     if (this._endingUI) this._endingUI.update();
     const status = this._status;
     if (this._isSeeking) this._status = GameStatus.SEEKING;
-    this._pointerHandler.update(delta);
+    this._pointerHandler?.update(delta);
     if (this._visible) {
       this._gameUI.update();
       this.positionBackground(this._background);
@@ -690,8 +690,10 @@ export class Game extends Scene {
 
   initializeHandlers() {
     EventBus.emit('loading-detail', 'Initializing handlers');
-    this._pointerHandler = new PointerHandler(this);
-    this._keyboardHandler = new KeyboardHandler(this);
+    if (!this._render) {
+      this._pointerHandler = new PointerHandler(this);
+      this._keyboardHandler = new KeyboardHandler(this);
+    }
     this._judgmentHandler = new JudgmentHandler(this);
     this._statisticsHandler = new StatisticsHandler(this);
   }
