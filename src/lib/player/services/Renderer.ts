@@ -2,7 +2,7 @@ import type { MediaOptions } from '$lib/types';
 import { EventBus } from '../EventBus';
 import { setupVideo } from './ffmpeg/tauri';
 import type { Game } from '../scenes/Game';
-import Worker from '../../workers/FrameSender.ts?worker';
+import Worker from '../../workers/FrameSender?worker';
 
 const FALLBACK_OUTPUT_FILE = 'output.mp4';
 
