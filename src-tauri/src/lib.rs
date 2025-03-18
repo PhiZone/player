@@ -5,6 +5,7 @@ use tauri::Manager;
 use url::Url;
 
 mod ffmpeg;
+mod rodio;
 
 static FILES_OPENED: LazyLock<Mutex<Vec<PathBuf>>> = LazyLock::new(|| Mutex::new(vec![]));
 
@@ -54,7 +55,8 @@ pub fn run() {
             get_ffmpeg_encoders,
             ffmpeg_png_sequence_to_video,
             setup_ffmpeg_video,
-            finish_ffmpeg_video
+            finish_ffmpeg_video,
+            mix_audio
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -126,4 +128,13 @@ async fn setup_ffmpeg_video(
 #[tauri::command]
 fn finish_ffmpeg_video() -> Result<(), String> {
     ffmpeg::finish_video()
+}
+
+#[tauri::command]
+fn mix_audio(
+    sounds: Vec<rodio::Sound>,
+    timestamps: Vec<rodio::Timestamp>,
+    output_path: String,
+) -> Result<(), String> {
+    rodio::mix_audio(sounds, timestamps, output_path)
 }
