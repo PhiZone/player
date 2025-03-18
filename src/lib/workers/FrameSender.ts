@@ -1,0 +1,94 @@
+enum WebSocketState {
+  OPEN = 1,
+  PAUSED = 2,
+  CLOSED = 3,
+}
+
+const WEBSOCKET_URL = 'ws://localhost:63401';
+const FRAME_BATCH_SIZE = 1000;
+
+class FrameSender {
+  private _ws: WebSocket;
+  private _wsState: WebSocketState = WebSocketState.CLOSED;
+  private _frameQueue: (Uint8Array<ArrayBuffer> | false)[] = [];
+  private _isSendingFrame: boolean = false;
+  private _receivedFrameCount: number = 0;
+  private _sentFrameCount: number = 0;
+
+  constructor() {
+    this._ws = new WebSocket(WEBSOCKET_URL);
+    this._ws.binaryType = 'arraybuffer';
+    this._ws.onopen = () => {
+      this._wsState = WebSocketState.OPEN;
+    };
+    this._ws.onmessage = (event) => {
+      try {
+        this._receivedFrameCount = parseInt(event.data);
+        this._wsState = WebSocketState.OPEN;
+        this.dispatch(true);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    self.onmessage = (event) => {
+      const { data } = event.data;
+      this._frameQueue.push(data);
+      this.sendFrame();
+    };
+  }
+
+  async sendFrame() {
+    if (
+      this._isSendingFrame ||
+      this._frameQueue.length === 0 ||
+      this._wsState === WebSocketState.CLOSED
+    )
+      return;
+
+    if (this._wsState === WebSocketState.PAUSED) {
+      setTimeout(() => this.sendFrame(), 100);
+      return;
+    }
+
+    this._isSendingFrame = true;
+
+    const frame = this._frameQueue.shift()!;
+    if (frame === false) {
+      this._ws.send('finish');
+      this._ws.close();
+      this._wsState = WebSocketState.CLOSED;
+      this._isSendingFrame = false;
+      return;
+    }
+
+    if (this._sentFrameCount - this._receivedFrameCount >= FRAME_BATCH_SIZE) {
+      this._ws.send('pause');
+      this._wsState = WebSocketState.PAUSED;
+      this._isSendingFrame = false;
+      this.dispatch(false);
+      return;
+    }
+
+    if (this._ws.readyState === WebSocket.OPEN) {
+      this._ws.send(frame);
+      this._sentFrameCount++;
+    }
+
+    this._isSendingFrame = false;
+
+    console.log(
+      `QUEUED: ${this._frameQueue.length}, SENT: ${this._sentFrameCount}, RECEIVED: ${this._receivedFrameCount}`,
+    );
+
+    this.sendFrame();
+  }
+
+  dispatch(proceed: boolean) {
+    self.postMessage({
+      proceed,
+    });
+  }
+}
+
+new FrameSender();

@@ -50,11 +50,6 @@ export const setupVideo = async (
   });
 };
 
-export const renderFrame = async (frame: Uint8Array) => {
-  if (!isUsable || !frameStreaming) return;
-  return await invoke('render_frame', { frame });
-};
-
 export const finishVideo = async () => {
   if (!isUsable) return;
   frameStreaming = false;

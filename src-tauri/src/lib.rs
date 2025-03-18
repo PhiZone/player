@@ -54,7 +54,6 @@ pub fn run() {
             get_ffmpeg_encoders,
             ffmpeg_png_sequence_to_video,
             setup_ffmpeg_video,
-            render_frame,
             finish_ffmpeg_video
         ])
         .run(tauri::generate_context!())
@@ -122,11 +121,6 @@ async fn setup_ffmpeg_video(
     bitrate: String,
 ) -> Result<(), String> {
     ffmpeg::setup_video(output, resolution, framerate, codec, bitrate).await
-}
-
-#[tauri::command]
-fn render_frame(frame: Vec<u8>) -> Result<(), String> {
-    ffmpeg::receive_frame(frame)
 }
 
 #[tauri::command]

@@ -168,10 +168,13 @@ pub async fn setup_video(
             };
             let (mut write, mut read) = ws_stream.split();
 
-            while let Some(Ok(message)) = read.next().await {
+            while let Some(Ok(message)) =
+                tokio::time::timeout(std::time::Duration::from_secs(30), read.next())
+                    .await
+                    .unwrap_or(None)
+            {
                 if message.is_binary() {
                     frames_received += 1;
-                    println!("BIN {} {:?}", frames_received, std::time::SystemTime::now());
                     let data = message.into_data();
                     if let Some(stdin) = &mut *FFMPEG_STDIN.lock().unwrap() {
                         if let Err(e) = stdin.write_all(&data) {
@@ -189,14 +192,9 @@ pub async fn setup_video(
                 } else if message.is_text() {
                     let text = message.to_text().unwrap();
                     if text == "finish" {
-                        println!("FIN {} {:?}", frames_received, std::time::SystemTime::now());
-                        let mut guard = FFMPEG_STDIN.lock().unwrap();
-                        if let Some(stdin) = guard.take() {
-                            drop(stdin); // This closes the stdin pipe
-                        }
-                        return; // Exit the task completely
+                        finish_video().unwrap();
+                        return;
                     } else if text == "pause" {
-                        println!("PAU {} {:?}", frames_received, std::time::SystemTime::now());
                         write
                             .send(frames_received.to_string().into())
                             .await
@@ -204,26 +202,19 @@ pub async fn setup_video(
                     }
                 }
             }
+            println!("Connection closed due to inactivity or end of stream");
+            finish_video().unwrap();
+            return;
         }
     });
 
     Ok(())
 }
 
-pub fn receive_frame(frame: Vec<u8>) -> Result<(), String> {
-    if let Some(stdin) = &mut *FFMPEG_STDIN.lock().unwrap() {
-        stdin.write_all(&frame).map_err(|e| e.to_string())?;
-        stdin.flush().map_err(|e| e.to_string())?;
-    } else {
-        return Err("FFmpeg stdin is not available".into());
-    }
-    Ok(())
-}
-
 pub fn finish_video() -> Result<(), String> {
     let mut guard = FFMPEG_STDIN.lock().unwrap();
     if let Some(stdin) = guard.take() {
-        drop(stdin); // This closes the stdin pipe
+        drop(stdin);
     }
     Ok(())
 }
