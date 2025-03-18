@@ -5,7 +5,7 @@ enum WebSocketState {
 }
 
 const WEBSOCKET_URL = 'ws://localhost:63401';
-const FRAME_BATCH_SIZE = 1000;
+const FRAME_BATCH_SIZE = 100;
 
 class FrameSender {
   private _ws: WebSocket;
@@ -21,7 +21,12 @@ class FrameSender {
     this._ws.onopen = () => {
       this._wsState = WebSocketState.OPEN;
     };
-    this._ws.onmessage = (event) => {
+    this._ws.onmessage = (event: { data: string }) => {
+      if (event.data === 'finished') {
+        this.dispatch(false, true);
+        this._ws.close();
+        return;
+      }
       try {
         this._receivedFrameCount = parseInt(event.data);
         this._wsState = WebSocketState.OPEN;
@@ -56,7 +61,6 @@ class FrameSender {
     const frame = this._frameQueue.shift()!;
     if (frame === false) {
       this._ws.send('finish');
-      this._ws.close();
       this._wsState = WebSocketState.CLOSED;
       this._isSendingFrame = false;
       return;
@@ -77,16 +81,17 @@ class FrameSender {
 
     this._isSendingFrame = false;
 
-    console.log(
-      `QUEUED: ${this._frameQueue.length}, SENT: ${this._sentFrameCount}, RECEIVED: ${this._receivedFrameCount}`,
-    );
+    // console.log(
+    //   `QUEUED: ${this._frameQueue.length}, SENT: ${this._sentFrameCount}, RECEIVED: ${this._receivedFrameCount}`,
+    // );
 
     this.sendFrame();
   }
 
-  dispatch(proceed: boolean) {
+  dispatch(proceed: boolean, finished: boolean = false) {
     self.postMessage({
       proceed,
+      finished,
     });
   }
 }

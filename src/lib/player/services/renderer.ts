@@ -3,6 +3,9 @@ import { EventBus } from '../EventBus';
 import { setupVideo } from './ffmpeg/tauri';
 import type { Game } from '../scenes/Game';
 import Worker from '../../workers/FrameSender?worker';
+import { mixAudio } from './rodio';
+import { urlToBase64 } from '../utils';
+import { join, tempDir } from '@tauri-apps/api/path';
 
 const FALLBACK_OUTPUT_FILE = 'output.mp4';
 
@@ -38,9 +41,19 @@ export class Renderer {
     this._worker.onmessage = async (event: {
       data: {
         proceed: boolean;
+        finished: boolean;
       };
     }) => {
-      const { proceed } = event.data;
+      const { proceed, finished } = event.data;
+      if (finished) {
+        EventBus.emit('render-finish');
+        await mixAudio(
+          [{ key: 'song', data: await urlToBase64(scene.songUrl) }],
+          [{ sound: 'song', time: 1000, volume: 1 }],
+          await join(await tempDir(), 'test.wav'),
+        );
+        return;
+      }
       this._isRendering = proceed;
       if (proceed) {
         this.setTick(++this._frameCount / frameRate);

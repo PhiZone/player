@@ -192,6 +192,10 @@ pub async fn setup_video(
                 } else if message.is_text() {
                     let text = message.to_text().unwrap();
                     if text == "finish" {
+                        write
+                            .send("finished".into())
+                            .await
+                            .unwrap();
                         finish_video().unwrap();
                         return;
                     } else if text == "pause" {

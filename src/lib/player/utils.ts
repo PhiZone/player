@@ -131,6 +131,15 @@ const download = async (url: string, name?: string) => {
   }
 };
 
+const toBase64 = (blob: Blob) =>
+  new Promise<string>((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      resolve((reader.result as string).split(';base64,')[1]);
+    };
+    reader.readAsDataURL(blob);
+  });
+
 export enum ControlTypes {
   ALPHA = 0,
   POS = 1,
@@ -826,6 +835,11 @@ export const triggerDownload = (
   a.download = name;
   a.click();
   URL.revokeObjectURL(url);
+};
+
+export const urlToBase64 = async (url: string, name?: string) => {
+  const blob = await download(url, name);
+  return await toBase64(blob);
 };
 
 // TODO expect minor issues
