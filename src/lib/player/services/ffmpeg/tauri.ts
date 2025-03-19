@@ -15,23 +15,6 @@ export const getEncoders = async () => {
   }
 };
 
-export const pngToVideo = async (
-  input: string,
-  output: string,
-  resolution: [number, number],
-  frameRate: number,
-  codec: string,
-) => {
-  if (!isUsable) return;
-  return await invoke('ffmpeg_png_sequence_to_video', {
-    input,
-    output,
-    resolution: `${resolution[0]}x${resolution[1]}`,
-    fps: frameRate,
-    codec,
-  });
-};
-
 export const composeAudio = async (
   hitsounds: string,
   music: string,
@@ -52,7 +35,7 @@ export const composeAudio = async (
 export const setupVideo = async (
   output: string,
   resolution: [number, number],
-  framerate: number,
+  frameRate: number,
   codec: string,
   bitrate: number,
 ) => {
@@ -61,7 +44,7 @@ export const setupVideo = async (
   return await invoke('setup_ffmpeg_video', {
     output,
     resolution: `${resolution[0]}x${resolution[1]}`,
-    framerate,
+    frameRate,
     codec,
     bitrate: `${bitrate}k`,
   });
@@ -73,9 +56,9 @@ export const finishVideo = async () => {
   return await invoke('finish_ffmpeg_video');
 };
 
-export const combineStreams = async (video: string, audio: string, output: string) => {
+export const combineStreams = async (inputVideo: string, inputAudio: string, output: string) => {
   if (!isUsable) return;
-  return await invoke('combine_streams', { video, audio, output });
+  return await invoke('combine_streams', { inputVideo, inputAudio, output });
 };
 
 export const isFrameStreaming = () => frameStreaming;

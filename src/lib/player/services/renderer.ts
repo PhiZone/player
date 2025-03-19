@@ -1,16 +1,17 @@
 import type { MediaOptions } from '$lib/types';
 import { EventBus } from '../EventBus';
-import { combineStreams, composeAudio, setupVideo } from './ffmpeg/tauri';
+import { combineStreams, composeAudio, finishVideo, setupVideo } from './ffmpeg/tauri';
 import type { Game } from '../scenes/Game';
 import Worker from '../../workers/FrameSender?worker';
 import { mixAudio } from './rodio';
 import { download, getTimeSec, urlToBase64 } from '../utils';
-import { appDataDir, join, tempDir } from '@tauri-apps/api/path';
+import { videoDir, join, tempDir } from '@tauri-apps/api/path';
 import { base } from '$app/paths';
-import { mkdir, writeFile } from '@tauri-apps/plugin-fs';
+import { mkdir, remove, writeFile } from '@tauri-apps/plugin-fs';
 import { listen } from '@tauri-apps/api/event';
 import { ensafeFilename } from '$lib/utils';
 import moment from 'moment';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 
 export class Renderer {
   private _scene: Game;
@@ -20,6 +21,7 @@ export class Renderer {
   private _isRendering: boolean = false;
   private _isStopped: boolean = false;
   private _endingLoopsToRender: number;
+  private _tempDir: string;
   private _length: number;
 
   private _worker: Worker;
@@ -38,7 +40,10 @@ export class Renderer {
     const canvas = this._scene.game.canvas;
     const width = canvas.width;
     const height = canvas.height;
-    const videoFile = await join(await tempDir(), `${crypto.randomUUID()}.mp4`);
+
+    this._tempDir = await join(await tempDir(), crypto.randomUUID());
+    await mkdir(this._tempDir, { recursive: true });
+    const videoFile = await join(this._tempDir, 'video-stream.mp4');
 
     await setupVideo(
       videoFile,
@@ -95,6 +100,12 @@ export class Renderer {
 
     EventBus.on('render-stop', async () => {
       this.stopRendering();
+    });
+
+    listen('combining-finished', async (event) => {
+      EventBus.emit('rendering-finished', event.payload);
+      EventBus.emit('rendering-detail', 'Finished');
+      await remove(this._tempDir, { recursive: true });
     });
   }
 
@@ -160,9 +171,9 @@ export class Renderer {
       }
     }
 
-    const hitsoundsFile = await join(await tempDir(), `${crypto.randomUUID()}.wav`);
-    const songFile = await join(await tempDir(), `${crypto.randomUUID()}.tmp`);
-    const finalAudio = await join(await tempDir(), `${crypto.randomUUID()}.aac`);
+    const hitsoundsFile = await join(this._tempDir, 'hitsounds.wav');
+    const songFile = await join(this._tempDir, 'song.tmp');
+    const finalAudio = await join(this._tempDir, 'audio-stream.aac');
 
     EventBus.emit('rendering-detail', 'Mixing hitsounds and results music');
     await mixAudio(sounds, timestamps, this._length, hitsoundsFile);
@@ -195,16 +206,25 @@ export class Renderer {
   async finalize(video: string, audio: string) {
     EventBus.emit('rendering-detail', 'Combining streams');
     const renderDestDir = await join(
-      await appDataDir(),
-      'rendered',
+      await videoDir(),
+      'PhiZone Player',
       ensafeFilename(`${this._scene.metadata.title} [${this._scene.metadata.level}]`),
     );
     await mkdir(renderDestDir, { recursive: true });
-    const renderOutput = await join(renderDestDir, `${moment().format('YYYY-MM-DD_HHmmss')}.mp4`);
+    const renderOutput = await join(renderDestDir, `${moment().format('YYYY-MM-DD_HH-mm-ss')}.mp4`);
     await combineStreams(video, audio, renderOutput);
   }
 
   getLength() {
     return this._length;
+  }
+
+  async cancel() {
+    this._isRendering = false;
+    this._isStopped = true;
+    await finishVideo();
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await remove(this._tempDir, { recursive: true });
+    await getCurrentWindow().close();
   }
 }

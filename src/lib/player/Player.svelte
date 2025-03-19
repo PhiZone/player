@@ -14,7 +14,7 @@
   import start from './main';
   import { EventBus } from './EventBus';
   import { GameStatus, type Config } from '$lib/types';
-  import { getParams, IS_TAURI, showPerformance } from '$lib/utils';
+  import { getParams, IS_TAURI, notify, showPerformance } from '$lib/utils';
   import { convertTime, findPredominantBpm, getTimeSec, triggerDownload } from './utils';
   import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
   import { ProgressBarStatus } from '@tauri-apps/api/window';
@@ -26,6 +26,8 @@
   import { base } from '$app/paths';
   import { Capacitor } from '@capacitor/core';
   import StatsJS from 'stats-js';
+  import { openPath } from '@tauri-apps/plugin-opener';
+  import { sep } from '@tauri-apps/api/path';
 
   export let gameRef: GameReference;
 
@@ -45,6 +47,7 @@
   let renderingPercent = 0;
   let renderingTotal = 0;
   let renderingDetail = '';
+  let renderingOutput = '';
 
   let status = GameStatus.LOADING;
   let duration = 0;
@@ -105,12 +108,19 @@
       renderingPercent = p / renderingTotal;
     });
 
-    EventBus.on('video-rendering-finished', (p: number) => {
+    EventBus.on('video-rendering-finished', () => {
       renderingPercent = -1;
     });
 
-    EventBus.on('audio-rendering-finished', (p: number) => {
+    EventBus.on('audio-rendering-finished', () => {
       renderingPercent = 1;
+    });
+
+    EventBus.on('rendering-finished', (output: string) => {
+      renderingOutput = output;
+      notify(`Rendering saved to ${output}`, 'success', async () => {
+        await openPath(output.split(sep()).slice(0, -1).join(sep()));
+      });
     });
 
     EventBus.on('rendering-detail', (p: string) => {
@@ -334,7 +344,7 @@
 {#if render}
   <div class="absolute inset-0 flex justify-center items-center">
     <div
-      class="p-5 flex flex-col gap-3 justify-center items-center rounded-3xl backdrop-blur-3xl backdrop-brightness-[60%] hover:backdrop-brightness-[30%] trans"
+      class="p-5 flex flex-col gap-3 justify-center items-center rounded-[32px] backdrop-blur-2xl backdrop-brightness-[60%] hover:backdrop-blur-3xl hover:backdrop-brightness-[35%] trans"
     >
       <span class="text-7xl font-bold">RENDERING</span>
       <div class="flex flex-col gap-1 w-full">
@@ -347,10 +357,15 @@
         {:else}
           <progress class="progress w-full"></progress>
         {/if}
-        <div class="flex justify-between w-full">
-          <span class="text-sm">{renderingDetail}</span>
+        <div
+          class="flex justify-between text-md w-full relative opacity-100 trans"
+          class:opacity-0={!!renderingOutput}
+        >
+          <span>
+            {renderingDetail}
+          </span>
           {#if renderingPercent >= 0}
-            <span class="text-sm">
+            <span>
               {renderingPercent.toLocaleString(undefined, {
                 style: 'percent',
                 minimumFractionDigits: 0,
@@ -359,6 +374,41 @@
           {/if}
         </div>
       </div>
+    </div>
+  </div>
+  <div class="absolute bottom-5">
+    <div
+      class="p-3 flex flex-col gap-3 justify-center items-center rounded-full backdrop-blur-2xl backdrop-brightness-[60%] hover:backdrop-blur-3xl hover:backdrop-brightness-[35%] trans"
+    >
+      {#if renderingOutput}
+        <div class="flex gap-2 w-96">
+          <button
+            class="btn btn-outline border-2 btn-success text-xl rounded-full flex-1"
+            on:click={async () => {
+              await openPath(renderingOutput);
+            }}
+          >
+            OPEN FILE
+          </button>
+          <button
+            class="btn btn-outline border-2 btn-info text-xl rounded-full flex-1"
+            on:click={async () => {
+              await openPath(renderingOutput.split(sep()).slice(0, -1).join(sep()));
+            }}
+          >
+            OPEN FOLDER
+          </button>
+        </div>
+      {:else}
+        <button
+          class="btn btn-outline border-2 btn-error text-xl rounded-full"
+          on:click={async () => {
+            await gameRef.scene?.chartRenderer.cancel();
+          }}
+        >
+          CANCEL
+        </button>
+      {/if}
     </div>
   </div>
 {/if}

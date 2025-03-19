@@ -73,41 +73,6 @@ pub fn get_encoders() -> Result<Vec<Encoder>, String> {
     Ok(encoders)
 }
 
-pub fn png_sequence_to_video(
-    input: String,
-    output: String,
-    resolution: String,
-    fps: u32,
-    codec: String,
-) -> Result<(), String> {
-    let fps_str = fps.to_string();
-    let args = vec![
-        "-f",
-        "image2",
-        "-r",
-        &fps_str,
-        "-i",
-        &input,
-        "-s",
-        &resolution,
-        "-r",
-        &fps_str,
-        "-c:v",
-        &codec,
-        "-pixel_format",
-        "yuv420p",
-        "-y",
-        &output,
-    ];
-
-    let _ = Command::new("ffmpeg")
-        .args(&args)
-        .spawn()
-        .map_err(|e| e.to_string())?;
-
-    Ok(())
-}
-
 pub fn compose_audio(
     app: AppHandle,
     hitsounds: String,
@@ -185,7 +150,7 @@ pub fn combine_streams(
                 .status()
                 .map_err(|e| e.to_string());
 
-            app.emit("combining-finished", ()).unwrap();
+            app.emit("combining-finished", &output).unwrap();
         }
     });
 

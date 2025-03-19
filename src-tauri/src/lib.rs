@@ -12,6 +12,7 @@ static FILES_OPENED: LazyLock<Mutex<Vec<PathBuf>>> = LazyLock::new(|| Mutex::new
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_upload::init())
         .plugin(tauri_plugin_os::init())
@@ -53,7 +54,6 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_files_opened,
             get_ffmpeg_encoders,
-            ffmpeg_png_sequence_to_video,
             compose_audio,
             setup_ffmpeg_video,
             finish_ffmpeg_video,
@@ -106,17 +106,6 @@ fn get_ffmpeg_encoders() -> Result<Vec<ffmpeg::Encoder>, String> {
 }
 
 #[tauri::command]
-fn ffmpeg_png_sequence_to_video(
-    input: String,
-    output: String,
-    resolution: String,
-    fps: u32,
-    codec: String,
-) -> Result<(), String> {
-    ffmpeg::png_sequence_to_video(input, output, resolution, fps, codec)
-}
-
-#[tauri::command]
 fn compose_audio(
     app: AppHandle,
     hitsounds: String,
@@ -132,11 +121,11 @@ fn compose_audio(
 async fn setup_ffmpeg_video(
     output: String,
     resolution: String,
-    framerate: u32,
+    frame_rate: u32,
     codec: String,
     bitrate: String,
 ) -> Result<(), String> {
-    ffmpeg::setup_video(output, resolution, framerate, codec, bitrate).await
+    ffmpeg::setup_video(output, resolution, frame_rate, codec, bitrate).await
 }
 
 #[tauri::command]

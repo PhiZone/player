@@ -698,8 +698,9 @@ export class Game extends Scene {
     this._statisticsHandler = new StatisticsHandler(this);
   }
 
-  startRendering() {
+  async startRendering() {
     this._renderer = new Renderer(this, this._data.mediaOptions);
+    await this._renderer.setup();
     this.start();
   }
 

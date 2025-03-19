@@ -17,10 +17,20 @@
     "os:default",
     "upload:default",
     "fs:read-all",
-    "fs:allow-app-write-recursive",
+    "fs:allow-video-write-recursive",
+    "fs:allow-temp-write-recursive",
     "fs:allow-remove",
+    "opener:default",
     {
       "identifier": "fs:scope",
+      "allow": [
+        {
+          "path": "**"
+        }
+      ]
+    },
+    {
+      "identifier": "opener:allow-open-path",
       "allow": [
         {
           "path": "**"
