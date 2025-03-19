@@ -18,7 +18,6 @@
   } from '$lib/types';
   import {
     clamp,
-    ensafeFilename,
     fit,
     getLines,
     getParams,
@@ -48,15 +47,14 @@
   import { REPO_API_LINK, REPO_LINK, VERSION } from '$lib';
   import { SendIntent, type Intent } from 'send-intent';
   import { Filesystem } from '@capacitor/filesystem';
-  import { appDataDir, join, tempDir } from '@tauri-apps/api/path';
+  import { tempDir } from '@tauri-apps/api/path';
   import { download as tauriDownload } from '@tauri-apps/plugin-upload';
-  import { mkdir, readFile, remove } from '@tauri-apps/plugin-fs';
+  import { readFile, remove } from '@tauri-apps/plugin-fs';
   import { random } from 'mathjs';
   import { base } from '$app/paths';
   import { listen } from '@tauri-apps/api/event';
   import { invoke } from '@tauri-apps/api/core';
   import { getEncoders } from '$lib/player/services/ffmpeg/tauri';
-  import moment from 'moment';
 
   interface FileEntry {
     id: number;
