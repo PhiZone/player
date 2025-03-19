@@ -38,8 +38,13 @@
     goto(`${base}/${IS_TAURI || Capacitor.getPlatform() !== 'web' ? `?t=${Date.now()}` : ''}`);
   }
 
-  let progress = 0;
-  let fileProgress = '';
+  let loadingProgress = 0;
+  let loadingDetail = '';
+
+  let renderingProgress = 0;
+  let renderingPercent = 0;
+  let renderingTotal = 0;
+  let renderingDetail = '';
 
   let status = GameStatus.LOADING;
   let duration = 0;
@@ -56,6 +61,7 @@
   let showPause = false;
   let keyboardSeeking = false;
   let allowSeek = true;
+  let render = false;
   let enableOffsetHelper = true;
   let offset = 0;
   let progressBarHeld = false;
@@ -87,11 +93,28 @@
     }, 10000);
 
     EventBus.on('loading', (p: number) => {
-      progress = p;
+      loadingProgress = p;
     });
 
     EventBus.on('loading-detail', (p: string) => {
-      fileProgress = p;
+      loadingDetail = p;
+    });
+
+    EventBus.on('rendering', (p: number) => {
+      renderingProgress = p;
+      renderingPercent = p / renderingTotal;
+    });
+
+    EventBus.on('video-rendering-finished', (p: number) => {
+      renderingPercent = -1;
+    });
+
+    EventBus.on('audio-rendering-finished', (p: number) => {
+      renderingPercent = 1;
+    });
+
+    EventBus.on('rendering-detail', (p: string) => {
+      renderingDetail = p;
     });
 
     EventBus.on('current-scene-ready', (scene: GameScene) => {
@@ -99,10 +122,11 @@
       stillLoading = false;
       gameRef.scene = scene;
       status = scene.status;
+      render = scene.render;
       duration = scene.song.duration;
       offset = scene.chart.META.offset;
       showStart = status === GameStatus.READY;
-      allowSeek = scene.autoplay || scene.practice;
+      allowSeek = (scene.autoplay || scene.practice) && !render;
       enableOffsetHelper = scene.adjustOffset;
       const metadata = scene.metadata;
       title = metadata.title;
@@ -110,6 +134,10 @@
       [metadata.composer, metadata.charter, metadata.illustrator].forEach((credit) => {
         credits.push(credit ?? '');
       });
+
+      if (render) {
+        renderingTotal = Math.ceil(scene.chartRenderer.getLength() * scene.mediaOptions.frameRate);
+      }
 
       if (enableOffsetHelper) {
         const predominantBpm = findPredominantBpm(scene.bpmList, duration);
@@ -303,6 +331,38 @@
   </title>
 </svelte:head>
 
+{#if render}
+  <div class="absolute inset-0 flex justify-center items-center">
+    <div
+      class="p-5 flex flex-col gap-3 justify-center items-center rounded-3xl backdrop-blur-3xl backdrop-brightness-[60%] hover:backdrop-brightness-[30%] trans"
+    >
+      <span class="text-7xl font-bold">RENDERING</span>
+      <div class="flex flex-col gap-1 w-full">
+        {#if renderingPercent >= 0}
+          <progress
+            class="progress w-full"
+            value={renderingProgress}
+            max={renderingTotal}
+          ></progress>
+        {:else}
+          <progress class="progress w-full"></progress>
+        {/if}
+        <div class="flex justify-between w-full">
+          <span class="text-sm">{renderingDetail}</span>
+          {#if renderingPercent >= 0}
+            <span class="text-sm">
+              {renderingPercent.toLocaleString(undefined, {
+                style: 'percent',
+                minimumFractionDigits: 0,
+              })}
+            </span>
+          {/if}
+        </div>
+      </div>
+    </div>
+  </div>
+{/if}
+
 <div class="absolute inset-0 flex justify-center items-center pointer-events-none">
   <div
     class="w-28 h-28 flex justify-center items-center rounded-3xl opacity-0 backdrop-blur-xl backdrop-brightness-90 trans"
@@ -327,13 +387,13 @@
   {#if status === GameStatus.LOADING}
     <span class="loading loading-spinner w-24"></span>
     <span class="text-4xl">
-      {progress.toLocaleString(undefined, {
+      {loadingProgress.toLocaleString(undefined, {
         style: 'percent',
         minimumFractionDigits: 0,
       })}
     </span>
-    {#if fileProgress}
-      <span class="text-xs">{fileProgress}</span>
+    {#if loadingDetail}
+      <span class="text-xs">{loadingDetail}</span>
     {/if}
   {:else if showStart}
     {#if title && level}
