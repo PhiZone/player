@@ -5,7 +5,7 @@ enum WebSocketState {
 }
 
 const WEBSOCKET_URL = 'ws://localhost:63401';
-const FRAME_BATCH_SIZE = 100;
+const FRAME_BATCH_SIZE = 1000;
 
 class FrameSender {
   private _ws: WebSocket;

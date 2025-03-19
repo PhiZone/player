@@ -36,10 +36,17 @@ export const composeAudio = async (
   hitsounds: string,
   music: string,
   musicVolume: number,
+  bitrate: number,
   output: string,
 ) => {
   if (!isUsable) return;
-  return await invoke('compose_audio', { hitsounds, music, volume: musicVolume, output });
+  return await invoke('compose_audio', {
+    hitsounds,
+    music,
+    volume: musicVolume,
+    bitrate: `${bitrate}k`,
+    output,
+  });
 };
 
 export const setupVideo = async (
@@ -64,6 +71,11 @@ export const finishVideo = async () => {
   if (!isUsable) return;
   frameStreaming = false;
   return await invoke('finish_ffmpeg_video');
+};
+
+export const combineStreams = async (video: string, audio: string, output: string) => {
+  if (!isUsable) return;
+  return await invoke('combine_streams', { video, audio, output });
 };
 
 export const isFrameStreaming = () => frameStreaming;

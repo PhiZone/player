@@ -68,7 +68,7 @@ export interface MediaOptions {
   endingLoopsToRender: number;
   videoCodec: string;
   videoBitrate: number;
-  audioBitrate?: number | undefined;
+  audioBitrate: number;
 }
 
 export interface MetadataEntry {

@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::{LazyLock, Mutex};
-use tauri::{AppHandle, Emitter};
 use tauri::Manager;
+use tauri::{AppHandle, Emitter};
 use url::Url;
 
 mod ffmpeg;
@@ -57,6 +57,7 @@ pub fn run() {
             compose_audio,
             setup_ffmpeg_video,
             finish_ffmpeg_video,
+            combine_streams,
             mix_audio
         ])
         .run(tauri::generate_context!())
@@ -121,9 +122,10 @@ fn compose_audio(
     hitsounds: String,
     music: String,
     volume: f32,
+    bitrate: String,
     output: String,
 ) -> Result<(), String> {
-    ffmpeg::compose_audio(app, hitsounds, music, volume, output)
+    ffmpeg::compose_audio(app, hitsounds, music, volume, bitrate, output)
 }
 
 #[tauri::command]
@@ -140,6 +142,16 @@ async fn setup_ffmpeg_video(
 #[tauri::command]
 fn finish_ffmpeg_video() -> Result<(), String> {
     ffmpeg::finish_video()
+}
+
+#[tauri::command]
+fn combine_streams(
+    app: AppHandle,
+    input_video: String,
+    input_audio: String,
+    output: String,
+) -> Result<(), String> {
+    ffmpeg::combine_streams(app, input_video, input_audio, output)
 }
 
 #[tauri::command]

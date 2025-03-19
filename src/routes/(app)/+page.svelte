@@ -919,20 +919,6 @@
     const url = paramsString.length <= 15360 ? `${base}/play/?${paramsString}` : `${base}/play/`;
 
     if (IS_TAURI) {
-      if (toggles.render) {
-        const renderDestDir = await join(
-          await appDataDir(),
-          'rendered',
-          ensafeFilename(`${config.metadata.title} [${config.metadata.level}]`),
-        );
-        await mkdir(renderDestDir, { recursive: true });
-        const renderOutput = await join(
-          renderDestDir,
-          `${moment().format('YYYY-MM-DD_HHmmss')}.mp4`,
-        );
-        localStorage.setItem('renderOutput', renderOutput);
-      }
-
       monitor = await currentMonitor();
       if (Capacitor.getPlatform() === 'web' && toggles.newTab) {
         const webview = new WebviewWindow(`player-${Date.now()}`, {

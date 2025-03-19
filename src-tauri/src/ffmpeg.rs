@@ -113,6 +113,7 @@ pub fn compose_audio(
     hitsounds: String,
     music: String,
     volume: f32,
+    bitrate: String,
     output: String,
 ) -> Result<(), String> {
     std::thread::spawn({
@@ -131,6 +132,8 @@ pub fn compose_audio(
                 &filter_complex,
                 "-map",
                 "[a]",
+                "-b:a",
+                &bitrate,
                 "-c:a",
                 "aac",
                 "-y",
@@ -140,9 +143,49 @@ pub fn compose_audio(
             let _ = Command::new("ffmpeg")
                 .args(&args)
                 .status()
-                .map_err(|e| e.to_string())?;
-            app.emit("audio-composition-finished", ()).unwrap();
-            Ok::<_, String>(())
+                .map_err(|e| e.to_string());
+
+            app.emit("audio-composing-finished", ()).unwrap();
+        }
+    });
+
+    Ok(())
+}
+
+pub fn combine_streams(
+    app: AppHandle,
+    input_video: String,
+    input_audio: String,
+    output: String,
+) -> Result<(), String> {
+    std::thread::spawn({
+        let app = app.clone();
+        move || {
+            let args = vec![
+                "-i",
+                &input_video,
+                "-i",
+                &input_audio,
+                "-c:v",
+                "copy",
+                "-c:a",
+                "copy",
+                "-map",
+                "0:v:0",
+                "-map",
+                "1:a:0",
+                "-movflags",
+                "+faststart",
+                "-y",
+                &output,
+            ];
+
+            let _ = Command::new("ffmpeg")
+                .args(&args)
+                .status()
+                .map_err(|e| e.to_string());
+
+            app.emit("combining-finished", ()).unwrap();
         }
     });
 

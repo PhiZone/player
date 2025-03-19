@@ -1,22 +1,24 @@
 import type { MediaOptions } from '$lib/types';
 import { EventBus } from '../EventBus';
-import { composeAudio, setupVideo } from './ffmpeg/tauri';
+import { combineStreams, composeAudio, setupVideo } from './ffmpeg/tauri';
 import type { Game } from '../scenes/Game';
 import Worker from '../../workers/FrameSender?worker';
 import { mixAudio } from './rodio';
 import { download, getTimeSec, urlToBase64 } from '../utils';
-import { join, tempDir } from '@tauri-apps/api/path';
+import { appDataDir, join, tempDir } from '@tauri-apps/api/path';
 import { base } from '$app/paths';
-import { writeFile } from '@tauri-apps/plugin-fs';
+import { mkdir, writeFile } from '@tauri-apps/plugin-fs';
 import { listen } from '@tauri-apps/api/event';
-
-const FALLBACK_OUTPUT_FILE = 'output.mp4';
+import { ensafeFilename } from '$lib/utils';
+import moment from 'moment';
 
 export class Renderer {
   private _scene: Game;
+  private _options: MediaOptions;
   private _started: number;
   private _frameCount: number = 0;
   private _isRendering: boolean = false;
+  private _isStopped: boolean = false;
   private _endingLoopsToRender: number;
   private _length: number;
 
@@ -24,26 +26,26 @@ export class Renderer {
 
   constructor(scene: Game, mediaOptions: MediaOptions) {
     this._scene = scene;
+    this._options = mediaOptions;
     this._started = scene.game.getTime();
     this._endingLoopsToRender = mediaOptions.endingLoopsToRender;
-    this._length = scene.song.duration + 2 + (mediaOptions.endingLoopsToRender * 192) / 7;
+    this._length = scene.song.duration + 1 + (mediaOptions.endingLoopsToRender * 192) / 7;
     this._worker = new Worker();
+  }
 
-    scene.game.loop.stop();
-    this.setTick(0);
-
-    const frameRate = mediaOptions.frameRate;
-    const canvas = scene.game.canvas;
+  async setup() {
+    const frameRate = this._options.frameRate;
+    const canvas = this._scene.game.canvas;
     const width = canvas.width;
     const height = canvas.height;
-    const renderOutput = localStorage.getItem('renderOutput') ?? FALLBACK_OUTPUT_FILE;
+    const videoFile = await join(await tempDir(), `${crypto.randomUUID()}.mp4`);
 
-    setupVideo(
-      renderOutput,
+    await setupVideo(
+      videoFile,
       [width, height],
       frameRate,
-      mediaOptions.videoCodec,
-      mediaOptions.videoBitrate,
+      this._options.videoCodec,
+      this._options.videoBitrate,
     );
 
     this._worker.onmessage = async (event: {
@@ -54,17 +56,12 @@ export class Renderer {
     }) => {
       const { proceed, finished } = event.data;
       if (finished) {
-        EventBus.emit('render-finished');
-        EventBus.emit('rendering-detail', 'Composing audio');
-        await this.createAudio();
-        EventBus.emit('rendering-detail', 'Finished');
+        EventBus.emit('video-rendering-finished');
+        await this.proceed(videoFile);
         return;
       }
       this._isRendering = proceed;
-      EventBus.emit(
-        'rendering-detail',
-        proceed ? 'Rendering frames' : 'Waiting for FFmpeg to catch up',
-      );
+      EventBus.emit('rendering-detail', proceed ? 'Rendering frames' : 'Waiting for FFmpeg');
       if (proceed) {
         this.setTick(++this._frameCount / frameRate);
       }
@@ -73,8 +70,12 @@ export class Renderer {
     this._isRendering = true;
     EventBus.emit('rendering-detail', 'Rendering frames');
 
-    scene.game.events.addListener('postrender', () => {
-      scene.renderer.snapshot((param) => {
+    this._scene.game.loop.stop();
+    this.setTick(0);
+
+    this._scene.game.events.addListener('postrender', () => {
+      if (this._isStopped) return;
+      this._scene.renderer.snapshot((param) => {
         const rgbaBuffer = param as Uint8Array<ArrayBuffer>;
         const buffer = new Uint8Array((rgbaBuffer.length / 4) * 3);
 
@@ -106,10 +107,12 @@ export class Renderer {
 
   stopRendering() {
     this._isRendering = false;
+    this._isStopped = true;
     this._worker.postMessage({ data: false });
   }
 
-  async createAudio() {
+  async proceed(videoFile: string) {
+    EventBus.emit('rendering-detail', 'Preparing audio assets');
     const sounds = [
       { key: 'tap', data: await urlToBase64(`${base}/game/hitsounds/Tap.wav`) },
       { key: 'drag', data: await urlToBase64(`${base}/game/hitsounds/Drag.wav`) },
@@ -158,23 +161,47 @@ export class Renderer {
     }
 
     const hitsoundsFile = await join(await tempDir(), `${crypto.randomUUID()}.wav`);
-    console.log('Composing hitsounds and results music');
+    const songFile = await join(await tempDir(), `${crypto.randomUUID()}.tmp`);
+    const finalAudio = await join(await tempDir(), `${crypto.randomUUID()}.aac`);
+
+    EventBus.emit('rendering-detail', 'Mixing hitsounds and results music');
     await mixAudio(sounds, timestamps, this._length, hitsoundsFile);
 
     listen('audio-mixing-finished', async (event) => {
       console.log(event);
 
-      const songFile = await join(await tempDir(), `${crypto.randomUUID()}.tmp`);
-      console.log('Retrieving song');
+      EventBus.emit('rendering-detail', 'Retrieving song');
       await writeFile(
         songFile,
         new Uint8Array(await (await download(this._scene.songUrl, 'song')).arrayBuffer()),
       );
 
-      const finalAudio = await join(await tempDir(), `${crypto.randomUUID()}.aac`);
-      console.log('Composing final audio');
-      await composeAudio(hitsoundsFile, songFile, this._scene.preferences.musicVolume, finalAudio);
+      EventBus.emit('rendering-detail', 'Composing audio');
+      await composeAudio(
+        hitsoundsFile,
+        songFile,
+        this._scene.preferences.musicVolume,
+        this._options.audioBitrate,
+        finalAudio,
+      );
     });
+
+    listen('audio-composing-finished', async () => {
+      EventBus.emit('audio-rendering-finished');
+      await this.finalize(videoFile, finalAudio);
+    });
+  }
+
+  async finalize(video: string, audio: string) {
+    EventBus.emit('rendering-detail', 'Combining streams');
+    const renderDestDir = await join(
+      await appDataDir(),
+      'rendered',
+      ensafeFilename(`${this._scene.metadata.title} [${this._scene.metadata.level}]`),
+    );
+    await mkdir(renderDestDir, { recursive: true });
+    const renderOutput = await join(renderDestDir, `${moment().format('YYYY-MM-DD_HHmmss')}.mp4`);
+    await combineStreams(video, audio, renderOutput);
   }
 
   getLength() {
