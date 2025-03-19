@@ -14,7 +14,7 @@
   import start from './main';
   import { EventBus } from './EventBus';
   import { GameStatus, type Config } from '$lib/types';
-  import { getParams, IS_TAURI, notify, showPerformance } from '$lib/utils';
+  import { clamp, getParams, IS_TAURI, notify, showPerformance } from '$lib/utils';
   import { convertTime, findPredominantBpm, getTimeSec, triggerDownload } from './utils';
   import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
   import { ProgressBarStatus } from '@tauri-apps/api/window';
@@ -105,7 +105,7 @@
 
     EventBus.on('rendering', (p: number) => {
       renderingProgress = p;
-      renderingPercent = p / renderingTotal;
+      renderingPercent = clamp(p / renderingTotal, 0, 1);
     });
 
     EventBus.on('video-rendering-finished', () => {
@@ -368,7 +368,7 @@
             <span>
               {renderingPercent.toLocaleString(undefined, {
                 style: 'percent',
-                minimumFractionDigits: 0,
+                minimumFractionDigits: 1,
               })}
             </span>
           {/if}
