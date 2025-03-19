@@ -808,9 +808,7 @@ export class Game extends Scene {
   async updateVideoTicks() {
     if (!this._videos) return;
     const timeSec = this.timeSec;
-    for (const video of this._videos) {
-      await video.tick(timeSec);
-    }
+    await Promise.all(this._videos.map((video) => video.tick(timeSec)));
   }
 
   registerNode(object: GameObject, name: string) {
