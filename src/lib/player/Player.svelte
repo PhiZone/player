@@ -349,11 +349,7 @@
       <span class="text-7xl font-bold">RENDERING</span>
       <div class="flex flex-col gap-1 w-full">
         {#if renderingPercent >= 0}
-          <progress
-            class="progress w-full"
-            value={renderingProgress}
-            max={renderingTotal}
-          ></progress>
+          <progress class="progress w-full" value={renderingPercent}></progress>
         {:else}
           <progress class="progress w-full"></progress>
         {/if}
@@ -368,7 +364,7 @@
             <span>
               {renderingPercent.toLocaleString(undefined, {
                 style: 'percent',
-                minimumFractionDigits: 1,
+                minimumFractionDigits: 2,
               })}
             </span>
           {/if}

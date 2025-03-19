@@ -31,7 +31,7 @@ export class Renderer {
     this._options = mediaOptions;
     this._started = scene.game.getTime();
     this._endingLoopsToRender = mediaOptions.endingLoopsToRender;
-    this._length = scene.song.duration + 1 + (mediaOptions.endingLoopsToRender * 192) / 7;
+    this._length = scene.song.duration + 2 + (mediaOptions.endingLoopsToRender * 192) / 7;
     this._worker = new Worker();
   }
 

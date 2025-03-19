@@ -98,7 +98,6 @@ export class EndingUI extends GameObjects.Container {
     this._illustration = this.createIllustration();
     this._overlay = this.createOverlay();
     this._grade = this.createGrade(stats.grade);
-    this._started = this._scene.game.getTime();
     this._loopsToRender = loopsToRender;
     this._render = this._scene.render;
 
@@ -120,6 +119,7 @@ export class EndingUI extends GameObjects.Container {
   update() {
     if (
       this._render &&
+      this._started !== undefined &&
       this._scene.game.getTime() - this._started > (this._loopsToRender * 192e3) / 7
     ) {
       EventBus.emit('render-stop');
@@ -231,6 +231,7 @@ export class EndingUI extends GameObjects.Container {
     this.setVisible(true);
     this._innerContainer.setScale(0.75);
     this._overlay.setAlpha(0);
+
     if (!this._scene.render) {
       this._sound = this._scene.sound.add('ending');
       this._sound.setVolume(this._scene.preferences.musicVolume).play();
@@ -242,7 +243,10 @@ export class EndingUI extends GameObjects.Container {
         192e3 / 7 / this._scene.tweens.timeScale,
       );
     }
+
     this._tweening = true;
+    this._started = this._scene.game.getTime();
+
     if (Capacitor.getPlatform() !== 'android')
       this._grade.preFX?.addShine((7 / 6) * this._scene.tweens.timeScale, 1, 3, false);
 
