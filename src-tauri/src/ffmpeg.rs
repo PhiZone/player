@@ -2,6 +2,7 @@ use futures::{SinkExt, StreamExt};
 use std::io::Write;
 use std::process::{ChildStdin, Command};
 use std::sync::{LazyLock, Mutex};
+use tauri::{AppHandle, Emitter};
 use tokio::net::TcpListener;
 use tokio_tungstenite::accept_async;
 
@@ -107,28 +108,43 @@ pub fn png_sequence_to_video(
     Ok(())
 }
 
-pub fn compose_audio(hitsounds: String, music: String, output: String) -> Result<(), String> {
-    let args = vec![
-        "-i",
-        &hitsounds,
-        "-i",
-        &music,
-        "-filter_complex",
-        "[1:a]adelay=1000|1000[a2];[0:a][a2]amix=inputs=2:normalize=1[a]",
-        "-map",
-        "[a]",
-        "-c:a",
-        "aac",
-        "-fflags",
-        "+genpts",
-        "-y",
-        &output,
-    ];
+pub fn compose_audio(
+    app: AppHandle,
+    hitsounds: String,
+    music: String,
+    volume: f32,
+    output: String,
+) -> Result<(), String> {
+    std::thread::spawn({
+        let app = app.clone();
+        move || {
+            let filter_complex = format!(
+                "[1:a]adelay=1000|1000,volume={}[a2];[0:a][a2]amix=inputs=2:normalize=1[a]",
+                volume
+            );
+            let args = vec![
+                "-i",
+                &hitsounds,
+                "-i",
+                &music,
+                "-filter_complex",
+                &filter_complex,
+                "-map",
+                "[a]",
+                "-c:a",
+                "aac",
+                "-y",
+                &output,
+            ];
 
-    let _ = Command::new("ffmpeg")
-        .args(&args)
-        .spawn()
-        .map_err(|e| e.to_string())?;
+            let _ = Command::new("ffmpeg")
+                .args(&args)
+                .status()
+                .map_err(|e| e.to_string())?;
+            app.emit("audio-composition-finished", ()).unwrap();
+            Ok::<_, String>(())
+        }
+    });
 
     Ok(())
 }

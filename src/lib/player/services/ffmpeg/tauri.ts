@@ -32,9 +32,14 @@ export const pngToVideo = async (
   });
 };
 
-export const composeAudio = async (hitsounds: string, music: string, output: string) => {
+export const composeAudio = async (
+  hitsounds: string,
+  music: string,
+  musicVolume: number,
+  output: string,
+) => {
   if (!isUsable) return;
-  return await invoke('compose_audio', { hitsounds, music, output });
+  return await invoke('compose_audio', { hitsounds, music, volume: musicVolume, output });
 };
 
 export const setupVideo = async (

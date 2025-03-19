@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use std::sync::{LazyLock, Mutex};
-use tauri::Emitter;
+use tauri::{AppHandle, Emitter};
 use tauri::Manager;
 use url::Url;
 
@@ -116,8 +116,14 @@ fn ffmpeg_png_sequence_to_video(
 }
 
 #[tauri::command]
-fn compose_audio(hitsounds: String, music: String, output: String) -> Result<(), String> {
-    ffmpeg::compose_audio(hitsounds, music, output)
+fn compose_audio(
+    app: AppHandle,
+    hitsounds: String,
+    music: String,
+    volume: f32,
+    output: String,
+) -> Result<(), String> {
+    ffmpeg::compose_audio(app, hitsounds, music, volume, output)
 }
 
 #[tauri::command]
@@ -138,10 +144,11 @@ fn finish_ffmpeg_video() -> Result<(), String> {
 
 #[tauri::command]
 fn mix_audio(
+    app: AppHandle,
     sounds: Vec<rodio::Sound>,
     timestamps: Vec<rodio::Timestamp>,
     length: f64,
     output: String,
 ) -> Result<(), String> {
-    rodio::mix_audio(sounds, timestamps, length, output)
+    rodio::mix_audio(app, sounds, timestamps, length, output)
 }

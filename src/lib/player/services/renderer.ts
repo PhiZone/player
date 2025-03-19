@@ -8,6 +8,7 @@ import { download, getTimeSec, urlToBase64 } from '../utils';
 import { join, tempDir } from '@tauri-apps/api/path';
 import { base } from '$app/paths';
 import { writeFile } from '@tauri-apps/plugin-fs';
+import { listen } from '@tauri-apps/api/event';
 
 const FALLBACK_OUTPUT_FILE = 'output.mp4';
 
@@ -53,7 +54,7 @@ export class Renderer {
     }) => {
       const { proceed, finished } = event.data;
       if (finished) {
-        EventBus.emit('render-finish');
+        EventBus.emit('render-finished');
         EventBus.emit('rendering-detail', 'Composing audio');
         await this.createAudio();
         EventBus.emit('rendering-detail', 'Finished');
@@ -160,16 +161,20 @@ export class Renderer {
     console.log('Composing hitsounds and results music');
     await mixAudio(sounds, timestamps, this._length, hitsoundsFile);
 
-    const songFile = await join(await tempDir(), `${crypto.randomUUID()}.tmp`);
-    console.log('Retrieving song');
-    await writeFile(
-      songFile,
-      new Uint8Array(await (await download(this._scene.songUrl, 'song')).arrayBuffer()),
-    );
+    listen('audio-mixing-finished', async (event) => {
+      console.log(event);
 
-    const finalAudio = await join(await tempDir(), `${crypto.randomUUID()}.aac`);
-    console.log('Composing final audio');
-    await composeAudio(hitsoundsFile, songFile, finalAudio);
+      const songFile = await join(await tempDir(), `${crypto.randomUUID()}.tmp`);
+      console.log('Retrieving song');
+      await writeFile(
+        songFile,
+        new Uint8Array(await (await download(this._scene.songUrl, 'song')).arrayBuffer()),
+      );
+
+      const finalAudio = await join(await tempDir(), `${crypto.randomUUID()}.aac`);
+      console.log('Composing final audio');
+      await composeAudio(hitsoundsFile, songFile, this._scene.preferences.musicVolume, finalAudio);
+    });
   }
 
   getLength() {
