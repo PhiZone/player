@@ -33,7 +33,7 @@ import { StatisticsHandler } from '../handlers/StatisticsHandler';
 import { terminateFFmpeg } from '../services/ffmpeg';
 import { ShaderPipeline } from '../objects/ShaderPipeline';
 import { Video } from '../objects/Video';
-import { SignalHandler } from '../handlers/SignalHandler';
+import { Signal } from '../objects/Signal';
 import { Node, ROOT } from '../objects/Node';
 import { ShaderNode } from '../objects/ShaderNode';
 import { base } from '$app/paths';
@@ -791,20 +791,26 @@ export class Game extends Scene {
 
     EventBus.emit('loading-detail', 'Initializing videos');
 
-    const signalHandler = new SignalHandler(this._extra.videos.length);
-    this._videos = this._extra.videos.map(
-      (data) =>
-        new Video(this, data, (errorMsg?: string, exception?: DOMException | string) => {
-          signalHandler.emit();
-          if (errorMsg) {
-            if (exception) {
-              console.error(errorMsg, exception);
-            }
-            alert(errorMsg);
-          }
-        }),
-    );
-    await signalHandler.wait();
+    const signal = new Signal(this._extra.videos.length);
+    const callback = (errorMsg?: string, exception?: DOMException | string) => {
+      signal.emit();
+      if (errorMsg) {
+        if (exception) {
+          console.error(errorMsg, exception);
+        }
+        alert(errorMsg);
+      }
+    };
+    this._videos = this._extra.videos.map((data) => new Video(this, data, callback));
+    await signal.wait();
+  }
+
+  async updateVideoTicks() {
+    if (!this._videos) return;
+    const timeSec = this.timeSec;
+    for (const video of this._videos) {
+      await video.tick(timeSec);
+    }
   }
 
   registerNode(object: GameObject, name: string) {

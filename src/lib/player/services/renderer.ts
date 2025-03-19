@@ -109,10 +109,11 @@ export class Renderer {
     });
   }
 
-  setTick(progress: number) {
+  async setTick(progress: number) {
+    this._scene.clock.setTime(progress - 1);
+    await this._scene.updateVideoTicks();
     requestAnimationFrame(() => {
       this._scene.game.loop.step(this._started + progress * 1000);
-      this._scene.clock.setTime(progress - 1);
     });
   }
 
@@ -120,6 +121,7 @@ export class Renderer {
     this._isRendering = false;
     this._isStopped = true;
     this._worker.postMessage({ data: false });
+    EventBus.emit('rendering-detail', 'Waiting for FFmpeg');
   }
 
   async proceed(videoFile: string) {
