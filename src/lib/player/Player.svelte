@@ -356,7 +356,7 @@
     >
       <span class="text-7xl font-bold">RENDERING</span>
       <div class="flex flex-col gap-1 w-full">
-        {#if renderingPercent >= 0}
+        {#if showProgress}
           <progress class="progress w-full" value={renderingPercent}></progress>
         {:else}
           <progress class="progress w-full"></progress>
