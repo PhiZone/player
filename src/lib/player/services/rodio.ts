@@ -11,6 +11,5 @@ export const mixAudio = async (
   output: string,
 ) => {
   if (!IS_USABLE) return;
-  console.log(sounds, timestamps, output);
   return await invoke('mix_audio', { sounds, timestamps, length, output });
 };

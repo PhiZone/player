@@ -78,10 +78,6 @@ class FrameSender {
 
     this._isSendingFrame = false;
 
-    // console.log(
-    //   `QUEUED: ${this._frameQueue.length}, SENT: ${this._sentFrameCount}, RECEIVED: ${this._receivedFrameCount}`,
-    // );
-
     this.sendFrame();
   }
 
