@@ -54,9 +54,10 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_files_opened,
             get_ffmpeg_encoders,
+            convert_audio,
             compose_audio,
-            setup_ffmpeg_video,
-            finish_ffmpeg_video,
+            setup_video,
+            finish_video,
             combine_streams,
             mix_audio
         ])
@@ -106,6 +107,11 @@ fn get_ffmpeg_encoders() -> Result<Vec<ffmpeg::Encoder>, String> {
 }
 
 #[tauri::command]
+fn convert_audio(app: AppHandle, input: String, output: String) -> Result<(), String> {
+    ffmpeg::convert_audio(app, input, output)
+}
+
+#[tauri::command]
 fn compose_audio(
     app: AppHandle,
     hitsounds: String,
@@ -118,7 +124,7 @@ fn compose_audio(
 }
 
 #[tauri::command]
-async fn setup_ffmpeg_video(
+async fn setup_video(
     output: String,
     resolution: String,
     frame_rate: u32,
@@ -129,7 +135,7 @@ async fn setup_ffmpeg_video(
 }
 
 #[tauri::command]
-fn finish_ffmpeg_video() -> Result<(), String> {
+fn finish_video() -> Result<(), String> {
     ffmpeg::finish_video()
 }
 

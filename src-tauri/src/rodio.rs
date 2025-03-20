@@ -9,7 +9,7 @@ use tauri::{AppHandle, Emitter};
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct Sound {
     key: String,
-    data: String, // Base64-encoded audio data
+    data: String, // Base64-encoded audio data or path to audio file
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -32,13 +32,28 @@ pub fn mix_audio(
             let mut sound_map: HashMap<String, Vec<u8>> = HashMap::new();
 
             for sound in sounds {
-                let decoded_data = match STANDARD.decode(&sound.data) {
-                    Ok(data) => data,
-                    Err(e) => {
-                        return Err(format!(
-                            "Error decoding sound data for {}: {}",
-                            sound.key, e
-                        ))
+                let decoded_data = if sound.data.starts_with("data:") || sound.data.contains(";base64,") {
+                    // Handle base64 data
+                    let base64_data = sound.data.split(",").last().unwrap_or(&sound.data);
+                    match STANDARD.decode(base64_data) {
+                        Ok(data) => data,
+                        Err(e) => {
+                            return Err(format!(
+                                "Error decoding base64 sound data for {}: {}",
+                                sound.key, e
+                            ))
+                        }
+                    }
+                } else {
+                    // Handle file path
+                    match std::fs::read(&sound.data) {
+                        Ok(data) => data,
+                        Err(e) => {
+                            return Err(format!(
+                                "Error reading sound file {} for {}: {}",
+                                sound.data, sound.key, e
+                            ))
+                        }
                     }
                 };
                 sound_map.insert(sound.key, decoded_data);

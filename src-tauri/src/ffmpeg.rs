@@ -73,6 +73,33 @@ pub fn get_encoders() -> Result<Vec<Encoder>, String> {
     Ok(encoders)
 }
 
+pub fn convert_audio(app: AppHandle, input: String, output: String) -> Result<(), String> {
+    std::thread::spawn({
+        let app = app.clone();
+        move || {
+            let args = vec![
+                "-i",
+                &input,
+                "-ar",
+                "44100",
+                "-c:a",
+                "pcm_s16le",
+                "-y",
+                &output,
+            ];
+
+            let _ = Command::new("ffmpeg")
+                .args(&args)
+                .status()
+                .map_err(|e| e.to_string());
+
+            app.emit("audio-conversion-finished", ()).unwrap();
+        }
+    });
+
+    Ok(())
+}
+
 pub fn compose_audio(
     app: AppHandle,
     hitsounds: String,
@@ -110,7 +137,7 @@ pub fn compose_audio(
                 .status()
                 .map_err(|e| e.to_string());
 
-            app.emit("audio-composing-finished", ()).unwrap();
+            app.emit("audio-composition-finished", ()).unwrap();
         }
     });
 
@@ -150,7 +177,7 @@ pub fn combine_streams(
                 .status()
                 .map_err(|e| e.to_string());
 
-            app.emit("combining-finished", &output).unwrap();
+            app.emit("stream-combination-finished", &output).unwrap();
         }
     });
 

@@ -15,6 +15,11 @@ export const getEncoders = async () => {
   }
 };
 
+export const convertAudio = async (input: string, output: string) => {
+  if (!isUsable) return;
+  return await invoke('convert_audio', { input, output });
+};
+
 export const composeAudio = async (
   hitsounds: string,
   music: string,
@@ -41,7 +46,7 @@ export const setupVideo = async (
 ) => {
   if (!isUsable) return;
   frameStreaming = true;
-  return await invoke('setup_ffmpeg_video', {
+  return await invoke('setup_video', {
     output,
     resolution: `${resolution[0]}x${resolution[1]}`,
     frameRate,
@@ -53,7 +58,7 @@ export const setupVideo = async (
 export const finishVideo = async () => {
   if (!isUsable) return;
   frameStreaming = false;
-  return await invoke('finish_ffmpeg_video');
+  return await invoke('finish_video');
 };
 
 export const combineStreams = async (inputVideo: string, inputAudio: string, output: string) => {

@@ -1,6 +1,12 @@
 import type { MediaOptions } from '$lib/types';
 import { EventBus } from '../EventBus';
-import { combineStreams, composeAudio, finishVideo, setupVideo } from './ffmpeg/tauri';
+import {
+  combineStreams,
+  composeAudio,
+  convertAudio,
+  finishVideo,
+  setupVideo,
+} from './ffmpeg/tauri';
 import type { Game } from '../scenes/Game';
 import Worker from '../../workers/FrameSender?worker';
 import { mixAudio } from './rodio';
@@ -12,6 +18,7 @@ import { listen } from '@tauri-apps/api/event';
 import { ensafeFilename } from '$lib/utils';
 import moment from 'moment';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { Signal } from '../objects/Signal';
 
 export class Renderer {
   private _scene: Game;
@@ -102,7 +109,7 @@ export class Renderer {
       this.stopRendering();
     });
 
-    listen('combining-finished', async (event) => {
+    listen('stream-combination-finished', async (event) => {
       EventBus.emit('rendering-finished', event.payload);
       EventBus.emit('rendering-detail', 'Finished');
       await remove(this._tempDir, { recursive: true });
@@ -127,49 +134,80 @@ export class Renderer {
   async proceed(videoFile: string) {
     EventBus.emit('rendering-detail', 'Preparing audio assets');
     const sounds = [
-      { key: 'tap', data: await urlToBase64(`${base}/game/hitsounds/Tap.wav`) },
-      { key: 'drag', data: await urlToBase64(`${base}/game/hitsounds/Drag.wav`) },
-      { key: 'flick', data: await urlToBase64(`${base}/game/hitsounds/Flick.wav`) },
-      {
-        key: 'results',
-        data: await urlToBase64(
-          `${base}/game/ending/LevelOver${this._scene.metadata.levelType}.wav`,
-        ),
-      },
-      { key: 'grade-hit', data: await urlToBase64(`${base}/game/ending/GradeHit.wav`) },
+      ...(this._scene.preferences.hitSoundVolume > 0
+        ? [
+            { key: 'tap', data: await urlToBase64(`${base}/game/hitsounds/Tap.wav`) },
+            { key: 'drag', data: await urlToBase64(`${base}/game/hitsounds/Drag.wav`) },
+            { key: 'flick', data: await urlToBase64(`${base}/game/hitsounds/Flick.wav`) },
+          ]
+        : []),
+      ...(this._scene.preferences.hitSoundVolume > 0 && Math.ceil(this._endingLoopsToRender) > 0
+        ? [{ key: 'grade-hit', data: await urlToBase64(`${base}/game/ending/GradeHit.wav`) }]
+        : []),
+      ...(this._scene.preferences.musicVolume > 0 && Math.ceil(this._endingLoopsToRender) > 0
+        ? [
+            {
+              key: 'results',
+              data: await urlToBase64(
+                `${base}/game/ending/LevelOver${this._scene.metadata.levelType}.wav`,
+              ),
+            },
+          ]
+        : []),
     ];
     const timestamps = [
-      {
-        sound: 'grade-hit',
-        time: this._scene.song.duration + 2,
-        volume: this._scene.preferences.hitSoundVolume,
-      },
-      ...Array.from({ length: Math.ceil(this._endingLoopsToRender) }, (_, i) => ({
-        sound: 'results',
-        time: this._scene.song.duration + 2 + (i * 192) / 7,
-        volume: this._scene.preferences.musicVolume,
-      })),
+      ...Array.from(
+        {
+          length:
+            this._scene.preferences.hitSoundVolume > 0 && Math.ceil(this._endingLoopsToRender) > 0
+              ? 1
+              : 0,
+        },
+        () => ({
+          sound: 'grade-hit',
+          time: this._scene.song.duration + 2,
+          volume: this._scene.preferences.hitSoundVolume,
+        }),
+      ),
+      ...Array.from(
+        {
+          length:
+            this._scene.preferences.musicVolume > 0 ? Math.ceil(this._endingLoopsToRender) : 0,
+        },
+        (_, i) => ({
+          sound: 'results',
+          time: this._scene.song.duration + 2 + (i * 192) / 7,
+          volume: this._scene.preferences.musicVolume,
+        }),
+      ),
     ];
 
-    for (const line of this._scene.chart.judgeLineList) {
-      if (!line.notes) continue;
-      for (const note of line.notes.filter((note) => !note.isFake)) {
-        if (!note?.hitsound) {
+    let customHitsoundCount = 0;
+
+    if (this._scene.preferences.hitSoundVolume > 0) {
+      for (const line of this._scene.chart.judgeLineList) {
+        if (!line.notes) continue;
+        for (const note of line.notes.filter((note) => !note.isFake)) {
+          let sound = note.type === 4 ? 'drag' : note.type === 3 ? 'flick' : 'tap';
+          if (note.hitsound) {
+            const asset = this._scene.audioAssets.find((x) => x.key === `asset-${note.hitsound}`);
+            if (asset) {
+              sounds.push({
+                key: note.hitsound,
+                data: await this.convertAudio(asset.url, note.hitsound),
+              });
+              sound = note.hitsound;
+              customHitsoundCount++;
+            } else {
+              alert(`Missing hit sound asset: ${note.hitsound}`);
+            }
+          }
           timestamps.push({
-            sound: note.type === 4 ? 'drag' : note.type === 3 ? 'flick' : 'tap',
+            sound,
             time: getTimeSec(this._scene.bpmList, note.startBeat) + 1 + this._scene.offset / 1000,
             volume: this._scene.preferences.hitSoundVolume,
           });
-          continue;
         }
-        const asset = this._scene.audioAssets.find((x) => x.key === `asset-${note.hitsound}`);
-        if (!asset) continue;
-        sounds.push({ key: note.hitsound, data: await urlToBase64(asset.url) });
-        timestamps.push({
-          sound: note.hitsound,
-          time: getTimeSec(this._scene.bpmList, note.startBeat) + 1 + this._scene.offset / 1000,
-          volume: this._scene.preferences.hitSoundVolume,
-        });
       }
     }
 
@@ -177,7 +215,15 @@ export class Renderer {
     const songFile = await join(this._tempDir, 'song.tmp');
     const finalAudio = await join(this._tempDir, 'audio-stream.aac');
 
-    EventBus.emit('rendering-detail', 'Mixing hitsounds and results music');
+    if (customHitsoundCount > 0) {
+      const signal = new Signal(customHitsoundCount);
+      listen('audio-conversion-finished', () => {
+        signal.emit();
+      });
+      await signal.wait();
+    }
+
+    EventBus.emit('rendering-detail', 'Mixing hit sounds and results music');
     await mixAudio(sounds, timestamps, this._length, hitsoundsFile);
 
     listen('audio-mixing-finished', async (event) => {
@@ -199,10 +245,21 @@ export class Renderer {
       );
     });
 
-    listen('audio-composing-finished', async () => {
+    listen('audio-composition-finished', async () => {
       EventBus.emit('audio-rendering-finished');
       await this.finalize(videoFile, finalAudio);
     });
+  }
+
+  async convertAudio(url: string, name: string) {
+    const input = await join(this._tempDir, `hitsound-${name}`);
+    const output = await join(this._tempDir, `hitsound-${name}.wav`);
+    await writeFile(
+      input,
+      new Uint8Array(await (await download(url, `hit sound ${name}`)).arrayBuffer()),
+    );
+    await convertAudio(input, output);
+    return output;
   }
 
   async finalize(video: string, audio: string) {
