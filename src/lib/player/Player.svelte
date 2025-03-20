@@ -43,9 +43,11 @@
   let loadingProgress = 0;
   let loadingDetail = '';
 
+  let renderingStarted: number;
   let renderingProgress = 0;
   let renderingPercent = 0;
   let renderingTotal = 0;
+  let renderingETA = 0;
   let renderingDetail = '';
   let renderingOutput = '';
 
@@ -106,6 +108,9 @@
     EventBus.on('rendering', (p: number) => {
       renderingProgress = p;
       renderingPercent = clamp(p / renderingTotal, 0, 1);
+      renderingETA =
+        ((Date.now() - renderingStarted) / 1000 / Math.min(renderingProgress, renderingTotal)) *
+        Math.max(renderingTotal - renderingProgress, 0);
     });
 
     EventBus.on('video-rendering-finished', () => {
@@ -146,6 +151,7 @@
       });
 
       if (render) {
+        renderingStarted = Date.now();
         renderingTotal = Math.ceil(scene.chartRenderer.getLength() * scene.mediaOptions.frameRate);
       }
 
@@ -353,21 +359,21 @@
         {:else}
           <progress class="progress w-full"></progress>
         {/if}
-        <div
-          class="flex justify-between text-md w-full relative opacity-100 trans"
-          class:opacity-0={!!renderingOutput}
-        >
+        <div class="flex justify-center text-md w-full relative">
+          <span class="absolute left-0">
+            {renderingPercent >= 0
+              ? renderingPercent.toLocaleString(undefined, {
+                  style: 'percent',
+                  minimumFractionDigits: 2,
+                })
+              : '--.--%'}
+          </span>
           <span>
             {renderingDetail}
           </span>
-          {#if renderingPercent >= 0}
-            <span>
-              {renderingPercent.toLocaleString(undefined, {
-                style: 'percent',
-                minimumFractionDigits: 2,
-              })}
-            </span>
-          {/if}
+          <span class="absolute right-0">
+            {renderingPercent >= 0 ? convertTime(renderingETA, true) : '--:--'}
+          </span>
         </div>
       </div>
     </div>
