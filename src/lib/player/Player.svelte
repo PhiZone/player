@@ -154,7 +154,7 @@
 
       if (render) {
         renderingStarted = Date.now();
-        renderingTotal = Math.ceil(scene.chartRenderer.getLength() * scene.mediaOptions.frameRate);
+        renderingTotal = Math.ceil(scene.chartRenderer.length * scene.mediaOptions.frameRate);
       }
 
       if (enableOffsetHelper) {

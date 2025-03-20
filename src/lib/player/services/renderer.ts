@@ -274,10 +274,6 @@ export class Renderer {
     await combineStreams(video, audio, renderOutput);
   }
 
-  getLength() {
-    return this._length;
-  }
-
   async cancel() {
     this._isRendering = false;
     this._isStopped = true;
@@ -285,5 +281,13 @@ export class Renderer {
     await new Promise((resolve) => setTimeout(resolve, 500));
     await remove(this._tempDir, { recursive: true });
     await getCurrentWindow().close();
+  }
+
+  public get length() {
+    return this._length;
+  }
+
+  public get frameCount() {
+    return this._frameCount;
   }
 }
