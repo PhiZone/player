@@ -48,6 +48,7 @@
   let renderingPercent = 0;
   let renderingTotal = 0;
   let renderingETA = 0;
+  let showProgress = true;
   let renderingDetail = '';
   let renderingOutput = '';
 
@@ -114,10 +115,11 @@
     });
 
     EventBus.on('video-rendering-finished', () => {
-      renderingPercent = -1;
+      showProgress = false;
     });
 
     EventBus.on('audio-rendering-finished', () => {
+      showProgress = true;
       renderingPercent = 1;
     });
 
@@ -360,19 +362,17 @@
           <progress class="progress w-full"></progress>
         {/if}
         <div class="flex justify-center text-md w-full relative">
-          <span class="absolute left-0">
-            {renderingPercent >= 0
-              ? renderingPercent.toLocaleString(undefined, {
+          <span class="absolute left-0 trans" class:opacity-0={!showProgress}>
+            {renderingPercent.toLocaleString(undefined, {
                   style: 'percent',
                   minimumFractionDigits: 2,
-                })
-              : '--.--%'}
+                })}
           </span>
           <span>
             {renderingDetail}
           </span>
-          <span class="absolute right-0">
-            {renderingPercent >= 0 ? convertTime(renderingETA, true) : '--:--'}
+          <span class="absolute right-0 trans" class:opacity-0={!showProgress}>
+            {convertTime(renderingETA, true)}
           </span>
         </div>
       </div>
