@@ -56,6 +56,13 @@ class FrameSender {
       return;
     }
 
+    if (this._sentFrameCount - this._receivedFrameCount >= FRAME_BATCH_SIZE) {
+      this._ws.send('pause');
+      this._wsState = WebSocketState.PAUSED;
+      this.dispatch(false);
+      return;
+    }
+
     this._isSendingFrame = true;
 
     const frame = this._frameQueue.shift()!;
@@ -66,18 +73,8 @@ class FrameSender {
       return;
     }
 
-    if (this._sentFrameCount - this._receivedFrameCount >= FRAME_BATCH_SIZE) {
-      this._ws.send('pause');
-      this._wsState = WebSocketState.PAUSED;
-      this._isSendingFrame = false;
-      this.dispatch(false);
-      return;
-    }
-
-    if (this._ws.readyState === WebSocket.OPEN) {
-      this._ws.send(frame);
-      this._sentFrameCount++;
-    }
+    this._ws.send(frame);
+    this._sentFrameCount++;
 
     this._isSendingFrame = false;
 
