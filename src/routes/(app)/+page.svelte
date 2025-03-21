@@ -1752,7 +1752,7 @@
                       </div>
                       <div class="sm:col-span-2 md:col-span-1 lg:col-span-2">
                         <span class="block text-sm font-medium mb-1 dark:text-white">
-                          Ending loops
+                          Results loops
                         </span>
                         <div class="relative">
                           <input
