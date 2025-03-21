@@ -69,6 +69,7 @@ export interface MediaOptions {
   videoCodec: string;
   videoBitrate: number;
   audioBitrate: number;
+  exportPath?: string;
 }
 
 export interface MetadataEntry {

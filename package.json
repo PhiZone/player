@@ -92,6 +92,7 @@
     "@sentry/sveltekit": "^8.54.0",
     "@tauri-apps/api": "^2.2.0",
     "@tauri-apps/plugin-deep-link": "~2.2.0",
+    "@tauri-apps/plugin-dialog": "~2",
     "@tauri-apps/plugin-fs": "~2",
     "@tauri-apps/plugin-opener": "~2",
     "@tauri-apps/plugin-os": "~2.2.0",

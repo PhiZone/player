@@ -236,6 +236,7 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
   const videoCodec = searchParams.get('videoCodec') ?? 'libx264';
   const videoBitrate = parseInt(searchParams.get('videoBitrate') ?? '6000');
   const audioBitrate = parseInt(searchParams.get('audioBitrate') ?? '320');
+  const exportPath = searchParams.get('exportPath') ?? undefined;
 
   const autoplay = ['1', 'true'].some((v) => v == searchParams.get('autoplay'));
   const practice = ['1', 'true'].some((v) => v == searchParams.get('practice'));
@@ -291,6 +292,7 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
       videoCodec,
       videoBitrate,
       audioBitrate,
+      exportPath,
     },
     autoplay,
     practice,

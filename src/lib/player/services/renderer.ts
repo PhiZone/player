@@ -265,8 +265,7 @@ export class Renderer {
   async finalize(video: string, audio: string) {
     EventBus.emit('rendering-detail', 'Combining streams');
     const renderDestDir = await join(
-      await videoDir(),
-      'PhiZone Player',
+      this._options.exportPath ?? (await join(await videoDir(), 'PhiZone Player')),
       ensafeFilename(`${this._scene.metadata.title} [${this._scene.metadata.level}]`),
     );
     await mkdir(renderDestDir, { recursive: true });

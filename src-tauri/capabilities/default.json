@@ -2,7 +2,9 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "enables the default permissions",
-  "windows": ["*"],
+  "windows": [
+    "*"
+  ],
   "permissions": [
     "core:default",
     "core:webview:allow-create-webview-window",
@@ -17,10 +19,10 @@
     "os:default",
     "upload:default",
     "fs:read-all",
-    "fs:allow-video-write-recursive",
-    "fs:allow-temp-write-recursive",
+    "fs:write-all",
     "fs:allow-remove",
     "opener:default",
+    "dialog:default",
     {
       "identifier": "fs:scope",
       "allow": [

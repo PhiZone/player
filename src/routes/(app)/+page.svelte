@@ -47,7 +47,7 @@
   import { REPO_API_LINK, REPO_LINK, VERSION } from '$lib';
   import { SendIntent, type Intent } from 'send-intent';
   import { Filesystem } from '@capacitor/filesystem';
-  import { tempDir } from '@tauri-apps/api/path';
+  import { join, tempDir, videoDir } from '@tauri-apps/api/path';
   import { download as tauriDownload } from '@tauri-apps/plugin-upload';
   import { readFile, remove } from '@tauri-apps/plugin-fs';
   import { random } from 'mathjs';
@@ -55,6 +55,7 @@
   import { listen } from '@tauri-apps/api/event';
   import { invoke } from '@tauri-apps/api/core';
   import { getEncoders } from '$lib/player/services/ffmpeg/tauri';
+  import { open } from '@tauri-apps/plugin-dialog';
 
   interface FileEntry {
     id: number;
@@ -330,6 +331,10 @@
       overrideResolution = true;
       mediaResolutionWidth = mediaOptions.overrideResolution[0];
       mediaResolutionHeight = mediaOptions.overrideResolution[1];
+    }
+
+    if (!mediaOptions.exportPath) {
+      mediaOptions.exportPath = await join(await videoDir(), 'PhiZone Player');
     }
 
     if (
@@ -1785,6 +1790,32 @@
                         >
                           <span class="text-gray-500 dark:text-neutral-500">kbps</span>
                         </div>
+                      </div>
+                    </div>
+                    <div class="sm:col-span-6 md:col-span-1 lg:col-span-6">
+                      <span class="block text-left text-sm font-medium mb-1 dark:text-white">
+                        Export path
+                      </span>
+                      <div class="flex rounded-lg">
+                        <input
+                          type="text"
+                          bind:value={mediaOptions.exportPath}
+                          class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm text-sm focus:z-10 rounded-s-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                        />
+                        <button
+                          class="py-3 px-4 inline-flex justify-center items-center gap-x-2 text-center text-sm font-medium rounded-e-lg transition border border-gray-200 text-gray-500 hover:border-blue-500 hover:text-blue-500 focus:outline-none focus:border-blue-500 focus:text-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:border-neutral-700 dark:text-neutral-400 dark:hover:text-blue-500 dark:hover:border-blue-500 dark:focus:text-blue-500 dark:focus:border-blue-500 {$$restProps.class}"
+                          onclick={async () => {
+                            const path = await open({
+                              directory: true,
+                              multiple: false,
+                            });
+                            if (path) {
+                              mediaOptions.exportPath = path;
+                            }
+                          }}
+                        >
+                          Browse
+                        </button>
                       </div>
                     </div>
                   </div>
