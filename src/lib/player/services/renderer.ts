@@ -72,11 +72,11 @@ export class Renderer {
         await this.proceed(videoFile);
         return;
       }
+      if (!this._isRendering && proceed) {
+        this.setTick(this._frameCount / frameRate);
+      }
       this._isRendering = proceed;
       EventBus.emit('rendering-detail', proceed ? 'Rendering frames' : 'Waiting for FFmpeg');
-      if (proceed) {
-        this.setTick(++this._frameCount / frameRate);
-      }
     };
 
     this._isRendering = true;
@@ -98,10 +98,10 @@ export class Renderer {
         }
 
         this._worker.postMessage({ data: buffer }, [buffer.buffer]);
-        EventBus.emit('rendering', this._frameCount);
+        EventBus.emit('rendering', this._frameCount++);
       }, 'raw');
       if (this._isRendering) {
-        this.setTick(++this._frameCount / frameRate);
+        this.setTick(this._frameCount / frameRate);
       }
     });
 
