@@ -1613,172 +1613,177 @@
           </div>
           {#if IS_TAURI}
             <div
-              class={ffmpegEncoders === undefined ? 'tooltip' : ''}
-              data-tip="FFmpeg could not be found on your system."
+              class="flex flex-col {ffmpegEncoders === undefined
+                ? 'tooltip'
+                : overrideResolution &&
+                    (mediaResolutionWidth % 2 === 1 || mediaResolutionHeight % 2 === 1)
+                  ? 'tooltip tooltip-warning'
+                  : ''}"
+              data-tip={ffmpegEncoders === undefined
+                ? 'FFmpeg could not be found on your system.'
+                : 'Some encoders may not support resolutions with odd dimensions.'}
             >
-              <div class="flex flex-col">
-                <div class="relative flex items-start">
-                  <div class="flex items-center h-5 mt-1">
-                    <input
-                      id="render"
-                      name="render"
-                      type="checkbox"
-                      class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
-                      aria-describedby="render-description"
-                      bind:checked={toggles.render}
-                      disabled={ffmpegEncoders === undefined}
-                    />
-                  </div>
-                  <label for="render" class="ms-3" class:opacity-50={ffmpegEncoders === undefined}>
-                    <button
-                      class="flex items-center gap-1 text-sm font-semibold text-gray-800 dark:text-neutral-300 disabled:pointer-events-none"
-                      disabled={ffmpegEncoders === undefined}
-                      onclick={() => {
-                        showMediaCollapse = !showMediaCollapse;
-                      }}
-                    >
-                      <p>Render</p>
-                      <span class="transition {showMediaCollapse ? '-rotate-180' : 'rotate-0'}">
-                        <i class="fa-solid fa-angle-down fa-sm"></i>
-                      </span>
-                    </button>
-                    <span
-                      id="render-description"
-                      class="block text-sm text-gray-600 dark:text-neutral-500"
-                    >
-                      The canvas will be rendered and saved as a video file.
-                    </span>
-                  </label>
+              <div class="relative flex items-start">
+                <div class="flex items-center h-5 mt-1">
+                  <input
+                    id="render"
+                    name="render"
+                    type="checkbox"
+                    class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
+                    aria-describedby="render-description"
+                    bind:checked={toggles.render}
+                    disabled={ffmpegEncoders === undefined}
+                  />
                 </div>
-                <div
-                  class="collapse h-0 border hover:shadow-sm rounded-xl dark:border-neutral-700 dark:shadow-neutral-700/70 bg-base-200 bg-opacity-30 backdrop-blur-2xl collapse-transition"
-                  class:collapse-open={showMediaCollapse}
-                  class:min-h-fit={showMediaCollapse}
-                  class:h-full={showMediaCollapse}
-                  class:mt-2={showMediaCollapse}
-                  class:opacity-0={!showMediaCollapse}
-                >
-                  <div
-                    class="collapse-content flex flex-col gap-4 items-center pt-0 transition-[padding] duration-300"
-                    class:pt-4={showMediaCollapse}
+                <label for="render" class="ms-3" class:opacity-50={ffmpegEncoders === undefined}>
+                  <button
+                    class="flex items-center gap-1 text-sm font-semibold text-gray-800 dark:text-neutral-300 disabled:pointer-events-none"
+                    disabled={ffmpegEncoders === undefined}
+                    onclick={() => {
+                      showMediaCollapse = !showMediaCollapse;
+                    }}
                   >
-                    <div class="grid sm:grid-cols-6 md:grid-cols-1 lg:grid-cols-6 gap-3">
-                      <div class="sm:col-span-2 md:col-span-1 lg:col-span-2">
-                        <span class="block text-sm font-medium mb-1 dark:text-white">
-                          Frame rate
-                        </span>
-                        <div class="relative">
-                          <input
-                            type="number"
-                            bind:value={mediaOptions.frameRate}
-                            class="form-input py-3 px-4 pe-12 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
-                          />
-                          <div
-                            class="absolute inset-y-0 end-0 flex items-center pointer-events-none z-20 pe-4"
-                          >
-                            <span class="text-gray-500 dark:text-neutral-500">FPS</span>
-                          </div>
+                    <p>Render</p>
+                    <span class="transition {showMediaCollapse ? '-rotate-180' : 'rotate-0'}">
+                      <i class="fa-solid fa-angle-down fa-sm"></i>
+                    </span>
+                  </button>
+                  <span
+                    id="render-description"
+                    class="block text-sm text-gray-600 dark:text-neutral-500"
+                  >
+                    The canvas will be rendered and saved as a video file.
+                  </span>
+                </label>
+              </div>
+              <div
+                class="collapse h-0 border hover:shadow-sm rounded-xl dark:border-neutral-700 dark:shadow-neutral-700/70 bg-base-200 bg-opacity-30 backdrop-blur-2xl collapse-transition"
+                class:collapse-open={showMediaCollapse}
+                class:min-h-fit={showMediaCollapse}
+                class:h-full={showMediaCollapse}
+                class:mt-2={showMediaCollapse}
+                class:opacity-0={!showMediaCollapse}
+              >
+                <div
+                  class="collapse-content flex flex-col gap-4 items-center pt-0 transition-[padding] duration-300"
+                  class:pt-4={showMediaCollapse}
+                >
+                  <div class="grid sm:grid-cols-6 md:grid-cols-1 lg:grid-cols-6 gap-3">
+                    <div class="sm:col-span-2 md:col-span-1 lg:col-span-2">
+                      <span class="block text-left text-sm font-medium mb-1 dark:text-white">
+                        Frame rate
+                      </span>
+                      <div class="relative">
+                        <input
+                          type="number"
+                          bind:value={mediaOptions.frameRate}
+                          class="form-input py-3 px-4 pe-12 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                        />
+                        <div
+                          class="absolute inset-y-0 end-0 flex items-center pointer-events-none z-20 pe-4"
+                        >
+                          <span class="text-gray-500 dark:text-neutral-500">FPS</span>
                         </div>
                       </div>
-                      <div class="sm:col-span-4 md:col-span-1 lg:col-span-4">
-                        <div class="flex justify-between items-center">
-                          <span class="block text-sm font-medium mb-1 dark:text-white">
-                            Override resolution
-                          </span>
-                          <input
-                            type="checkbox"
-                            class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
-                            bind:checked={overrideResolution}
-                          />
-                        </div>
-                        <div class="flex rounded-lg shadow-sm">
-                          <input
-                            type="number"
-                            min=2
-                            step=2
-                            class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm -ms-px first:rounded-s-lg mt-0 first:ms-0 first:rounded-se-none last:rounded-es-none last:rounded-e-lg text-sm relative focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
-                            disabled={!overrideResolution}
-                            bind:value={mediaResolutionWidth}
-                          />
-                          <span
-                            class="py-3 px-2 inline-flex items-center min-w-fit border border-gray-200 text-sm text-gray-500 -ms-px w-auto first:rounded-s-lg mt-0 first:ms-0 first:rounded-se-none last:rounded-es-none last:rounded-e-lg bg-base-100 dark:border-neutral-700 dark:text-neutral-400"
-                            class:opacity-50={!overrideResolution}
-                          >
-                            <i class="fa-solid fa-xmark"></i>
-                          </span>
-                          <input
-                            type="number"
-                            min=2
-                            step=2
-                            class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm -ms-px first:rounded-s-lg mt-0 first:ms-0 first:rounded-se-none last:rounded-es-none last:rounded-e-lg text-sm relative focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
-                            disabled={!overrideResolution}
-                            bind:value={mediaResolutionHeight}
-                          />
+                    </div>
+                    <div class="sm:col-span-4 md:col-span-1 lg:col-span-4">
+                      <div class="flex justify-between items-center">
+                        <span class="block text-left text-sm font-medium mb-1 dark:text-white">
+                          Override resolution
+                        </span>
+                        <input
+                          type="checkbox"
+                          class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
+                          bind:checked={overrideResolution}
+                        />
+                      </div>
+                      <div class="flex rounded-lg shadow-sm">
+                        <input
+                          type="number"
+                          min="2"
+                          step="2"
+                          class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm -ms-px first:rounded-s-lg mt-0 first:ms-0 first:rounded-se-none last:rounded-es-none last:rounded-e-lg text-sm relative focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                          disabled={!overrideResolution}
+                          bind:value={mediaResolutionWidth}
+                        />
+                        <span
+                          class="py-3 px-2 inline-flex items-center min-w-fit border border-gray-200 text-sm text-gray-500 -ms-px w-auto first:rounded-s-lg mt-0 first:ms-0 first:rounded-se-none last:rounded-es-none last:rounded-e-lg bg-base-100 dark:border-neutral-700 dark:text-neutral-400"
+                          class:opacity-50={!overrideResolution}
+                        >
+                          <i class="fa-solid fa-xmark"></i>
+                        </span>
+                        <input
+                          type="number"
+                          min="2"
+                          step="2"
+                          class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm -ms-px first:rounded-s-lg mt-0 first:ms-0 first:rounded-se-none last:rounded-es-none last:rounded-e-lg text-sm relative focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                          disabled={!overrideResolution}
+                          bind:value={mediaResolutionHeight}
+                        />
+                      </div>
+                    </div>
+                    <div class="sm:col-span-3 md:col-span-1 lg:col-span-3">
+                      <span class="block text-left text-sm font-medium mb-1 dark:text-white">
+                        Video encoder
+                      </span>
+                      <div class="relative">
+                        <select
+                          bind:value={mediaOptions.videoCodec}
+                          class="form-select py-3 px-4 pe-8 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                        >
+                          {#if ffmpegEncoders}
+                            {#each ffmpegEncoders.filter((e) => e.codec !== null && ['h264', 'hevc', 'av1', 'mpeg4'].includes(e.codec)) as encoder}
+                              <option value={encoder.name}>{encoder.displayName}</option>
+                            {/each}
+                          {/if}
+                        </select>
+                      </div>
+                    </div>
+                    <div class="sm:col-span-3 md:col-span-1 lg:col-span-3">
+                      <span class="block text-left text-sm font-medium mb-1 dark:text-white">
+                        Video bitrate
+                      </span>
+                      <div class="relative">
+                        <input
+                          type="number"
+                          bind:value={mediaOptions.videoBitrate}
+                          class="form-input py-3 px-4 pe-14 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                        />
+                        <div
+                          class="absolute inset-y-0 end-0 flex items-center pointer-events-none z-20 pe-4"
+                        >
+                          <span class="text-gray-500 dark:text-neutral-500">Kbps</span>
                         </div>
                       </div>
-                      <div class="sm:col-span-3 md:col-span-1 lg:col-span-3">
-                        <span class="block text-sm font-medium mb-1 dark:text-white">
-                          Video encoder
-                        </span>
-                        <div class="relative">
-                          <select
-                            bind:value={mediaOptions.videoCodec}
-                            class="form-select py-3 px-4 pe-8 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
-                          >
-                            {#if ffmpegEncoders}
-                              {#each ffmpegEncoders.filter((e) => e.codec !== null && ['h264', 'hevc', 'av1', 'mpeg4'].includes(e.codec)) as encoder}
-                                <option value={encoder.name}>{encoder.displayName}</option>
-                              {/each}
-                            {/if}
-                          </select>
-                        </div>
+                    </div>
+                    <div class="sm:col-span-2 md:col-span-1 lg:col-span-2">
+                      <span class="block text-left text-sm font-medium mb-1 dark:text-white">
+                        Results loops
+                      </span>
+                      <div class="relative">
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.1}
+                          bind:value={mediaOptions.endingLoopsToRender}
+                          class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                        />
                       </div>
-                      <div class="sm:col-span-3 md:col-span-1 lg:col-span-3">
-                        <span class="block text-sm font-medium mb-1 dark:text-white">
-                          Video bitrate
-                        </span>
-                        <div class="relative">
-                          <input
-                            type="number"
-                            bind:value={mediaOptions.videoBitrate}
-                            class="form-input py-3 px-4 pe-14 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
-                          />
-                          <div
-                            class="absolute inset-y-0 end-0 flex items-center pointer-events-none z-20 pe-4"
-                          >
-                            <span class="text-gray-500 dark:text-neutral-500">Kbps</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div class="sm:col-span-2 md:col-span-1 lg:col-span-2">
-                        <span class="block text-sm font-medium mb-1 dark:text-white">
-                          Results loops
-                        </span>
-                        <div class="relative">
-                          <input
-                            type="number"
-                            min={0}
-                            step={0.1}
-                            bind:value={mediaOptions.endingLoopsToRender}
-                            class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
-                          />
-                        </div>
-                      </div>
-                      <div class="sm:col-span-4 md:col-span-1 lg:col-span-4">
-                        <span class="block text-sm font-medium mb-1 dark:text-white">
-                          Audio bitrate
-                        </span>
-                        <div class="relative">
-                          <input
-                            type="number"
-                            bind:value={mediaOptions.audioBitrate}
-                            class="form-input py-3 px-4 pe-14 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
-                          />
-                          <div
-                            class="absolute inset-y-0 end-0 flex items-center pointer-events-none z-20 pe-4"
-                          >
-                            <span class="text-gray-500 dark:text-neutral-500">Kbps</span>
-                          </div>
+                    </div>
+                    <div class="sm:col-span-4 md:col-span-1 lg:col-span-4">
+                      <span class="block text-left text-sm font-medium mb-1 dark:text-white">
+                        Audio bitrate
+                      </span>
+                      <div class="relative">
+                        <input
+                          type="number"
+                          bind:value={mediaOptions.audioBitrate}
+                          class="form-input py-3 px-4 pe-14 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                        />
+                        <div
+                          class="absolute inset-y-0 end-0 flex items-center pointer-events-none z-20 pe-4"
+                        >
+                          <span class="text-gray-500 dark:text-neutral-500">Kbps</span>
                         </div>
                       </div>
                     </div>
