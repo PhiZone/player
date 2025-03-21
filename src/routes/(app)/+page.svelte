@@ -1752,7 +1752,7 @@
                         <div
                           class="absolute inset-y-0 end-0 flex items-center pointer-events-none z-20 pe-4"
                         >
-                          <span class="text-gray-500 dark:text-neutral-500">Kbps</span>
+                          <span class="text-gray-500 dark:text-neutral-500">kbps</span>
                         </div>
                       </div>
                     </div>
@@ -1783,7 +1783,7 @@
                         <div
                           class="absolute inset-y-0 end-0 flex items-center pointer-events-none z-20 pe-4"
                         >
-                          <span class="text-gray-500 dark:text-neutral-500">Kbps</span>
+                          <span class="text-gray-500 dark:text-neutral-500">kbps</span>
                         </div>
                       </div>
                     </div>
