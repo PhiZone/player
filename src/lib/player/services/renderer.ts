@@ -118,7 +118,7 @@ export class Renderer {
 
   async setTick(progress: number) {
     this._scene.clock.setTime(progress - 1);
-    await this._scene.updateVideoTicks();
+    await this._scene.updateVideoTicks(this._scene.getTimeSec(progress - 1));
     requestAnimationFrame(() => {
       this._scene.game.loop.step(this._started + progress * 1000);
     });

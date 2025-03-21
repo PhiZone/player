@@ -805,9 +805,9 @@ export class Game extends Scene {
     await signal.wait();
   }
 
-  async updateVideoTicks() {
+  async updateVideoTicks(timeSec?: number) {
     if (!this._videos) return;
-    const timeSec = this.timeSec;
+    timeSec ??= this.timeSec;
     await Promise.all(this._videos.map((video) => video.tick(timeSec)));
   }
 
@@ -843,6 +843,11 @@ export class Game extends Scene {
     }
     const curBpm = this._bpmList[this._bpmIndex];
     return curBpm.startBeat + ((songTime - curBpm.startTimeSec) / 60) * curBpm.bpm;
+  }
+
+  getTimeSec(realTimeSec?: number) {
+    realTimeSec ??= this.realTimeSec;
+    return realTimeSec - this._offset / 1000;
   }
 
   w(width: number) {
