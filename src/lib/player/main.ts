@@ -6,14 +6,14 @@ import { Capacitor } from '@capacitor/core';
 import { currentMonitor, getCurrentWindow } from '@tauri-apps/api/window';
 import { EventBus } from './EventBus';
 
-const start = async (parent: string, sceneConfig: Config | null) => {
+const start = async (parent: string, sceneConfig: Config) => {
   const parentElement = document.getElementById(parent)!;
 
   const config: Types.Core.GameConfig = {
     type: WEBGL,
     width: parentElement.clientWidth * window.devicePixelRatio,
-    render: {
-      preserveDrawingBuffer: true,
+    fps: {
+      smoothStep: !(IS_TAURI && sceneConfig.render),
     },
     height: parentElement.clientHeight * window.devicePixelRatio,
     scale: {
@@ -28,81 +28,80 @@ const start = async (parent: string, sceneConfig: Config | null) => {
     },
   };
 
-  if (sceneConfig) {
-    localStorage.setItem('player', JSON.stringify(sceneConfig));
+  localStorage.setItem('player', JSON.stringify(sceneConfig));
+  if (
+    Capacitor.getPlatform() !== 'web' ||
+    sceneConfig.preferences.aspectRatio !== null ||
+    (IS_TAURI && sceneConfig.render)
+  ) {
     if (
-      Capacitor.getPlatform() !== 'web' ||
-      sceneConfig.preferences.aspectRatio !== null ||
-      (IS_TAURI && sceneConfig.render)
-    ) {
-      if (
-        sceneConfig.mediaOptions.overrideResolution &&
-        (!sceneConfig.mediaOptions.overrideResolution[0] ||
-          !sceneConfig.mediaOptions.overrideResolution[1])
-      )
-        sceneConfig.mediaOptions.overrideResolution = null;
+      sceneConfig.mediaOptions.overrideResolution &&
+      (!sceneConfig.mediaOptions.overrideResolution[0] ||
+        !sceneConfig.mediaOptions.overrideResolution[1])
+    )
+      sceneConfig.mediaOptions.overrideResolution = null;
 
-      let dimensions: { width: number; height: number } = { width: 0, height: 0 };
+    let dimensions: { width: number; height: number } = { width: 0, height: 0 };
 
-      if (Capacitor.getPlatform() !== 'web') {
+    if (Capacitor.getPlatform() !== 'web') {
+      dimensions = {
+        width: Math.max(window.screen.width, window.screen.height) * window.devicePixelRatio,
+        height: Math.min(window.screen.width, window.screen.height) * window.devicePixelRatio,
+      };
+    }
+
+    if (sceneConfig.preferences.aspectRatio !== null) {
+      const ratio = sceneConfig.preferences.aspectRatio;
+      dimensions = fit(
+        ratio[0],
+        ratio[1],
+        Math.max(window.screen.width, window.screen.height) * window.devicePixelRatio,
+        Math.min(window.screen.width, window.screen.height) * window.devicePixelRatio,
+        true,
+      );
+    }
+
+    if (IS_TAURI && sceneConfig.render) {
+      if (sceneConfig.mediaOptions.overrideResolution !== null) {
         dimensions = {
-          width: Math.max(window.screen.width, window.screen.height) * window.devicePixelRatio,
-          height: Math.min(window.screen.width, window.screen.height) * window.devicePixelRatio,
+          width: sceneConfig.mediaOptions.overrideResolution[0],
+          height: sceneConfig.mediaOptions.overrideResolution[1],
         };
-      }
-
-      if (sceneConfig.preferences.aspectRatio !== null) {
+      } else {
         const ratio = sceneConfig.preferences.aspectRatio;
-        dimensions = fit(
-          ratio[0],
-          ratio[1],
-          Math.max(window.screen.width, window.screen.height) * window.devicePixelRatio,
-          Math.min(window.screen.width, window.screen.height) * window.devicePixelRatio,
-          true,
-        );
-      }
-
-      if (IS_TAURI && sceneConfig.render) {
-        if (sceneConfig.mediaOptions.overrideResolution !== null) {
-          dimensions = {
-            width: sceneConfig.mediaOptions.overrideResolution[0],
-            height: sceneConfig.mediaOptions.overrideResolution[1],
-          };
-        } else {
-          const ratio = sceneConfig.preferences.aspectRatio;
-          const monitor = await currentMonitor();
-          if (monitor) {
-            if (ratio) {
-              dimensions = fit(ratio[0], ratio[1], monitor.size.width, monitor.size.height, true);
-            } else {
-              dimensions = monitor.size;
-            }
+        const monitor = await currentMonitor();
+        if (monitor) {
+          if (ratio) {
+            dimensions = fit(ratio[0], ratio[1], monitor.size.width, monitor.size.height, true);
+          } else {
+            dimensions = monitor.size;
           }
         }
       }
-      config.width = dimensions.width;
-      config.height = dimensions.height;
-      config.scale = {
-        mode: Scale.FIT,
-        autoCenter: Scale.CENTER_BOTH,
-      };
     }
-    if (IS_TAURI && sceneConfig.newTab) {
-      if (sceneConfig.metadata.title && sceneConfig.metadata.level) {
-        getCurrentWindow().setTitle(
-          `${sceneConfig.metadata.title} [${
-            sceneConfig.metadata.level !== null && sceneConfig.metadata.difficulty !== null
-              ? `${sceneConfig.metadata.level} ${sceneConfig.metadata.difficulty?.toFixed(0)}`
-              : sceneConfig.metadata.level
-          }]`,
-        );
-      } else {
-        EventBus.on('metadata', (metadata: { title: string; level: string }) => {
-          getCurrentWindow().setTitle(`${metadata.title} [${metadata.level}]`);
-        });
-      }
+    config.width = dimensions.width;
+    config.height = dimensions.height;
+    config.scale = {
+      mode: Scale.FIT,
+      autoCenter: Scale.CENTER_BOTH,
+    };
+  }
+  if (IS_TAURI && sceneConfig.newTab) {
+    if (sceneConfig.metadata.title && sceneConfig.metadata.level) {
+      getCurrentWindow().setTitle(
+        `${sceneConfig.metadata.title} [${
+          sceneConfig.metadata.level !== null && sceneConfig.metadata.difficulty !== null
+            ? `${sceneConfig.metadata.level} ${sceneConfig.metadata.difficulty?.toFixed(0)}`
+            : sceneConfig.metadata.level
+        }]`,
+      );
+    } else {
+      EventBus.on('metadata', (metadata: { title: string; level: string }) => {
+        getCurrentWindow().setTitle(`${metadata.title} [${metadata.level}]`);
+      });
     }
   }
+
   const game = new Game({ ...config, parent });
   // @ts-expect-error - globalThis is not defined in TypeScript
   globalThis.__PHASER_GAME__ = game;
