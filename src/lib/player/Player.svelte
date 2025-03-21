@@ -91,9 +91,9 @@
   let performanceEnabled = showPerformance();
   let performanceStats: StatsJS | undefined;
 
-  onMount(() => {
+  onMount(async () => {
     if (!config) return;
-    gameRef.game = start('player', config);
+    gameRef.game = await start('player', config);
     timeout = setTimeout(() => {
       stillLoading = true;
     }, 10000);

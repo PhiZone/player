@@ -3,10 +3,10 @@ import { WEBGL, Game, Scale, type Types } from 'phaser';
 import type { Config } from '$lib/types';
 import { fit, IS_TAURI } from '$lib/utils';
 import { Capacitor } from '@capacitor/core';
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { currentMonitor, getCurrentWindow } from '@tauri-apps/api/window';
 import { EventBus } from './EventBus';
 
-const start = (parent: string, sceneConfig: Config | null) => {
+const start = async (parent: string, sceneConfig: Config | null) => {
   const parentElement = document.getElementById(parent)!;
 
   const config: Types.Core.GameConfig = {
@@ -33,7 +33,7 @@ const start = (parent: string, sceneConfig: Config | null) => {
     if (
       Capacitor.getPlatform() !== 'web' ||
       sceneConfig.preferences.aspectRatio !== null ||
-      (sceneConfig.render && sceneConfig.mediaOptions.overrideResolution !== null)
+      (IS_TAURI && sceneConfig.render)
     ) {
       if (
         sceneConfig.mediaOptions.overrideResolution &&
@@ -41,13 +41,16 @@ const start = (parent: string, sceneConfig: Config | null) => {
           !sceneConfig.mediaOptions.overrideResolution[1])
       )
         sceneConfig.mediaOptions.overrideResolution = null;
+
       let dimensions: { width: number; height: number } = { width: 0, height: 0 };
+
       if (Capacitor.getPlatform() !== 'web') {
         dimensions = {
           width: Math.max(window.screen.width, window.screen.height) * window.devicePixelRatio,
           height: Math.min(window.screen.width, window.screen.height) * window.devicePixelRatio,
         };
       }
+
       if (sceneConfig.preferences.aspectRatio !== null) {
         const ratio = sceneConfig.preferences.aspectRatio;
         dimensions = fit(
@@ -58,11 +61,24 @@ const start = (parent: string, sceneConfig: Config | null) => {
           true,
         );
       }
-      if (sceneConfig.render && sceneConfig.mediaOptions.overrideResolution !== null) {
-        dimensions = {
-          width: sceneConfig.mediaOptions.overrideResolution[0],
-          height: sceneConfig.mediaOptions.overrideResolution[1],
-        };
+
+      if (IS_TAURI && sceneConfig.render) {
+        if (sceneConfig.mediaOptions.overrideResolution !== null) {
+          dimensions = {
+            width: sceneConfig.mediaOptions.overrideResolution[0],
+            height: sceneConfig.mediaOptions.overrideResolution[1],
+          };
+        } else {
+          const ratio = sceneConfig.preferences.aspectRatio;
+          const monitor = await currentMonitor();
+          if (monitor) {
+            if (ratio) {
+              dimensions = fit(ratio[0], ratio[1], monitor.size.width, monitor.size.height, true);
+            } else {
+              dimensions = monitor.size;
+            }
+          }
+        }
       }
       config.width = dimensions.width;
       config.height = dimensions.height;
