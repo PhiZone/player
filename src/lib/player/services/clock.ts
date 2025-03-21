@@ -83,7 +83,7 @@ export class Clock {
   setTime(time: number) {
     this._time = time;
     if (this._time < 0) this._time = 0;
-    if (this._time > this._sound.duration) {
+    if (this._time >= this._sound.duration) {
       this._time = this._sound.duration;
       if (!this._completed) this._completeCallback();
     }
