@@ -112,19 +112,26 @@
       renderingETA =
         ((Date.now() - renderingStarted) / 1000 / Math.min(renderingProgress, renderingTotal)) *
         Math.max(renderingTotal - renderingProgress, 0);
+      getCurrentWebviewWindow().setProgressBar({
+        status: ProgressBarStatus.Normal,
+        progress: Math.round(renderingPercent * 100),
+      });
     });
 
     EventBus.on('video-rendering-finished', () => {
       showProgress = false;
-    });
-
-    EventBus.on('audio-rendering-finished', () => {
-      showProgress = true;
-      renderingPercent = 1;
+      getCurrentWebviewWindow().setProgressBar({
+        status: ProgressBarStatus.Indeterminate,
+      });
     });
 
     EventBus.on('rendering-finished', (output: string) => {
       renderingOutput = output;
+      showProgress = true;
+      renderingPercent = 1;
+      getCurrentWebviewWindow().setProgressBar({
+        status: ProgressBarStatus.None,
+      });
       notify(`Rendering saved to ${output}`, 'success', async () => {
         await openPath(output.split(sep()).slice(0, -1).join(sep()));
       });
@@ -220,7 +227,7 @@
 
     EventBus.on('update', (t: number) => {
       if (t !== timeSec) {
-        if (IS_TAURI && t < duration) {
+        if (IS_TAURI && !render && t < duration) {
           getCurrentWebviewWindow().setProgressBar({
             status:
               status === GameStatus.PLAYING ? ProgressBarStatus.Normal : ProgressBarStatus.Paused,
@@ -253,7 +260,7 @@
 
     EventBus.on('finished', () => {
       status = GameStatus.FINISHED;
-      if (IS_TAURI) {
+      if (IS_TAURI && !render) {
         getCurrentWebviewWindow().setProgressBar({
           status: ProgressBarStatus.None,
         });
@@ -364,9 +371,9 @@
         <div class="flex justify-center text-md w-full relative">
           <span class="absolute left-0 trans" class:opacity-0={!showProgress}>
             {renderingPercent.toLocaleString(undefined, {
-                  style: 'percent',
-                  minimumFractionDigits: 2,
-                })}
+              style: 'percent',
+              minimumFractionDigits: 2,
+            })}
           </span>
           <span>
             {renderingDetail}
