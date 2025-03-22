@@ -223,31 +223,22 @@ export class Renderer {
       await signal.wait();
     }
 
-    EventBus.emit('rendering-detail', 'Mixing hit sounds and results music');
-    await mixAudio(sounds, timestamps, this._length, hitsoundsFile);
+    EventBus.emit('rendering-detail', 'Retrieving song');
+    await writeFile(
+      songFile,
+      new Uint8Array(await (await download(this._scene.songUrl, 'song')).arrayBuffer()),
+    );
 
-    listen('audio-mixing-finished', async (event) => {
-      console.log(event);
-
-      EventBus.emit('rendering-detail', 'Retrieving song');
-      await writeFile(
-        songFile,
-        new Uint8Array(await (await download(this._scene.songUrl, 'song')).arrayBuffer()),
-      );
-
-      EventBus.emit('rendering-detail', 'Composing audio');
-      await composeAudio(
-        hitsoundsFile,
-        songFile,
-        this._scene.preferences.musicVolume,
-        this._options.audioBitrate,
-        finalAudio,
-      );
-    });
-
+    const renderDestDir = await join(
+      this._options.exportPath ?? (await join(await videoDir(), 'PhiZone Player')),
+      ensafeFilename(`${this._scene.metadata.title} [${this._scene.metadata.level}]`),
+    );
+    await mkdir(renderDestDir, { recursive: true });
+    const renderOutput = await join(renderDestDir, `${moment().format('YYYY-MM-DD_HH-mm-ss')}.mp4`);
+    await mixAudio(songFile, this._scene.preferences.musicVolume, sounds, timestamps, this._length, String(this._options.audioBitrate), videoFile, renderOutput);
+    EventBus.emit('rendering-detail', 'Mixing Audio');
     listen('audio-composition-finished', async () => {
       EventBus.emit('audio-rendering-finished');
-      await this.finalize(videoFile, finalAudio);
     });
   }
 
@@ -260,17 +251,6 @@ export class Renderer {
     );
     await convertAudio(input, output);
     return output;
-  }
-
-  async finalize(video: string, audio: string) {
-    EventBus.emit('rendering-detail', 'Combining streams');
-    const renderDestDir = await join(
-      this._options.exportPath ?? (await join(await videoDir(), 'PhiZone Player')),
-      ensafeFilename(`${this._scene.metadata.title} [${this._scene.metadata.level}]`),
-    );
-    await mkdir(renderDestDir, { recursive: true });
-    const renderOutput = await join(renderDestDir, `${moment().format('YYYY-MM-DD_HH-mm-ss')}.mp4`);
-    await combineStreams(video, audio, renderOutput);
   }
 
   async cancel() {
