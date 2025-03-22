@@ -193,6 +193,8 @@ pub async fn setup_video(
 ) -> Result<(), String> {
     let framerate_str = framerate.to_string();
     let args = vec![
+        "-probesize",
+        "50M",
         "-f",
         "rawvideo",
         "-pix_fmt",
@@ -201,6 +203,8 @@ pub async fn setup_video(
         &resolution,
         "-r",
         &framerate_str,
+        "-thread_queue_size",
+        "1024",
         "-i",
         "pipe:0",
         "-c:v",
@@ -211,8 +215,6 @@ pub async fn setup_video(
         "vflip",
         "-pix_fmt",
         "yuv420p",
-        "-movflags",
-        "+faststart",
         "-y",
         &output,
     ];

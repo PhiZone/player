@@ -149,7 +149,7 @@ pub fn mix_audio(
             let mut proc = Command::new("ffmpeg")
                 .args(format!("-y -i {} -i {} -i", video_file, music_file).split_whitespace())
                 .arg(audio_output.path())
-                .args(format!("-filter_complex {} -map 0:v:0 -map [a] -b:a {}k -c:a aac -c:v copy", filter_complex, bitrate).split_whitespace())
+                .args(format!("-filter_complex {} -map 0:v:0 -map [a] -b:a {}k -c:a aac -c:v copy -movflags +faststart", filter_complex, bitrate).split_whitespace())
                 .arg(&render_output)
                 .stdin(Stdio::piped())
                 .stderr(Stdio::inherit())
