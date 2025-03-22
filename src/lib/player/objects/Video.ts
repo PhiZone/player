@@ -2,6 +2,7 @@ import { GameObjects } from 'phaser';
 import { Game } from '../scenes/Game';
 import { type AnimatedVariable, type VariableEvent, type Video as VideoType } from '$lib/types';
 import { getTimeSec, getEventValue, processEvents, toBeats } from '../utils';
+import { Signal } from './Signal';
 
 export class Video extends GameObjects.Container {
   private _scene: Game;
@@ -14,6 +15,8 @@ export class Video extends GameObjects.Container {
   private _ready: boolean = false;
   private _shouldPlay: boolean = false;
   private _isPlaying: boolean = false;
+
+  private _seekedSignal: Signal = new Signal(1);
 
   constructor(
     scene: Game,
@@ -63,9 +66,9 @@ export class Video extends GameObjects.Container {
     // this._video.on('seeking', () => {
     //   console.log('Seeking');
     // });
-    // this._video.on('seeked', () => {
-    //   console.log('Seeked');
-    // });
+    this._video.video?.addEventListener('seeked', () => {
+      this._seekedSignal.emit();
+    });
     // this._video.on('created', () => {
     //   console.log('Created');
     // });
@@ -160,10 +163,17 @@ export class Video extends GameObjects.Container {
     this._video.resume();
   }
 
+  async tick(timeSec: number) {
+    if (!this._ready || !this.setSeek(timeSec)) return;
+    this._seekedSignal.reset();
+    await this._seekedSignal.wait();
+  }
+
   setSeek(timeSec: number) {
     const progress = (timeSec - this._data.startTimeSec) / this._video.getDuration();
-    if (progress < 0 || progress > 1) return;
+    if (progress < 0 || progress > 1) return false;
     this._video.setCurrentTime(timeSec - this._data.startTimeSec);
+    return true;
   }
 
   updateAttach(params: {

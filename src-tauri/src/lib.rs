@@ -1,14 +1,19 @@
 use std::path::PathBuf;
 use std::sync::{LazyLock, Mutex};
-use tauri::Emitter;
 use tauri::Manager;
+use tauri::{AppHandle, Emitter};
 use url::Url;
+
+mod ffmpeg;
+mod rodio;
 
 static FILES_OPENED: LazyLock<Mutex<Vec<PathBuf>>> = LazyLock::new(|| Mutex::new(vec![]));
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_upload::init())
         .plugin(tauri_plugin_os::init())
@@ -47,7 +52,16 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_files_opened])
+        .invoke_handler(tauri::generate_handler![
+            get_files_opened,
+            get_ffmpeg_encoders,
+            convert_audio,
+            compose_audio,
+            setup_video,
+            finish_video,
+            combine_streams,
+            mix_audio
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
@@ -86,4 +100,63 @@ fn get_files_opened() -> Vec<String> {
         .into_iter()
         .map(|f| f.to_string_lossy().into_owned())
         .collect()
+}
+
+#[tauri::command]
+fn get_ffmpeg_encoders() -> Result<Vec<ffmpeg::Encoder>, String> {
+    ffmpeg::get_encoders()
+}
+
+#[tauri::command]
+fn convert_audio(app: AppHandle, input: String, output: String) -> Result<(), String> {
+    ffmpeg::convert_audio(app, input, output)
+}
+
+#[tauri::command]
+fn compose_audio(
+    app: AppHandle,
+    hitsounds: String,
+    music: String,
+    volume: f32,
+    bitrate: String,
+    output: String,
+) -> Result<(), String> {
+    ffmpeg::compose_audio(app, hitsounds, music, volume, bitrate, output)
+}
+
+#[tauri::command]
+async fn setup_video(
+    output: String,
+    resolution: String,
+    frame_rate: u32,
+    codec: String,
+    bitrate: String,
+) -> Result<(), String> {
+    ffmpeg::setup_video(output, resolution, frame_rate, codec, bitrate).await
+}
+
+#[tauri::command]
+fn finish_video() -> Result<(), String> {
+    ffmpeg::finish_video()
+}
+
+#[tauri::command]
+fn combine_streams(
+    app: AppHandle,
+    input_video: String,
+    input_audio: String,
+    output: String,
+) -> Result<(), String> {
+    ffmpeg::combine_streams(app, input_video, input_audio, output)
+}
+
+#[tauri::command]
+fn mix_audio(
+    app: AppHandle,
+    sounds: Vec<rodio::Sound>,
+    timestamps: Vec<rodio::Timestamp>,
+    length: f64,
+    output: String,
+) -> Result<(), String> {
+    rodio::mix_audio(app, sounds, timestamps, length, output)
 }

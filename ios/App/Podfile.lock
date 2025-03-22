@@ -1,11 +1,11 @@
 PODS:
-  - Capacitor (7.0.0):
+  - Capacitor (7.1.0):
     - CapacitorCordova
   - CapacitorApp (7.0.0):
     - Capacitor
   - CapacitorClipboard (7.0.0):
     - Capacitor
-  - CapacitorCordova (7.0.0)
+  - CapacitorCordova (7.1.0)
   - CapacitorFilesystem (7.0.0):
     - Capacitor
   - CapacitorNetwork (7.0.0):
@@ -14,39 +14,39 @@ PODS:
     - Capacitor
 
 DEPENDENCIES:
-  - "Capacitor (from `../../node_modules/.pnpm/@capacitor+ios@7.0.0_@capacitor+core@7.0.0/node_modules/@capacitor/ios`)"
-  - "CapacitorApp (from `../../node_modules/.pnpm/@capacitor+app@7.0.0_@capacitor+core@7.0.0/node_modules/@capacitor/app`)"
-  - "CapacitorClipboard (from `../../node_modules/.pnpm/@capacitor+clipboard@7.0.0_@capacitor+core@7.0.0/node_modules/@capacitor/clipboard`)"
-  - "CapacitorCordova (from `../../node_modules/.pnpm/@capacitor+ios@7.0.0_@capacitor+core@7.0.0/node_modules/@capacitor/ios`)"
-  - "CapacitorFilesystem (from `../../node_modules/.pnpm/@capacitor+filesystem@7.0.0_@capacitor+core@7.0.0/node_modules/@capacitor/filesystem`)"
-  - "CapacitorNetwork (from `../../node_modules/.pnpm/@capacitor+network@7.0.0_@capacitor+core@7.0.0/node_modules/@capacitor/network`)"
-  - "SendIntent (from `../../node_modules/.pnpm/send-intent@6.0.3_@capacitor+core@7.0.0/node_modules/send-intent`)"
+  - "Capacitor (from `../../node_modules/.pnpm/@capacitor+ios@7.1.0_@capacitor+core@7.1.0/node_modules/@capacitor/ios`)"
+  - "CapacitorApp (from `../../node_modules/.pnpm/@capacitor+app@7.0.0_@capacitor+core@7.1.0/node_modules/@capacitor/app`)"
+  - "CapacitorClipboard (from `../../node_modules/.pnpm/@capacitor+clipboard@7.0.0_@capacitor+core@7.1.0/node_modules/@capacitor/clipboard`)"
+  - "CapacitorCordova (from `../../node_modules/.pnpm/@capacitor+ios@7.1.0_@capacitor+core@7.1.0/node_modules/@capacitor/ios`)"
+  - "CapacitorFilesystem (from `../../node_modules/.pnpm/@capacitor+filesystem@7.0.0_@capacitor+core@7.1.0/node_modules/@capacitor/filesystem`)"
+  - "CapacitorNetwork (from `../../node_modules/.pnpm/@capacitor+network@7.0.0_@capacitor+core@7.1.0/node_modules/@capacitor/network`)"
+  - "SendIntent (from `../../node_modules/.pnpm/send-intent@6.0.3_@capacitor+core@7.1.0/node_modules/send-intent`)"
 
 EXTERNAL SOURCES:
   Capacitor:
-    :path: "../../node_modules/.pnpm/@capacitor+ios@7.0.0_@capacitor+core@7.0.0/node_modules/@capacitor/ios"
+    :path: "../../node_modules/.pnpm/@capacitor+ios@7.1.0_@capacitor+core@7.1.0/node_modules/@capacitor/ios"
   CapacitorApp:
-    :path: "../../node_modules/.pnpm/@capacitor+app@7.0.0_@capacitor+core@7.0.0/node_modules/@capacitor/app"
+    :path: "../../node_modules/.pnpm/@capacitor+app@7.0.0_@capacitor+core@7.1.0/node_modules/@capacitor/app"
   CapacitorClipboard:
-    :path: "../../node_modules/.pnpm/@capacitor+clipboard@7.0.0_@capacitor+core@7.0.0/node_modules/@capacitor/clipboard"
+    :path: "../../node_modules/.pnpm/@capacitor+clipboard@7.0.0_@capacitor+core@7.1.0/node_modules/@capacitor/clipboard"
   CapacitorCordova:
-    :path: "../../node_modules/.pnpm/@capacitor+ios@7.0.0_@capacitor+core@7.0.0/node_modules/@capacitor/ios"
+    :path: "../../node_modules/.pnpm/@capacitor+ios@7.1.0_@capacitor+core@7.1.0/node_modules/@capacitor/ios"
   CapacitorFilesystem:
-    :path: "../../node_modules/.pnpm/@capacitor+filesystem@7.0.0_@capacitor+core@7.0.0/node_modules/@capacitor/filesystem"
+    :path: "../../node_modules/.pnpm/@capacitor+filesystem@7.0.0_@capacitor+core@7.1.0/node_modules/@capacitor/filesystem"
   CapacitorNetwork:
-    :path: "../../node_modules/.pnpm/@capacitor+network@7.0.0_@capacitor+core@7.0.0/node_modules/@capacitor/network"
+    :path: "../../node_modules/.pnpm/@capacitor+network@7.0.0_@capacitor+core@7.1.0/node_modules/@capacitor/network"
   SendIntent:
-    :path: "../../node_modules/.pnpm/send-intent@6.0.3_@capacitor+core@7.0.0/node_modules/send-intent"
+    :path: "../../node_modules/.pnpm/send-intent@6.0.3_@capacitor+core@7.1.0/node_modules/send-intent"
 
 SPEC CHECKSUMS:
-  Capacitor: 82d1f3b4480d66b5996814f74500dcbc0908558c
+  Capacitor: bceb785fb78f5e81e4a9e37843bc1c24bd9c7194
   CapacitorApp: 9cb31064a6c6bb2b1438583733a7bf45557fc1da
   CapacitorClipboard: 007d79cd6c104002b274546d13873526ca20beb7
-  CapacitorCordova: 345f93b7edd121db98e4ec20ac94d6d7bcaf7e48
+  CapacitorCordova: 866217f32c1d25b326c568a10ea3ed0c36b13e29
   CapacitorFilesystem: 59a2b7b56a897c6a3de4d04c5718e1d80de9d2f5
   CapacitorNetwork: 30c2e78a0ed32530656cb426c8ee6c2caec10dbf
   SendIntent: 20ca8a9cb829cfc599b1a01c4663bff2890ba452
 
-PODFILE CHECKSUM: c00dcf4849560e4802fb33e59730c03d4f74aa45
+PODFILE CHECKSUM: 673e5bf0e28ebcd0af771b280d89c27be0b841f7
 
 COCOAPODS: 1.16.2
