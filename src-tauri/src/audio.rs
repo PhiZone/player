@@ -1,7 +1,6 @@
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use hound::{SampleFormat, WavSpec};
 use rodio::Decoder;
-use tempfile::NamedTempFile;
 use std::process::Command;
 use std::{collections::HashMap, process::Stdio};
 use std::io::{BufWriter, Cursor, Write};
@@ -21,14 +20,10 @@ pub struct Timestamp {
 }
 pub fn mix_audio(
     app: AppHandle,
-    music_file: String,
-    music_volume: f32,
     sounds: Vec<Sound>,
     timestamps: Vec<Timestamp>,
     length: f64,
-    bitrate: String,
-    video_file: String,
-    render_output: String,
+    output: String,
 ) -> Result<(), String> {
     std::thread::spawn(move || {
         let run = || {
@@ -66,7 +61,7 @@ pub fn mix_audio(
 
             let spec = WavSpec {
                 channels: 2,         // Stereo output
-                sample_rate: 48000,  // Standard audio sample rate
+                sample_rate: 44100,  // Standard audio sample rate
                 bits_per_sample: 32, // 32-bit audio
                 sample_format: SampleFormat::Float,
             };
@@ -111,25 +106,9 @@ pub fn mix_audio(
                 }
             }
 
-            // Normalize amplitude
-            // let max_amplitude = combined_samples
-            //     .iter()
-            //     .map(|&x| x.abs())
-            //     .max_by(|a, b| a.partial_cmp(b).unwrap())
-            //     .unwrap();
-
-            // if max_amplitude > 1.0 {
-            //     for sample in &mut combined_samples {
-            //         *sample /= max_amplitude;
-            //     }
-            // }
-
-            // Write the combined samples into the WAV file
-            let audio_output = NamedTempFile::new().map_err(|e| e.to_string())?;
-
             let mut proc = Command::new("ffmpeg")
-                .args(format!("-y -f f32le -ar 48000 -ac 2 -i - -c:a pcm_f32le -f wav").split_whitespace())
-                .arg(audio_output.path())
+                .args(format!("-y -f f32le -ar 44100 -ac 2 -i - -c:a pcm_f32le -f wav").split_whitespace())
+                .arg(output)
                 .stdin(Stdio::piped())
                 .stderr(Stdio::inherit())
                 .spawn()
@@ -142,22 +121,6 @@ pub fn mix_audio(
             drop(writer);
             let _ = proc.wait();
 
-            let filter_complex = format!(
-                "[1:a]adelay=1000|1000,volume={}[a2];[2:a][a2]amix=inputs=2,alimiter=limit=1.0:level=false:attack=0.1:release=1[a]",
-                music_volume
-            );
-            let mut proc = Command::new("ffmpeg")
-                .args(format!("-y -i {} -i {} -i", video_file, music_file).split_whitespace())
-                .arg(audio_output.path())
-                .args(format!("-filter_complex {} -map 0:v:0 -map [a] -b:a {}k -c:a aac -c:v copy -movflags +faststart", filter_complex, bitrate).split_whitespace())
-                .arg(&render_output)
-                .stdin(Stdio::piped())
-                .stderr(Stdio::inherit())
-                .spawn()
-                .map_err(|e| e.to_string())?;
-            let _ = proc.wait();
-
-            app.emit("stream-combination-finished", &render_output).unwrap();
             Ok(())
         };
         app.emit("audio-mixing-finished", run()).unwrap();

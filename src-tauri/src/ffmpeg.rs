@@ -81,7 +81,7 @@ pub fn convert_audio(app: AppHandle, input: String, output: String) -> Result<()
                 "-i",
                 &input,
                 "-ar",
-                "48000",
+                "44100",
                 "-c:a",
                 "pcm_f32le",
                 "-y",
@@ -100,81 +100,27 @@ pub fn convert_audio(app: AppHandle, input: String, output: String) -> Result<()
     Ok(())
 }
 
-pub fn compose_audio(
+pub fn combine_streams(
     app: AppHandle,
-    hitsounds: String,
-    music: String,
-    volume: f32,
-    bitrate: String,
+    input_video: String,
+    input_music: String,
+    input_hitsounds: String,
+    music_volume: f32,
+    audio_bitrate: String,
     output: String,
 ) -> Result<(), String> {
     std::thread::spawn({
         let app = app.clone();
         move || {
             let filter_complex = format!(
-                "[1:a]adelay=1000|1000,volume={}[a2];[0:a][a2]amix=inputs=2,alimiter=limit=1.0:level=false:attack=0.1:release=1[a]",
-                volume
+                "[1:a]adelay=1000|1000,volume={}[a2];[2:a][a2]amix=inputs=2,alimiter=limit=1.0:level=false:attack=0.1:release=1[a]",
+                music_volume
             );
-            let args = vec![
-                "-i",
-                &hitsounds,
-                "-i",
-                &music,
-                "-filter_complex",
-                &filter_complex,
-                "-map",
-                "[a]",
-                "-b:a",
-                &bitrate,
-                "-c:a",
-                "aac",
-                "-y",
-                &output,
-            ];
-
             let _ = Command::new("ffmpeg")
-                .args(&args)
-                .status()
-                .map_err(|e| e.to_string());
-
-            app.emit("audio-composition-finished", ()).unwrap();
-        }
-    });
-
-    Ok(())
-}
-
-pub fn combine_streams(
-    app: AppHandle,
-    input_video: String,
-    input_audio: String,
-    output: String,
-) -> Result<(), String> {
-    std::thread::spawn({
-        let app = app.clone();
-        move || {
-            let args = vec![
-                "-i",
-                &input_video,
-                "-i",
-                &input_audio,
-                "-c:v",
-                "copy",
-                "-c:a",
-                "copy",
-                "-map",
-                "0:v:0",
-                "-map",
-                "1:a:0",
-                "-movflags",
-                "+faststart",
-                "-y",
-                &output,
-            ];
-
-            let _ = Command::new("ffmpeg")
-                .args(&args)
-                .status()
+                .args(format!("-y -i {} -i {} -i {} -filter_complex {}", input_video, input_music, input_hitsounds, filter_complex).split_whitespace())
+                .args(format!("-map 0:v:0 -map [a] -b:a {} -c:a aac -c:v copy -movflags +faststart", audio_bitrate).split_whitespace())
+                .arg(&output)
+                .spawn()
                 .map_err(|e| e.to_string());
 
             app.emit("stream-combination-finished", &output).unwrap();

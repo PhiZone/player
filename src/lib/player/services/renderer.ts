@@ -1,9 +1,9 @@
 import type { MediaOptions } from '$lib/types';
 import { EventBus } from '../EventBus';
-import { convertAudio, finishVideo, setupVideo } from './ffmpeg/tauri';
+import { combineStreams, convertAudio, finishVideo, setupVideo } from './ffmpeg/tauri';
 import type { Game } from '../scenes/Game';
 import Worker from '../../workers/FrameSender?worker';
-import { mixAudio } from './rodio';
+import { mixAudio } from './audio';
 import { download, getTimeSec, urlToBase64 } from '../utils';
 import { videoDir, join, tempDir } from '@tauri-apps/api/path';
 import { base } from '$app/paths';
@@ -205,8 +205,6 @@ export class Renderer {
       }
     }
 
-    const songFile = await join(this._tempDir, 'song.tmp');
-
     if (customHitsoundCount > 0) {
       const signal = new Signal(customHitsoundCount);
       listen('audio-conversion-finished', () => {
@@ -214,6 +212,20 @@ export class Renderer {
       });
       await signal.wait();
     }
+
+    const hitsoundsFile = await join(this._tempDir, 'hitsounds.wav');
+
+    EventBus.emit('rendering-detail', 'Mixing audio');
+    await mixAudio(sounds, timestamps, this._length, hitsoundsFile);
+
+    listen('audio-mixing-finished', async () => {
+      EventBus.emit('audio-mixing-finished');
+      await this.finalize(videoFile, hitsoundsFile);
+    });
+  }
+
+  async finalize(videoFile: string, hitsoundsFile: string) {
+    const songFile = await join(this._tempDir, 'song.tmp');
 
     EventBus.emit('rendering-detail', 'Retrieving song');
     await writeFile(
@@ -227,20 +239,15 @@ export class Renderer {
     );
     await mkdir(renderDestDir, { recursive: true });
     const renderOutput = await join(renderDestDir, `${moment().format('YYYY-MM-DD_HH-mm-ss')}.mp4`);
-    await mixAudio(
-      songFile,
-      this._scene.preferences.musicVolume,
-      sounds,
-      timestamps,
-      this._length,
-      this._options.audioBitrate,
+
+    await combineStreams(
       videoFile,
+      songFile,
+      hitsoundsFile,
+      this._scene.preferences.musicVolume,
+      this._options.audioBitrate,
       renderOutput,
     );
-    EventBus.emit('rendering-detail', 'Mixing audio');
-    listen('audio-composition-finished', async () => {
-      EventBus.emit('audio-rendering-finished');
-    });
   }
 
   async convertAudio(url: string, name: string) {
