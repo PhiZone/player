@@ -48,7 +48,7 @@ export class Renderer {
     const width = canvas.width;
     const height = canvas.height;
 
-    this._tempDir = await join(await tempDir(), crypto.randomUUID());
+    this._tempDir = await join(await tempDir(), 'cn.phizone.player', crypto.randomUUID());
     await mkdir(this._tempDir, { recursive: true });
     const videoFile = await join(this._tempDir, 'video-stream.mp4');
 
