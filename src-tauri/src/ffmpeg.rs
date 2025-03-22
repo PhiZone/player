@@ -112,7 +112,7 @@ pub fn compose_audio(
         let app = app.clone();
         move || {
             let filter_complex = format!(
-                "[1:a]adelay=1000|1000,volume={}[a2];[0:a][a2]amix=inputs=2:normalize=1[a]",
+                "[1:a]adelay=1000|1000,volume={}[a2];[0:a][a2]amix=inputs=2[a]",
                 volume
             );
             let args = vec![
