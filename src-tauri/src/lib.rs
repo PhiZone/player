@@ -153,10 +153,14 @@ fn combine_streams(
 #[tauri::command]
 fn mix_audio(
     app: AppHandle,
+    music_file: String,
+    music_volume: f32,
     sounds: Vec<rodio::Sound>,
     timestamps: Vec<rodio::Timestamp>,
     length: f64,
-    output: String,
+    bitrate: String,
+    video_file: String,
+    render_output: String,
 ) -> Result<(), String> {
-    rodio::mix_audio(app, sounds, timestamps, length, output)
+    rodio::mix_audio(app, music_file, music_volume, sounds, timestamps, length, bitrate, video_file, render_output)
 }

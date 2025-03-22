@@ -3160,6 +3160,7 @@ dependencies = [
  "tauri-plugin-os",
  "tauri-plugin-single-instance",
  "tauri-plugin-upload",
+ "tempfile",
  "tokio",
  "tokio-tungstenite",
  "url",
