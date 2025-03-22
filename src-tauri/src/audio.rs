@@ -1,9 +1,9 @@
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use hound::{SampleFormat, WavSpec};
 use rodio::Decoder;
+use std::io::{BufWriter, Cursor, Write};
 use std::process::Command;
 use std::{collections::HashMap, process::Stdio};
-use std::io::{BufWriter, Cursor, Write};
 use tauri::{AppHandle, Emitter};
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -77,9 +77,7 @@ pub fn mix_audio(
                 let cursor = Cursor::new(sound_data.clone());
                 let source = match Decoder::new(cursor) {
                     Ok(source) => source,
-                    Err(e) => {
-                        return Err(format!("Error decoding audio for {}: {}", key, e))
-                    }
+                    Err(e) => return Err(format!("Error decoding audio for {}: {}", key, e)),
                 };
 
                 let decoded_samples: Vec<f32> = source
@@ -92,11 +90,15 @@ pub fn mix_audio(
                 let sound_samples = match decoded_sound_map.get(&timestamp.sound) {
                     Some(samples) => samples,
                     None => {
-                        return Err(format!("Sound {} not found in decoded sound list", timestamp.sound))
+                        return Err(format!(
+                            "Sound {} not found in decoded sound list",
+                            timestamp.sound
+                        ))
                     }
                 };
 
-                let position_begin = (timestamp.time * spec.sample_rate as f64).round() as usize * 2;
+                let position_begin =
+                    (timestamp.time * spec.sample_rate as f64).round() as usize * 2;
 
                 for (i, sample) in sound_samples.iter().enumerate() {
                     let position = position_begin + i;
@@ -107,7 +109,10 @@ pub fn mix_audio(
             }
 
             let mut proc = Command::new("ffmpeg")
-                .args(format!("-y -f f32le -ar 44100 -ac 2 -i - -c:a pcm_f32le -f wav").split_whitespace())
+                .args(
+                    format!("-y -f f32le -ar 44100 -ac 2 -i - -c:a pcm_f32le -f wav")
+                        .split_whitespace(),
+                )
                 .arg(output)
                 .stdin(Stdio::piped())
                 .stderr(Stdio::inherit())

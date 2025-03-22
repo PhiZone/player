@@ -117,8 +117,20 @@ pub fn combine_streams(
                 music_volume
             );
             let _ = Command::new("ffmpeg")
-                .args(format!("-y -i {} -i {} -i {} -filter_complex {}", input_video, input_music, input_hitsounds, filter_complex).split_whitespace())
-                .args(format!("-map 0:v:0 -map [a] -b:a {} -c:a aac -c:v copy -movflags +faststart", audio_bitrate).split_whitespace())
+                .args(
+                    format!(
+                        "-y -i {} -i {} -i {} -filter_complex {}",
+                        input_video, input_music, input_hitsounds, filter_complex
+                    )
+                    .split_whitespace(),
+                )
+                .args(
+                    format!(
+                        "-map 0:v:0 -map [a] -b:a {} -c:a aac -c:v copy -movflags +faststart",
+                        audio_bitrate
+                    )
+                    .split_whitespace(),
+                )
                 .arg(&output)
                 .status()
                 .map_err(|e| e.to_string());
