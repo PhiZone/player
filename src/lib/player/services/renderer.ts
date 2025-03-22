@@ -1,12 +1,6 @@
 import type { MediaOptions } from '$lib/types';
 import { EventBus } from '../EventBus';
-import {
-  combineStreams,
-  composeAudio,
-  convertAudio,
-  finishVideo,
-  setupVideo,
-} from './ffmpeg/tauri';
+import { convertAudio, finishVideo, setupVideo } from './ffmpeg/tauri';
 import type { Game } from '../scenes/Game';
 import Worker from '../../workers/FrameSender?worker';
 import { mixAudio } from './rodio';
@@ -211,9 +205,7 @@ export class Renderer {
       }
     }
 
-    const hitsoundsFile = await join(this._tempDir, 'hitsounds.wav');
     const songFile = await join(this._tempDir, 'song.tmp');
-    const finalAudio = await join(this._tempDir, 'audio-stream.aac');
 
     if (customHitsoundCount > 0) {
       const signal = new Signal(customHitsoundCount);
@@ -235,8 +227,17 @@ export class Renderer {
     );
     await mkdir(renderDestDir, { recursive: true });
     const renderOutput = await join(renderDestDir, `${moment().format('YYYY-MM-DD_HH-mm-ss')}.mp4`);
-    await mixAudio(songFile, this._scene.preferences.musicVolume, sounds, timestamps, this._length, String(this._options.audioBitrate), videoFile, renderOutput);
-    EventBus.emit('rendering-detail', 'Mixing Audio');
+    await mixAudio(
+      songFile,
+      this._scene.preferences.musicVolume,
+      sounds,
+      timestamps,
+      this._length,
+      this._options.audioBitrate,
+      videoFile,
+      renderOutput,
+    );
+    EventBus.emit('rendering-detail', 'Mixing audio');
     listen('audio-composition-finished', async () => {
       EventBus.emit('audio-rendering-finished');
     });

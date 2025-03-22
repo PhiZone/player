@@ -9,10 +9,19 @@ export const mixAudio = async (
   sounds: RodioSound[],
   timestamps: RodioTimestamp[],
   length: number,
-  bitrate: string,
+  bitrate: number,
   videoFile: string,
   renderOutput: string,
 ) => {
   if (!IS_USABLE) return;
-  return await invoke('mix_audio', { musicFile, musicVolume, sounds, timestamps, length, bitrate, videoFile, renderOutput });
+  return await invoke('mix_audio', {
+    musicFile,
+    musicVolume,
+    sounds,
+    timestamps,
+    length,
+    bitrate: `${bitrate}k`,
+    videoFile,
+    renderOutput,
+  });
 };
