@@ -120,7 +120,7 @@ pub fn combine_streams(
                 .args(format!("-y -i {} -i {} -i {} -filter_complex {}", input_video, input_music, input_hitsounds, filter_complex).split_whitespace())
                 .args(format!("-map 0:v:0 -map [a] -b:a {} -c:a aac -c:v copy -movflags +faststart", audio_bitrate).split_whitespace())
                 .arg(&output)
-                .spawn()
+                .status()
                 .map_err(|e| e.to_string());
 
             app.emit("stream-combination-finished", &output).unwrap();
