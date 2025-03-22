@@ -20,23 +20,6 @@ export const convertAudio = async (input: string, output: string) => {
   return await invoke('convert_audio', { input, output });
 };
 
-export const composeAudio = async (
-  hitsounds: string,
-  music: string,
-  musicVolume: number,
-  bitrate: number,
-  output: string,
-) => {
-  if (!isUsable) return;
-  return await invoke('compose_audio', {
-    hitsounds,
-    music,
-    volume: musicVolume,
-    bitrate: `${bitrate}k`,
-    output,
-  });
-};
-
 export const setupVideo = async (
   output: string,
   resolution: [number, number],
@@ -61,9 +44,23 @@ export const finishVideo = async () => {
   return await invoke('finish_video');
 };
 
-export const combineStreams = async (inputVideo: string, inputAudio: string, output: string) => {
+export const combineStreams = async (
+  inputVideo: string,
+  inputMusic: string,
+  inputHitsounds: string,
+  musicVolume: number,
+  audioBitrate: number,
+  output: string,
+) => {
   if (!isUsable) return;
-  return await invoke('combine_streams', { inputVideo, inputAudio, output });
+  return await invoke('combine_streams', {
+    inputVideo,
+    inputMusic,
+    inputHitsounds,
+    musicVolume,
+    audioBitrate: `${audioBitrate}k`,
+    output,
+  });
 };
 
 export const isFrameStreaming = () => frameStreaming;

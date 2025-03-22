@@ -77,19 +77,11 @@ pub fn convert_audio(app: AppHandle, input: String, output: String) -> Result<()
     std::thread::spawn({
         let app = app.clone();
         move || {
-            let args = vec![
-                "-i",
-                &input,
-                "-ar",
-                "44100",
-                "-c:a",
-                "pcm_s16le",
-                "-y",
-                &output,
-            ];
-
             let _ = Command::new("ffmpeg")
-                .args(&args)
+                .args(
+                    format!("-i {} -ar 44100 -c:a pcm_f32le -y {}", input, output)
+                        .split_whitespace(),
+                )
                 .status()
                 .map_err(|e| e.to_string());
 
@@ -100,80 +92,38 @@ pub fn convert_audio(app: AppHandle, input: String, output: String) -> Result<()
     Ok(())
 }
 
-pub fn compose_audio(
+pub fn combine_streams(
     app: AppHandle,
-    hitsounds: String,
-    music: String,
-    volume: f32,
-    bitrate: String,
+    input_video: String,
+    input_music: String,
+    input_hitsounds: String,
+    music_volume: f32,
+    audio_bitrate: String,
     output: String,
 ) -> Result<(), String> {
     std::thread::spawn({
         let app = app.clone();
         move || {
             let filter_complex = format!(
-                "[1:a]adelay=1000|1000,volume={}[a2];[0:a][a2]amix=inputs=2[a]",
-                volume
+                "[1:a]adelay=1000|1000,volume={}[a2];[2:a][a2]amix=inputs=2,alimiter=limit=1.0:level=false:attack=0.1:release=1[a]",
+                music_volume
             );
-            let args = vec![
-                "-i",
-                &hitsounds,
-                "-i",
-                &music,
-                "-filter_complex",
-                &filter_complex,
-                "-map",
-                "[a]",
-                "-b:a",
-                &bitrate,
-                "-c:a",
-                "aac",
-                "-y",
-                &output,
-            ];
-
             let _ = Command::new("ffmpeg")
-                .args(&args)
-                .status()
-                .map_err(|e| e.to_string());
-
-            app.emit("audio-composition-finished", ()).unwrap();
-        }
-    });
-
-    Ok(())
-}
-
-pub fn combine_streams(
-    app: AppHandle,
-    input_video: String,
-    input_audio: String,
-    output: String,
-) -> Result<(), String> {
-    std::thread::spawn({
-        let app = app.clone();
-        move || {
-            let args = vec![
-                "-i",
-                &input_video,
-                "-i",
-                &input_audio,
-                "-c:v",
-                "copy",
-                "-c:a",
-                "copy",
-                "-map",
-                "0:v:0",
-                "-map",
-                "1:a:0",
-                "-movflags",
-                "+faststart",
-                "-y",
-                &output,
-            ];
-
-            let _ = Command::new("ffmpeg")
-                .args(&args)
+                .args(
+                    format!(
+                        "-y -i {} -i {} -i {} -filter_complex {}",
+                        input_video, input_music, input_hitsounds, filter_complex
+                    )
+                    .split_whitespace(),
+                )
+                .args(
+                    format!(
+                        "-map 0:v:0 -map [a] -b:a {} -c:a aac -c:v copy -movflags +faststart",
+                        audio_bitrate
+                    )
+                    .split_whitespace(),
+                )
+                .arg(&output)
                 .status()
                 .map_err(|e| e.to_string());
 
@@ -191,34 +141,12 @@ pub async fn setup_video(
     codec: String,
     bitrate: String,
 ) -> Result<(), String> {
-    let framerate_str = framerate.to_string();
-    let args = vec![
-        "-f",
-        "rawvideo",
-        "-pix_fmt",
-        "rgb24",
-        "-s",
-        &resolution,
-        "-r",
-        &framerate_str,
-        "-i",
-        "pipe:0",
-        "-c:v",
-        &codec,
-        "-b:v",
-        &bitrate,
-        "-vf",
-        "vflip",
-        "-pix_fmt",
-        "yuv420p",
-        "-movflags",
-        "+faststart",
-        "-y",
-        &output,
-    ];
-
     let process = Command::new("ffmpeg")
-        .args(&args)
+        .args(format!(
+            "-probesize 50M -f rawvideo -pix_fmt rgb24 -s {} -r {} -thread_queue_size 1024 -i pipe:0 -c:v {} -b:v {} -vf vflip -pix_fmt yuv420p -y {}",
+            resolution, framerate.to_string(), codec, bitrate, output
+        )
+        .split_whitespace())
         .stdin(std::process::Stdio::piped())
         .spawn()
         .map_err(|e| e.to_string())?;

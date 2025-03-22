@@ -496,12 +496,12 @@ export interface FFmpegEncoder {
   codec: string | null;
 }
 
-export interface RodioSound {
+export interface Sound {
   key: string;
   data: string;
 }
 
-export interface RodioTimestamp {
+export interface Timestamp {
   sound: string;
   time: number;
   volume: number;

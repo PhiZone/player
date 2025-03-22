@@ -1,9 +1,9 @@
 use base64::{engine::general_purpose::STANDARD, Engine as _};
-use hound::{SampleFormat, WavSpec, WavWriter};
-use rodio::{Decoder, Source};
-use std::collections::HashMap;
-use std::fs::File;
-use std::io::Cursor;
+use hound::{SampleFormat, WavSpec};
+use rodio::Decoder;
+use std::io::{BufWriter, Cursor, Write};
+use std::process::Command;
+use std::{collections::HashMap, process::Stdio};
 use tauri::{AppHandle, Emitter};
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -18,13 +18,12 @@ pub struct Timestamp {
     time: f64,   // Time in seconds after stream start
     volume: f32, // Volume level (0.0 - 1.0)
 }
-
 pub fn mix_audio(
     app: AppHandle,
     sounds: Vec<Sound>,
     timestamps: Vec<Timestamp>,
     length: f64,
-    output_path: String,
+    output: String,
 ) -> Result<(), String> {
     std::thread::spawn(move || {
         let run = || {
@@ -63,57 +62,69 @@ pub fn mix_audio(
             let spec = WavSpec {
                 channels: 2,         // Stereo output
                 sample_rate: 44100,  // Standard audio sample rate
-                bits_per_sample: 16, // 16-bit audio
-                sample_format: SampleFormat::Int,
+                bits_per_sample: 32, // 32-bit audio
+                sample_format: SampleFormat::Float,
             };
 
-            let output_file = File::create(output_path.clone()).map_err(|e| e.to_string())?;
-            let mut writer = WavWriter::new(output_file, spec).map_err(|e| e.to_string())?;
-
             // Initialize a vector to store combined audio samples
-            let mut combined_samples = vec![0i16; (length * spec.sample_rate as f64) as usize * 2];
+            let mut combined_samples =
+                vec![0.0f32; (length * spec.sample_rate as f64) as usize * 2];
 
             // Process each timestamp to mix audio
-            for timestamp in timestamps {
-                let sound_data = match sound_map.get(&timestamp.sound) {
-                    Some(data) => data.clone(),
-                    None => {
-                        return Err(format!("Sound {} not found in sound list", timestamp.sound))
-                    }
-                };
+            let mut decoded_sound_map: HashMap<String, Vec<f32>> = HashMap::new();
 
-                // Decode the base64-encoded sound data
-                let cursor = Cursor::new(sound_data);
+            for (key, sound_data) in sound_map.iter() {
+                let cursor = Cursor::new(sound_data.clone());
                 let source = match Decoder::new(cursor) {
                     Ok(source) => source,
-                    Err(e) => {
+                    Err(e) => return Err(format!("Error decoding audio for {}: {}", key, e)),
+                };
+
+                let decoded_samples: Vec<f32> = source
+                    .map(|sample| sample as f32 / i16::MAX as f32) // i16 to f32
+                    .collect();
+                decoded_sound_map.insert(key.clone(), decoded_samples);
+            }
+
+            for timestamp in timestamps {
+                let sound_samples = match decoded_sound_map.get(&timestamp.sound) {
+                    Some(samples) => samples,
+                    None => {
                         return Err(format!(
-                            "Error decoding audio for {}: {}",
-                            timestamp.sound, e
+                            "Sound {} not found in decoded sound list",
+                            timestamp.sound
                         ))
                     }
                 };
 
-                let adjusted_source = source.amplify(timestamp.volume);
-
                 let position_begin =
                     (timestamp.time * spec.sample_rate as f64).round() as usize * 2;
 
-                // Convert to i16 samples and apply timestamp-based mixing
-                for (i, sample) in adjusted_source.enumerate() {
+                for (i, sample) in sound_samples.iter().enumerate() {
                     let position = position_begin + i;
-
                     if position < combined_samples.len() {
-                        combined_samples[position] =
-                            combined_samples[position].saturating_add(sample);
+                        combined_samples[position] += sample * timestamp.volume;
                     }
                 }
             }
 
-            // Write the combined samples into the WAV file
-            for sample in combined_samples {
-                writer.write_sample(sample).map_err(|e| e.to_string())?;
+            let mut proc = Command::new("ffmpeg")
+                .args(
+                    format!("-y -f f32le -ar 44100 -ac 2 -i - -c:a pcm_f32le -f wav")
+                        .split_whitespace(),
+                )
+                .arg(output)
+                .stdin(Stdio::piped())
+                .stderr(Stdio::inherit())
+                .spawn()
+                .map_err(|e| e.to_string())?;
+            let input = proc.stdin.as_mut().unwrap();
+            let mut writer = BufWriter::new(input);
+            for sample in combined_samples.into_iter() {
+                let _ = writer.write_all(&sample.to_le_bytes());
             }
+            drop(writer);
+            let _ = proc.wait();
 
             Ok(())
         };

@@ -1,15 +1,9 @@
 import type { MediaOptions } from '$lib/types';
 import { EventBus } from '../EventBus';
-import {
-  combineStreams,
-  composeAudio,
-  convertAudio,
-  finishVideo,
-  setupVideo,
-} from './ffmpeg/tauri';
+import { combineStreams, convertAudio, finishVideo, setupVideo } from './ffmpeg/tauri';
 import type { Game } from '../scenes/Game';
 import Worker from '../../workers/FrameSender?worker';
-import { mixAudio } from './rodio';
+import { mixAudio } from './audio';
 import { download, getTimeSec, urlToBase64 } from '../utils';
 import { videoDir, join, tempDir } from '@tauri-apps/api/path';
 import { base } from '$app/paths';
@@ -112,7 +106,7 @@ export class Renderer {
     listen('stream-combination-finished', async (event) => {
       EventBus.emit('rendering-finished', event.payload);
       EventBus.emit('rendering-detail', 'Finished');
-      await remove(this._tempDir, { recursive: true });
+      // await remove(this._tempDir, { recursive: true });
     });
   }
 
@@ -211,10 +205,6 @@ export class Renderer {
       }
     }
 
-    const hitsoundsFile = await join(this._tempDir, 'hitsounds.wav');
-    const songFile = await join(this._tempDir, 'song.tmp');
-    const finalAudio = await join(this._tempDir, 'audio-stream.aac');
-
     if (customHitsoundCount > 0) {
       const signal = new Signal(customHitsoundCount);
       listen('audio-conversion-finished', () => {
@@ -223,32 +213,42 @@ export class Renderer {
       await signal.wait();
     }
 
-    EventBus.emit('rendering-detail', 'Mixing hit sounds and results music');
+    const hitsoundsFile = await join(this._tempDir, 'hitsounds.wav');
+
+    EventBus.emit('rendering-detail', 'Mixing audio');
     await mixAudio(sounds, timestamps, this._length, hitsoundsFile);
 
-    listen('audio-mixing-finished', async (event) => {
-      console.log(event);
-
-      EventBus.emit('rendering-detail', 'Retrieving song');
-      await writeFile(
-        songFile,
-        new Uint8Array(await (await download(this._scene.songUrl, 'song')).arrayBuffer()),
-      );
-
-      EventBus.emit('rendering-detail', 'Composing audio');
-      await composeAudio(
-        hitsoundsFile,
-        songFile,
-        this._scene.preferences.musicVolume,
-        this._options.audioBitrate,
-        finalAudio,
-      );
+    listen('audio-mixing-finished', async () => {
+      EventBus.emit('audio-mixing-finished');
+      await this.finalize(videoFile, hitsoundsFile);
     });
+  }
 
-    listen('audio-composition-finished', async () => {
-      EventBus.emit('audio-rendering-finished');
-      await this.finalize(videoFile, finalAudio);
-    });
+  async finalize(videoFile: string, hitsoundsFile: string) {
+    const songFile = await join(this._tempDir, 'song.tmp');
+
+    EventBus.emit('rendering-detail', 'Retrieving song');
+    await writeFile(
+      songFile,
+      new Uint8Array(await (await download(this._scene.songUrl, 'song')).arrayBuffer()),
+    );
+
+    const renderDestDir = await join(
+      this._options.exportPath ?? (await join(await videoDir(), 'PhiZone Player')),
+      ensafeFilename(`${this._scene.metadata.title} [${this._scene.metadata.level}]`),
+    );
+    await mkdir(renderDestDir, { recursive: true });
+    const renderOutput = await join(renderDestDir, `${moment().format('YYYY-MM-DD_HH-mm-ss')}.mp4`);
+
+    EventBus.emit('rendering-detail', 'Combining streams');
+    await combineStreams(
+      videoFile,
+      songFile,
+      hitsoundsFile,
+      this._scene.preferences.musicVolume,
+      this._options.audioBitrate,
+      renderOutput,
+    );
   }
 
   async convertAudio(url: string, name: string) {
@@ -260,17 +260,6 @@ export class Renderer {
     );
     await convertAudio(input, output);
     return output;
-  }
-
-  async finalize(video: string, audio: string) {
-    EventBus.emit('rendering-detail', 'Combining streams');
-    const renderDestDir = await join(
-      this._options.exportPath ?? (await join(await videoDir(), 'PhiZone Player')),
-      ensafeFilename(`${this._scene.metadata.title} [${this._scene.metadata.level}]`),
-    );
-    await mkdir(renderDestDir, { recursive: true });
-    const renderOutput = await join(renderDestDir, `${moment().format('YYYY-MM-DD_HH-mm-ss')}.mp4`);
-    await combineStreams(video, audio, renderOutput);
   }
 
   async cancel() {

@@ -4,8 +4,8 @@ use tauri::Manager;
 use tauri::{AppHandle, Emitter};
 use url::Url;
 
+mod audio;
 mod ffmpeg;
-mod rodio;
 
 static FILES_OPENED: LazyLock<Mutex<Vec<PathBuf>>> = LazyLock::new(|| Mutex::new(vec![]));
 
@@ -56,7 +56,6 @@ pub fn run() {
             get_files_opened,
             get_ffmpeg_encoders,
             convert_audio,
-            compose_audio,
             setup_video,
             finish_video,
             combine_streams,
@@ -113,18 +112,6 @@ fn convert_audio(app: AppHandle, input: String, output: String) -> Result<(), St
 }
 
 #[tauri::command]
-fn compose_audio(
-    app: AppHandle,
-    hitsounds: String,
-    music: String,
-    volume: f32,
-    bitrate: String,
-    output: String,
-) -> Result<(), String> {
-    ffmpeg::compose_audio(app, hitsounds, music, volume, bitrate, output)
-}
-
-#[tauri::command]
 async fn setup_video(
     output: String,
     resolution: String,
@@ -144,19 +131,30 @@ fn finish_video() -> Result<(), String> {
 fn combine_streams(
     app: AppHandle,
     input_video: String,
-    input_audio: String,
+    input_music: String,
+    input_hitsounds: String,
+    music_volume: f32,
+    audio_bitrate: String,
     output: String,
 ) -> Result<(), String> {
-    ffmpeg::combine_streams(app, input_video, input_audio, output)
+    ffmpeg::combine_streams(
+        app,
+        input_video,
+        input_music,
+        input_hitsounds,
+        music_volume,
+        audio_bitrate,
+        output,
+    )
 }
 
 #[tauri::command]
 fn mix_audio(
     app: AppHandle,
-    sounds: Vec<rodio::Sound>,
-    timestamps: Vec<rodio::Timestamp>,
+    sounds: Vec<audio::Sound>,
+    timestamps: Vec<audio::Timestamp>,
     length: f64,
     output: String,
 ) -> Result<(), String> {
-    rodio::mix_audio(app, sounds, timestamps, length, output)
+    audio::mix_audio(app, sounds, timestamps, length, output)
 }
