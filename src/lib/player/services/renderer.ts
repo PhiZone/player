@@ -112,7 +112,7 @@ export class Renderer {
     listen('stream-combination-finished', async (event) => {
       EventBus.emit('rendering-finished', event.payload);
       EventBus.emit('rendering-detail', 'Finished');
-      await remove(this._tempDir, { recursive: true });
+      // await remove(this._tempDir, { recursive: true });
     });
   }
 

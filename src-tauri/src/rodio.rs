@@ -1,6 +1,6 @@
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use hound::{SampleFormat, WavSpec, WavWriter};
-use rodio::{Decoder, Source};
+use rodio::Decoder;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Cursor;
@@ -63,15 +63,16 @@ pub fn mix_audio(
             let spec = WavSpec {
                 channels: 2,         // Stereo output
                 sample_rate: 44100,  // Standard audio sample rate
-                bits_per_sample: 16, // 16-bit audio
-                sample_format: SampleFormat::Int,
+                bits_per_sample: 32, // 32-bit audio
+                sample_format: SampleFormat::Float,
             };
 
             let output_file = File::create(output_path.clone()).map_err(|e| e.to_string())?;
             let mut writer = WavWriter::new(output_file, spec).map_err(|e| e.to_string())?;
 
             // Initialize a vector to store combined audio samples
-            let mut combined_samples = vec![0i16; (length * spec.sample_rate as f64) as usize * 2];
+            let mut combined_samples =
+                vec![0.0f32; (length * spec.sample_rate as f64) as usize * 2];
 
             // Process each timestamp to mix audio
             for timestamp in timestamps {
@@ -94,21 +95,32 @@ pub fn mix_audio(
                     }
                 };
 
-                let adjusted_source = source.amplify(timestamp.volume);
-
                 let position_begin =
                     (timestamp.time * spec.sample_rate as f64).round() as usize * 2;
 
-                // Convert to i16 samples and apply timestamp-based mixing
-                for (i, sample) in adjusted_source.enumerate() {
+                // Convert samples and apply timestamp-based mixing
+                for (i, sample) in source.enumerate() {
                     let position = position_begin + i;
-
                     if position < combined_samples.len() {
-                        combined_samples[position] =
-                            combined_samples[position].saturating_add(sample);
+                        // Convert i16 to f32 by dividing by i16::MAX as f32, then apply volume
+                        combined_samples[position] +=
+                            (sample as f32 / i16::MAX as f32) * timestamp.volume;
                     }
                 }
             }
+
+            // Normalize amplitude
+            // let max_amplitude = combined_samples
+            //     .iter()
+            //     .map(|&x| x.abs())
+            //     .max_by(|a, b| a.partial_cmp(b).unwrap())
+            //     .unwrap();
+
+            // if max_amplitude > 1.0 {
+            //     for sample in &mut combined_samples {
+            //         *sample /= max_amplitude;
+            //     }
+            // }
 
             // Write the combined samples into the WAV file
             for sample in combined_samples {
