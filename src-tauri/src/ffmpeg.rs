@@ -81,9 +81,9 @@ pub fn convert_audio(app: AppHandle, input: String, output: String) -> Result<()
                 "-i",
                 &input,
                 "-ar",
-                "44100",
+                "48000",
                 "-c:a",
-                "pcm_s16le",
+                "pcm_f32le",
                 "-y",
                 &output,
             ];
@@ -112,7 +112,7 @@ pub fn compose_audio(
         let app = app.clone();
         move || {
             let filter_complex = format!(
-                "[1:a]adelay=1000|1000,volume={}[a2];[0:a][a2]amix=inputs=2[a]",
+                "[1:a]adelay=1000|1000,volume={}[a2];[0:a][a2]amix=inputs=2,alimiter=limit=1.0:level=false:attack=0.1:release=1[a]",
                 volume
             );
             let args = vec![

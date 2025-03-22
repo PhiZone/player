@@ -62,7 +62,7 @@ pub fn mix_audio(
 
             let spec = WavSpec {
                 channels: 2,         // Stereo output
-                sample_rate: 44100,  // Standard audio sample rate
+                sample_rate: 48000,  // Standard audio sample rate
                 bits_per_sample: 32, // 32-bit audio
                 sample_format: SampleFormat::Float,
             };
