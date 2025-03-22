@@ -240,6 +240,7 @@ export class Renderer {
     await mkdir(renderDestDir, { recursive: true });
     const renderOutput = await join(renderDestDir, `${moment().format('YYYY-MM-DD_HH-mm-ss')}.mp4`);
 
+    EventBus.emit('rendering-detail', 'Combining streams');
     await combineStreams(
       videoFile,
       songFile,
