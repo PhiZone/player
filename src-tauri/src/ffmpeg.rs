@@ -77,19 +77,11 @@ pub fn convert_audio(app: AppHandle, input: String, output: String) -> Result<()
     std::thread::spawn({
         let app = app.clone();
         move || {
-            let args = vec![
-                "-i",
-                &input,
-                "-ar",
-                "44100",
-                "-c:a",
-                "pcm_f32le",
-                "-y",
-                &output,
-            ];
-
             let _ = Command::new("ffmpeg")
-                .args(&args)
+                .args(
+                    format!("-i {} -ar 44100 -c:a pcm_f32le -y {}", input, output)
+                        .split_whitespace(),
+                )
                 .status()
                 .map_err(|e| e.to_string());
 
@@ -149,36 +141,12 @@ pub async fn setup_video(
     codec: String,
     bitrate: String,
 ) -> Result<(), String> {
-    let framerate_str = framerate.to_string();
-    let args = vec![
-        "-probesize",
-        "50M",
-        "-f",
-        "rawvideo",
-        "-pix_fmt",
-        "rgb24",
-        "-s",
-        &resolution,
-        "-r",
-        &framerate_str,
-        "-thread_queue_size",
-        "1024",
-        "-i",
-        "pipe:0",
-        "-c:v",
-        &codec,
-        "-b:v",
-        &bitrate,
-        "-vf",
-        "vflip",
-        "-pix_fmt",
-        "yuv420p",
-        "-y",
-        &output,
-    ];
-
     let process = Command::new("ffmpeg")
-        .args(&args)
+        .args(format!(
+            "-probesize 50M -f rawvideo -pix_fmt rgb24 -s {} -r {} -thread_queue_size 1024 -i pipe:0 -c:v {} -b:v {} -vf vflip -pix_fmt yuv420p -y {}",
+            resolution, framerate.to_string(), codec, bitrate, output
+        )
+        .split_whitespace())
         .stdin(std::process::Stdio::piped())
         .spawn()
         .map_err(|e| e.to_string())?;
