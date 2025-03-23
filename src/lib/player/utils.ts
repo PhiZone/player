@@ -658,8 +658,16 @@ export const convertTime = (input: string | number, round = false) => {
     seconds = input % 60;
   }
 
+  if (round) {
+    seconds = Math.round(seconds);
+    if (seconds === 60) {
+      minutes++;
+      seconds = 0;
+    }
+  }
+
   return `${minutes.toString().padStart(2, '0')}:${
-    round ? Math.round(seconds).toString().padStart(2, '0') : seconds.toFixed(2).padStart(5, '0')
+    round ? seconds.toString().padStart(2, '0') : seconds.toFixed(2).padStart(5, '0')
   }`;
 };
 
