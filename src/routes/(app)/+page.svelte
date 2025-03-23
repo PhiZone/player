@@ -1576,10 +1576,10 @@
                 class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
                 aria-describedby="adjust-offset-description"
                 bind:checked={toggles.adjustOffset}
-                disabled={!toggles.autoplay}
+                disabled={!toggles.autoplay || (ffmpegEncoders !== undefined && toggles.render)}
               />
             </div>
-            <label for="adjust-offset" class="ms-3 transition" class:opacity-50={!toggles.autoplay}>
+            <label for="adjust-offset" class="ms-3 transition" class:opacity-50={!toggles.autoplay || (ffmpegEncoders !== undefined && toggles.render)}>
               <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
                 Adjust offset
               </span>
@@ -1601,10 +1601,10 @@
                 class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
                 aria-describedby="practice-description"
                 bind:checked={toggles.practice}
-                disabled={toggles.autoplay}
+                disabled={toggles.autoplay || (ffmpegEncoders !== undefined && toggles.render)}
               />
             </div>
-            <label for="practice" class="ms-3 transition" class:opacity-50={toggles.autoplay}>
+            <label for="practice" class="ms-3 transition" class:opacity-50={toggles.autoplay || (ffmpegEncoders !== undefined && toggles.render)}>
               <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
                 Practice
               </span>
@@ -1636,8 +1636,16 @@
                     type="checkbox"
                     class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
                     aria-describedby="render-description"
-                    bind:checked={toggles.render}
+                    checked={toggles.render}
                     disabled={ffmpegEncoders === undefined}
+                    oninput={(e) => {
+                      toggles.render = e.currentTarget.checked;
+                      if (toggles.render) {
+                        toggles.adjustOffset = false;
+                        toggles.practice = false;
+                        toggles.autostart = true;
+                      }
+                    }}
                   />
                 </div>
                 <label for="render" class="ms-3" class:opacity-50={ffmpegEncoders === undefined}>
@@ -1832,9 +1840,10 @@
                 class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
                 aria-describedby="autostart-description"
                 bind:checked={toggles.autostart}
+                disabled={ffmpegEncoders !== undefined && toggles.render}
               />
             </div>
-            <label for="autostart" class="ms-3">
+            <label for="autostart" class="ms-3" class:opacity-50={ffmpegEncoders !== undefined && toggles.render}>
               <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
                 Autostart
               </span>
