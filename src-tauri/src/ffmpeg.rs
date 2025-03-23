@@ -171,7 +171,7 @@ pub async fn setup_video(
             let (mut write, mut read) = ws_stream.split();
 
             while let Some(Ok(message)) =
-                tokio::time::timeout(std::time::Duration::from_secs(30), read.next())
+                tokio::time::timeout(std::time::Duration::from_secs(60), read.next())
                     .await
                     .unwrap_or(None)
             {
