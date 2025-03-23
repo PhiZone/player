@@ -166,6 +166,7 @@ export class PointerHandler {
     const index = this._pointerDrags.findIndex((input) => input.id === id);
     this._pointerDrags[index].velocityConsumed = this._pointerDrags[index].velocity.clone();
   }
+
   public get pointerDrags() {
     return this._pointerDrags;
   }
