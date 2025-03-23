@@ -28,35 +28,29 @@ pub fn mix_audio(
     std::thread::spawn(move || {
         let run = || {
             // Decoding sounds
-            let mut sound_map: HashMap<String, Vec<u8>> = HashMap::new();
+            let mut decoded_sound_map: HashMap<String, Vec<f32>> = HashMap::new();
 
             for sound in sounds {
-                let decoded_data =
-                    if sound.data.starts_with("data:") || sound.data.contains(";base64,") {
-                        // Handle base64 data
-                        let base64_data = sound.data.split(",").last().unwrap_or(&sound.data);
-                        match STANDARD.decode(base64_data) {
-                            Ok(data) => data,
-                            Err(e) => {
-                                return Err(format!(
-                                    "Error decoding base64 sound data for {}: {}",
-                                    sound.key, e
-                                ))
-                            }
-                        }
-                    } else {
-                        // Handle file path
-                        match std::fs::read(&sound.data) {
-                            Ok(data) => data,
-                            Err(e) => {
-                                return Err(format!(
-                                    "Error reading sound file {} for {}: {}",
-                                    sound.data, sound.key, e
-                                ))
-                            }
-                        }
-                    };
-                sound_map.insert(sound.key, decoded_data);
+                let sound_data = if sound.data.starts_with("data:") || sound.data.contains(";base64,") {
+                    let base64_data = sound.data.split(",").last().unwrap_or(&sound.data);
+                    STANDARD.decode(base64_data).map_err(|e| {
+                        format!("Error decoding base64 sound data for {}: {}", sound.key, e)
+                    })?
+                } else {
+                    std::fs::read(&sound.data).map_err(|e| {
+                        format!("Error reading sound file {} for {}: {}", sound.data, sound.key, e)
+                    })?
+                };
+
+                let cursor = Cursor::new(sound_data);
+                let source = Decoder::new(cursor).map_err(|e| {
+                    format!("Error decoding audio for {}: {}", sound.key, e)
+                })?;
+
+                let decoded_samples: Vec<f32> = source
+                    .map(|sample| sample as f32 / i16::MAX as f32) // i16 -> f32
+                    .collect();
+                decoded_sound_map.insert(sound.key.clone(), decoded_samples);
             }
 
             let spec = WavSpec {
@@ -71,20 +65,6 @@ pub fn mix_audio(
                 vec![0.0f32; (length * spec.sample_rate as f64) as usize * 2];
 
             // Process each timestamp to mix audio
-            let mut decoded_sound_map: HashMap<String, Vec<f32>> = HashMap::new();
-
-            for (key, sound_data) in sound_map.iter() {
-                let cursor = Cursor::new(sound_data.clone());
-                let source = match Decoder::new(cursor) {
-                    Ok(source) => source,
-                    Err(e) => return Err(format!("Error decoding audio for {}: {}", key, e)),
-                };
-
-                let decoded_samples: Vec<f32> = source
-                    .map(|sample| sample as f32 / i16::MAX as f32) // i16 to f32
-                    .collect();
-                decoded_sound_map.insert(key.clone(), decoded_samples);
-            }
 
             for timestamp in timestamps {
                 let sound_samples = match decoded_sound_map.get(&timestamp.sound) {
@@ -101,10 +81,11 @@ pub fn mix_audio(
                     (timestamp.time * spec.sample_rate as f64).round() as usize * 2;
 
                 for (i, sample) in sound_samples.iter().enumerate() {
-                    let position = position_begin + i;
-                    if position < combined_samples.len() {
-                        combined_samples[position] += sample * timestamp.volume;
+                    let slice = &mut combined_samples[position_begin..];
+                    if i >= slice.len() {
+                        break;
                     }
+                    slice[i] += sample * timestamp.volume;
                 }
             }
 
