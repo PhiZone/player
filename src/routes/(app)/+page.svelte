@@ -1641,6 +1641,7 @@
                     oninput={(e) => {
                       toggles.render = e.currentTarget.checked;
                       if (toggles.render) {
+                        toggles.autoplay = true;
                         toggles.adjustOffset = false;
                         toggles.practice = false;
                         toggles.autostart = true;
