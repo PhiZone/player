@@ -392,7 +392,7 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm i
 
-      - name: Import Apple Developer Certificate
+      - name: Install code-signing certificate
         if: startsWith(matrix.platform, 'macos-')
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -407,23 +407,23 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
           security find-identity -v -p codesigning build.keychain
 
-      - name: Verify Certificate
+      - name: Obtain certificate ID
+        id: apple-cert
         if: startsWith(matrix.platform, 'macos-')
         run: |
           CERT_INFO=$(security find-identity -v -p codesigning build.keychain | grep "Apple Distribution")
           CERT_ID=$(echo "$CERT_INFO" | awk -F'"' '{print $2}')
-          echo "CERT_ID=$CERT_ID" >> $GITHUB_ENV
-          echo "Certificate imported."
+          echo "CERT_ID=$CERT_ID" >> $GITHUB_OUTPUT
 
       - name: Build
         id: build
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ env.CERT_ID }}
           PUBLIC_SENTRY_DSN: ${{ vars.PUBLIC_SENTRY_DSN }}
+          APPLE_CERTIFICATE: ${{ startsWith(matrix.platform, 'macos-') && secrets.APPLE_CERTIFICATE || '' }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ startsWith(matrix.platform, 'macos-') && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
+          APPLE_SIGNING_IDENTITY: ${{ startsWith(matrix.platform, 'macos-') && steps.apple-cert.outputs.CERT_ID || '' }}
         with:
           includeDebug: true
           args: ${{ matrix.args }}
