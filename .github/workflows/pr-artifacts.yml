@@ -346,7 +346,7 @@ jobs:
         env:
           ASC_API_KEY_ID: ${{ secrets.APPLE_ASC_API_KEY_ID }}
         run: |
-          CERT_INFO=$(security find-identity -v -p codesigning build.keychain | grep "Apple Development")
+          CERT_INFO=$(security find-identity -v -p codesigning build.keychain | grep "Developer ID Application")
           CERT_ID=$(echo "$CERT_INFO" | awk -F'"' '{print $2}')
           ASC_API_KEY_PATH=$RUNNER_TEMP/AuthKey_${ASC_API_KEY_ID}.p8
 
