@@ -397,13 +397,17 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm i
 
-      - name: Install code-signing certificate
+      - name: Install code-signing certificate and API key
         if: startsWith(matrix.platform, 'macos-')
         env:
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_DIA_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_DIA_CERTIFICATE_PASSWORD }}
           KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
+          ASC_API_KEY_BASE64: ${{ secrets.APPLE_ASC_API_KEY }}
+          ASC_API_KEY_ID: ${{ secrets.APPLE_ASC_API_KEY_ID }}
         run: |
+          ASC_API_KEY_PATH=$RUNNER_TEMP/AuthKey_${ASC_API_KEY_ID}.p8
+
           echo $APPLE_CERTIFICATE | base64 --decode > certificate.p12
           security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
           security default-keychain -s build.keychain
@@ -412,13 +416,20 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
           security find-identity -v -p codesigning build.keychain
 
-      - name: Obtain certificate ID
-        id: apple-cert
+          echo -n "$ASC_API_KEY_BASE64" | base64 --decode -o $ASC_API_KEY_PATH
+
+      - name: Obtain certificate ID and API key path
+        id: apple-signing
         if: startsWith(matrix.platform, 'macos-')
+        env:
+          ASC_API_KEY_ID: ${{ secrets.APPLE_ASC_API_KEY_ID }}
         run: |
-          CERT_INFO=$(security find-identity -v -p codesigning build.keychain | grep "Apple Distribution")
+          CERT_INFO=$(security find-identity -v -p codesigning build.keychain | grep "Developer ID Application")
           CERT_ID=$(echo "$CERT_INFO" | awk -F'"' '{print $2}')
+          ASC_API_KEY_PATH=$RUNNER_TEMP/AuthKey_${ASC_API_KEY_ID}.p8
+
           echo "CERT_ID=$CERT_ID" >> $GITHUB_OUTPUT
+          echo "ASC_API_KEY_PATH=$ASC_API_KEY_PATH" >> $GITHUB_OUTPUT
 
       - name: Build
         id: build
@@ -426,9 +437,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           PUBLIC_SENTRY_DSN: ${{ vars.PUBLIC_SENTRY_DSN }}
-          APPLE_CERTIFICATE: ${{ startsWith(matrix.platform, 'macos-') && secrets.APPLE_CERTIFICATE || '' }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ startsWith(matrix.platform, 'macos-') && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
-          APPLE_SIGNING_IDENTITY: ${{ startsWith(matrix.platform, 'macos-') && steps.apple-cert.outputs.CERT_ID || '' }}
+          APPLE_CERTIFICATE: ${{ startsWith(matrix.platform, 'macos-') && secrets.APPLE_DIA_CERTIFICATE || '' }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ startsWith(matrix.platform, 'macos-') && secrets.APPLE_DIA_CERTIFICATE_PASSWORD || '' }}
+          APPLE_SIGNING_IDENTITY: ${{ startsWith(matrix.platform, 'macos-') && steps.apple-signing.outputs.CERT_ID || '' }}
+          APPLE_API_KEY: ${{ startsWith(matrix.platform, 'macos-') && secrets.APPLE_ASC_API_KEY_ID || '' }}
+          APPLE_API_ISSUER: ${{ startsWith(matrix.platform, 'macos-') && secrets.APPLE_ASC_API_KEY_ISSUER_ID || '' }}
+          APPLE_API_KEY_PATH: ${{ startsWith(matrix.platform, 'macos-') && steps.apple-signing.outputs.ASC_API_KEY_PATH || '' }}
         with:
           includeDebug: true
           args: ${{ matrix.args }}
