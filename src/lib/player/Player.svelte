@@ -51,6 +51,7 @@
   let showProgress = true;
   let renderingDetail = '';
   let renderingOutput = '';
+  let lastProgressBarPercent = 0;
 
   let status = GameStatus.LOADING;
   let duration = 0;
@@ -112,10 +113,13 @@
       renderingETA =
         ((Date.now() - renderingStarted) / 1000 / Math.min(renderingProgress, renderingTotal)) *
         Math.max(renderingTotal - renderingProgress, 0);
-      getCurrentWebviewWindow().setProgressBar({
-        status: ProgressBarStatus.Normal,
-        progress: Math.round(renderingPercent * 100),
-      });
+      if (renderingPercent - lastProgressBarPercent >= 0.01) {
+        getCurrentWebviewWindow().setProgressBar({
+          status: ProgressBarStatus.Normal,
+          progress: Math.round(renderingPercent * 100),
+        });
+        lastProgressBarPercent = renderingPercent;
+      }
     });
 
     EventBus.on('video-rendering-finished', () => {
