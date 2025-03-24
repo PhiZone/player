@@ -170,8 +170,8 @@ export class PlainNote extends SkewImage {
         if (isTap && !this._isTapped) return;
         this._isTapped = false;
         if (
-          !this._scene.keyboard.findDrag(this, isFlick) &&
-          !this._scene.pointer.findDrag(this, isFlick)
+          !this._scene.keyboard?.findDrag(this, isFlick) &&
+          !this._scene.pointer?.findDrag(this, isFlick)
         )
           return;
         if (isTap && delta < -goodJudgment) {

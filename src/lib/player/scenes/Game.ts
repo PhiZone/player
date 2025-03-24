@@ -1,6 +1,6 @@
-import { Cameras, GameObjects, Renderer, Scene, Sound } from 'phaser';
+import { Cameras, GameObjects, Scene, Sound } from 'phaser';
 import { EventBus } from '../EventBus';
-import { inferLevelType, fit, send, getLines } from '$lib/utils';
+import { inferLevelType, fit, send, getLines, IS_TAURI } from '$lib/utils';
 import {
   processIllustration,
   loadJson,
@@ -30,14 +30,15 @@ import { PointerHandler } from '../handlers/PointerHandler';
 import { KeyboardHandler } from '../handlers/KeyboardHandler';
 import { JudgmentHandler } from '../handlers/JudgmentHandler';
 import { StatisticsHandler } from '../handlers/StatisticsHandler';
-import { terminateFFmpeg } from '../ffmpeg';
+import { terminateFFmpeg } from '../services/ffmpeg';
 import { ShaderPipeline } from '../objects/ShaderPipeline';
 import { Video } from '../objects/Video';
-import { SignalHandler } from '../handlers/SignalHandler';
+import { Signal } from '../objects/Signal';
 import { Node, ROOT } from '../objects/Node';
 import { ShaderNode } from '../objects/ShaderNode';
 import { base } from '$app/paths';
-import { ClockHandler } from '../handlers/ClockHandler';
+import { Clock } from '../services/clock';
+import { Renderer } from '../services/renderer';
 
 export class Game extends Scene {
   private _status: GameStatus = GameStatus.LOADING;
@@ -75,7 +76,7 @@ export class Game extends Scene {
   private _practice = false;
   private _autostart = false;
   private _adjustOffset = false;
-  private _record = false;
+  private _render = false;
 
   private _bpmIndex: number = 0;
   private _lines: Line[];
@@ -104,9 +105,10 @@ export class Game extends Scene {
   private _gameUI: GameUI;
   private _endingUI?: EndingUI;
 
-  private _clock: ClockHandler;
-  private _pointerHandler: PointerHandler;
-  private _keyboardHandler: KeyboardHandler;
+  private _clock: Clock;
+  private _renderer: Renderer;
+  private _pointerHandler?: PointerHandler;
+  private _keyboardHandler?: KeyboardHandler;
   private _judgmentHandler: JudgmentHandler;
   private _statisticsHandler: StatisticsHandler;
 
@@ -139,6 +141,31 @@ export class Game extends Scene {
           : `Loading ${e.url.split('/').pop()}`,
       );
     });
+
+    const { song, chart, illustration, assetNames, assetTypes, assets } = this._data.resources;
+
+    this._songUrl = song;
+    this._chartUrl = chart;
+    this._illustrationUrl = illustration;
+    this._title = this._data.metadata.title;
+    this._composer = this._data.metadata.composer;
+    this._charter = this._data.metadata.charter;
+    this._illustrator = this._data.metadata.illustrator;
+    this._levelType = this._data.metadata.levelType;
+    this._level =
+      this._data.metadata.level !== null && this._data.metadata.difficulty !== null
+        ? `${this._data.metadata.level}  Lv.${this._data.metadata.difficulty?.toFixed(0)}`
+        : this._data.metadata.level;
+    this._autoplay = this._data.autoplay;
+    this._practice = this._data.practice;
+    this._autostart = this._data.autostart;
+    this._adjustOffset = this._data.adjustOffset;
+    this._render = this._data.render && IS_TAURI;
+
+    if (new window.AudioContext().state === 'suspended') {
+      this._autostart = false;
+    }
+
     this.load.setPath(`${base}/game`);
 
     this.load.bitmapFont('Outfit', 'fonts/Outfit/Outfit.png', 'fonts/Outfit/Outfit.fnt');
@@ -146,11 +173,11 @@ export class Game extends Scene {
     this.load.svg('pause', 'Pause.svg', { width: 128, height: 128 });
     this.load.image('progress-bar', 'Progress.png');
 
-    this.load.audio('4', 'hitsounds/Drag.wav');
-    this.load.audio('3', 'hitsounds/Flick.wav');
-    this.load.audio('2', 'hitsounds/Tap.wav');
-    this.load.audio('1', 'hitsounds/Tap.wav');
-    this.load.audio('grade-hit', 'ending/GradeHit.wav');
+    this.loadAudio('4', 'hitsounds/Drag.wav');
+    this.loadAudio('3', 'hitsounds/Flick.wav');
+    this.loadAudio('2', 'hitsounds/Tap.wav');
+    this.loadAudio('1', 'hitsounds/Tap.wav');
+    this.loadAudio('grade-hit', 'ending/GradeHit.wav');
 
     this.load.image('4', 'notes/Drag.png');
     this.load.image('4-hl', 'notes/DragHL.png');
@@ -179,29 +206,6 @@ export class Game extends Scene {
       frameWidth: 375,
       frameHeight: 375,
     });
-
-    const { song, chart, illustration, assetNames, assetTypes, assets } = this._data.resources;
-
-    this._songUrl = song;
-    this._chartUrl = chart;
-    this._illustrationUrl = illustration;
-    this._title = this._data.metadata.title;
-    this._composer = this._data.metadata.composer;
-    this._charter = this._data.metadata.charter;
-    this._illustrator = this._data.metadata.illustrator;
-    this._levelType = this._data.metadata.levelType;
-    this._level =
-      this._data.metadata.level !== null && this._data.metadata.difficulty !== null
-        ? `${this._data.metadata.level}  Lv.${this._data.metadata.difficulty?.toFixed(0)}`
-        : this._data.metadata.level;
-    this._autoplay = this._data.autoplay;
-    this._practice = this._data.practice;
-    this._autostart = this._data.autostart;
-    this._adjustOffset = this._data.adjustOffset;
-
-    if (new window.AudioContext().state === 'suspended') {
-      this._autostart = false;
-    }
 
     assets.forEach((asset, i) => {
       const name = assetNames[i];
@@ -243,21 +247,19 @@ export class Game extends Scene {
       await Promise.all([
         ...this._animatedAssets.map(async (asset) => {
           const spritesheet = await getSpritesheet(asset.url, asset.isGif);
-          // console.log(spritesheet.frameSize, spritesheet.frameCount, spritesheet.frameRate);
-          // spritesheet.spritesheet.toBlob((e) => {
-          //   if (e) console.log(URL.createObjectURL(e));
-          // });
+
           this.load.spritesheet(
             asset.key,
             spritesheet.spritesheet.toDataURL(),
             spritesheet.frameSize,
           );
+
           asset.frameCount = spritesheet.frameCount;
           asset.frameRate = spritesheet.frameRate;
           asset.repeat = spritesheet.repeat;
         }),
         ...this._audioAssets.map(async (asset) =>
-          this.load.audio(asset.key, await getAudio(asset.url)),
+          this.loadAudio(asset.key, await getAudio(asset.url)),
         ),
       ]);
       this.createHitEffectsAnimation();
@@ -308,7 +310,7 @@ export class Game extends Scene {
           }
         }
       }
-      this.load.audio('ending', `ending/LevelOver${this._levelType}.wav`);
+      this.loadAudio('ending', `ending/LevelOver${this._levelType}.wav`);
       this.load.once('complete', async () => {
         this.createTextureAnimations();
         this.initializeChart();
@@ -319,7 +321,9 @@ export class Game extends Scene {
         this.createBackground();
         this.createAudio();
         await this.initializeVideos();
-        if (this._autostart) {
+        if (this._render) {
+          this.startRendering();
+        } else if (this._autostart) {
           this.start();
         } else {
           this._status = GameStatus.READY;
@@ -338,6 +342,11 @@ export class Game extends Scene {
     load();
   }
 
+  loadAudio(key: string, url: string) {
+    if (this._render) return;
+    this.load.audio(key, url);
+  }
+
   in() {
     this._gameUI.in();
     const targets = [...this._lines.map((l) => l.elements).flat(), ...(this._videos ?? [])];
@@ -352,13 +361,14 @@ export class Game extends Scene {
     });
   }
 
-  out() {
+  out(onComplete: () => void) {
     this._gameUI.out();
     this.tweens.add({
       targets: [...this._lines.map((l) => l.elements).flat(), ...(this._videos ?? [])],
       alpha: 0,
       duration: 1000,
       ease: 'Sine.easeIn',
+      onComplete,
     });
   }
 
@@ -374,9 +384,10 @@ export class Game extends Scene {
     if (this._status === GameStatus.ERROR) return;
     this._objects.sort((a, b) => a.depth - b.depth);
     this.in();
-    this._timeout = setTimeout(() => {
-      this._clock.play();
-    }, 1000 / this.tweens.timeScale);
+    if (!this._render)
+      this._timeout = setTimeout(() => {
+        this._clock.play();
+      }, 1000 / this.tweens.timeScale);
     this._status = GameStatus.PLAYING;
     this.updateChart(this.beat, this.timeSec, Date.now());
     EventBus.emit('started');
@@ -402,7 +413,7 @@ export class Game extends Scene {
     if (this._status === GameStatus.ERROR || !this._song.isPlaying) return;
     clearTimeout(this._timeout);
     this._status = GameStatus.PAUSED;
-    this._clock.pause();
+    if (!this._render) this._clock.pause();
     this._videos?.forEach((video) => video.pause());
     EventBus.emit('paused', emittedBySpace);
     send({
@@ -417,7 +428,7 @@ export class Game extends Scene {
     if (this._status === GameStatus.ERROR) return;
     this.updateChart(this.beat, this.timeSec, Date.now());
     this._status = GameStatus.PLAYING;
-    this._clock.resume();
+    if (!this._render) this._clock.resume();
     this._videos?.forEach((video) => video.resume());
     EventBus.emit('started');
     send({
@@ -431,9 +442,9 @@ export class Game extends Scene {
   async restart() {
     if (this._status === GameStatus.ERROR) return;
     this._status = GameStatus.LOADING;
-    this._clock.pause();
-    this._pointerHandler.reset();
-    this._keyboardHandler.reset();
+    if (!this._render) this._clock.pause();
+    this._pointerHandler?.reset();
+    this._keyboardHandler?.reset();
     this._judgmentHandler.reset();
     this._clock.setSeek(0);
     this._endingUI?.destroy();
@@ -443,9 +454,10 @@ export class Game extends Scene {
     await this.initializeVideos();
     this._objects.sort((a, b) => a.depth - b.depth);
     this.in();
-    this._timeout = setTimeout(() => {
-      this._clock.play();
-    }, 1000 / this.tweens.timeScale);
+    if (!this._render)
+      this._timeout = setTimeout(() => {
+        this._clock.play();
+      }, 1000 / this.tweens.timeScale);
     this._status = GameStatus.PLAYING;
     EventBus.emit('started');
     send({
@@ -459,11 +471,7 @@ export class Game extends Scene {
   end() {
     if (this._status === GameStatus.ERROR) return;
     this._status = GameStatus.FINISHED;
-    this.out();
-    setTimeout(() => {
-      this._endingUI = new EndingUI(this, this._data.recorderOptions.endingLoopsToRecord);
-    }, 500 / this.tweens.timeScale);
-    setTimeout(() => {
+    this.out(() => {
       this.resetShadersAndVideos();
       this._endingUI!.play();
       EventBus.emit('finished');
@@ -473,7 +481,8 @@ export class Game extends Scene {
           name: 'finished',
         },
       });
-    }, 1000 / this.tweens.timeScale);
+    });
+    this._endingUI = new EndingUI(this, this._data.mediaOptions.endingLoopsToRender);
   }
 
   setSeek(value: number) {
@@ -500,11 +509,13 @@ export class Game extends Scene {
       }
       return;
     }
-    this._clock.update();
+    if (!this._render) {
+      this._clock.update();
+    }
     if (this._endingUI) this._endingUI.update();
     const status = this._status;
     if (this._isSeeking) this._status = GameStatus.SEEKING;
-    this._pointerHandler.update(delta);
+    this._pointerHandler?.update(delta);
     if (this._visible) {
       this._gameUI.update();
       this.positionBackground(this._background);
@@ -512,6 +523,7 @@ export class Game extends Scene {
     const realTimeSec = this.realTimeSec;
     this.report(time, realTimeSec);
     this.updateChart(this.beat, this.timeSec, time);
+    this._judgmentHandler.update(this.beat);
     this.statistics.updateDisplay(delta);
     if (this._isSeeking) {
       this._status = status;
@@ -570,8 +582,12 @@ export class Game extends Scene {
     this.sound.pauseOnBlur = false;
     this._song = this.sound.add('song');
     this._song.setVolume(this._data.preferences.musicVolume);
-    this._clock = new ClockHandler(this._song, this.sound);
-    this.timeScale = this._data.preferences.timeScale;
+    this._clock = new Clock(
+      this._song,
+      this.sound,
+      () => this._status === GameStatus.FINISHED || this.end(),
+    );
+    if (!this._render) this.timeScale = this._data.preferences.timeScale;
   }
 
   createBackground() {
@@ -674,10 +690,18 @@ export class Game extends Scene {
 
   initializeHandlers() {
     EventBus.emit('loading-detail', 'Initializing handlers');
-    this._pointerHandler = new PointerHandler(this);
-    this._keyboardHandler = new KeyboardHandler(this);
+    if (!this._render) {
+      this._pointerHandler = new PointerHandler(this);
+      this._keyboardHandler = new KeyboardHandler(this);
+    }
     this._judgmentHandler = new JudgmentHandler(this);
     this._statisticsHandler = new StatisticsHandler(this);
+  }
+
+  async startRendering() {
+    this._renderer = new Renderer(this, this._data.mediaOptions);
+    await this._renderer.setup();
+    this.start();
   }
 
   setupUI() {
@@ -724,10 +748,11 @@ export class Game extends Scene {
         return undefined;
       }
       const key = `sh-${effect.shader.slice(6)}-${i}`;
-      (this.renderer as Renderer.WebGL.WebGLRenderer).pipelines.addPostPipeline(
-        key,
-        ShaderPipeline,
-      );
+      if (!('pipelines' in this.renderer)) {
+        alert('Shader effects are not supported in this environment.');
+        return undefined;
+      }
+      this.renderer.pipelines.addPostPipeline(key, ShaderPipeline);
       let target;
       if (effect.global) {
         target = this.cameras.main;
@@ -766,20 +791,24 @@ export class Game extends Scene {
 
     EventBus.emit('loading-detail', 'Initializing videos');
 
-    const signalHandler = new SignalHandler(this._extra.videos.length);
-    this._videos = this._extra.videos.map(
-      (data) =>
-        new Video(this, data, (errorMsg?: string, exception?: DOMException | string) => {
-          signalHandler.emit();
-          if (errorMsg) {
-            if (exception) {
-              console.error(errorMsg, exception);
-            }
-            alert(errorMsg);
-          }
-        }),
-    );
-    await signalHandler.wait();
+    const signal = new Signal(this._extra.videos.length);
+    const callback = (errorMsg?: string, exception?: DOMException | string) => {
+      signal.emit();
+      if (errorMsg) {
+        if (exception) {
+          console.error(errorMsg, exception);
+        }
+        alert(errorMsg);
+      }
+    };
+    this._videos = this._extra.videos.map((data) => new Video(this, data, callback));
+    await signal.wait();
+  }
+
+  async updateVideoTicks(timeSec?: number) {
+    if (!this._videos) return;
+    timeSec ??= this.timeSec;
+    await Promise.all(this._videos.map((video) => video.tick(timeSec)));
   }
 
   registerNode(object: GameObject, name: string) {
@@ -814,6 +843,11 @@ export class Game extends Scene {
     }
     const curBpm = this._bpmList[this._bpmIndex];
     return curBpm.startBeat + ((songTime - curBpm.startTimeSec) / 60) * curBpm.bpm;
+  }
+
+  getTimeSec(realTimeSec?: number) {
+    realTimeSec ??= this.realTimeSec;
+    return realTimeSec - this._offset / 1000;
   }
 
   w(width: number) {
@@ -860,6 +894,10 @@ export class Game extends Scene {
     return this._clock;
   }
 
+  public get chartRenderer() {
+    return this._renderer;
+  }
+
   public get pointer() {
     return this._pointerHandler;
   }
@@ -894,12 +932,25 @@ export class Game extends Scene {
       composer: this._composer,
       charter: this._charter,
       illustrator: this._illustrator,
+      levelType: this._levelType,
       level: this._level,
     };
   }
 
   public get preferences() {
     return this._data.preferences;
+  }
+
+  public get resources() {
+    return this._data.resources;
+  }
+
+  public get mediaOptions() {
+    return this._data.mediaOptions;
+  }
+
+  public get audioAssets() {
+    return this._audioAssets;
   }
 
   public get beat() {
@@ -920,6 +971,10 @@ export class Game extends Scene {
 
   public get bpmList() {
     return this._bpmList;
+  }
+
+  public get offset() {
+    return this._offset;
   }
 
   public get chart() {
@@ -959,6 +1014,10 @@ export class Game extends Scene {
 
   public get adjustOffset() {
     return this._adjustOffset;
+  }
+
+  public get render() {
+    return this._render;
   }
 
   public get objects() {

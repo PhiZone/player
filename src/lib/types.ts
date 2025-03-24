@@ -4,11 +4,11 @@ export interface Config {
   resources: Resources;
   metadata: Metadata;
   preferences: Preferences;
-  recorderOptions: RecorderOptions;
+  mediaOptions: MediaOptions;
   autoplay: boolean;
   practice: boolean;
   adjustOffset: boolean;
-  record: boolean;
+  render: boolean;
   autostart: boolean;
   newTab: boolean;
   inApp: number;
@@ -35,11 +35,11 @@ export interface Metadata {
 
 export interface PlayOptions {
   preferences?: Preferences;
-  recorderOptions?: RecorderOptions;
+  mediaOptions?: MediaOptions;
   autoplay?: boolean;
   practice?: boolean;
   adjustOffset?: boolean;
-  record?: boolean;
+  render?: boolean;
   autostart?: boolean;
   newTab?: boolean;
   inApp?: number;
@@ -62,13 +62,14 @@ export interface Preferences {
   timeScale: number;
 }
 
-export interface RecorderOptions {
+export interface MediaOptions {
   frameRate: number;
   overrideResolution: [number, number] | null;
-  endingLoopsToRecord: number;
-  outputFormat: string;
+  endingLoopsToRender: number;
+  videoCodec: string;
   videoBitrate: number;
-  audioBitrate?: number | undefined;
+  audioBitrate: number;
+  exportPath?: string;
 }
 
 export interface MetadataEntry {
@@ -489,6 +490,23 @@ export interface Release {
   body: string;
 }
 
+export interface FFmpegEncoder {
+  name: string;
+  displayName: string;
+  codec: string | null;
+}
+
+export interface Sound {
+  key: string;
+  data: string;
+}
+
+export interface Timestamp {
+  sound: string;
+  time: number;
+  volume: number;
+}
+
 export type IncomingMessage = BlobInputMessage | UrlInputMessage | PlayMessage;
 
 export type OutgoingMessage =
@@ -545,7 +563,7 @@ export interface ChartBundleMessage {
 export interface FileOutputMessage {
   type: 'fileOutput';
   payload: {
-    purpose: 'adjustedOffset' | 'recordedVideo';
+    purpose: 'adjustedOffset' | 'renderedVideo';
     file: File;
   };
 }

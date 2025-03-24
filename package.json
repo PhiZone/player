@@ -92,7 +92,9 @@
     "@sentry/sveltekit": "^8.54.0",
     "@tauri-apps/api": "^2.2.0",
     "@tauri-apps/plugin-deep-link": "~2.2.0",
+    "@tauri-apps/plugin-dialog": "~2",
     "@tauri-apps/plugin-fs": "~2",
+    "@tauri-apps/plugin-opener": "~2",
     "@tauri-apps/plugin-os": "~2.2.0",
     "@tauri-apps/plugin-upload": "~2",
     "apng-js": "^1.1.4",
@@ -104,8 +106,9 @@
     "jszip": "^3.10.1",
     "mathjs": "^14.0.1",
     "mime": "^4.0.6",
+    "moment": "^2.30.1",
     "notiflix": "^3.2.8",
-    "phaser": "^3.87.0",
+    "phaser": "^3.88.2",
     "phaser3-rex-plugins": "^1.80.12",
     "query-string": "^9.1.1",
     "send-intent": "^6.0.3",
@@ -117,7 +120,12 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
+      "@sentry/cli",
+      "esbuild",
       "sharp"
-    ]
+    ],
+    "patchedDependencies": {
+      "phaser@3.88.2": "patches/phaser@3.88.2.patch"
+    }
   }
 }

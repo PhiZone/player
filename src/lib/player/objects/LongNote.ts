@@ -168,7 +168,7 @@ export class LongNote extends GameObjects.Container {
       }
     } else if (this._judgmentType === JudgmentType.UNJUDGED) {
       if (!this._scene.autoplay) {
-        const input = this._scene.keyboard.findDrag(this) || this._scene.pointer.findDrag(this);
+        const input = this._scene.keyboard?.findDrag(this) || this._scene.pointer?.findDrag(this);
         if (input) {
           this._lastInputBeat = beat;
         } else if (

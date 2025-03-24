@@ -14,14 +14,8 @@
   import start from './main';
   import { EventBus } from './EventBus';
   import { GameStatus, type Config } from '$lib/types';
-  import { getParams, IS_TAURI, showPerformance } from '$lib/utils';
-  import {
-    convertTime,
-    findPredominantBpm,
-    getTimeSec,
-    outputRecording,
-    triggerDownload,
-  } from './utils';
+  import { clamp, getParams, IS_TAURI, notify, showPerformance } from '$lib/utils';
+  import { convertTime, findPredominantBpm, getTimeSec, triggerDownload } from './utils';
   import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
   import { ProgressBarStatus } from '@tauri-apps/api/window';
   import WaveSurfer, { type WaveSurferOptions } from 'wavesurfer.js';
@@ -32,6 +26,8 @@
   import { base } from '$app/paths';
   import { Capacitor } from '@capacitor/core';
   import StatsJS from 'stats-js';
+  import { openPath } from '@tauri-apps/plugin-opener';
+  import { sep } from '@tauri-apps/api/path';
 
   export let gameRef: GameReference;
 
@@ -44,8 +40,17 @@
     goto(`${base}/${IS_TAURI || Capacitor.getPlatform() !== 'web' ? `?t=${Date.now()}` : ''}`);
   }
 
-  let progress = 0;
-  let fileProgress = '';
+  let loadingProgress = 0;
+  let loadingDetail = '';
+
+  let renderingStarted: number;
+  let renderingProgress = 0;
+  let renderingPercent = 0;
+  let renderingTotal = 0;
+  let renderingETA = 0;
+  let showProgress = true;
+  let renderingDetail = '';
+  let renderingOutput = '';
 
   let status = GameStatus.LOADING;
   let duration = 0;
@@ -62,6 +67,7 @@
   let showPause = false;
   let keyboardSeeking = false;
   let allowSeek = true;
+  let render = false;
   let enableOffsetHelper = true;
   let offset = 0;
   let progressBarHeld = false;
@@ -70,12 +76,6 @@
   let stillLoading = false;
   let counter: NodeJS.Timeout;
   let timeout: NodeJS.Timeout;
-
-  let gameStart: number;
-  let videoRecorder: MediaRecorder | null = null;
-  let audioRecorder: MediaRecorder | null = null;
-  let video: Blob;
-  let audio: Blob;
 
   let offsetHelperElement: HTMLDivElement;
   let waveformElement: HTMLDivElement;
@@ -91,61 +91,54 @@
   let performanceEnabled = showPerformance();
   let performanceStats: StatsJS | undefined;
 
-  onMount(() => {
+  onMount(async () => {
     if (!config) return;
-    gameRef.game = start('player', config);
+    gameRef.game = await start('player', config);
     timeout = setTimeout(() => {
       stillLoading = true;
     }, 10000);
 
-    if (config.record) {
-      const videoStream = gameRef.game.canvas.captureStream();
-      const peerConnection = new RTCPeerConnection();
-      videoStream.getTracks().forEach((track) => peerConnection.addTrack(track, videoStream));
-      videoRecorder = new MediaRecorder(videoStream, {
-        mimeType: 'video/webm; codecs=vp9',
-        videoBitsPerSecond: config.recorderOptions.videoBitrate * 1000,
-      });
-      videoRecorder.ondataavailable = (e) => {
-        video = e.data;
-        if (audio) {
-          outputRecording(
-            video,
-            audio,
-            Date.now() - gameStart,
-            // config.recorderOptions,
-          );
-        }
-      };
-      if ('context' in gameRef.game.sound) {
-        const audioDest = gameRef.game.sound.context.createMediaStreamDestination();
-        gameRef.game.sound.destination.connect(audioDest);
-        audioRecorder = new MediaRecorder(audioDest.stream, {
-          mimeType: 'audio/webm; codecs=opus',
-          audioBitsPerSecond: config.recorderOptions.audioBitrate
-            ? config.recorderOptions.audioBitrate * 1000
-            : undefined,
-        });
-        audioRecorder.ondataavailable = (e) => {
-          audio = e.data;
-          if (video) {
-            outputRecording(
-              video,
-              audio,
-              Date.now() - gameStart,
-              // config.recorderOptions,
-            );
-          }
-        };
-      }
-    }
-
     EventBus.on('loading', (p: number) => {
-      progress = p;
+      loadingProgress = p;
     });
 
     EventBus.on('loading-detail', (p: string) => {
-      fileProgress = p;
+      loadingDetail = p;
+    });
+
+    EventBus.on('rendering', (p: number) => {
+      renderingProgress = p;
+      renderingPercent = clamp(p / renderingTotal, 0, 1);
+      renderingETA =
+        ((Date.now() - renderingStarted) / 1000 / Math.min(renderingProgress, renderingTotal)) *
+        Math.max(renderingTotal - renderingProgress, 0);
+      getCurrentWebviewWindow().setProgressBar({
+        status: ProgressBarStatus.Normal,
+        progress: Math.round(renderingPercent * 100),
+      });
+    });
+
+    EventBus.on('video-rendering-finished', () => {
+      showProgress = false;
+      getCurrentWebviewWindow().setProgressBar({
+        status: ProgressBarStatus.Indeterminate,
+      });
+    });
+
+    EventBus.on('rendering-finished', (output: string) => {
+      renderingOutput = output;
+      showProgress = true;
+      renderingPercent = 1;
+      getCurrentWebviewWindow().setProgressBar({
+        status: ProgressBarStatus.None,
+      });
+      notify(`Rendering saved to ${output}`, 'success', async () => {
+        await openPath(output.split(sep()).slice(0, -1).join(sep()));
+      });
+    });
+
+    EventBus.on('rendering-detail', (p: string) => {
+      renderingDetail = p;
     });
 
     EventBus.on('current-scene-ready', (scene: GameScene) => {
@@ -153,10 +146,11 @@
       stillLoading = false;
       gameRef.scene = scene;
       status = scene.status;
+      render = scene.render;
       duration = scene.song.duration;
       offset = scene.chart.META.offset;
       showStart = status === GameStatus.READY;
-      allowSeek = scene.autoplay || scene.practice;
+      allowSeek = (scene.autoplay || scene.practice) && !render;
       enableOffsetHelper = scene.adjustOffset;
       const metadata = scene.metadata;
       title = metadata.title;
@@ -164,6 +158,11 @@
       [metadata.composer, metadata.charter, metadata.illustrator].forEach((credit) => {
         credits.push(credit ?? '');
       });
+
+      if (render) {
+        renderingStarted = Date.now();
+        renderingTotal = Math.ceil(scene.chartRenderer.length * scene.mediaOptions.frameRate);
+      }
 
       if (enableOffsetHelper) {
         const predominantBpm = findPredominantBpm(scene.bpmList, duration);
@@ -209,17 +208,13 @@
         }).observe(offsetHelperElement);
       }
 
-      videoRecorder?.start();
-      audioRecorder?.start();
-      gameStart = Date.now();
-
       if (currentActiveScene) {
         currentActiveScene(scene);
       }
 
       if (performanceStats) {
-        gameRef.scene?.events.on('preupdate', performanceStats.begin);
-        gameRef.scene?.events.on('render', performanceStats.end);
+        scene.events.on('preupdate', performanceStats.begin);
+        scene.events.on('render', performanceStats.end);
       }
     });
 
@@ -232,7 +227,7 @@
 
     EventBus.on('update', (t: number) => {
       if (t !== timeSec) {
-        if (IS_TAURI && t < duration) {
+        if (IS_TAURI && !render && t < duration) {
           getCurrentWebviewWindow().setProgressBar({
             status:
               status === GameStatus.PLAYING ? ProgressBarStatus.Normal : ProgressBarStatus.Paused,
@@ -265,22 +260,15 @@
 
     EventBus.on('finished', () => {
       status = GameStatus.FINISHED;
-      if (IS_TAURI) {
+      if (IS_TAURI && !render) {
         getCurrentWebviewWindow().setProgressBar({
           status: ProgressBarStatus.None,
         });
       }
     });
-
-    EventBus.on('recording-stop', () => {
-      videoRecorder?.stop();
-      audioRecorder?.stop();
-    });
   });
 
-  onDestroy(() => {
-    videoRecorder?.stop();
-    audioRecorder?.stop();
+  onDestroy(async () => {
     gameRef.scene?.destroy();
     gameRef.game?.destroy(true);
     if (performanceStats) {
@@ -368,6 +356,72 @@
   </title>
 </svelte:head>
 
+{#if render}
+  <div class="absolute inset-0 flex justify-center items-center">
+    <div
+      class="p-5 flex flex-col gap-3 justify-center items-center rounded-[32px] backdrop-blur-2xl backdrop-brightness-[60%] hover:backdrop-blur-3xl hover:backdrop-brightness-[35%] trans"
+    >
+      <span class="text-7xl font-bold">RENDERING</span>
+      <div class="flex flex-col gap-1 w-full">
+        {#if showProgress}
+          <progress class="progress w-full" value={renderingPercent}></progress>
+        {:else}
+          <progress class="progress w-full"></progress>
+        {/if}
+        <div class="flex justify-center text-md w-full relative">
+          <span class="absolute left-0 trans" class:opacity-0={!showProgress}>
+            {renderingPercent.toLocaleString(undefined, {
+              style: 'percent',
+              minimumFractionDigits: 2,
+            })}
+          </span>
+          <span>
+            {renderingDetail}
+          </span>
+          <span class="absolute right-0 trans" class:opacity-0={!showProgress}>
+            {convertTime(renderingETA, true)}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="absolute bottom-5">
+    <div
+      class="p-3 flex flex-col gap-3 justify-center items-center rounded-full backdrop-blur-2xl backdrop-brightness-[60%] hover:backdrop-blur-3xl hover:backdrop-brightness-[35%] trans"
+    >
+      {#if renderingOutput}
+        <div class="flex gap-2 w-96">
+          <button
+            class="btn btn-outline border-2 btn-success text-xl rounded-full flex-1"
+            on:click={async () => {
+              await openPath(renderingOutput);
+            }}
+          >
+            OPEN FILE
+          </button>
+          <button
+            class="btn btn-outline border-2 btn-info text-xl rounded-full flex-1"
+            on:click={async () => {
+              await openPath(renderingOutput.split(sep()).slice(0, -1).join(sep()));
+            }}
+          >
+            OPEN FOLDER
+          </button>
+        </div>
+      {:else}
+        <button
+          class="btn btn-outline border-2 btn-error text-xl rounded-full"
+          on:click={async () => {
+            await gameRef.scene?.chartRenderer.cancel();
+          }}
+        >
+          CANCEL
+        </button>
+      {/if}
+    </div>
+  </div>
+{/if}
+
 <div class="absolute inset-0 flex justify-center items-center pointer-events-none">
   <div
     class="w-28 h-28 flex justify-center items-center rounded-3xl opacity-0 backdrop-blur-xl backdrop-brightness-90 trans"
@@ -392,13 +446,13 @@
   {#if status === GameStatus.LOADING}
     <span class="loading loading-spinner w-24"></span>
     <span class="text-4xl">
-      {progress.toLocaleString(undefined, {
+      {loadingProgress.toLocaleString(undefined, {
         style: 'percent',
         minimumFractionDigits: 0,
       })}
     </span>
-    {#if fileProgress}
-      <span class="text-xs">{fileProgress}</span>
+    {#if loadingDetail}
+      <span class="text-xs">{loadingDetail}</span>
     {/if}
   {:else if showStart}
     {#if title && level}
@@ -714,7 +768,7 @@
     class:opacity-100={status === GameStatus.FINISHED || stillLoading}
     class:pointer-events-none={status !== GameStatus.FINISHED && !stillLoading}
   >
-    {#if status === GameStatus.FINISHED}
+    {#if status === GameStatus.FINISHED && !config?.render}
       <button
         class="btn btn-outline border-2 btn-lg btn-circle"
         aria-label="Restart"

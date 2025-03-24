@@ -17,17 +17,15 @@ import {
   type SkewControl,
   type YControl,
   type RpeJson,
-  // type RecorderOptions,
 } from '$lib/types';
 import { EventBus } from './EventBus';
-import { getFFmpeg, loadFFmpeg } from './ffmpeg';
+import { getFFmpeg, loadFFmpeg } from './services/ffmpeg';
 import type { Game } from './scenes/Game';
 import { ENDING_ILLUSTRATION_CORNER_RADIUS } from './constants';
 import { parseGIF, decompressFrames, type ParsedFrame } from 'gifuct-js';
 import { dot, gcd, random } from 'mathjs';
 import { fileTypeFromBlob } from 'file-type';
 import parseAPNG, { type Frame } from 'apng-js';
-import { fixWebmDuration } from '@fix-webm-duration/fix';
 import bezier from 'bezier-easing';
 import type { Line } from './objects/Line';
 import { ROOT, type Node } from './objects/Node';
@@ -93,7 +91,7 @@ const easingFunctions: ((x: number) => number)[] = [
     x < 0.5 ? (1 - easingFunctions[25](1 - 2 * x)) / 2 : (1 + easingFunctions[25](2 * x - 1)) / 2,
 ];
 
-const download = async (url: string, name?: string) => {
+export const download = async (url: string, name?: string) => {
   EventBus.emit('loading', 0);
   EventBus.emit(
     'loading-detail',
@@ -132,6 +130,15 @@ const download = async (url: string, name?: string) => {
     return new Blob(chunks);
   }
 };
+
+const toBase64 = (blob: Blob) =>
+  new Promise<string>((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      resolve(reader.result as string);
+    };
+    reader.readAsDataURL(blob);
+  });
 
 export enum ControlTypes {
   ALPHA = 0,
@@ -651,8 +658,16 @@ export const convertTime = (input: string | number, round = false) => {
     seconds = input % 60;
   }
 
+  if (round) {
+    seconds = Math.round(seconds);
+    if (seconds === 60) {
+      minutes++;
+      seconds = 0;
+    }
+  }
+
   return `${minutes.toString().padStart(2, '0')}:${
-    round ? Math.round(seconds).toString().padStart(2, '0') : seconds.toFixed(2).padStart(5, '0')
+    round ? seconds.toString().padStart(2, '0') : seconds.toFixed(2).padStart(5, '0')
   }`;
 };
 
@@ -806,65 +821,10 @@ export const getAudio = async (url: string): Promise<string> => {
   );
 };
 
-export const outputRecording = async (
-  video: Blob,
-  audio: Blob,
-  duration: number,
-  // recorderOptions: RecorderOptions,
-) => {
-  video = await fixWebmDuration(video, duration);
-  audio = await fixWebmDuration(audio, duration);
-  triggerDownload(video, 'recording.webm', 'recordedVideo');
-  triggerDownload(audio, 'recording.opus', 'recordedVideo');
-  // const outputFile = `output.${recorderOptions.outputFormat.toLowerCase()}`;
-  // const ffmpeg = getFFmpeg();
-  // ffmpeg.on('progress', (progress) => {
-  //   EventBus.emit('recording-processing', clamp(progress.progress, 0, 1));
-  //   console.log(clamp(progress.progress, 0, 1));
-  // });
-  // if (!ffmpeg.loaded) {
-  //   console.log('loading ffmpeg');
-  //   EventBus.emit('recording-processing-detail', 'Loading FFmpeg');
-  //   await loadFFmpeg(({ url, received, total }) => {
-  //     EventBus.emit('recording-processing', clamp(received / total, 0, 1));
-  //     console.log(clamp(received / total, 0, 1));
-  //     EventBus.emit(
-  //       'recording-processing-detail',
-  //       `Downloading ${url.toString().split('/').pop()}`,
-  //     );
-  //   });
-  // }
-  // EventBus.emit('recording-processing-detail', 'Processing video');
-  // await ffmpeg.writeFile('video', await fetchFile(video));
-  // await ffmpeg.writeFile('audio', await fetchFile(audio));
-  // ffmpeg.on('log', (e) => {
-  //   console.log(e);
-  // });
-  // await ffmpeg.exec([
-  //   '-i',
-  //   'video',
-  //   '-i',
-  //   'audio',
-  //   '-b:v',
-  //   (recorderOptions.videoBitrate * 1000).toString(),
-  //   ...(recorderOptions.audioBitrate
-  //     ? ['-b:a', (recorderOptions.audioBitrate * 1000).toString()]
-  //     : []),
-  //   '-r',
-  //   recorderOptions.frameRate.toString(),
-  //   outputFile,
-  // ]);
-  // const data = await ffmpeg.readFile(outputFile);
-  // triggerDownload(
-  //   new Blob([(data as Uint8Array).buffer]),
-  //   `recording.${recorderOptions.outputFormat.toLowerCase()}`,
-  // );
-};
-
 export const triggerDownload = (
   blob: Blob,
   name: string,
-  purpose: 'adjustedOffset' | 'recordedVideo',
+  purpose: 'adjustedOffset',
   always = false,
 ) => {
   if (IS_IFRAME) {
@@ -883,6 +843,11 @@ export const triggerDownload = (
   a.download = name;
   a.click();
   URL.revokeObjectURL(url);
+};
+
+export const urlToBase64 = async (url: string, name?: string) => {
+  const blob = await download(url, name);
+  return await toBase64(blob);
 };
 
 // TODO expect minor issues

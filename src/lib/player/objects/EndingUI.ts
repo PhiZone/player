@@ -25,9 +25,11 @@ export class EndingUI extends GameObjects.Container {
   private _late: DataBoard;
   private _tweening: boolean = true;
   private _timer: NodeJS.Timeout | undefined;
-  private _loopsToRecord: number;
+  private _started: DOMHighResTimeStamp;
+  private _loopsToRender: number;
+  private _render: boolean = false;
 
-  constructor(scene: Game, loopsToRecord: number) {
+  constructor(scene: Game, loopsToRender: number) {
     super(scene, scene.w(0), scene.h(-500) + scene.d(0.41));
 
     this._scene = scene;
@@ -96,7 +98,8 @@ export class EndingUI extends GameObjects.Container {
     this._illustration = this.createIllustration();
     this._overlay = this.createOverlay();
     this._grade = this.createGrade(stats.grade);
-    this._loopsToRecord = loopsToRecord;
+    this._loopsToRender = loopsToRender;
+    this._render = this._scene.render;
 
     position(
       [this._accuracy, this._maxCombo, this._stdDev],
@@ -114,6 +117,14 @@ export class EndingUI extends GameObjects.Container {
   }
 
   update() {
+    if (
+      this._render &&
+      this._started !== undefined &&
+      this._scene.game.getTime() - this._started > (this._loopsToRender * 192e3) / 7
+    ) {
+      EventBus.emit('render-stop');
+      this._render = false;
+    }
     this.x = this._scene.w(0);
     if (this._tweening) return;
     this.setPosition(this._scene.w(0), this._scene.h(0) + this._scene.d(0.41));
@@ -220,22 +231,22 @@ export class EndingUI extends GameObjects.Container {
     this.setVisible(true);
     this._innerContainer.setScale(0.75);
     this._overlay.setAlpha(0);
-    this._sound = this._scene.sound.add('ending');
-    this._sound.setVolume(this._scene.preferences.musicVolume).play();
-    this._scene.sound.add('grade-hit').setVolume(this._scene.preferences.hitSoundVolume).play();
-    this._timer = setInterval(
-      () => {
-        this._sound.play();
-      },
-      192e3 / 7 / this._scene.tweens.timeScale,
-    );
-    setTimeout(
-      () => {
-        EventBus.emit('recording-stop');
-      },
-      (this._loopsToRecord * 192e3) / 7 / this._scene.tweens.timeScale,
-    );
+
+    if (!this._scene.render) {
+      this._sound = this._scene.sound.add('ending');
+      this._sound.setVolume(this._scene.preferences.musicVolume).play();
+      this._scene.sound.add('grade-hit').setVolume(this._scene.preferences.hitSoundVolume).play();
+      this._timer = setInterval(
+        () => {
+          this._sound.play();
+        },
+        192e3 / 7 / this._scene.tweens.timeScale,
+      );
+    }
+
     this._tweening = true;
+    this._started = this._scene.game.getTime();
+
     if (Capacitor.getPlatform() !== 'android')
       this._grade.preFX?.addShine((7 / 6) * this._scene.tweens.timeScale, 1, 3, false);
 

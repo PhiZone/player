@@ -10,10 +10,11 @@
     IncomingMessage,
     Metadata,
     Preferences,
-    RecorderOptions,
+    MediaOptions,
     Release,
     RpeJson,
     UrlInputMessage,
+    FFmpegEncoder,
   } from '$lib/types';
   import {
     clamp,
@@ -46,13 +47,15 @@
   import { REPO_API_LINK, REPO_LINK, VERSION } from '$lib';
   import { SendIntent, type Intent } from 'send-intent';
   import { Filesystem } from '@capacitor/filesystem';
-  import { tempDir } from '@tauri-apps/api/path';
+  import { join, tempDir, videoDir } from '@tauri-apps/api/path';
   import { download as tauriDownload } from '@tauri-apps/plugin-upload';
   import { readFile, remove } from '@tauri-apps/plugin-fs';
   import { random } from 'mathjs';
   import { base } from '$app/paths';
   import { listen } from '@tauri-apps/api/event';
   import { invoke } from '@tauri-apps/api/core';
+  import { getEncoders } from '$lib/player/services/ffmpeg/tauri';
+  import { open } from '@tauri-apps/plugin-dialog';
 
   interface FileEntry {
     id: number;
@@ -81,7 +84,7 @@
   }
 
   let showCollapse = false;
-  let showRecorderCollapse = false;
+  let showMediaCollapse = false;
   let overrideResolution = false;
   let modalMem = false;
   let directoryInput: HTMLInputElement;
@@ -120,20 +123,20 @@
     autoplay: false,
     practice: false,
     adjustOffset: false,
-    record: false,
+    render: false,
     newTab: Capacitor.getPlatform() === 'web',
     inApp: IS_TAURI || Capacitor.getPlatform() !== 'web' ? 2 : 0,
   };
-  let recorderOptions: RecorderOptions = {
+  let mediaOptions: MediaOptions = {
     frameRate: 60,
     overrideResolution: [1620, 1080],
-    endingLoopsToRecord: 1,
-    outputFormat: 'mp4',
+    endingLoopsToRender: 1,
+    videoCodec: 'libx264',
     videoBitrate: 6000,
     audioBitrate: 320,
   };
-  let recorderResolutionWidth = 1620;
-  let recorderResolutionHeight = 1080;
+  let mediaResolutionWidth = 1620;
+  let mediaResolutionHeight = 1080;
 
   let chartFiles: FileEntry[] = [];
   let audioFiles: FileEntry[] = [];
@@ -147,6 +150,8 @@
   let chartBundles: ChartBundle[] = [];
 
   let timeouts: NodeJS.Timeout[] = [];
+
+  let ffmpegEncoders: FFmpegEncoder[] | undefined;
 
   let isFirstLoad = !page.url.searchParams.get('t');
 
@@ -178,7 +183,7 @@
           config = message.payload;
         } else {
           const assetsIncluded = assets.filter((asset) => asset.included);
-          const { preferences: pref, recorderOptions: rec, ...rest } = message.payload;
+          const { preferences: pref, mediaOptions: rec, ...rest } = message.payload;
           for (const key in rest) {
             if (rest[key as keyof typeof rest] !== undefined) {
               toggles[key as keyof typeof toggles] = rest[key as keyof typeof rest] as never;
@@ -201,7 +206,7 @@
             },
             metadata: currentBundle.metadata,
             preferences: pref ?? preferences,
-            recorderOptions: rec ?? recorderOptions,
+            mediaOptions: rec ?? mediaOptions,
             ...toggles,
           };
         }
@@ -257,6 +262,7 @@
         await handleFilePaths(filePaths, handler);
       });
       if (isFirstLoad) {
+        ffmpegEncoders = await getEncoders();
         const result = await invoke('get_files_opened');
         if (result) {
           await handleFilePaths(result as string[], handler);
@@ -306,7 +312,7 @@
     let pref, tgs, rec;
     pref = localStorage.getItem('preferences');
     tgs = localStorage.getItem('toggles');
-    rec = localStorage.getItem('recorderOptions');
+    rec = localStorage.getItem('mediaOptions');
 
     if (pref) {
       pref = JSON.parse(pref);
@@ -318,13 +324,17 @@
     }
     if (rec) {
       rec = JSON.parse(rec);
-      if (haveSameKeys(rec, recorderOptions)) recorderOptions = rec;
+      if (haveSameKeys(rec, mediaOptions)) mediaOptions = rec;
     }
 
-    if (recorderOptions.overrideResolution && recorderOptions.overrideResolution.length === 2) {
+    if (mediaOptions.overrideResolution && mediaOptions.overrideResolution.length === 2) {
       overrideResolution = true;
-      recorderResolutionWidth = recorderOptions.overrideResolution[0];
-      recorderResolutionHeight = recorderOptions.overrideResolution[1];
+      mediaResolutionWidth = mediaOptions.overrideResolution[0];
+      mediaResolutionHeight = mediaOptions.overrideResolution[1];
+    }
+
+    if (!mediaOptions.exportPath) {
+      mediaOptions.exportPath = await join(await videoDir(), 'PhiZone Player');
     }
 
     if (
@@ -806,15 +816,14 @@
   };
 
   const handleParams = async (params: Config) => {
-    localStorage.setItem('player', JSON.stringify(params));
     preferences = params.preferences;
-    recorderOptions = params.recorderOptions;
+    mediaOptions = params.mediaOptions;
     toggles = {
       autostart: params.autostart,
       autoplay: params.autoplay,
       practice: params.practice,
       adjustOffset: params.adjustOffset,
-      record: params.record,
+      render: params.render,
       newTab: params.newTab,
       inApp: params.inApp,
     };
@@ -843,13 +852,7 @@
         },
       },
     });
-    const paramsString = queryString.stringify(params, {
-      arrayFormat: 'none',
-      skipEmptyString: true,
-      skipNull: true,
-      sort: false,
-    });
-    start(paramsString.length <= 15360 ? `${base}/play/?${paramsString}` : `${base}/play/`);
+    start(params);
   };
 
   const downloadUrls = async (urls: string[]) => {
@@ -875,18 +878,26 @@
     if (monitor) {
       const factor = 0.8;
       let { width, height } =
-        recorderOptions.overrideResolution || preferences.aspectRatio
+        toggles.render && mediaOptions.overrideResolution
           ? fit(
-              (recorderOptions.overrideResolution ?? preferences.aspectRatio)![0],
-              (recorderOptions.overrideResolution ?? preferences.aspectRatio)![1],
+              mediaOptions.overrideResolution[0],
+              mediaOptions.overrideResolution[1],
               monitor.size.width,
               monitor.size.height,
               true,
             )
-          : {
-              width: monitor.size.width,
-              height: monitor.size.height,
-            };
+          : preferences.aspectRatio
+            ? fit(
+                preferences.aspectRatio[0],
+                preferences.aspectRatio[1],
+                monitor.size.width,
+                monitor.size.height,
+                true,
+              )
+            : {
+                width: monitor.size.width,
+                height: monitor.size.height,
+              };
       width = width * factor;
       height = height * factor;
       webview.setPosition(
@@ -899,7 +910,17 @@
     }
   };
 
-  const start = async (url: string) => {
+  const start = async (config: Config) => {
+    localStorage.setItem('player', JSON.stringify(config));
+
+    const paramsString = queryString.stringify(config, {
+      arrayFormat: 'none',
+      skipEmptyString: true,
+      skipNull: true,
+      sort: false,
+    });
+    const url = paramsString.length <= 15360 ? `${base}/play/?${paramsString}` : `${base}/play/`;
+
     if (IS_TAURI) {
       monitor = await currentMonitor();
       if (Capacitor.getPlatform() === 'web' && toggles.newTab) {
@@ -918,6 +939,7 @@
         configureWebviewWindow(getCurrentWebviewWindow());
       }
     }
+
     if (Capacitor.getPlatform() === 'web' && toggles.newTab) {
       window.open(url);
     } else {
@@ -1554,10 +1576,10 @@
                 class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
                 aria-describedby="adjust-offset-description"
                 bind:checked={toggles.adjustOffset}
-                disabled={!toggles.autoplay}
+                disabled={!toggles.autoplay || (ffmpegEncoders !== undefined && toggles.render)}
               />
             </div>
-            <label for="adjust-offset" class="ms-3 transition" class:opacity-50={!toggles.autoplay}>
+            <label for="adjust-offset" class="ms-3 transition" class:opacity-50={!toggles.autoplay || (ffmpegEncoders !== undefined && toggles.render)}>
               <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
                 Adjust offset
               </span>
@@ -1579,10 +1601,10 @@
                 class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
                 aria-describedby="practice-description"
                 bind:checked={toggles.practice}
-                disabled={toggles.autoplay}
+                disabled={toggles.autoplay || (ffmpegEncoders !== undefined && toggles.render)}
               />
             </div>
-            <label for="practice" class="ms-3 transition" class:opacity-50={toggles.autoplay}>
+            <label for="practice" class="ms-3 transition" class:opacity-50={toggles.autoplay || (ffmpegEncoders !== undefined && toggles.render)}>
               <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
                 Practice
               </span>
@@ -1594,168 +1616,222 @@
               </span>
             </label>
           </div>
-          <div class="flex flex-col">
-            <div class="relative flex items-start">
-              <div class="flex items-center h-5 mt-1">
-                <input
-                  id="record"
-                  name="record"
-                  type="checkbox"
-                  class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
-                  aria-describedby="record-description"
-                  bind:checked={toggles.record}
-                />
-              </div>
-              <label for="record" class="ms-3">
-                <button
-                  class="flex items-center gap-1 text-sm font-semibold text-gray-800 dark:text-neutral-300"
-                  onclick={() => {
-                    showRecorderCollapse = !showRecorderCollapse;
-                  }}
-                >
-                  <p>Record</p>
-                  <span class="transition {showRecorderCollapse ? '-rotate-180' : 'rotate-0'}">
-                    <i class="fa-solid fa-angle-down fa-sm"></i>
-                  </span>
-                </button>
-                <span
-                  id="record-description"
-                  class="block text-sm text-gray-600 dark:text-neutral-500"
-                >
-                  The canvas will be recorded and saved as a video file.
-                  <br />
-                  Note that this feature is still a work in progress.
-                </span>
-              </label>
-            </div>
+          {#if IS_TAURI}
             <div
-              class="collapse h-0 border hover:shadow-sm rounded-xl dark:border-neutral-700 dark:shadow-neutral-700/70 bg-base-200 bg-opacity-30 backdrop-blur-2xl collapse-transition"
-              class:collapse-open={showRecorderCollapse}
-              class:min-h-fit={showRecorderCollapse}
-              class:h-full={showRecorderCollapse}
-              class:mt-2={showRecorderCollapse}
-              class:opacity-0={!showRecorderCollapse}
+              class="flex flex-col {ffmpegEncoders === undefined
+                ? 'tooltip'
+                : overrideResolution &&
+                    (mediaResolutionWidth % 2 === 1 || mediaResolutionHeight % 2 === 1)
+                  ? 'tooltip tooltip-warning'
+                  : ''}"
+              data-tip={ffmpegEncoders === undefined
+                ? 'FFmpeg could not be found on your system.'
+                : 'Some encoders may not support resolutions with odd dimensions.'}
             >
+              <div class="relative flex items-start">
+                <div class="flex items-center h-5 mt-1">
+                  <input
+                    id="render"
+                    name="render"
+                    type="checkbox"
+                    class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
+                    aria-describedby="render-description"
+                    checked={toggles.render}
+                    disabled={ffmpegEncoders === undefined}
+                    oninput={(e) => {
+                      toggles.render = e.currentTarget.checked;
+                      if (toggles.render) {
+                        toggles.autoplay = true;
+                        toggles.adjustOffset = false;
+                        toggles.practice = false;
+                        toggles.autostart = true;
+                      }
+                    }}
+                  />
+                </div>
+                <label for="render" class="ms-3" class:opacity-50={ffmpegEncoders === undefined}>
+                  <button
+                    class="flex items-center gap-1 text-sm font-semibold text-gray-800 dark:text-neutral-300 disabled:pointer-events-none"
+                    disabled={ffmpegEncoders === undefined}
+                    onclick={() => {
+                      showMediaCollapse = !showMediaCollapse;
+                    }}
+                  >
+                    <p>Render</p>
+                    <span class="transition {showMediaCollapse ? '-rotate-180' : 'rotate-0'}">
+                      <i class="fa-solid fa-angle-down fa-sm"></i>
+                    </span>
+                  </button>
+                  <span
+                    id="render-description"
+                    class="block text-sm text-gray-600 dark:text-neutral-500"
+                  >
+                    The canvas will be rendered and saved as a video file.
+                  </span>
+                </label>
+              </div>
               <div
-                class="collapse-content flex flex-col gap-4 items-center pt-0 transition-[padding] duration-300"
-                class:pt-4={showRecorderCollapse}
+                class="collapse h-0 border hover:shadow-sm rounded-xl dark:border-neutral-700 dark:shadow-neutral-700/70 bg-base-200 bg-opacity-30 backdrop-blur-2xl collapse-transition"
+                class:collapse-open={showMediaCollapse}
+                class:min-h-fit={showMediaCollapse}
+                class:h-full={showMediaCollapse}
+                class:mt-2={showMediaCollapse}
+                class:opacity-0={!showMediaCollapse}
               >
-                <div class="grid sm:grid-cols-3 md:grid-cols-1 lg:grid-cols-3 gap-3">
-                  <div>
-                    <span class="block text-sm font-medium mb-1 dark:text-white">Frame rate</span>
-                    <div class="relative">
-                      <input
-                        type="number"
-                        bind:value={recorderOptions.frameRate}
-                        class="form-input py-3 px-4 pe-12 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
-                      />
-                      <div
-                        class="absolute inset-y-0 end-0 flex items-center pointer-events-none z-20 pe-4"
-                      >
-                        <span class="text-gray-500 dark:text-neutral-500">FPS</span>
+                <div
+                  class="collapse-content flex flex-col gap-4 items-center pt-0 transition-[padding] duration-300"
+                  class:pt-4={showMediaCollapse}
+                >
+                  <div class="grid sm:grid-cols-6 md:grid-cols-1 lg:grid-cols-6 gap-3">
+                    <div class="sm:col-span-2 md:col-span-1 lg:col-span-2">
+                      <span class="block text-left text-sm font-medium mb-1 dark:text-white">
+                        Frame rate
+                      </span>
+                      <div class="relative">
+                        <input
+                          type="number"
+                          bind:value={mediaOptions.frameRate}
+                          class="form-input py-3 px-4 pe-12 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                        />
+                        <div
+                          class="absolute inset-y-0 end-0 flex items-center pointer-events-none z-20 pe-4"
+                        >
+                          <span class="text-gray-500 dark:text-neutral-500">FPS</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div class="sm:col-span-2 md:col-span-1 lg:col-span-2">
-                    <div class="flex justify-between items-center">
-                      <span class="block text-sm font-medium mb-1 dark:text-white">
-                        Override resolution
-                      </span>
-                      <input
-                        type="checkbox"
-                        class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
-                        bind:checked={overrideResolution}
-                      />
-                    </div>
-                    <div class="flex rounded-lg shadow-sm">
-                      <input
-                        type="number"
-                        class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm -ms-px first:rounded-s-lg mt-0 first:ms-0 first:rounded-se-none last:rounded-es-none last:rounded-e-lg text-sm relative focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
-                        disabled={!overrideResolution}
-                        bind:value={recorderResolutionWidth}
-                      />
-                      <span
-                        class="py-3 px-2 inline-flex items-center min-w-fit border border-gray-200 text-sm text-gray-500 -ms-px w-auto first:rounded-s-lg mt-0 first:ms-0 first:rounded-se-none last:rounded-es-none last:rounded-e-lg bg-base-100 dark:border-neutral-700 dark:text-neutral-400"
-                        class:opacity-50={!overrideResolution}
-                      >
-                        <i class="fa-solid fa-xmark"></i>
-                      </span>
-                      <input
-                        type="number"
-                        class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm -ms-px first:rounded-s-lg mt-0 first:ms-0 first:rounded-se-none last:rounded-es-none last:rounded-e-lg text-sm relative focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
-                        disabled={!overrideResolution}
-                        bind:value={recorderResolutionHeight}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <span class="block text-sm font-medium mb-1 dark:text-white">
-                      Output format
-                    </span>
-                    <div class="relative">
-                      <input
-                        type="text"
-                        value="webm"
-                        disabled
-                        class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
-                      />
-                      <!-- <input
-                            type="text"
-                            bind:value={recorderOptions.outputFormat}
-                            class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
-                          /> -->
-                    </div>
-                  </div>
-                  <div class="sm:col-span-2 md:col-span-1 lg:col-span-2">
-                    <span class="block text-sm font-medium mb-1 dark:text-white">
-                      Video bitrate
-                    </span>
-                    <div class="relative">
-                      <input
-                        type="number"
-                        bind:value={recorderOptions.videoBitrate}
-                        class="form-input py-3 px-4 pe-14 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
-                      />
-                      <div
-                        class="absolute inset-y-0 end-0 flex items-center pointer-events-none z-20 pe-4"
-                      >
-                        <span class="text-gray-500 dark:text-neutral-500">Kbps</span>
+                    <div class="sm:col-span-4 md:col-span-1 lg:col-span-4">
+                      <div class="flex justify-between items-center">
+                        <span class="block text-left text-sm font-medium mb-1 dark:text-white">
+                          Override resolution
+                        </span>
+                        <input
+                          type="checkbox"
+                          class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
+                          bind:checked={overrideResolution}
+                        />
+                      </div>
+                      <div class="flex rounded-lg shadow-sm">
+                        <input
+                          type="number"
+                          min="2"
+                          step="2"
+                          class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm -ms-px first:rounded-s-lg mt-0 first:ms-0 first:rounded-se-none last:rounded-es-none last:rounded-e-lg text-sm relative focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                          disabled={!overrideResolution}
+                          bind:value={mediaResolutionWidth}
+                        />
+                        <span
+                          class="py-3 px-2 inline-flex items-center min-w-fit border border-gray-200 text-sm text-gray-500 -ms-px w-auto first:rounded-s-lg mt-0 first:ms-0 first:rounded-se-none last:rounded-es-none last:rounded-e-lg bg-base-100 dark:border-neutral-700 dark:text-neutral-400"
+                          class:opacity-50={!overrideResolution}
+                        >
+                          <i class="fa-solid fa-xmark"></i>
+                        </span>
+                        <input
+                          type="number"
+                          min="2"
+                          step="2"
+                          class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm -ms-px first:rounded-s-lg mt-0 first:ms-0 first:rounded-se-none last:rounded-es-none last:rounded-e-lg text-sm relative focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                          disabled={!overrideResolution}
+                          bind:value={mediaResolutionHeight}
+                        />
                       </div>
                     </div>
-                  </div>
-                  <div>
-                    <span class="block text-sm font-medium mb-1 dark:text-white">Ending loops</span>
-                    <div class="relative">
-                      <input
-                        type="number"
-                        min={0}
-                        step={0.1}
-                        bind:value={recorderOptions.endingLoopsToRecord}
-                        class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
-                      />
+                    <div class="sm:col-span-3 md:col-span-1 lg:col-span-3">
+                      <span class="block text-left text-sm font-medium mb-1 dark:text-white">
+                        Video encoder
+                      </span>
+                      <div class="relative">
+                        <select
+                          bind:value={mediaOptions.videoCodec}
+                          class="form-select py-3 px-4 pe-8 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                        >
+                          {#if ffmpegEncoders}
+                            {#each ffmpegEncoders.filter((e) => e.codec !== null && ['h264', 'hevc', 'av1', 'mpeg4'].includes(e.codec)) as encoder}
+                              <option value={encoder.name}>{encoder.displayName}</option>
+                            {/each}
+                          {/if}
+                        </select>
+                      </div>
                     </div>
-                  </div>
-                  <div class="sm:col-span-2 md:col-span-1 lg:col-span-2">
-                    <span class="block text-sm font-medium mb-1 dark:text-white">
-                      Audio bitrate
-                    </span>
-                    <div class="relative">
-                      <input
-                        type="number"
-                        bind:value={recorderOptions.audioBitrate}
-                        class="form-input py-3 px-4 pe-14 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
-                      />
-                      <div
-                        class="absolute inset-y-0 end-0 flex items-center pointer-events-none z-20 pe-4"
-                      >
-                        <span class="text-gray-500 dark:text-neutral-500">Kbps</span>
+                    <div class="sm:col-span-3 md:col-span-1 lg:col-span-3">
+                      <span class="block text-left text-sm font-medium mb-1 dark:text-white">
+                        Video bitrate
+                      </span>
+                      <div class="relative">
+                        <input
+                          type="number"
+                          bind:value={mediaOptions.videoBitrate}
+                          class="form-input py-3 px-4 pe-14 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                        />
+                        <div
+                          class="absolute inset-y-0 end-0 flex items-center pointer-events-none z-20 pe-4"
+                        >
+                          <span class="text-gray-500 dark:text-neutral-500">kbps</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="sm:col-span-3 md:col-span-1 lg:col-span-3">
+                      <span class="block text-left text-sm font-medium mb-1 dark:text-white">
+                        Results loops
+                      </span>
+                      <div class="relative">
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.1}
+                          bind:value={mediaOptions.endingLoopsToRender}
+                          class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                        />
+                      </div>
+                    </div>
+                    <div class="sm:col-span-3 md:col-span-1 lg:col-span-3">
+                      <span class="block text-left text-sm font-medium mb-1 dark:text-white">
+                        Audio bitrate
+                      </span>
+                      <div class="relative">
+                        <input
+                          type="number"
+                          bind:value={mediaOptions.audioBitrate}
+                          class="form-input py-3 px-4 pe-14 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                        />
+                        <div
+                          class="absolute inset-y-0 end-0 flex items-center pointer-events-none z-20 pe-4"
+                        >
+                          <span class="text-gray-500 dark:text-neutral-500">kbps</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="sm:col-span-6 md:col-span-1 lg:col-span-6">
+                      <span class="block text-left text-sm font-medium mb-1 dark:text-white">
+                        Export path
+                      </span>
+                      <div class="flex rounded-lg">
+                        <input
+                          type="text"
+                          bind:value={mediaOptions.exportPath}
+                          class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm text-sm focus:z-10 rounded-s-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                        />
+                        <button
+                          class="py-3 px-4 inline-flex justify-center items-center gap-x-2 text-center text-sm font-medium shadow-sm rounded-e-lg transition border border-gray-200 text-gray-500 hover:border-blue-500 hover:text-blue-500 focus:outline-none focus:border-blue-500 focus:text-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:border-neutral-700 dark:text-neutral-400 dark:hover:text-blue-500 dark:hover:border-blue-500 dark:focus:text-blue-500 dark:focus:border-blue-500"
+                          onclick={async () => {
+                            const path = await open({
+                              directory: true,
+                              multiple: false,
+                            });
+                            if (path) {
+                              mediaOptions.exportPath = path;
+                            }
+                          }}
+                        >
+                          Browse
+                        </button>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
+          {/if}
           <div class="relative flex items-start">
             <div class="flex items-center h-5 mt-1">
               <input
@@ -1765,9 +1841,10 @@
                 class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
                 aria-describedby="autostart-description"
                 bind:checked={toggles.autostart}
+                disabled={ffmpegEncoders !== undefined && toggles.render}
               />
             </div>
-            <label for="autostart" class="ms-3">
+            <label for="autostart" class="ms-3" class:opacity-50={ffmpegEncoders !== undefined && toggles.render}>
               <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
                 Autostart
               </span>
@@ -1822,69 +1899,36 @@
             onclick={() => {
               localStorage.setItem('preferences', JSON.stringify(preferences));
               localStorage.setItem('toggles', JSON.stringify(toggles));
-              if (toggles.record) {
-                localStorage.setItem('recorderOptions', JSON.stringify(recorderOptions));
+              if (toggles.render) {
                 if (overrideResolution) {
-                  recorderOptions.overrideResolution = [
-                    recorderResolutionWidth,
-                    recorderResolutionHeight,
-                  ];
+                  mediaOptions.overrideResolution = [mediaResolutionWidth, mediaResolutionHeight];
                 } else {
-                  recorderOptions.overrideResolution = null;
+                  mediaOptions.overrideResolution = null;
                 }
+                localStorage.setItem('mediaOptions', JSON.stringify(mediaOptions));
               }
               if (!currentBundle) {
                 alert('No bundle is available.');
                 return;
               }
               const assetsIncluded = assets.filter((asset) => asset.included);
-              const params = queryString.stringify(
-                {
-                  song: getUrl(audioFiles.find((file) => file.id === currentBundle!.song)?.file),
-                  chart: getUrl(chartFiles.find((file) => file.id === currentBundle!.chart)?.file),
-                  illustration: imageFiles.find((file) => file.id === currentBundle!.illustration)
-                    ?.url,
+              start({
+                resources: {
+                  song:
+                    getUrl(audioFiles.find((file) => file.id === currentBundle!.song)?.file) ?? '',
+                  chart:
+                    getUrl(chartFiles.find((file) => file.id === currentBundle!.chart)?.file) ?? '',
+                  illustration:
+                    imageFiles.find((file) => file.id === currentBundle!.illustration)?.url ?? '',
                   assetNames: assetsIncluded.map((asset) => asset.file.name),
                   assetTypes: assetsIncluded.map((asset) => asset.type),
-                  assets: assetsIncluded.map((asset) => getUrl(asset.file)),
-                  ...currentBundle.metadata,
-                  ...preferences,
-                  ...toggles,
-                  ...(toggles.record ? recorderOptions : []),
+                  assets: assetsIncluded.map((asset) => getUrl(asset.file) ?? ''),
                 },
-                {
-                  arrayFormat: 'none',
-                  skipEmptyString: true,
-                  skipNull: true,
-                  sort: false,
-                },
-              );
-              let url = `${base}/play/`;
-              if (params.length <= 15360) {
-                url = `${base}/play/?${params}`;
-              } else {
-                const config = {
-                  resources: {
-                    song:
-                      getUrl(audioFiles.find((file) => file.id === currentBundle!.song)?.file) ??
-                      '',
-                    chart:
-                      getUrl(chartFiles.find((file) => file.id === currentBundle!.chart)?.file) ??
-                      '',
-                    illustration:
-                      imageFiles.find((file) => file.id === currentBundle!.illustration)?.url ?? '',
-                    assetNames: assetsIncluded.map((asset) => asset.file.name),
-                    assetTypes: assetsIncluded.map((asset) => asset.type),
-                    assets: assetsIncluded.map((asset) => getUrl(asset.file) ?? ''),
-                  },
-                  metadata: currentBundle.metadata,
-                  preferences,
-                  recorderOptions,
-                  ...toggles,
-                };
-                localStorage.setItem('player', JSON.stringify(config));
-              }
-              start(url);
+                metadata: currentBundle.metadata,
+                preferences,
+                mediaOptions,
+                ...toggles,
+              });
             }}
           >
             Play
