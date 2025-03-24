@@ -637,7 +637,7 @@ class Button extends GameObjects.Container {
     ).setAlpha(0);
 
     this._image.setInteractive(this._background, (area, x, y, _obj) =>
-      this.isInvokeable(x, y, area),
+      this.isInvocable(x, y, area),
     );
     this.add(this._image);
     this.add(this._background);
@@ -688,7 +688,7 @@ class Button extends GameObjects.Container {
     this._tween = tween;
   }
 
-  isInvokeable(x: number, y: number, area: GameObjects.Arc = this._background) {
+  isInvocable(x: number, y: number, area: GameObjects.Arc = this._background) {
     const refX = area.x + area.width / 2;
     const refY = area.y + area.height / 2;
     const radius = area.radius * 2;

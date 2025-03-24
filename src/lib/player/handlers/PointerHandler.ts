@@ -21,7 +21,7 @@ export class PointerHandler {
     if (
       this._scene.autoplay ||
       this._scene.status !== GameStatus.PLAYING ||
-      this._scene.gameUI.pause.isInvokeable(pointer.x, pointer.y)
+      this._scene.gameUI.pause.isInvocable(pointer.x, pointer.y)
     )
       return;
     const position = new Phaser.Math.Vector2(pointer.x, pointer.y);
