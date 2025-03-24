@@ -209,7 +209,7 @@ export class Line {
     this.handleEventLayers(beat);
     this.updateParams();
     this._notes.forEach((note) => {
-      note.update(beat / this._data.bpmfactor, songTime, this._height, this._opacity);
+      note.update(beat / this._data.bpmfactor, songTime, this._height);
     });
   }
 
@@ -619,6 +619,10 @@ export class Line {
 
   public get alpha() {
     return this._line.alpha;
+  }
+
+  public get opacity() {
+    return this._opacity;
   }
 
   public get incline() {

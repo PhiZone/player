@@ -70,7 +70,7 @@ export class LongNote extends GameObjects.Container {
     }
   }
 
-  update(beat: number, songTime: number, height: number, lineOpacity: number) {
+  update(beat: number, songTime: number, height: number) {
     this.setX(this._scene.p(this._xModifier * this._data.positionX));
     this.resize();
     if (this._beatJudged && beat < this._beatJudged) {
@@ -84,8 +84,9 @@ export class LongNote extends GameObjects.Container {
     const tailDist = this._scene.d((this._targetTailHeight - height) * this._data.speed) + yOffset;
 
     let visible = true;
-    if (lineOpacity < 0) {
-      if (lineOpacity === -2 && (headDist * this._data.above === 1 ? -1 : 1) > 0) visible = true;
+    if (this._line.opacity < 0) {
+      if (this._line.opacity === -2 && (headDist * this._data.above === 1 ? -1 : 1) > 0)
+        visible = true;
       else visible = false;
     }
 

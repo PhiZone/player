@@ -71,15 +71,15 @@ export class PlainNote extends SkewImage {
     }
   }
 
-  update(beat: number, songTime: number, height: number, lineOpacity: number) {
+  update(beat: number, songTime: number, height: number) {
     const dist =
       this._scene.d((this._targetHeight - height) * this._data.speed) +
       this._scene.o(this._data.yOffset);
     const chartDist = (dist / this._scene.sys.canvas.height) * 900;
 
     let visible = true;
-    if (lineOpacity < 0) {
-      if (lineOpacity === -2 && (dist * this._data.above === 1 ? -1 : 1) > 0) visible = true;
+    if (this._line.opacity < 0) {
+      if (this._line.opacity === -2 && (dist * this._data.above === 1 ? -1 : 1) > 0) visible = true;
       else visible = false;
     }
 
