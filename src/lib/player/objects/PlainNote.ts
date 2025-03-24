@@ -128,7 +128,7 @@ export class PlainNote extends SkewImage {
       this.setVisible(
         visible &&
           songTime >= this._hitTime - this._data.visibleTime &&
-          (dist >= 0 || !this._line.data.isCover),
+          (dist * this._data.speed >= 0 || !this._line.data.isCover),
       );
     }
 
