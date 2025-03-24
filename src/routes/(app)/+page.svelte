@@ -333,7 +333,7 @@
       mediaResolutionHeight = mediaOptions.overrideResolution[1];
     }
 
-    if (!mediaOptions.exportPath) {
+    if (!mediaOptions.exportPath && IS_TAURI) {
       mediaOptions.exportPath = await join(await videoDir(), 'PhiZone Player');
     }
 
