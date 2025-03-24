@@ -70,7 +70,7 @@ export class LongNote extends GameObjects.Container {
     }
   }
 
-  update(beat: number, songTime: number, height: number, lineOpacity: number) {
+  update(beat: number, songTime: number, height: number) {
     this.setX(this._scene.p(this._xModifier * this._data.positionX));
     this.resize();
     if (this._beatJudged && beat < this._beatJudged) {
@@ -84,8 +84,9 @@ export class LongNote extends GameObjects.Container {
     const tailDist = this._scene.d((this._targetTailHeight - height) * this._data.speed) + yOffset;
 
     let visible = true;
-    if (lineOpacity < 0) {
-      if (lineOpacity === -2 && (headDist * this._data.above === 1 ? -1 : 1) > 0) visible = true;
+    if (this._line.opacity < 0) {
+      if (this._line.opacity === -2 && (headDist * this._data.above === 1 ? -1 : 1) > 0)
+        visible = true;
       else visible = false;
     }
 
@@ -96,7 +97,7 @@ export class LongNote extends GameObjects.Container {
       this._head.setVisible(
         visible &&
           songTime >= this._hitTime - this._data.visibleTime &&
-          (headDist >= 0 || !this._line.data.isCover),
+          (headDist * this._data.speed >= 0 || !this._line.data.isCover),
       );
     }
     if (beat > this._data.endBeat) {
@@ -106,20 +107,18 @@ export class LongNote extends GameObjects.Container {
       const vis =
         visible &&
         songTime >= this._hitTime - this._data.visibleTime &&
-        (tailDist >= 0 || !this._line.data.isCover);
+        (tailDist * this._data.speed >= 0 || !this._line.data.isCover);
       this._body.setVisible(vis);
       this._tail.setVisible(vis);
     }
     this._head.setY(this._yModifier * headDist);
-    this._body.setY(
-      this._yModifier * (this._line.data.isCover ? Math.max(yOffset, headDist) : headDist),
-    );
+    this._body.setY(this._yModifier * (this._line.data.isCover ? Math.max(0, headDist) : headDist));
     this._tail.setY(this._yModifier * tailDist);
     this._body.scaleY =
       (-this._yModifier *
         (this._line.data.isCover
-          ? Math.max(0, tailDist - Math.max(yOffset, headDist))
-          : tailDist - headDist)) /
+          ? Math.max(0, tailDist - Math.max(0, headDist))
+          : Math.max(0, tailDist - headDist))) /
       this._bodyHeight;
     if (this._data.isFake) {
       if (this._judgmentType !== JudgmentType.PASSED && beat >= this._data.endBeat)
