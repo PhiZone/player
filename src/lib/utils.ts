@@ -9,9 +9,8 @@ import 'context-filter-polyfill';
 export const IS_TAURI = '__TAURI_INTERNALS__' in window;
 
 export const IS_IOS = (() => {
-  const iosQuirkPresent = function () {
+  const iosQuirkPresent = () => {
     const audio = new Audio();
-
     audio.volume = 0.5;
     return audio.volume === 1; // volume cannot be changed from "1" on iOS 12 and below
   };
@@ -233,15 +232,16 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
   const overrideResolution: number[] | null = searchParams
     .getAll('overrideResolution')
     .map((v) => parseInt(v));
-  const endingLoopsToRecord = parseFloat(searchParams.get('endingLoopsToRecord') ?? '1');
-  const outputFormat = searchParams.get('outputFormat') ?? 'mp4';
+  const endingLoopsToRender = parseFloat(searchParams.get('endingLoopsToRender') ?? '1');
+  const videoCodec = searchParams.get('videoCodec') ?? 'libx264';
   const videoBitrate = parseInt(searchParams.get('videoBitrate') ?? '6000');
   const audioBitrate = parseInt(searchParams.get('audioBitrate') ?? '320');
+  const exportPath = searchParams.get('exportPath') ?? undefined;
 
   const autoplay = ['1', 'true'].some((v) => v == searchParams.get('autoplay'));
   const practice = ['1', 'true'].some((v) => v == searchParams.get('practice'));
   const adjustOffset = ['1', 'true'].some((v) => v == searchParams.get('adjustOffset'));
-  const record = ['1', 'true'].some((v) => v == searchParams.get('record'));
+  const render = ['1', 'true'].some((v) => v == searchParams.get('render'));
   const autostart = ['1', 'true'].some((v) => v == searchParams.get('autostart'));
   const newTab = ['1', 'true'].some((v) => v == searchParams.get('newTab'));
   const inApp = parseInt(searchParams.get('inApp') ?? '0');
@@ -284,19 +284,20 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
       simultaneousNoteHint,
       timeScale,
     },
-    recorderOptions: {
+    mediaOptions: {
       frameRate,
       overrideResolution:
         overrideResolution.length >= 2 ? [overrideResolution[0], overrideResolution[1]] : null,
-      endingLoopsToRecord,
-      outputFormat,
+      endingLoopsToRender,
+      videoCodec,
       videoBitrate,
       audioBitrate,
+      exportPath,
     },
     autoplay,
     practice,
     adjustOffset,
-    record,
+    render: render,
     autostart,
     newTab,
     inApp,
@@ -330,6 +331,14 @@ const notiflix = (message: string, type: 'info' | 'warning' | 'failure' | 'succe
     borderRadius: '12px',
   });
   return id;
+};
+
+export const ensafeFilename = (filename: string) => {
+  return filename
+    .split(' ')
+    .filter((s) => s.trim().length > 0)
+    .join(' ')
+    .replaceAll(/[#%&{}\\<>*?/$!'":@`|]/g, '');
 };
 
 export const notify = (

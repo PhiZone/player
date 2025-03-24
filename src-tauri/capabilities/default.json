@@ -6,19 +6,31 @@
   "permissions": [
     "core:default",
     "core:webview:allow-create-webview-window",
-    "core:window:allow-set-size",
+    "core:window:allow-set-progress-bar",
     "core:window:allow-set-position",
     "core:window:allow-set-title",
+    "core:window:allow-set-size",
+    "core:window:allow-destroy",
     "core:window:allow-close",
-    "core:window:allow-set-progress-bar",
     "core:event:default",
     "deep-link:default",
     "os:default",
     "upload:default",
     "fs:read-all",
+    "fs:write-all",
     "fs:allow-remove",
+    "opener:default",
+    "dialog:default",
     {
       "identifier": "fs:scope",
+      "allow": [
+        {
+          "path": "**"
+        }
+      ]
+    },
+    {
+      "identifier": "opener:allow-open-path",
       "allow": [
         {
           "path": "**"
