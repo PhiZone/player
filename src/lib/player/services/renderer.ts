@@ -79,20 +79,29 @@ export class Renderer {
     this._scene.game.loop.stop();
     this.setTick(0);
 
+    const sharedBuffer = new SharedArrayBuffer(
+      this._scene.game.canvas.width * this._scene.game.canvas.height * 3,
+    );
+    const sharedView = new Uint8Array(sharedBuffer);
+
+    // Send the shared buffer reference to worker once
+    this._worker.postMessage({ type: 'init', buffer: sharedBuffer });
+
     this._scene.game.events.addListener('postrender', () => {
       if (this._isStopped) return;
       this._scene.renderer.snapshot((param) => {
-        const rgbaBuffer = param as Uint8Array<ArrayBuffer>;
-        const buffer = new Uint8Array((rgbaBuffer.length / 4) * 3);
+        const rgbaBuffer = param as Uint8Array;
 
+        // Write directly to shared buffer
         for (let i = 0, j = 0; i < rgbaBuffer.length; i += 4, j += 3) {
-          buffer[j] = rgbaBuffer[i];
-          buffer[j + 1] = rgbaBuffer[i + 1];
-          buffer[j + 2] = rgbaBuffer[i + 2];
+          sharedView[j] = rgbaBuffer[i];
+          sharedView[j + 1] = rgbaBuffer[i + 1];
+          sharedView[j + 2] = rgbaBuffer[i + 2];
         }
 
-        this._worker.postMessage({ data: buffer }, [buffer.buffer]);
-        EventBus.emit('rendering', this._frameCount++);
+        // Only send frame notification, not the data
+        this._worker.postMessage({ type: 'frame', frameNumber: this._frameCount++ });
+        EventBus.emit('rendering', this._frameCount);
       }, 'raw');
       if (this._isRendering) {
         this.setTick(this._frameCount / frameRate);
@@ -121,7 +130,7 @@ export class Renderer {
   stopRendering() {
     this._isRendering = false;
     this._isStopped = true;
-    this._worker.postMessage({ data: false });
+    this._worker.postMessage({ type: 'stop' });
     EventBus.emit('rendering-detail', 'Waiting for FFmpeg');
   }
 
