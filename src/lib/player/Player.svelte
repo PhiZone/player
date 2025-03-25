@@ -14,7 +14,7 @@
   import start from './main';
   import { EventBus } from './EventBus';
   import { GameStatus, type Config } from '$lib/types';
-  import { clamp, getParams, IS_TAURI, notify, showPerformance } from '$lib/utils';
+  import { clamp, getParams, IS_TAURI, notify, showPerformance, fromRichText } from '$lib/utils';
   import { convertTime, findPredominantBpm, getTimeSec, triggerDownload } from './utils';
   import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
   import { ProgressBarStatus } from '@tauri-apps/api/window';
@@ -160,7 +160,7 @@
       title = metadata.title;
       level = metadata.level;
       [metadata.composer, metadata.charter, metadata.illustrator].forEach((credit) => {
-        credits.push(credit ?? '');
+        credits.push(fromRichText(credit ?? ''));
       });
 
       if (render) {

@@ -336,6 +336,9 @@ const notiflix = (message: string, type: 'info' | 'warning' | 'failure' | 'succe
   return id;
 };
 
+export const fromRichText = (i: string) =>
+  i && i.replace(/\[PZ([A-Za-z]+):([0-9]+):((?:(?!:PZRT]).)*):PZRT\]/gi, '$3');
+
 export const ensafeFilename = (filename: string) => {
   return filename
     .split(' ')
