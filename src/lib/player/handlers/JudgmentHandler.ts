@@ -31,9 +31,13 @@ export class JudgmentHandler {
     for (let i = 0; i < this._judgingHolds.length; i++) {
       const { note, beatLastExecuted } = this._judgingHolds[i];
       if (
-        note.judgmentType !== JudgmentType.UNJUDGED ||
-        this._scene.beat < note.note.startBeat ||
-        this._scene.beat > note.note.endBeat
+        !(
+          note.tempJudgmentType !== JudgmentType.UNJUDGED &&
+          note.judgmentType === JudgmentType.UNJUDGED
+        ) &&
+        (note.judgmentType !== JudgmentType.UNJUDGED ||
+          this._scene.beat < note.note.startBeat ||
+          this._scene.beat > note.note.endBeat)
       ) {
         this._judgingHolds.splice(i, 1);
         return;
