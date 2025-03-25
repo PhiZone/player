@@ -205,10 +205,7 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
     .getAll('assetTypes')
     .flatMap((v) => v.split(','))
     .map((v) => parseInt(v));
-  const assets = p
-    .getAll('assets')
-    .flatMap((v) => v.split(','))
-    .map((v) => decodeURI(v));
+  const assets = p.getAll('assets').flatMap((v) => v.split(','));
 
   const title = p.get('title');
   const composer = p.get('composer');
