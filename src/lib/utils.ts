@@ -200,7 +200,7 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
   const assetNames = p
     .getAll('assetNames')
     .flatMap((v) => v.split(','))
-    .map((v) => decodeURI(v));
+    .map((v) => decodeURIComponent(v));
   const assetTypes = p
     .getAll('assetTypes')
     .flatMap((v) => v.split(','))
