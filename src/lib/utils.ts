@@ -197,9 +197,12 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
   const song = searchParams.get('song');
   const chart = searchParams.get('chart');
   const illustration = searchParams.get('illustration');
-  const assetNames = searchParams.getAll('assetNames');
-  const assetTypes = searchParams.getAll('assetTypes').map((v) => parseInt(v));
-  const assets = searchParams.getAll('assets');
+  const assetNames = searchParams.getAll('assetNames').flatMap((v) => v.split(','));
+  const assetTypes = searchParams
+    .getAll('assetTypes')
+    .flatMap((v) => v.split(','))
+    .map((v) => parseInt(v));
+  const assets = searchParams.getAll('assets').flatMap((v) => v.split(','));
 
   const title = searchParams.get('title');
   const composer = searchParams.get('composer');
