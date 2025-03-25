@@ -197,12 +197,18 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
   const song = p.get('song');
   const chart = p.get('chart');
   const illustration = p.get('illustration');
-  const assetNames = p.getAll('assetNames').flatMap((v) => v.split(','));
+  const assetNames = p
+    .getAll('assetNames')
+    .flatMap((v) => v.split(','))
+    .map((v) => decodeURI(v));
   const assetTypes = p
     .getAll('assetTypes')
     .flatMap((v) => v.split(','))
     .map((v) => parseInt(v));
-  const assets = p.getAll('assets').flatMap((v) => v.split(','));
+  const assets = p
+    .getAll('assets')
+    .flatMap((v) => v.split(','))
+    .map((v) => decodeURI(v));
 
   const title = p.get('title');
   const composer = p.get('composer');
