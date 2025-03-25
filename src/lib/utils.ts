@@ -193,61 +193,61 @@ export const fit = (
 };
 
 export const getParams = (url?: string, loadFromStorage = true): Config | null => {
-  const searchParams = (url ? new URL(url) : page.url).searchParams;
-  const song = searchParams.get('song');
-  const chart = searchParams.get('chart');
-  const illustration = searchParams.get('illustration');
-  const assetNames = searchParams.getAll('assetNames').flatMap((v) => v.split(','));
-  const assetTypes = searchParams
+  const p = (url ? new URL(url) : page.url).searchParams;
+  const song = p.get('song');
+  const chart = p.get('chart');
+  const illustration = p.get('illustration');
+  const assetNames = p.getAll('assetNames').flatMap((v) => v.split(','));
+  const assetTypes = p
     .getAll('assetTypes')
     .flatMap((v) => v.split(','))
     .map((v) => parseInt(v));
-  const assets = searchParams.getAll('assets').flatMap((v) => v.split(','));
+  const assets = p.getAll('assets').flatMap((v) => v.split(','));
 
-  const title = searchParams.get('title');
-  const composer = searchParams.get('composer');
-  const charter = searchParams.get('charter');
-  const illustrator = searchParams.get('illustrator');
-  const level = searchParams.get('level');
+  const title = p.get('title');
+  const composer = p.get('composer');
+  const charter = p.get('charter');
+  const illustrator = p.get('illustrator');
+  const level = p.get('level');
   const levelType =
-    (clamp(parseInt(searchParams.get('levelType') ?? '2'), 0, 4) as 0 | 1 | 2 | 3 | 4) ??
+    (clamp(parseInt(p.get('levelType') ?? '2'), 0, 4) as 0 | 1 | 2 | 3 | 4) ??
     inferLevelType(level);
-  const difficulty = searchParams.get('difficulty');
+  const difficulty = p.get('difficulty');
 
-  const aspectRatio: number[] | null = searchParams.getAll('aspectRatio').map((v) => parseInt(v));
-  const backgroundBlur = parseFloat(searchParams.get('backgroundBlur') ?? '1');
-  const backgroundLuminance = parseFloat(searchParams.get('backgroundLuminance') ?? '0.5');
-  const chartFlipping = parseInt(searchParams.get('chartFlipping') ?? '0');
-  const chartOffset = parseInt(searchParams.get('chartOffset') ?? '0');
-  const fcApIndicator = ['1', 'true'].some((v) => v == (searchParams.get('fcApIndicator') ?? '1'));
-  const goodJudgment = parseInt(searchParams.get('goodJudgment') ?? '160');
-  const hitSoundVolume = parseFloat(searchParams.get('hitSoundVolume') ?? '0.75');
-  const lineThickness = parseFloat(searchParams.get('lineThickness') ?? '1');
-  const musicVolume = parseFloat(searchParams.get('musicVolume') ?? '1');
-  const noteSize = parseFloat(searchParams.get('noteSize') ?? '1');
-  const perfectJudgment = parseInt(searchParams.get('perfectJudgment') ?? '80');
+  const aspectRatio: number[] | null = p.getAll('aspectRatio').map((v) => parseInt(v));
+  const backgroundBlur = parseFloat(p.get('backgroundBlur') ?? '1');
+  const backgroundLuminance = parseFloat(p.get('backgroundLuminance') ?? '0.5');
+  const chartFlipping = parseInt(p.get('chartFlipping') ?? '0');
+  const chartOffset = parseInt(p.get('chartOffset') ?? '0');
+  const fcApIndicator = ['1', 'true'].some((v) => v == (p.get('fcApIndicator') ?? '1'));
+  const goodJudgment = parseInt(p.get('goodJudgment') ?? '160');
+  const hitSoundVolume = parseFloat(p.get('hitSoundVolume') ?? '0.75');
+  const lineThickness = parseFloat(p.get('lineThickness') ?? '1');
+  const musicVolume = parseFloat(p.get('musicVolume') ?? '1');
+  const noteSize = parseFloat(p.get('noteSize') ?? '1');
+  const perfectJudgment = parseInt(p.get('perfectJudgment') ?? '80');
   const simultaneousNoteHint = ['1', 'true'].some(
-    (v) => v == (searchParams.get('simultaneousNoteHint') ?? '1'),
+    (v) => v == (p.get('simultaneousNoteHint') ?? '1'),
   );
-  const timeScale = parseFloat(searchParams.get('timeScale') ?? '1');
+  const timeScale = parseFloat(p.get('timeScale') ?? '1');
 
-  const frameRate = parseFloat(searchParams.get('frameRate') ?? '60');
-  const overrideResolution: number[] | null = searchParams
+  const frameRate = parseFloat(p.get('frameRate') ?? '60');
+  const overrideResolution: number[] | null = p
     .getAll('overrideResolution')
     .map((v) => parseInt(v));
-  const endingLoopsToRender = parseFloat(searchParams.get('endingLoopsToRender') ?? '1');
-  const videoCodec = searchParams.get('videoCodec') ?? 'libx264';
-  const videoBitrate = parseInt(searchParams.get('videoBitrate') ?? '6000');
-  const audioBitrate = parseInt(searchParams.get('audioBitrate') ?? '320');
-  const exportPath = searchParams.get('exportPath') ?? undefined;
+  const endingLoopsToRender = parseFloat(p.get('endingLoopsToRender') ?? '1');
+  const videoCodec = p.get('videoCodec') ?? 'libx264';
+  const videoBitrate = parseInt(p.get('videoBitrate') ?? '6000');
+  const audioBitrate = parseInt(p.get('audioBitrate') ?? '320');
+  const exportPath = p.get('exportPath') ?? undefined;
 
-  const autoplay = ['1', 'true'].some((v) => v == searchParams.get('autoplay'));
-  const practice = ['1', 'true'].some((v) => v == searchParams.get('practice'));
-  const adjustOffset = ['1', 'true'].some((v) => v == searchParams.get('adjustOffset'));
-  const render = ['1', 'true'].some((v) => v == searchParams.get('render'));
-  const autostart = ['1', 'true'].some((v) => v == searchParams.get('autostart'));
-  const newTab = ['1', 'true'].some((v) => v == searchParams.get('newTab'));
-  const inApp = parseInt(searchParams.get('inApp') ?? '0');
+  const autoplay = ['1', 'true'].some((v) => v == p.get('autoplay'));
+  const practice = ['1', 'true'].some((v) => v == p.get('practice'));
+  const adjustOffset = ['1', 'true'].some((v) => v == p.get('adjustOffset'));
+  const render = ['1', 'true'].some((v) => v == p.get('render'));
+  const autostart = ['1', 'true'].some((v) => v == p.get('autostart'));
+  const newTab = ['1', 'true'].some((v) => v == p.get('newTab'));
+  const inApp = parseInt(p.get('inApp') ?? '0');
   if (!song || !chart || !illustration || assetNames.length < assets.length) {
     if (!loadFromStorage) return null;
     const storageItem = localStorage.getItem('player');
