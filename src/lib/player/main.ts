@@ -8,20 +8,33 @@ import { EventBus } from './EventBus';
 
 const start = async (parent: string, sceneConfig: Config) => {
   const parentElement = document.getElementById(parent)!;
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('webgl2', {
+    alpha: false,
+    depth: false,
+    antialias: true,
+    premultipliedAlpha: true,
+    stencil: true,
+    preserveDrawingBuffer: false,
+    failIfMajorPerformanceCaveat: false,
+    powerPreference: 'default',
+  })!;
+
+  document.body.appendChild(canvas);
 
   const config: Types.Core.GameConfig = {
     type: WEBGL,
     width: parentElement.clientWidth * window.devicePixelRatio,
+    height: parentElement.clientHeight * window.devicePixelRatio,
     fps: {
       smoothStep: !(IS_TAURI && sceneConfig.render),
     },
-    height: parentElement.clientHeight * window.devicePixelRatio,
     scale: {
       mode: Scale.EXPAND,
       autoCenter: Scale.CENTER_BOTH,
     },
-    antialias: true,
-    backgroundColor: '#000000',
+    canvas,
+    context: context as unknown as CanvasRenderingContext2D,
     scene: [MainGame],
     input: {
       activePointers: 10,
@@ -103,6 +116,7 @@ const start = async (parent: string, sceneConfig: Config) => {
   }
 
   const game = new Game({ ...config, parent });
+  console.log(game.context);
   // @ts-expect-error - globalThis is not defined in TypeScript
   globalThis.__PHASER_GAME__ = game;
   game.scene.start('MainGame');
