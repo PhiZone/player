@@ -1,4 +1,14 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit&family=Noto+Sans+SC&family=Black+Ops+One&family=Noto+Sans+Mono&display=swap');
+@font-face {
+  font-family: 'Outfit';
+  src: url('/fonts/Outfit/Outfit.ttf') format('truetype');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Noto Sans SC';
+  src: url('/fonts/NotoSansSC/NotoSansSC.ttf') format('truetype');
+  font-display: swap;
+}
 
 @tailwind base;
 @tailwind components;
@@ -6,7 +16,7 @@
 
 body {
   font-family: 'Outfit', 'Noto Sans SC', sans-serif;
-  -webkit-user-select: none; /* Safari */
-  -ms-user-select: none; /* IE 10 and IE 11 */
-  user-select: none; /* Standard syntax */
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }
