@@ -53,6 +53,8 @@
   let renderingOutput = '';
   let lastProgressBarPercent = 0;
 
+  let wakeLock: WakeLockSentinel | null = null;
+
   let status = GameStatus.LOADING;
   let duration = 0;
   let timeSec = 0;
@@ -139,6 +141,9 @@
       notify(`Rendering saved to ${output}`, 'success', async () => {
         await openPath(output.split(sep()).slice(0, -1).join(sep()));
       });
+      wakeLock?.release().then(() => {
+        wakeLock = null;
+      });
     });
 
     EventBus.on('rendering-detail', (p: string) => {
@@ -166,6 +171,9 @@
       if (render) {
         renderingStarted = Date.now();
         renderingTotal = Math.ceil(scene.chartRenderer.length * scene.mediaOptions.frameRate);
+        navigator.wakeLock.request('screen').then((wl) => {
+          wakeLock = wl;
+        });
       }
 
       if (enableOffsetHelper) {
