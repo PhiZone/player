@@ -1579,7 +1579,12 @@
                 disabled={!toggles.autoplay || (ffmpegEncoders !== undefined && toggles.render)}
               />
             </div>
-            <label for="adjust-offset" class="ms-3 transition" class:opacity-50={!toggles.autoplay || (ffmpegEncoders !== undefined && toggles.render)}>
+            <label
+              for="adjust-offset"
+              class="ms-3 transition"
+              class:opacity-50={!toggles.autoplay ||
+                (ffmpegEncoders !== undefined && toggles.render)}
+            >
               <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
                 Adjust offset
               </span>
@@ -1604,7 +1609,12 @@
                 disabled={toggles.autoplay || (ffmpegEncoders !== undefined && toggles.render)}
               />
             </div>
-            <label for="practice" class="ms-3 transition" class:opacity-50={toggles.autoplay || (ffmpegEncoders !== undefined && toggles.render)}>
+            <label
+              for="practice"
+              class="ms-3 transition"
+              class:opacity-50={toggles.autoplay ||
+                (ffmpegEncoders !== undefined && toggles.render)}
+            >
               <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
                 Practice
               </span>
@@ -1844,7 +1854,11 @@
                 disabled={ffmpegEncoders !== undefined && toggles.render}
               />
             </div>
-            <label for="autostart" class="ms-3" class:opacity-50={ffmpegEncoders !== undefined && toggles.render}>
+            <label
+              for="autostart"
+              class="ms-3"
+              class:opacity-50={ffmpegEncoders !== undefined && toggles.render}
+            >
               <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
                 Autostart
               </span>
