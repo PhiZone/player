@@ -60,14 +60,8 @@ class FrameSender {
   }
 
   processFrame() {
-    const frame = new Uint8Array(new ArrayBuffer((this._sharedView.length / 4) * 3));
-
-    for (let i = 0, j = 0; i < this._sharedView.length; i += 4, j += 3) {
-      frame[j] = this._sharedView[i];
-      frame[j + 1] = this._sharedView[i + 1];
-      frame[j + 2] = this._sharedView[i + 2];
-    }
-
+    const frame = new Uint8Array(new ArrayBuffer(this._sharedView.length));
+    frame.set(this._sharedView);
     this._frameQueue.push(frame);
     this.sendFrame();
   }

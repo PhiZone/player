@@ -25,7 +25,7 @@ export class EndingUI extends GameObjects.Container {
   private _late: DataBoard;
   private _tweening: boolean = true;
   private _timer: NodeJS.Timeout | undefined;
-  private _started: DOMHighResTimeStamp;
+  private _started: DOMHighResTimeStamp | undefined;
   private _loopsToRender: number;
   private _render: boolean = false;
 
@@ -117,12 +117,15 @@ export class EndingUI extends GameObjects.Container {
   }
 
   update() {
+    if (this._started === undefined) {
+      return;
+    }
     if (
       this._render &&
-      this._started !== undefined &&
       this._scene.game.getTime() - this._started > (this._loopsToRender * 192e3) / 7
     ) {
       EventBus.emit('render-stop');
+      this._started = undefined;
       this._render = false;
     }
     this.x = this._scene.w(0);
