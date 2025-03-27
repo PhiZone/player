@@ -18,10 +18,12 @@ export class Renderer {
   private _scene: Game;
   private _options: MediaOptions;
   private _started: number;
-  private _frameCount: number = 0;
+  private _renderedFrameCount: number = 0;
+  private _encodedFrameCount: number = 0;
   private _isRendering: boolean = false;
   private _isStopped: boolean = false;
   private _endingLoopsToRender: number;
+  private _blendSteps: number;
   private _tempDir: string;
   private _length: number;
 
@@ -31,6 +33,7 @@ export class Renderer {
     this._scene = scene;
     this._options = mediaOptions;
     this._started = scene.game.getTime();
+    this._blendSteps = mediaOptions.blendSteps;
     this._endingLoopsToRender = mediaOptions.endingLoopsToRender;
     this._length = scene.song.duration + 2 + (mediaOptions.endingLoopsToRender * 192) / 7;
     this._worker = new Worker();
@@ -58,16 +61,18 @@ export class Renderer {
       data: {
         proceed: boolean;
         finished: boolean;
+        encoded: number;
       };
     }) => {
-      const { proceed, finished } = event.data;
+      const { proceed, finished, encoded } = event.data;
+      this._encodedFrameCount = encoded;
       if (finished) {
         EventBus.emit('video-rendering-finished');
         await this.proceed(videoFile);
         return;
       }
       if (!this._isRendering && proceed) {
-        this.setTick(this._frameCount / frameRate);
+        this.setTick(this._renderedFrameCount / frameRate / this._blendSteps);
       }
       this._isRendering = proceed;
       EventBus.emit('rendering-detail', proceed ? 'Rendering frames' : 'Waiting for FFmpeg');
@@ -80,31 +85,22 @@ export class Renderer {
     this.setTick(0);
 
     const sharedBuffer = new SharedArrayBuffer(
-      this._scene.game.canvas.width * this._scene.game.canvas.height * 3,
+      this._scene.game.canvas.width * this._scene.game.canvas.height * 4,
     );
     const sharedView = new Uint8Array(sharedBuffer);
 
-    // Send the shared buffer reference to worker once
-    this._worker.postMessage({ type: 'init', buffer: sharedBuffer });
+    this._worker.postMessage({ type: 'init', buffer: sharedBuffer, blendSteps: this._blendSteps });
 
     this._scene.game.events.addListener('postrender', () => {
       if (this._isStopped) return;
       this._scene.renderer.snapshot((param) => {
         const rgbaBuffer = param as Uint8Array;
-
-        // Write directly to shared buffer
-        for (let i = 0, j = 0; i < rgbaBuffer.length; i += 4, j += 3) {
-          sharedView[j] = rgbaBuffer[i];
-          sharedView[j + 1] = rgbaBuffer[i + 1];
-          sharedView[j + 2] = rgbaBuffer[i + 2];
-        }
-
-        // Only send frame notification, not the data
-        this._worker.postMessage({ type: 'frame', frameNumber: this._frameCount++ });
-        EventBus.emit('rendering', this._frameCount);
+        sharedView.set(rgbaBuffer);
+        this._worker.postMessage({ type: 'frame', frameNumber: this._renderedFrameCount++ });
+        EventBus.emit('rendering', this._renderedFrameCount / this._blendSteps);
       }, 'raw');
       if (this._isRendering) {
-        this.setTick(this._frameCount / frameRate);
+        this.setTick(this._renderedFrameCount / frameRate / this._blendSteps);
       }
     });
 
@@ -285,6 +281,6 @@ export class Renderer {
   }
 
   public get frameCount() {
-    return this._frameCount;
+    return this._renderedFrameCount;
   }
 }

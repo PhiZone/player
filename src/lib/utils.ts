@@ -239,6 +239,7 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
     .getAll('overrideResolution')
     .map((v) => parseInt(v));
   const endingLoopsToRender = parseFloat(p.get('endingLoopsToRender') ?? '1');
+  const blendSteps = parseInt(p.get('blendSteps') ?? '1');
   const videoCodec = p.get('videoCodec') ?? 'libx264';
   const videoBitrate = parseInt(p.get('videoBitrate') ?? '6000');
   const audioBitrate = parseInt(p.get('audioBitrate') ?? '320');
@@ -295,6 +296,7 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
       overrideResolution:
         overrideResolution.length >= 2 ? [overrideResolution[0], overrideResolution[1]] : null,
       endingLoopsToRender,
+      blendSteps,
       videoCodec,
       videoBitrate,
       audioBitrate,

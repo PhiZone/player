@@ -131,6 +131,7 @@
     frameRate: 60,
     overrideResolution: [1620, 1080],
     endingLoopsToRender: 1,
+    blendSteps: 1,
     videoCodec: 'libx264',
     videoBitrate: 6000,
     audioBitrate: 320,
@@ -1692,7 +1693,7 @@
                   class="collapse-content flex flex-col gap-4 items-center pt-0 transition-[padding] duration-300"
                   class:pt-4={showMediaCollapse}
                 >
-                  <div class="grid sm:grid-cols-6 md:grid-cols-1 lg:grid-cols-6 gap-3">
+                  <div class="grid items-end sm:grid-cols-6 md:grid-cols-1 lg:grid-cols-6 gap-3">
                     <div class="sm:col-span-2 md:col-span-1 lg:col-span-2">
                       <span class="block text-left text-sm font-medium mb-1 dark:text-white">
                         Frame rate
@@ -1780,7 +1781,7 @@
                         </div>
                       </div>
                     </div>
-                    <div class="sm:col-span-3 md:col-span-1 lg:col-span-3">
+                    <div class="sm:col-span-2 md:col-span-1 lg:col-span-2">
                       <span class="block text-left text-sm font-medium mb-1 dark:text-white">
                         Results loops
                       </span>
@@ -1794,7 +1795,22 @@
                         />
                       </div>
                     </div>
-                    <div class="sm:col-span-3 md:col-span-1 lg:col-span-3">
+                    <div class="sm:col-span-2 md:col-span-1 lg:col-span-2">
+                      <span class="block text-left text-sm font-medium mb-1 dark:text-white">
+                        Frame blending
+                      </span>
+                      <div class="relative">
+                        <select
+                          bind:value={mediaOptions.blendSteps}
+                          class="form-select py-3 px-4 pe-8 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                        >
+                            {#each new Array(8) as _, i}
+                              <option value={i + 1}>{i + 1}x</option>
+                            {/each}
+                        </select>
+                      </div>
+                    </div>
+                    <div class="sm:col-span-2 md:col-span-1 lg:col-span-2">
                       <span class="block text-left text-sm font-medium mb-1 dark:text-white">
                         Audio bitrate
                       </span>
