@@ -56,7 +56,6 @@ class FrameSender {
       if (type === 'stop') {
         this._frameQueue.push(false);
         this.sendFrame();
-        this.sendFrame();
         return;
       }
 
