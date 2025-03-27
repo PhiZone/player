@@ -11,7 +11,7 @@ class FrameSender {
   private _ws: WebSocket;
   private _wsState: WebSocketState = WebSocketState.CLOSED;
   private _frameQueue: (Uint8Array<ArrayBuffer> | false)[] = [];
-  private _sharedView: Uint8Array | null = null;
+  private _sharedView: Uint8Array;
   private _isSendingFrame: boolean = false;
   private _renderedFrameCount: number = 0;
   private _processedFrameCount: number = 0;
@@ -48,18 +48,28 @@ class FrameSender {
 
       if (type === 'stop') {
         this._frameQueue.push(false);
+        this.sendFrame();
         return;
       }
 
       if (type === 'frame') {
-        // Create a copy of the current shared buffer state
-        const frameData = new Uint8Array(new ArrayBuffer(this._sharedView!.length));
-        frameData.set(this._sharedView!);
-        this._frameQueue.push(frameData);
         this._renderedFrameCount = frameNumber;
-        this.sendFrame();
+        this.processFrame();
       }
     };
+  }
+
+  processFrame() {
+    const frame = new Uint8Array(new ArrayBuffer((this._sharedView.length / 4) * 3));
+
+    for (let i = 0, j = 0; i < this._sharedView.length; i += 4, j += 3) {
+      frame[j] = this._sharedView[i];
+      frame[j + 1] = this._sharedView[i + 1];
+      frame[j + 2] = this._sharedView[i + 2];
+    }
+
+    this._frameQueue.push(frame);
+    this.sendFrame();
   }
 
   async sendFrame() {
