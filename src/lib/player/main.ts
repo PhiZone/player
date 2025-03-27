@@ -12,10 +12,10 @@ const start = async (parent: string, sceneConfig: Config) => {
   const config: Types.Core.GameConfig = {
     type: WEBGL,
     width: parentElement.clientWidth * window.devicePixelRatio,
+    height: parentElement.clientHeight * window.devicePixelRatio,
     fps: {
       smoothStep: !(IS_TAURI && sceneConfig.render),
     },
-    height: parentElement.clientHeight * window.devicePixelRatio,
     scale: {
       mode: Scale.EXPAND,
       autoCenter: Scale.CENTER_BOTH,

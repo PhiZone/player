@@ -9,7 +9,7 @@ overrides:
 
 patchedDependencies:
   phaser@3.88.2:
-    hash: 496754edd1520e6c1d72f1c0fc344f9881f5aa4660ae59127424f40830af442c
+    hash: 1cfb23cc8ab4984ea24a79e5f33b22ffac9aa77c8ecd8a2fe6c8037dfa279712
     path: patches/phaser@3.88.2.patch
 
 importers:
@@ -102,7 +102,7 @@ importers:
         version: 3.2.8
       phaser:
         specifier: ^3.88.2
-        version: 3.88.2(patch_hash=496754edd1520e6c1d72f1c0fc344f9881f5aa4660ae59127424f40830af442c)
+        version: 3.88.2(patch_hash=1cfb23cc8ab4984ea24a79e5f33b22ffac9aa77c8ecd8a2fe6c8037dfa279712)
       phaser3-rex-plugins:
         specifier: ^1.80.12
         version: 1.80.14(graphology-types@0.24.8)
@@ -7233,7 +7233,7 @@ snapshots:
       - encoding
       - graphology-types
 
-  phaser@3.88.2(patch_hash=496754edd1520e6c1d72f1c0fc344f9881f5aa4660ae59127424f40830af442c):
+  phaser@3.88.2(patch_hash=1cfb23cc8ab4984ea24a79e5f33b22ffac9aa77c8ecd8a2fe6c8037dfa279712):
     dependencies:
       eventemitter3: 5.0.1
 
