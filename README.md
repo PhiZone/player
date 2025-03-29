@@ -1,6 +1,6 @@
 # PhiZone Player
 
-![PhiZone Player Banner](resources/banner.png)
+![PhiZone Player Banner](static/banner.png)
 
 PhiZone Player is an HTML5 Phigros chart player/simulator based on Phaser.
 
@@ -286,12 +286,12 @@ game
 │       DragHL.png
 │       Flick.png
 │       FlickHL.png
-│       Hold.png
+│       HoldBody.png
+│       HoldBodyHL.png
 │       HoldTail.png
 │       HoldTailHL.png
 │       HoldHead.png
 │       HoldHeadHL.png
-│       HoldHL.png
 │       Tap.png
 │       TapHL.png
 │
