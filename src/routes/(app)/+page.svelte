@@ -65,7 +65,6 @@
   import { open } from '@tauri-apps/plugin-dialog';
   import Database from '$lib/player/services/database';
   import { DEFAULT_RESOURCE_PACK, DEFAULT_RESOURCE_PACK_ID } from '$lib/player/constants';
-  import type { EventBus } from '$lib/player/EventBus';
   import { getFFmpeg, loadFFmpeg } from '$lib/player/services/ffmpeg';
   import { fetchFile } from '@ffmpeg/util';
 
