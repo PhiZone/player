@@ -14,7 +14,7 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
+* {
   font-family: 'Outfit', 'Noto Sans SC', sans-serif;
   -webkit-user-select: none;
   -ms-user-select: none;
