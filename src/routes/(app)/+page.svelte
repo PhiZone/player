@@ -134,6 +134,7 @@
     videoCodec: 'libx264',
     videoBitrate: 6000,
     audioBitrate: 320,
+    exportPath: undefined,
   };
   let mediaResolutionWidth = 1620;
   let mediaResolutionHeight = 1080;
