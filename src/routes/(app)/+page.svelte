@@ -15,9 +15,15 @@
     RpeJson,
     UrlInputMessage,
     FFmpegEncoder,
+    ResourcePack,
+    ResourcePackWithId,
+    Font,
+    BitmapFont,
   } from '$lib/types';
   import {
     clamp,
+    convertRespackToURL,
+    exportRespack,
     fit,
     getLines,
     getParams,
@@ -28,7 +34,8 @@
     isPec,
     isZip,
     notify,
-    readMetadata,
+    readMetadataForChart,
+    readMetadataForRespack,
     send,
     updateMetadata,
     versionCompare,
@@ -44,7 +51,7 @@
   import { platform, arch } from '@tauri-apps/plugin-os';
   import { App, type URLOpenListenerEvent } from '@capacitor/app';
   import { page } from '$app/state';
-  import { REPO_API_LINK, REPO_LINK, VERSION } from '$lib';
+  import { REPO_API_LINK, REPO_LINK, RESPACK_DB_VERSION, VERSION } from '$lib';
   import { SendIntent, type Intent } from 'send-intent';
   import { Filesystem } from '@capacitor/filesystem';
   import { join, tempDir, videoDir } from '@tauri-apps/api/path';
@@ -56,6 +63,8 @@
   import { invoke } from '@tauri-apps/api/core';
   import { getEncoders } from '$lib/player/services/ffmpeg/tauri';
   import { open } from '@tauri-apps/plugin-dialog';
+  import Database from '$lib/player/services/database';
+  import { DEFAULT_RESOURCE_PACK, DEFAULT_RESOURCE_PACK_ID } from '$lib/player/constants';
 
   interface FileEntry {
     id: number;
@@ -83,7 +92,26 @@
     metadata: Metadata;
   }
 
+  let _respackDB = new Database<ResourcePack<File>>('resource_packs', RESPACK_DB_VERSION, {
+    structures: [
+      {
+        name: 'id',
+        options: { key: true, unique: true },
+      },
+      {
+        name: 'name',
+        options: { unique: false, index: true },
+      },
+      {
+        name: 'date_added',
+        options: { unique: false },
+      },
+    ],
+    autoIncrement: true,
+  });
+
   let showCollapse = false;
+  let showRespack = false;
   let showMediaCollapse = false;
   let overrideResolution = false;
   let modalMem = false;
@@ -150,6 +178,11 @@
   }[] = [];
   let chartBundles: ChartBundle[] = [];
 
+  let selectedResourcePack = DEFAULT_RESOURCE_PACK_ID;
+  let resourcePacks: (ResourcePackWithId<File> | ResourcePackWithId<string>)[] = [
+    DEFAULT_RESOURCE_PACK as ResourcePackWithId<string>,
+  ];
+
   let timeouts: NodeJS.Timeout[] = [];
 
   let ffmpegEncoders: FFmpegEncoder[] | undefined;
@@ -208,6 +241,9 @@
             metadata: currentBundle.metadata,
             preferences: pref ?? preferences,
             mediaOptions: rec ?? mediaOptions,
+            resourcePack: ensureRespackSerializable(
+              resourcePacks.find((pack) => pack.id === selectedResourcePack)!,
+            ),
             ...toggles,
           };
         }
@@ -310,10 +346,10 @@
       }
     }
 
-    let pref, tgs, rec;
+    let pref, tgs, mopts;
     pref = localStorage.getItem('preferences');
     tgs = localStorage.getItem('toggles');
-    rec = localStorage.getItem('mediaOptions');
+    mopts = localStorage.getItem('mediaOptions');
 
     if (pref) {
       pref = JSON.parse(pref);
@@ -323,9 +359,9 @@
       tgs = JSON.parse(tgs);
       if (haveSameKeys(tgs, toggles)) toggles = tgs;
     }
-    if (rec) {
-      rec = JSON.parse(rec);
-      if (haveSameKeys(rec, mediaOptions)) mediaOptions = rec;
+    if (mopts) {
+      mopts = JSON.parse(mopts);
+      if (haveSameKeys(mopts, mediaOptions)) mediaOptions = mopts;
     }
 
     if (mediaOptions.overrideResolution && mediaOptions.overrideResolution.length === 2) {
@@ -588,6 +624,19 @@
     return isGLSLShader ? 4 : 5;
   };
 
+  const getTypeOfRespack = (pack: ResourcePack<File> | ResourcePack<string>) =>
+    typeof (
+      pack.thumbnail ??
+      pack.hitEffects?.spriteSheet ??
+      pack.noteSkins.at(0)?.file ??
+      pack.hitSounds.at(0)?.file ??
+      pack.ending.grades.at(0)?.file ??
+      pack.ending.music.at(0)?.file ??
+      (pack.fonts.at(0)?.type === 'bitmap'
+        ? (pack.fonts.at(0) as BitmapFont<string> | undefined)?.texture
+        : (pack.fonts.at(0) as Font<string> | undefined)?.file)
+    );
+
   const createBundle = async (
     chartFile: FileEntry,
     songFile?: FileEntry,
@@ -664,6 +713,104 @@
     return bundle;
   };
 
+  const importRespack = async (metadata: ResourcePackWithId<string>) => {
+    const filesLocated: FileEntry[] = [];
+    const findFile = async (str: string, files?: FileEntry[]) => {
+      if (
+        str.startsWith('/') ||
+        str.startsWith('http://') ||
+        str.startsWith('https://') ||
+        str.startsWith('blob:')
+      ) {
+        const file = await download(str);
+        return file;
+      }
+      const file =
+        files?.find((file) => file.file.name === str) ??
+        assets.find((file) => file.file.name === str);
+      if (file) {
+        filesLocated.push(file);
+        return file.file;
+      }
+      const message = `Unable to locate ${str} while importing resource pack ${metadata.name}.`;
+      alert(message);
+      throw new Error(message);
+    };
+
+    const resourcePack: ResourcePackWithId<File> = {
+      id: metadata.id,
+      name: metadata.name,
+      author: metadata.author,
+      description: metadata.description,
+      thumbnail: metadata.thumbnail ? await findFile(metadata.thumbnail, imageFiles) : undefined,
+      noteSkins: await Promise.all(
+        metadata.noteSkins.map(async (e) => ({
+          name: e.name,
+          file: await findFile(e.file, imageFiles),
+        })),
+      ),
+      hitSounds: await Promise.all(
+        metadata.hitSounds.map(async (e) => ({
+          name: e.name,
+          file: await findFile(e.file, audioFiles),
+        })),
+      ),
+      hitEffects: metadata.hitEffects
+        ? {
+            spriteSheet: await findFile(metadata.hitEffects.spriteSheet, imageFiles),
+            frameWidth: metadata.hitEffects.frameWidth,
+            frameHeight: metadata.hitEffects.frameHeight,
+            frameRate: metadata.hitEffects.frameRate,
+            particle: metadata.hitEffects.particle,
+          }
+        : undefined,
+      ending: {
+        grades: await Promise.all(
+          metadata.ending.grades.map(async (e) => ({
+            name: e.name,
+            file: await findFile(e.file, imageFiles),
+          })),
+        ),
+        music: await Promise.all(
+          metadata.ending.music.map(async (e) => ({
+            levelType: e.levelType,
+            beats: e.beats,
+            bpm: e.bpm,
+            file: await findFile(e.file, audioFiles),
+          })),
+        ),
+      },
+      fonts: await Promise.all(
+        metadata.fonts.map(async (e) =>
+          e.type === 'bitmap'
+            ? {
+                name: e.name,
+                type: e.type,
+                texture: await findFile(e.texture),
+                descriptor: await findFile(e.descriptor),
+              }
+            : {
+                name: e.name,
+                type: e.type,
+                file: await findFile(e.file),
+              },
+        ),
+      ),
+    };
+
+    audioFiles = audioFiles.filter((f) => !filesLocated.some((file) => file.id === f.id));
+    imageFiles = imageFiles.filter((f) => !filesLocated.some((file) => file.id === f.id));
+    assets = assets.filter((f) => !filesLocated.some((file) => file.id === f.id));
+    declareFinished();
+    return resourcePack;
+  };
+
+  const ensureRespackSerializable = (pack: ResourcePack<File> | ResourcePack<string>) => {
+    return getTypeOfRespack(pack) === 'string'
+      ? (pack as ResourcePack<string>)
+      : convertRespackToURL(pack as ResourcePack<File>);
+  };
+
   const decompressZipArchives = async (files: File[]) => {
     return await Promise.all(files.map(decompress));
   };
@@ -726,26 +873,52 @@
         assets.push({ id, type, file, included: isIncluded(file.name) });
       }),
     );
-    progressDetail = 'Seeking for charts';
+    progressDetail = 'Resolving resources';
     const textAssets = assets.filter((asset) => asset.type === 3);
     let bundlesResolved = 0;
+    let respacksResolved = 0;
     for (let i = 0; i < textAssets.length; i++) {
       progress = i / textAssets.length;
       const asset = textAssets[i];
-      let metadata = readMetadata(await asset.file.text());
-      if (metadata) {
-        const chartFile = chartFiles.find((file) => file.file.name === metadata.chart);
-        const songFile = audioFiles.find((file) => file.file.name === metadata.song);
-        const illustrationFile = imageFiles.find((file) => file.file.name === metadata.picture);
-        if (!chartFile) continue;
-        try {
-          const chartMeta = (JSON.parse(await chartFile.file.text()) as RpeJson).META;
-          metadata = updateMetadata(metadata, chartMeta);
-        } catch (e) {
-          console.debug('Chart is not a valid RPE JSON:', e);
+      if (chartBundles.some((bundle) => bundle.chart === asset.id)) {
+        continue;
+      }
+      const content = await asset.file.text();
+      {
+        let metadata = readMetadataForChart(content);
+        if (metadata) {
+          const chartFile = chartFiles.find((file) => file.file.name === metadata.chart);
+          const songFile = audioFiles.find((file) => file.file.name === metadata.song);
+          const illustrationFile = imageFiles.find((file) => file.file.name === metadata.picture);
+          if (chartFile) {
+            try {
+              const chartMeta = (JSON.parse(await chartFile.file.text()) as RpeJson).META;
+              metadata = updateMetadata(metadata, chartMeta);
+            } catch (e) {
+              console.debug('Chart is not a valid RPE JSON:', e);
+            }
+            await createBundle(chartFile, songFile, illustrationFile, {
+              id: asset.id,
+              ...metadata,
+            });
+            bundlesResolved++;
+            continue;
+          }
         }
-        await createBundle(chartFile, songFile, illustrationFile, { id: asset.id, ...metadata });
-        bundlesResolved++;
+      }
+      {
+        const metadata = readMetadataForRespack(content);
+        if (metadata) {
+          try {
+            resourcePacks.push(await importRespack(metadata));
+            resourcePacks = resourcePacks;
+            assets = assets.filter((a) => a.id !== asset.id);
+            respacksResolved++;
+          } catch (e) {
+            console.debug(e);
+            continue;
+          }
+        }
       }
     }
     if (
@@ -765,7 +938,7 @@
         level: '',
       };
       try {
-        metadata = readMetadata(
+        metadata = readMetadataForChart(
           undefined,
           (JSON.parse(await chartFiles[0].file.text()) as RpeJson).META,
         );
@@ -788,6 +961,18 @@
     assets = assets;
     chartBundles = chartBundles;
     done = true;
+    showRespack = respacksResolved > 0;
+    declareFinished();
+    send({
+      type: 'inputResponse',
+      payload: {
+        bundlesResolved,
+      },
+    });
+  };
+
+  const declareFinished = () => {
+    if (!done) return;
     progress = 1;
     progressDetail = 'Finished';
     timeouts.push(
@@ -801,12 +986,6 @@
         );
       }, 1000),
     );
-    send({
-      type: 'inputResponse',
-      payload: {
-        bundlesResolved,
-      },
-    });
   };
 
   const getUrl = (blob: Blob | undefined) => (blob ? URL.createObjectURL(blob) : null);
@@ -914,12 +1093,23 @@
   const start = async (config: Config) => {
     localStorage.setItem('player', JSON.stringify(config));
 
-    const paramsString = queryString.stringify(config, {
-      arrayFormat: 'none',
-      skipEmptyString: true,
-      skipNull: true,
-      sort: false,
-    });
+    const { resourcePack, ...rest } = config;
+
+    const paramsString = queryString.stringify(
+      {
+        resourcePack:
+          resourcePack === DEFAULT_RESOURCE_PACK
+            ? null
+            : encodeURIComponent(JSON.stringify(resourcePack)),
+        ...rest,
+      },
+      {
+        arrayFormat: 'none',
+        skipEmptyString: true,
+        skipNull: true,
+        sort: false,
+      },
+    );
     const url = paramsString.length <= 15360 ? `${base}/play/?${paramsString}` : `${base}/play/`;
 
     if (IS_TAURI) {
@@ -1085,6 +1275,15 @@
   class:mt-0={showCollapse}
   class:opacity-0={!showCollapse}
 >
+  <label
+    class="absolute top-5 right-5 swap swap-rotate text-center transition opacity-0"
+    class:opacity-100={done}
+    class:pointer-events-none={!done}
+  >
+    <input type="checkbox" bind:checked={showRespack} />
+    <div class="swap-on">Chart</div>
+    <div class="swap-off">Respack</div>
+  </label>
   <div
     class="collapse-content flex flex-col gap-4 items-center pt-0 transition-[padding] duration-300"
     class:pt-4={showCollapse}
@@ -1099,7 +1298,7 @@
           multiple
           accept={IS_ANDROID_OR_IOS || Capacitor.getPlatform() !== 'web'
             ? null
-            : '.pez,.pec,.yml,.yaml,.shader,.glsl,.frag,.fsh,.fs,application/zip,application/json,image/*,video/*,audio/*,text/*'}
+            : '.pez,.pec,.yml,.yaml,.shader,.glsl,.frag,.fsh,.fs,.ttf,.otf,.fnt,application/zip,application/json,image/*,video/*,audio/*,text/*'}
           class="file-input file-input-bordered w-full max-w-xs file:btn dark:file:btn-neutral file:no-animation border-gray-200 rounded-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 dark:border-neutral-700 dark:text-neutral-300 dark:focus:ring-neutral-600"
           oninput={async (e) => {
             const fileList = e.currentTarget.files;
@@ -1165,805 +1364,926 @@
         ></div>
       </div>
     </div>
-    <div
-      class="w-full flex flex-col md:flex-row gap-4 opacity-0 transition"
-      class:opacity-100={done}
-      class:pointer-events-none={!done}
-    >
-      <div class="flex md:w-2/3 flex-col gap-3">
-        <div class="carousel-with-bar rounded-box w-fit">
-          {#key chartBundles}
-            {#each chartBundles as bundle}
-              <div class="carousel-item relative">
-                <button
-                  class="transition hover:brightness-75"
-                  onclick={() => {
-                    currentBundle = bundle;
-                    selectedBundle = bundle.id;
-                    selectedChart = bundle.chart;
-                    selectedSong = bundle.song;
-                    selectedIllustration = bundle.illustration;
-                  }}
-                >
-                  <img
-                    class="h-48 transition"
-                    src={imageFiles.find((file) => file.id === bundle.illustration)?.url}
-                    class:brightness-50={selectedBundle === bundle.id}
-                    alt="Illustration"
-                  />
-                  <div
-                    class="absolute inset-0 opacity-0 transition flex justify-center items-center gap-2"
-                    class:opacity-100={selectedBundle === bundle.id}
-                  >
-                    <span class="btn btn-xs btn-circle btn-success no-animation">
-                      <i class="fa-solid fa-check"></i>
-                    </span>
-                    <p class="text-success">SELECTED</p>
-                  </div>
-                </button>
-                {#if chartBundles.length > 1}
+    {#if !showRespack}
+      <div
+        class="w-full flex flex-col md:flex-row gap-4 opacity-0 transition"
+        class:opacity-100={done}
+        class:pointer-events-none={!done}
+      >
+        <div class="flex md:w-2/3 flex-col gap-3">
+          <div class="carousel-with-bar rounded-box w-fit">
+            {#key chartBundles}
+              {#each chartBundles as bundle}
+                <div class="carousel-item relative">
                   <button
-                    class="absolute bottom-1 right-1 btn btn-sm btn-circle btn-outline btn-error backdrop-blur-xl"
-                    aria-label="Delete"
+                    class="transition hover:brightness-75"
                     onclick={() => {
-                      chartBundles = chartBundles.filter((b) => b.id !== bundle.id);
-                      if (selectedBundle === bundle.id) {
-                        currentBundle = chartBundles[0];
-                        selectedBundle = chartBundles[0].id;
-                        selectedChart = chartBundles[0].chart;
-                        selectedSong = chartBundles[0].song;
-                        selectedIllustration = chartBundles[0].illustration;
-                      }
-                      if (chartBundles.every((b) => b.chart !== bundle.chart)) {
-                        chartFiles = chartFiles.filter((file) => file.id !== bundle.chart);
-                      }
-                      if (chartBundles.every((b) => b.song !== bundle.song)) {
-                        audioFiles = audioFiles.filter((file) => file.id !== bundle.song);
-                      }
-                      if (chartBundles.every((b) => b.illustration !== bundle.illustration)) {
-                        imageFiles = imageFiles.filter((file) => file.id !== bundle.illustration);
-                      }
+                      currentBundle = bundle;
+                      selectedBundle = bundle.id;
+                      selectedChart = bundle.chart;
+                      selectedSong = bundle.song;
+                      selectedIllustration = bundle.illustration;
                     }}
                   >
-                    <i class="fa-solid fa-trash-can"></i>
+                    <img
+                      class="h-48 transition"
+                      src={imageFiles.find((file) => file.id === bundle.illustration)?.url}
+                      class:brightness-50={selectedBundle === bundle.id}
+                      alt="Illustration"
+                    />
+                    <div
+                      class="absolute inset-0 opacity-0 transition flex justify-center items-center gap-2"
+                      class:opacity-100={selectedBundle === bundle.id}
+                    >
+                      <span class="btn btn-xs btn-circle btn-success no-animation">
+                        <i class="fa-solid fa-check"></i>
+                      </span>
+                      <p class="text-success">SELECTED</p>
+                    </div>
                   </button>
-                {/if}
-              </div>
-            {/each}
-          {/key}
-          <button
-            class="carousel-item relative w-48 h-48 bg-neutral-200 dark:bg-neutral transition hover:brightness-75"
-            onclick={async () => {
-              const chart = chartFiles.find((file) => file.id === selectedChart);
-              const song = audioFiles.find((file) => file.id === selectedSong);
-              const illustration = imageFiles.find((file) => file.id === selectedIllustration);
-              if (chart && song && illustration) {
-                const bundle = await createBundle(
-                  chart,
-                  song,
-                  illustration,
-                  undefined,
-                  currentBundle?.metadata ?? {
-                    title: '',
-                    composer: '',
-                    charter: '',
-                    illustrator: '',
-                    levelType: 2,
-                    level: '',
-                    difficulty: null,
-                  },
-                );
-                if (!bundle) return;
-                currentBundle = bundle;
-                selectedBundle = bundle.id;
-                selectedSong = bundle.song;
-                selectedChart = bundle.chart;
-                selectedIllustration = bundle.illustration;
-              }
-            }}
-          >
-            <div class="absolute inset-0 flex justify-center items-center gap-2">
-              <span class="btn btn-xs btn-circle btn-outline btn-active no-animation">
-                <i class="fa-solid fa-plus"></i>
-              </span>
-              <p>NEW</p>
-            </div>
-          </button>
-        </div>
-        {#if selectedBundle !== -1 && currentBundle}
-          <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            <div>
-              <span class="block text-sm font-medium mb-1 dark:text-white">Title</span>
-              <div class="relative">
-                <input
-                  type="text"
-                  bind:value={currentBundle.metadata.title}
-                  class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
-                />
-              </div>
-            </div>
-            <div>
-              <span class="block text-sm font-medium mb-1 dark:text-white">Composer</span>
-              <div class="relative">
-                <input
-                  type="text"
-                  bind:value={currentBundle.metadata.composer}
-                  class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
-                />
-              </div>
-            </div>
-            <div>
-              <span class="block text-sm font-medium mb-1 dark:text-white">
-                Illustration designer
-              </span>
-              <div class="relative">
-                <input
-                  type="text"
-                  bind:value={currentBundle.metadata.illustrator}
-                  class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
-                />
-              </div>
-            </div>
-            <div>
-              <span class="block text-sm font-medium mb-1 dark:text-white">Chart designer</span>
-              <div class="relative">
-                <input
-                  type="text"
-                  bind:value={currentBundle.metadata.charter}
-                  class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
-                />
-              </div>
-            </div>
-            <div>
-              <span class="block text-sm font-medium mb-1 dark:text-white">Level type</span>
-              <div class="relative">
-                <select
-                  bind:value={currentBundle.metadata.levelType}
-                  class="form-select py-3 px-4 pe-9 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
-                >
-                  {#each ['EZ', 'HD', 'IN', 'AT', 'SP'] as levelType, i}
-                    <option value={i} selected={currentBundle.metadata.levelType === i}>
-                      {levelType}
-                    </option>
-                  {/each}
-                </select>
-              </div>
-            </div>
-            <div>
-              <span class="block text-sm font-medium mb-1 dark:text-white">Level</span>
-              <div class="relative">
-                <input
-                  type="text"
-                  bind:value={currentBundle.metadata.level}
-                  class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
-                />
-              </div>
-            </div>
-          </div>
-        {/if}
-        {#if assets.length > 0}
-          <div class="flex flex-col">
-            <div class="-m-1.5 p-1.5 inline-block align-middle">
-              <table class="table-fixed w-full divide-y divide-gray-200 dark:divide-neutral-700">
-                <thead>
-                  <tr>
-                    <th
-                      scope="col"
-                      class="px-3 py-2 w-1/2 sm:w-1/3 md:w-2/5 text-ellipsis overflow-hidden whitespace-nowrap text-start text-xs font-medium text-gray-500 uppercase dark:text-neutral-500"
+                  {#if chartBundles.length > 1}
+                    <button
+                      class="absolute bottom-1 right-1 btn btn-sm btn-circle btn-outline btn-error backdrop-blur-xl"
+                      aria-label="Delete"
+                      onclick={() => {
+                        chartBundles = chartBundles.filter((b) => b.id !== bundle.id);
+                        if (selectedBundle === bundle.id) {
+                          currentBundle = chartBundles[0];
+                          selectedBundle = chartBundles[0].id;
+                          selectedChart = chartBundles[0].chart;
+                          selectedSong = chartBundles[0].song;
+                          selectedIllustration = chartBundles[0].illustration;
+                        }
+                        if (chartBundles.every((b) => b.chart !== bundle.chart)) {
+                          chartFiles = chartFiles.filter((file) => file.id !== bundle.chart);
+                        }
+                        if (chartBundles.every((b) => b.song !== bundle.song)) {
+                          audioFiles = audioFiles.filter((file) => file.id !== bundle.song);
+                        }
+                        if (chartBundles.every((b) => b.illustration !== bundle.illustration)) {
+                          imageFiles = imageFiles.filter((file) => file.id !== bundle.illustration);
+                        }
+                      }}
                     >
-                      Asset Name
-                    </th>
-                    <th
-                      scope="col"
-                      class="px-3 py-2 w-1/4 md:w-1/5 text-ellipsis overflow-hidden whitespace-nowrap text-start text-xs font-medium text-gray-500 uppercase dark:text-neutral-500"
-                    >
-                      Asset Type
-                    </th>
-                    <th
-                      scope="col"
-                      class="hidden sm:table-cell px-3 py-2 w-1/6 text-ellipsis overflow-hidden whitespace-nowrap text-start text-xs font-medium text-gray-500 uppercase dark:text-neutral-500"
-                    >
-                      File Size
-                    </th>
-                    <th
-                      scope="col"
-                      class="px-3 py-2 text-ellipsis overflow-hidden whitespace-nowrap text-end text-xs font-medium text-gray-500 uppercase dark:text-neutral-500"
-                    >
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200 dark:divide-neutral-700">
-                  {#each assets as asset}
-                    <tr>
-                      <td
-                        class="px-3 py-3 text-ellipsis overflow-hidden whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200 transition"
-                        class:opacity-30={!asset.included}
-                      >
-                        {asset.file.name}
-                      </td>
-                      <td
-                        class="px-2 py-3 md:min-w-fit w-1/6 text-gray-800 dark:text-neutral-200 transition"
-                        class:opacity-30={!asset.included}
-                      >
-                        <div class="relative">
-                          <select
-                            bind:value={asset.type}
-                            class="form-select py-1 px-2 pe-8 block border-gray-200 rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
-                          >
-                            {#each ['Image', 'Audio', 'Video', 'Config', 'Shader', 'Other'] as assetType, i}
-                              <option value={i} selected={asset.type === i}>
-                                {assetType}
-                              </option>
-                            {/each}
-                          </select>
-                        </div>
-                      </td>
-                      <td
-                        class="px-3 py-3 hidden sm:table-cell md:min-w-fit w-1/12 text-ellipsis overflow-hidden whitespace-nowrap text-sm text-gray-800 dark:text-neutral-200 transition"
-                        class:opacity-30={!asset.included}
-                      >
-                        {humanizeFileSize(asset.file.size)}
-                      </td>
-                      <td class="px-3 py-3 min-w-fit text-end text-sm font-medium">
-                        <button
-                          type="button"
-                          class="inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg transition border border-transparent text-blue-500 hover:text-blue-800 focus:outline-none focus:text-blue-800 disabled:opacity-50 disabled:pointer-events-none dark:text-blue-500 dark:hover:text-blue-400 dark:focus:text-blue-400"
-                          onclick={() => {
-                            asset.included = !asset.included;
-                          }}
-                        >
-                          {asset.included ? 'Exclude' : 'Include'}
-                        </button>
-                        <button
-                          type="button"
-                          class="inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg transition border border-transparent text-blue-500 hover:text-blue-800 focus:outline-none focus:text-blue-800 disabled:opacity-50 disabled:pointer-events-none dark:text-blue-500 dark:hover:text-blue-400 dark:focus:text-blue-400"
-                          onclick={() => {
-                            assets = assets.filter((a) => a.id !== asset.id);
-                          }}
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  {/each}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        {/if}
-      </div>
-      <div class="flex md:w-1/3 flex-col gap-2">
-        <div class="relative">
-          <select
-            class="form-select peer p-4 pe-9 block w-full border-gray-200 rounded-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:focus:ring-neutral-600
-              focus:pt-6
-              focus:pb-2
-              [&:not(:placeholder-shown)]:pt-6
-              [&:not(:placeholder-shown)]:pb-2
-              autofill:pt-6
-              autofill:pb-2"
-            value={selectedChart}
-            oninput={(e) => {
-              selectedChart = parseInt(e.currentTarget.value);
-              if (currentBundle) currentBundle.chart = selectedChart;
-              chartBundles = chartBundles;
-            }}
-          >
-            {#each chartFiles as file}
-              <option value={file.id} selected={selectedChart == file.id}>
-                {file.file.name}
-              </option>
-            {/each}
-          </select>
-          <span
-            class="absolute top-0 start-0 p-4 h-full truncate pointer-events-none transition ease-in-out duration-100 border border-transparent dark:text-white peer-disabled:opacity-50 peer-disabled:pointer-events-none
-                peer-focus:text-sm
-                peer-focus:-translate-y-1.5
-                peer-focus:text-gray-500 dark:peer-focus:text-neutral-500
-                peer-[:not(:placeholder-shown)]:text-sm
-                peer-[:not(:placeholder-shown)]:-translate-y-1.5
-                peer-[:not(:placeholder-shown)]:text-gray-500 dark:peer-[:not(:placeholder-shown)]:text-neutral-500"
-          >
-            Chart
-          </span>
-        </div>
-        <div class="relative">
-          <select
-            class="form-select peer p-4 pe-9 block w-full border-gray-200 rounded-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:focus:ring-neutral-600
-              focus:pt-6
-              focus:pb-2
-              [&:not(:placeholder-shown)]:pt-6
-              [&:not(:placeholder-shown)]:pb-2
-              autofill:pt-6
-              autofill:pb-2"
-            value={selectedSong}
-            oninput={(e) => {
-              selectedSong = parseInt(e.currentTarget.value);
-              if (currentBundle) currentBundle.song = selectedSong;
-              chartBundles = chartBundles;
-            }}
-          >
-            {#each audioFiles as file}
-              <option value={file.id} selected={selectedSong == file.id}>
-                {file.file.name}
-              </option>
-            {/each}
-          </select>
-          <span
-            class="absolute top-0 start-0 p-4 h-full truncate pointer-events-none transition ease-in-out duration-100 border border-transparent dark:text-white peer-disabled:opacity-50 peer-disabled:pointer-events-none
-                peer-focus:text-sm
-                peer-focus:-translate-y-1.5
-                peer-focus:text-gray-500 dark:peer-focus:text-neutral-500
-                peer-[:not(:placeholder-shown)]:text-sm
-                peer-[:not(:placeholder-shown)]:-translate-y-1.5
-                peer-[:not(:placeholder-shown)]:text-gray-500 dark:peer-[:not(:placeholder-shown)]:text-neutral-500"
-          >
-            Song
-          </span>
-        </div>
-        <div class="relative">
-          <select
-            class="form-select peer p-4 pe-9 block w-full border-gray-200 rounded-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:focus:ring-neutral-600
-              focus:pt-6
-              focus:pb-2
-              [&:not(:placeholder-shown)]:pt-6
-              [&:not(:placeholder-shown)]:pb-2
-              autofill:pt-6
-              autofill:pb-2"
-            value={selectedIllustration}
-            oninput={(e) => {
-              selectedIllustration = parseInt(e.currentTarget.value);
-              if (currentBundle) currentBundle.illustration = selectedIllustration;
-              chartBundles = chartBundles;
-            }}
-          >
-            {#each imageFiles as file}
-              <option value={file.id} selected={selectedIllustration == file.id}>
-                {file.file.name}
-              </option>
-            {/each}
-          </select>
-          <span
-            class="absolute top-0 start-0 p-4 h-full truncate pointer-events-none transition ease-in-out duration-100 border border-transparent dark:text-white peer-disabled:opacity-50 peer-disabled:pointer-events-none
-                peer-focus:text-sm
-                peer-focus:-translate-y-1.5
-                peer-focus:text-gray-500 dark:peer-focus:text-neutral-500
-                peer-[:not(:placeholder-shown)]:text-sm
-                peer-[:not(:placeholder-shown)]:-translate-y-1.5
-                peer-[:not(:placeholder-shown)]:text-gray-500 dark:peer-[:not(:placeholder-shown)]:text-neutral-500"
-          >
-            Illustration
-          </span>
-        </div>
-        <div class="grid space-y-3">
-          <div class="relative flex items-start">
-            <div class="flex items-center h-5 mt-1">
-              <input
-                id="autoplay"
-                name="autoplay"
-                type="checkbox"
-                class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
-                aria-describedby="autoplay-description"
-                checked={toggles.autoplay}
-                oninput={(e) => {
-                  toggles.autoplay = e.currentTarget.checked;
-                  if (toggles.autoplay) {
-                    toggles.practice = false;
-                  } else {
-                    toggles.adjustOffset = false;
-                  }
-                }}
-              />
-            </div>
-            <label for="autoplay" class="ms-3">
-              <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
-                Autoplay
-              </span>
-              <span
-                id="autoplay-description"
-                class="block text-sm text-gray-600 dark:text-neutral-500"
-              >
-                Notes are automatically given Perfect judgments.
-              </span>
-            </label>
-          </div>
-          <div class="relative flex items-start">
-            <div class="flex items-center h-5 mt-1">
-              <input
-                id="adjust-offset"
-                name="adjust-offset"
-                type="checkbox"
-                class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
-                aria-describedby="adjust-offset-description"
-                bind:checked={toggles.adjustOffset}
-                disabled={!toggles.autoplay || (ffmpegEncoders !== undefined && toggles.render)}
-              />
-            </div>
-            <label
-              for="adjust-offset"
-              class="ms-3 transition"
-              class:opacity-50={!toggles.autoplay ||
-                (ffmpegEncoders !== undefined && toggles.render)}
+                      <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                  {/if}
+                </div>
+              {/each}
+            {/key}
+            <button
+              class="carousel-item relative w-48 h-48 bg-neutral-200 dark:bg-neutral transition hover:brightness-75"
+              onclick={async () => {
+                const chart = chartFiles.find((file) => file.id === selectedChart);
+                const song = audioFiles.find((file) => file.id === selectedSong);
+                const illustration = imageFiles.find((file) => file.id === selectedIllustration);
+                if (chart && song && illustration) {
+                  const bundle = await createBundle(
+                    chart,
+                    song,
+                    illustration,
+                    undefined,
+                    currentBundle?.metadata ?? {
+                      title: '',
+                      composer: '',
+                      charter: '',
+                      illustrator: '',
+                      levelType: 2,
+                      level: '',
+                      difficulty: null,
+                    },
+                  );
+                  if (!bundle) return;
+                  currentBundle = bundle;
+                  selectedBundle = bundle.id;
+                  selectedSong = bundle.song;
+                  selectedChart = bundle.chart;
+                  selectedIllustration = bundle.illustration;
+                }
+              }}
             >
-              <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
-                Adjust offset
-              </span>
-              <span
-                id="adjust-offset-description"
-                class="block text-sm text-gray-600 dark:text-neutral-500"
-              >
-                Enables realtime chart offset adjustment. The offset set in the preferences is
-                ignored.
-              </span>
-            </label>
+              <div class="absolute inset-0 flex justify-center items-center gap-2">
+                <span class="btn btn-xs btn-circle btn-outline btn-active no-animation">
+                  <i class="fa-solid fa-plus"></i>
+                </span>
+                <p>NEW</p>
+              </div>
+            </button>
           </div>
-          <div class="relative flex items-start">
-            <div class="flex items-center h-5 mt-1">
-              <input
-                id="practice"
-                name="practice"
-                type="checkbox"
-                class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
-                aria-describedby="practice-description"
-                bind:checked={toggles.practice}
-                disabled={toggles.autoplay || (ffmpegEncoders !== undefined && toggles.render)}
-              />
-            </div>
-            <label
-              for="practice"
-              class="ms-3 transition"
-              class:opacity-50={toggles.autoplay ||
-                (ffmpegEncoders !== undefined && toggles.render)}
-            >
-              <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
-                Practice
-              </span>
-              <span
-                id="practice-description"
-                class="block text-sm text-gray-600 dark:text-neutral-500"
-              >
-                Both inputs and playback controls are enabled.
-              </span>
-            </label>
-          </div>
-          {#if IS_TAURI}
-            <div
-              class="flex flex-col {ffmpegEncoders === undefined
-                ? 'tooltip'
-                : overrideResolution &&
-                    (mediaResolutionWidth % 2 === 1 || mediaResolutionHeight % 2 === 1)
-                  ? 'tooltip tooltip-warning'
-                  : ''}"
-              data-tip={ffmpegEncoders === undefined
-                ? 'FFmpeg could not be found on your system.'
-                : 'Some encoders may not support resolutions with odd dimensions.'}
-            >
-              <div class="relative flex items-start">
-                <div class="flex items-center h-5 mt-1">
+          {#if selectedBundle !== -1 && currentBundle}
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div>
+                <span class="block text-sm font-medium mb-1 dark:text-white">Title</span>
+                <div class="relative">
                   <input
-                    id="render"
-                    name="render"
-                    type="checkbox"
-                    class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
-                    aria-describedby="render-description"
-                    checked={toggles.render}
-                    disabled={ffmpegEncoders === undefined}
-                    oninput={(e) => {
-                      toggles.render = e.currentTarget.checked;
-                      if (toggles.render) {
-                        toggles.autoplay = true;
-                        toggles.adjustOffset = false;
-                        toggles.practice = false;
-                        toggles.autostart = true;
-                      }
-                    }}
+                    type="text"
+                    bind:value={currentBundle.metadata.title}
+                    class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
                   />
                 </div>
-                <label for="render" class="ms-3" class:opacity-50={ffmpegEncoders === undefined}>
-                  <button
-                    class="flex items-center gap-1 text-sm font-semibold text-gray-800 dark:text-neutral-300 disabled:pointer-events-none"
-                    disabled={ffmpegEncoders === undefined}
-                    onclick={() => {
-                      showMediaCollapse = !showMediaCollapse;
-                    }}
-                  >
-                    <p>Render</p>
-                    <span class="transition {showMediaCollapse ? '-rotate-180' : 'rotate-0'}">
-                      <i class="fa-solid fa-angle-down fa-sm"></i>
-                    </span>
-                  </button>
-                  <span
-                    id="render-description"
-                    class="block text-sm text-gray-600 dark:text-neutral-500"
-                  >
-                    The canvas will be rendered and saved as a video file.
-                  </span>
-                </label>
               </div>
-              <div
-                class="collapse h-0 border hover:shadow-sm rounded-xl dark:border-neutral-700 dark:shadow-neutral-700/70 bg-base-200 bg-opacity-30 backdrop-blur-2xl collapse-transition"
-                class:collapse-open={showMediaCollapse}
-                class:min-h-fit={showMediaCollapse}
-                class:h-full={showMediaCollapse}
-                class:mt-2={showMediaCollapse}
-                class:opacity-0={!showMediaCollapse}
-              >
-                <div
-                  class="collapse-content flex flex-col gap-4 items-center pt-0 transition-[padding] duration-300"
-                  class:pt-4={showMediaCollapse}
-                >
-                  <div class="grid sm:grid-cols-6 md:grid-cols-1 lg:grid-cols-6 gap-3">
-                    <div class="sm:col-span-2 md:col-span-1 lg:col-span-2">
-                      <span class="block text-left text-sm font-medium mb-1 dark:text-white">
-                        Frame rate
-                      </span>
-                      <div class="relative">
-                        <input
-                          type="number"
-                          bind:value={mediaOptions.frameRate}
-                          class="form-input py-3 px-4 pe-12 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
-                        />
-                        <div
-                          class="absolute inset-y-0 end-0 flex items-center pointer-events-none z-20 pe-4"
-                        >
-                          <span class="text-gray-500 dark:text-neutral-500">FPS</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="sm:col-span-4 md:col-span-1 lg:col-span-4">
-                      <div class="flex justify-between items-center">
-                        <span class="block text-left text-sm font-medium mb-1 dark:text-white">
-                          Override resolution
-                        </span>
-                        <input
-                          type="checkbox"
-                          class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
-                          bind:checked={overrideResolution}
-                        />
-                      </div>
-                      <div class="flex rounded-lg shadow-sm">
-                        <input
-                          type="number"
-                          min="2"
-                          step="2"
-                          class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm -ms-px first:rounded-s-lg mt-0 first:ms-0 first:rounded-se-none last:rounded-es-none last:rounded-e-lg text-sm relative focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
-                          disabled={!overrideResolution}
-                          bind:value={mediaResolutionWidth}
-                        />
-                        <span
-                          class="py-3 px-2 inline-flex items-center min-w-fit border border-gray-200 text-sm text-gray-500 -ms-px w-auto first:rounded-s-lg mt-0 first:ms-0 first:rounded-se-none last:rounded-es-none last:rounded-e-lg bg-base-100 dark:border-neutral-700 dark:text-neutral-400"
-                          class:opacity-50={!overrideResolution}
-                        >
-                          <i class="fa-solid fa-xmark"></i>
-                        </span>
-                        <input
-                          type="number"
-                          min="2"
-                          step="2"
-                          class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm -ms-px first:rounded-s-lg mt-0 first:ms-0 first:rounded-se-none last:rounded-es-none last:rounded-e-lg text-sm relative focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
-                          disabled={!overrideResolution}
-                          bind:value={mediaResolutionHeight}
-                        />
-                      </div>
-                    </div>
-                    <div class="sm:col-span-3 md:col-span-1 lg:col-span-3">
-                      <span class="block text-left text-sm font-medium mb-1 dark:text-white">
-                        Video encoder
-                      </span>
-                      <div class="relative">
-                        <select
-                          bind:value={mediaOptions.videoCodec}
-                          class="form-select py-3 px-4 pe-8 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
-                        >
-                          {#if ffmpegEncoders}
-                            {#each ffmpegEncoders.filter((e) => e.codec !== null && ['h264', 'hevc', 'av1', 'mpeg4'].includes(e.codec)) as encoder}
-                              <option value={encoder.name}>{encoder.displayName}</option>
-                            {/each}
-                          {/if}
-                        </select>
-                      </div>
-                    </div>
-                    <div class="sm:col-span-3 md:col-span-1 lg:col-span-3">
-                      <span class="block text-left text-sm font-medium mb-1 dark:text-white">
-                        Video bitrate
-                      </span>
-                      <div class="relative">
-                        <input
-                          type="number"
-                          bind:value={mediaOptions.videoBitrate}
-                          class="form-input py-3 px-4 pe-14 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
-                        />
-                        <div
-                          class="absolute inset-y-0 end-0 flex items-center pointer-events-none z-20 pe-4"
-                        >
-                          <span class="text-gray-500 dark:text-neutral-500">kbps</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="sm:col-span-3 md:col-span-1 lg:col-span-3">
-                      <span class="block text-left text-sm font-medium mb-1 dark:text-white">
-                        Results loops
-                      </span>
-                      <div class="relative">
-                        <input
-                          type="number"
-                          min={0}
-                          step={0.1}
-                          bind:value={mediaOptions.resultsLoopsToRender}
-                          class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
-                        />
-                      </div>
-                    </div>
-                    <div class="sm:col-span-3 md:col-span-1 lg:col-span-3">
-                      <span class="block text-left text-sm font-medium mb-1 dark:text-white">
-                        Audio bitrate
-                      </span>
-                      <div class="relative">
-                        <input
-                          type="number"
-                          bind:value={mediaOptions.audioBitrate}
-                          class="form-input py-3 px-4 pe-14 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
-                        />
-                        <div
-                          class="absolute inset-y-0 end-0 flex items-center pointer-events-none z-20 pe-4"
-                        >
-                          <span class="text-gray-500 dark:text-neutral-500">kbps</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="sm:col-span-6 md:col-span-1 lg:col-span-6">
-                      <span class="block text-left text-sm font-medium mb-1 dark:text-white">
-                        Export path
-                      </span>
-                      <div class="flex rounded-lg">
-                        <input
-                          type="text"
-                          bind:value={mediaOptions.exportPath}
-                          class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm text-sm focus:z-10 rounded-s-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
-                        />
-                        <button
-                          class="py-3 px-4 inline-flex justify-center items-center gap-x-2 text-center text-sm font-medium shadow-sm rounded-e-lg transition border border-gray-200 text-gray-500 hover:border-blue-500 hover:text-blue-500 focus:outline-none focus:border-blue-500 focus:text-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:border-neutral-700 dark:text-neutral-400 dark:hover:text-blue-500 dark:hover:border-blue-500 dark:focus:text-blue-500 dark:focus:border-blue-500"
-                          onclick={async () => {
-                            const path = await open({
-                              directory: true,
-                              multiple: false,
-                            });
-                            if (path) {
-                              mediaOptions.exportPath = path;
-                            }
-                          }}
-                        >
-                          Browse
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+              <div>
+                <span class="block text-sm font-medium mb-1 dark:text-white">Composer</span>
+                <div class="relative">
+                  <input
+                    type="text"
+                    bind:value={currentBundle.metadata.composer}
+                    class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                  />
+                </div>
+              </div>
+              <div>
+                <span class="block text-sm font-medium mb-1 dark:text-white">
+                  Illustration designer
+                </span>
+                <div class="relative">
+                  <input
+                    type="text"
+                    bind:value={currentBundle.metadata.illustrator}
+                    class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                  />
+                </div>
+              </div>
+              <div>
+                <span class="block text-sm font-medium mb-1 dark:text-white">Chart designer</span>
+                <div class="relative">
+                  <input
+                    type="text"
+                    bind:value={currentBundle.metadata.charter}
+                    class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                  />
+                </div>
+              </div>
+              <div>
+                <span class="block text-sm font-medium mb-1 dark:text-white">Level type</span>
+                <div class="relative">
+                  <select
+                    bind:value={currentBundle.metadata.levelType}
+                    class="form-select py-3 px-4 pe-9 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                  >
+                    {#each ['EZ', 'HD', 'IN', 'AT', 'SP'] as levelType, i}
+                      <option value={i} selected={currentBundle.metadata.levelType === i}>
+                        {levelType}
+                      </option>
+                    {/each}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <span class="block text-sm font-medium mb-1 dark:text-white">Level</span>
+                <div class="relative">
+                  <input
+                    type="text"
+                    bind:value={currentBundle.metadata.level}
+                    class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                  />
                 </div>
               </div>
             </div>
           {/if}
-          <div class="relative flex items-start">
-            <div class="flex items-center h-5 mt-1">
-              <input
-                id="autostart"
-                name="autostart"
-                type="checkbox"
-                class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
-                aria-describedby="autostart-description"
-                bind:checked={toggles.autostart}
-                disabled={ffmpegEncoders !== undefined && toggles.render}
-              />
+          {#if assets.length > 0}
+            <div class="flex flex-col">
+              <div class="-m-1.5 p-1.5 inline-block align-middle">
+                <table class="table-fixed w-full divide-y divide-gray-200 dark:divide-neutral-700">
+                  <thead>
+                    <tr>
+                      <th
+                        scope="col"
+                        class="px-3 py-2 w-1/2 sm:w-1/3 md:w-2/5 text-ellipsis overflow-hidden whitespace-nowrap text-start text-xs font-medium text-gray-500 uppercase dark:text-neutral-500"
+                      >
+                        Asset Name
+                      </th>
+                      <th
+                        scope="col"
+                        class="px-3 py-2 w-1/4 md:w-1/5 text-ellipsis overflow-hidden whitespace-nowrap text-start text-xs font-medium text-gray-500 uppercase dark:text-neutral-500"
+                      >
+                        Asset Type
+                      </th>
+                      <th
+                        scope="col"
+                        class="hidden sm:table-cell px-3 py-2 w-1/6 text-ellipsis overflow-hidden whitespace-nowrap text-start text-xs font-medium text-gray-500 uppercase dark:text-neutral-500"
+                      >
+                        File Size
+                      </th>
+                      <th
+                        scope="col"
+                        class="px-3 py-2 text-ellipsis overflow-hidden whitespace-nowrap text-end text-xs font-medium text-gray-500 uppercase dark:text-neutral-500"
+                      >
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-200 dark:divide-neutral-700">
+                    {#each assets as asset}
+                      <tr>
+                        <td
+                          class="px-3 py-3 text-ellipsis overflow-hidden whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200 transition"
+                          class:opacity-30={!asset.included}
+                        >
+                          {asset.file.name}
+                        </td>
+                        <td
+                          class="px-2 py-3 md:min-w-fit w-1/6 text-gray-800 dark:text-neutral-200 transition"
+                          class:opacity-30={!asset.included}
+                        >
+                          <div class="relative">
+                            <select
+                              bind:value={asset.type}
+                              class="form-select py-1 px-2 pe-8 block border-gray-200 rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                            >
+                              {#each ['Image', 'Audio', 'Video', 'Config', 'Shader', 'Other'] as assetType, i}
+                                <option value={i} selected={asset.type === i}>
+                                  {assetType}
+                                </option>
+                              {/each}
+                            </select>
+                          </div>
+                        </td>
+                        <td
+                          class="px-3 py-3 hidden sm:table-cell md:min-w-fit w-1/12 text-ellipsis overflow-hidden whitespace-nowrap text-sm text-gray-800 dark:text-neutral-200 transition"
+                          class:opacity-30={!asset.included}
+                        >
+                          {humanizeFileSize(asset.file.size)}
+                        </td>
+                        <td class="px-3 py-3 min-w-fit text-end text-sm font-medium">
+                          <button
+                            type="button"
+                            class="inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg transition border border-transparent text-blue-500 hover:text-blue-800 focus:outline-none focus:text-blue-800 disabled:opacity-50 disabled:pointer-events-none dark:text-blue-500 dark:hover:text-blue-400 dark:focus:text-blue-400"
+                            onclick={() => {
+                              asset.included = !asset.included;
+                            }}
+                          >
+                            {asset.included ? 'Exclude' : 'Include'}
+                          </button>
+                          <button
+                            type="button"
+                            class="inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg transition border border-transparent text-blue-500 hover:text-blue-800 focus:outline-none focus:text-blue-800 disabled:opacity-50 disabled:pointer-events-none dark:text-blue-500 dark:hover:text-blue-400 dark:focus:text-blue-400"
+                            onclick={() => {
+                              assets = assets.filter((a) => a.id !== asset.id);
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
             </div>
-            <label
-              for="autostart"
-              class="ms-3"
-              class:opacity-50={ffmpegEncoders !== undefined && toggles.render}
+          {/if}
+        </div>
+        <div class="flex md:w-1/3 flex-col gap-2">
+          <div class="relative">
+            <select
+              class="form-select peer p-4 pe-9 block w-full border-gray-200 rounded-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:focus:ring-neutral-600
+              focus:pt-6
+              focus:pb-2
+              [&:not(:placeholder-shown)]:pt-6
+              [&:not(:placeholder-shown)]:pb-2
+              autofill:pt-6
+              autofill:pb-2"
+              value={selectedChart}
+              oninput={(e) => {
+                selectedChart = parseInt(e.currentTarget.value);
+                if (currentBundle) currentBundle.chart = selectedChart;
+                chartBundles = chartBundles;
+              }}
             >
-              <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
-                Autostart
-              </span>
-              <span
-                id="autostart-description"
-                class="block text-sm text-gray-600 dark:text-neutral-500"
-              >
-                The player will attempt to start playing automatically.
-              </span>
-            </label>
+              {#each chartFiles as file}
+                <option value={file.id} selected={selectedChart == file.id}>
+                  {file.file.name}
+                </option>
+              {/each}
+            </select>
+            <span
+              class="absolute top-0 start-0 p-4 h-full truncate pointer-events-none transition ease-in-out duration-100 border border-transparent dark:text-white peer-disabled:opacity-50 peer-disabled:pointer-events-none
+                peer-focus:text-sm
+                peer-focus:-translate-y-1.5
+                peer-focus:text-gray-500 dark:peer-focus:text-neutral-500
+                peer-[:not(:placeholder-shown)]:text-sm
+                peer-[:not(:placeholder-shown)]:-translate-y-1.5
+                peer-[:not(:placeholder-shown)]:text-gray-500 dark:peer-[:not(:placeholder-shown)]:text-neutral-500"
+            >
+              Chart
+            </span>
           </div>
-          {#if Capacitor.getPlatform() === 'web'}
+          <div class="relative">
+            <select
+              class="form-select peer p-4 pe-9 block w-full border-gray-200 rounded-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:focus:ring-neutral-600
+              focus:pt-6
+              focus:pb-2
+              [&:not(:placeholder-shown)]:pt-6
+              [&:not(:placeholder-shown)]:pb-2
+              autofill:pt-6
+              autofill:pb-2"
+              value={selectedSong}
+              oninput={(e) => {
+                selectedSong = parseInt(e.currentTarget.value);
+                if (currentBundle) currentBundle.song = selectedSong;
+                chartBundles = chartBundles;
+              }}
+            >
+              {#each audioFiles as file}
+                <option value={file.id} selected={selectedSong == file.id}>
+                  {file.file.name}
+                </option>
+              {/each}
+            </select>
+            <span
+              class="absolute top-0 start-0 p-4 h-full truncate pointer-events-none transition ease-in-out duration-100 border border-transparent dark:text-white peer-disabled:opacity-50 peer-disabled:pointer-events-none
+                peer-focus:text-sm
+                peer-focus:-translate-y-1.5
+                peer-focus:text-gray-500 dark:peer-focus:text-neutral-500
+                peer-[:not(:placeholder-shown)]:text-sm
+                peer-[:not(:placeholder-shown)]:-translate-y-1.5
+                peer-[:not(:placeholder-shown)]:text-gray-500 dark:peer-[:not(:placeholder-shown)]:text-neutral-500"
+            >
+              Song
+            </span>
+          </div>
+          <div class="relative">
+            <select
+              class="form-select peer p-4 pe-9 block w-full border-gray-200 rounded-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:focus:ring-neutral-600
+              focus:pt-6
+              focus:pb-2
+              [&:not(:placeholder-shown)]:pt-6
+              [&:not(:placeholder-shown)]:pb-2
+              autofill:pt-6
+              autofill:pb-2"
+              value={selectedIllustration}
+              oninput={(e) => {
+                selectedIllustration = parseInt(e.currentTarget.value);
+                if (currentBundle) currentBundle.illustration = selectedIllustration;
+                chartBundles = chartBundles;
+              }}
+            >
+              {#each imageFiles as file}
+                <option value={file.id} selected={selectedIllustration == file.id}>
+                  {file.file.name}
+                </option>
+              {/each}
+            </select>
+            <span
+              class="absolute top-0 start-0 p-4 h-full truncate pointer-events-none transition ease-in-out duration-100 border border-transparent dark:text-white peer-disabled:opacity-50 peer-disabled:pointer-events-none
+                peer-focus:text-sm
+                peer-focus:-translate-y-1.5
+                peer-focus:text-gray-500 dark:peer-focus:text-neutral-500
+                peer-[:not(:placeholder-shown)]:text-sm
+                peer-[:not(:placeholder-shown)]:-translate-y-1.5
+                peer-[:not(:placeholder-shown)]:text-gray-500 dark:peer-[:not(:placeholder-shown)]:text-neutral-500"
+            >
+              Illustration
+            </span>
+          </div>
+          <div class="grid space-y-3">
             <div class="relative flex items-start">
               <div class="flex items-center h-5 mt-1">
                 <input
-                  id="newtab"
-                  name="newtab"
+                  id="autoplay"
+                  name="autoplay"
                   type="checkbox"
                   class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
-                  aria-describedby="newtab-description"
-                  bind:checked={toggles.newTab}
+                  aria-describedby="autoplay-description"
+                  checked={toggles.autoplay}
+                  oninput={(e) => {
+                    toggles.autoplay = e.currentTarget.checked;
+                    if (toggles.autoplay) {
+                      toggles.practice = false;
+                    } else {
+                      toggles.adjustOffset = false;
+                    }
+                  }}
                 />
               </div>
-              <label for="newtab" class="ms-3">
+              <label for="autoplay" class="ms-3">
                 <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
-                  New
-                  {#if IS_TAURI}
-                    window
-                  {:else}
-                    tab
-                  {/if}
+                  Autoplay
                 </span>
                 <span
-                  id="newtab-description"
+                  id="autoplay-description"
                   class="block text-sm text-gray-600 dark:text-neutral-500"
                 >
-                  The player will be opened in a new
-                  {#if IS_TAURI}
-                    window.
-                  {:else}
-                    tab.
-                  {/if}
+                  Notes are automatically given Perfect judgments.
                 </span>
               </label>
             </div>
-          {/if}
-        </div>
-        <div class="flex gap-2">
-          <PreferencesModal bind:preferences class="w-1/2" />
-          <button
-            class="w-1/2 inline-flex justify-center items-center gap-x-3 text-center bg-gradient-to-tl from-blue-500 via-violet-500 to-fuchsia-500 dark:from-blue-700 dark:via-violet-700 dark:to-fuchsia-700 text-white text-sm font-medium rounded-md focus:outline-none py-3 px-4 transition-all duration-300 bg-size-200 bg-pos-0 hover:bg-pos-100"
-            onclick={() => {
-              localStorage.setItem('preferences', JSON.stringify(preferences));
-              localStorage.setItem('toggles', JSON.stringify(toggles));
-              if (toggles.render) {
-                if (overrideResolution) {
-                  mediaOptions.overrideResolution = [mediaResolutionWidth, mediaResolutionHeight];
-                } else {
-                  mediaOptions.overrideResolution = null;
+            <div class="relative flex items-start">
+              <div class="flex items-center h-5 mt-1">
+                <input
+                  id="adjust-offset"
+                  name="adjust-offset"
+                  type="checkbox"
+                  class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
+                  aria-describedby="adjust-offset-description"
+                  bind:checked={toggles.adjustOffset}
+                  disabled={!toggles.autoplay || (ffmpegEncoders !== undefined && toggles.render)}
+                />
+              </div>
+              <label
+                for="adjust-offset"
+                class="ms-3 transition"
+                class:opacity-50={!toggles.autoplay ||
+                  (ffmpegEncoders !== undefined && toggles.render)}
+              >
+                <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
+                  Adjust offset
+                </span>
+                <span
+                  id="adjust-offset-description"
+                  class="block text-sm text-gray-600 dark:text-neutral-500"
+                >
+                  Enables realtime chart offset adjustment. The offset set in the preferences is
+                  ignored.
+                </span>
+              </label>
+            </div>
+            <div class="relative flex items-start">
+              <div class="flex items-center h-5 mt-1">
+                <input
+                  id="practice"
+                  name="practice"
+                  type="checkbox"
+                  class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
+                  aria-describedby="practice-description"
+                  bind:checked={toggles.practice}
+                  disabled={toggles.autoplay || (ffmpegEncoders !== undefined && toggles.render)}
+                />
+              </div>
+              <label
+                for="practice"
+                class="ms-3 transition"
+                class:opacity-50={toggles.autoplay ||
+                  (ffmpegEncoders !== undefined && toggles.render)}
+              >
+                <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
+                  Practice
+                </span>
+                <span
+                  id="practice-description"
+                  class="block text-sm text-gray-600 dark:text-neutral-500"
+                >
+                  Both inputs and playback controls are enabled.
+                </span>
+              </label>
+            </div>
+            {#if IS_TAURI}
+              <div
+                class="flex flex-col {ffmpegEncoders === undefined
+                  ? 'tooltip'
+                  : overrideResolution &&
+                      (mediaResolutionWidth % 2 === 1 || mediaResolutionHeight % 2 === 1)
+                    ? 'tooltip tooltip-warning'
+                    : ''}"
+                data-tip={ffmpegEncoders === undefined
+                  ? 'FFmpeg could not be found on your system.'
+                  : 'Some encoders may not support resolutions with odd dimensions.'}
+              >
+                <div class="relative flex items-start">
+                  <div class="flex items-center h-5 mt-1">
+                    <input
+                      id="render"
+                      name="render"
+                      type="checkbox"
+                      class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
+                      aria-describedby="render-description"
+                      checked={toggles.render}
+                      disabled={ffmpegEncoders === undefined}
+                      oninput={(e) => {
+                        toggles.render = e.currentTarget.checked;
+                        if (toggles.render) {
+                          toggles.autoplay = true;
+                          toggles.adjustOffset = false;
+                          toggles.practice = false;
+                          toggles.autostart = true;
+                        }
+                      }}
+                    />
+                  </div>
+                  <label for="render" class="ms-3" class:opacity-50={ffmpegEncoders === undefined}>
+                    <button
+                      class="flex items-center gap-1 text-sm font-semibold text-gray-800 dark:text-neutral-300 disabled:pointer-events-none"
+                      disabled={ffmpegEncoders === undefined}
+                      onclick={() => {
+                        showMediaCollapse = !showMediaCollapse;
+                      }}
+                    >
+                      <p>Render</p>
+                      <span class="transition {showMediaCollapse ? '-rotate-180' : 'rotate-0'}">
+                        <i class="fa-solid fa-angle-down fa-sm"></i>
+                      </span>
+                    </button>
+                    <span
+                      id="render-description"
+                      class="block text-sm text-gray-600 dark:text-neutral-500"
+                    >
+                      The canvas will be rendered and saved as a video file.
+                    </span>
+                  </label>
+                </div>
+                <div
+                  class="collapse h-0 border hover:shadow-sm rounded-xl dark:border-neutral-700 dark:shadow-neutral-700/70 bg-base-200 bg-opacity-30 backdrop-blur-2xl collapse-transition"
+                  class:collapse-open={showMediaCollapse}
+                  class:min-h-fit={showMediaCollapse}
+                  class:h-full={showMediaCollapse}
+                  class:mt-2={showMediaCollapse}
+                  class:opacity-0={!showMediaCollapse}
+                >
+                  <div
+                    class="collapse-content flex flex-col gap-4 items-center pt-0 transition-[padding] duration-300"
+                    class:pt-4={showMediaCollapse}
+                  >
+                    <div class="grid sm:grid-cols-6 md:grid-cols-1 lg:grid-cols-6 gap-3">
+                      <div class="sm:col-span-2 md:col-span-1 lg:col-span-2">
+                        <span class="block text-left text-sm font-medium mb-1 dark:text-white">
+                          Frame rate
+                        </span>
+                        <div class="relative">
+                          <input
+                            type="number"
+                            bind:value={mediaOptions.frameRate}
+                            class="form-input py-3 px-4 pe-12 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                          />
+                          <div
+                            class="absolute inset-y-0 end-0 flex items-center pointer-events-none z-20 pe-4"
+                          >
+                            <span class="text-gray-500 dark:text-neutral-500">FPS</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="sm:col-span-4 md:col-span-1 lg:col-span-4">
+                        <div class="flex justify-between items-center">
+                          <span class="block text-left text-sm font-medium mb-1 dark:text-white">
+                            Override resolution
+                          </span>
+                          <input
+                            type="checkbox"
+                            class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
+                            bind:checked={overrideResolution}
+                          />
+                        </div>
+                        <div class="flex rounded-lg shadow-sm">
+                          <input
+                            type="number"
+                            min="2"
+                            step="2"
+                            class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm -ms-px first:rounded-s-lg mt-0 first:ms-0 first:rounded-se-none last:rounded-es-none last:rounded-e-lg text-sm relative focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                            disabled={!overrideResolution}
+                            bind:value={mediaResolutionWidth}
+                          />
+                          <span
+                            class="py-3 px-2 inline-flex items-center min-w-fit border border-gray-200 text-sm text-gray-500 -ms-px w-auto first:rounded-s-lg mt-0 first:ms-0 first:rounded-se-none last:rounded-es-none last:rounded-e-lg bg-base-100 dark:border-neutral-700 dark:text-neutral-400"
+                            class:opacity-50={!overrideResolution}
+                          >
+                            <i class="fa-solid fa-xmark"></i>
+                          </span>
+                          <input
+                            type="number"
+                            min="2"
+                            step="2"
+                            class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm -ms-px first:rounded-s-lg mt-0 first:ms-0 first:rounded-se-none last:rounded-es-none last:rounded-e-lg text-sm relative focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                            disabled={!overrideResolution}
+                            bind:value={mediaResolutionHeight}
+                          />
+                        </div>
+                      </div>
+                      <div class="sm:col-span-3 md:col-span-1 lg:col-span-3">
+                        <span class="block text-left text-sm font-medium mb-1 dark:text-white">
+                          Video encoder
+                        </span>
+                        <div class="relative">
+                          <select
+                            bind:value={mediaOptions.videoCodec}
+                            class="form-select py-3 px-4 pe-8 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                          >
+                            {#if ffmpegEncoders}
+                              {#each ffmpegEncoders.filter((e) => e.codec !== null && ['h264', 'hevc', 'av1', 'mpeg4'].includes(e.codec)) as encoder}
+                                <option value={encoder.name}>{encoder.displayName}</option>
+                              {/each}
+                            {/if}
+                          </select>
+                        </div>
+                      </div>
+                      <div class="sm:col-span-3 md:col-span-1 lg:col-span-3">
+                        <span class="block text-left text-sm font-medium mb-1 dark:text-white">
+                          Video bitrate
+                        </span>
+                        <div class="relative">
+                          <input
+                            type="number"
+                            bind:value={mediaOptions.videoBitrate}
+                            class="form-input py-3 px-4 pe-14 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                          />
+                          <div
+                            class="absolute inset-y-0 end-0 flex items-center pointer-events-none z-20 pe-4"
+                          >
+                            <span class="text-gray-500 dark:text-neutral-500">kbps</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="sm:col-span-3 md:col-span-1 lg:col-span-3">
+                        <span class="block text-left text-sm font-medium mb-1 dark:text-white">
+                          Results loops
+                        </span>
+                        <div class="relative">
+                          <input
+                            type="number"
+                            min={0}
+                            step={0.1}
+                            bind:value={mediaOptions.resultsLoopsToRender}
+                            class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                          />
+                        </div>
+                      </div>
+                      <div class="sm:col-span-3 md:col-span-1 lg:col-span-3">
+                        <span class="block text-left text-sm font-medium mb-1 dark:text-white">
+                          Audio bitrate
+                        </span>
+                        <div class="relative">
+                          <input
+                            type="number"
+                            bind:value={mediaOptions.audioBitrate}
+                            class="form-input py-3 px-4 pe-14 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                          />
+                          <div
+                            class="absolute inset-y-0 end-0 flex items-center pointer-events-none z-20 pe-4"
+                          >
+                            <span class="text-gray-500 dark:text-neutral-500">kbps</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="sm:col-span-6 md:col-span-1 lg:col-span-6">
+                        <span class="block text-left text-sm font-medium mb-1 dark:text-white">
+                          Export path
+                        </span>
+                        <div class="flex rounded-lg">
+                          <input
+                            type="text"
+                            bind:value={mediaOptions.exportPath}
+                            class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm text-sm focus:z-10 rounded-s-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                          />
+                          <button
+                            class="py-3 px-4 inline-flex justify-center items-center gap-x-2 text-center text-sm font-medium shadow-sm rounded-e-lg transition border border-gray-200 text-gray-500 hover:border-blue-500 hover:text-blue-500 focus:outline-none focus:border-blue-500 focus:text-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:border-neutral-700 dark:text-neutral-400 dark:hover:text-blue-500 dark:hover:border-blue-500 dark:focus:text-blue-500 dark:focus:border-blue-500"
+                            onclick={async () => {
+                              const path = await open({
+                                directory: true,
+                                multiple: false,
+                              });
+                              if (path) {
+                                mediaOptions.exportPath = path;
+                              }
+                            }}
+                          >
+                            Browse
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            {/if}
+            <div class="relative flex items-start">
+              <div class="flex items-center h-5 mt-1">
+                <input
+                  id="autostart"
+                  name="autostart"
+                  type="checkbox"
+                  class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
+                  aria-describedby="autostart-description"
+                  bind:checked={toggles.autostart}
+                  disabled={ffmpegEncoders !== undefined && toggles.render}
+                />
+              </div>
+              <label
+                for="autostart"
+                class="ms-3"
+                class:opacity-50={ffmpegEncoders !== undefined && toggles.render}
+              >
+                <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
+                  Autostart
+                </span>
+                <span
+                  id="autostart-description"
+                  class="block text-sm text-gray-600 dark:text-neutral-500"
+                >
+                  The player will attempt to start playing automatically.
+                </span>
+              </label>
+            </div>
+            {#if Capacitor.getPlatform() === 'web'}
+              <div class="relative flex items-start">
+                <div class="flex items-center h-5 mt-1">
+                  <input
+                    id="newtab"
+                    name="newtab"
+                    type="checkbox"
+                    class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
+                    aria-describedby="newtab-description"
+                    bind:checked={toggles.newTab}
+                  />
+                </div>
+                <label for="newtab" class="ms-3">
+                  <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
+                    New
+                    {#if IS_TAURI}
+                      window
+                    {:else}
+                      tab
+                    {/if}
+                  </span>
+                  <span
+                    id="newtab-description"
+                    class="block text-sm text-gray-600 dark:text-neutral-500"
+                  >
+                    The player will be opened in a new
+                    {#if IS_TAURI}
+                      window.
+                    {:else}
+                      tab.
+                    {/if}
+                  </span>
+                </label>
+              </div>
+            {/if}
+          </div>
+          <div class="flex gap-2">
+            <PreferencesModal bind:preferences class="w-1/2" />
+            <button
+              class="w-1/2 inline-flex justify-center items-center gap-x-3 text-center bg-gradient-to-tl from-blue-500 via-violet-500 to-fuchsia-500 dark:from-blue-700 dark:via-violet-700 dark:to-fuchsia-700 text-white text-sm font-medium rounded-md focus:outline-none py-3 px-4 transition-all duration-300 bg-size-200 bg-pos-0 hover:bg-pos-100"
+              onclick={() => {
+                localStorage.setItem('preferences', JSON.stringify(preferences));
+                localStorage.setItem('toggles', JSON.stringify(toggles));
+                if (toggles.render) {
+                  if (overrideResolution) {
+                    mediaOptions.overrideResolution = [mediaResolutionWidth, mediaResolutionHeight];
+                  } else {
+                    mediaOptions.overrideResolution = null;
+                  }
+                  localStorage.setItem('mediaOptions', JSON.stringify(mediaOptions));
                 }
-                localStorage.setItem('mediaOptions', JSON.stringify(mediaOptions));
-              }
-              if (!currentBundle) {
-                alert('No bundle is available.');
-                return;
-              }
-              const assetsIncluded = assets.filter((asset) => asset.included);
-              start({
-                resources: {
-                  song:
-                    getUrl(audioFiles.find((file) => file.id === currentBundle!.song)?.file) ?? '',
-                  chart:
-                    getUrl(chartFiles.find((file) => file.id === currentBundle!.chart)?.file) ?? '',
-                  illustration:
-                    imageFiles.find((file) => file.id === currentBundle!.illustration)?.url ?? '',
-                  assetNames: assetsIncluded.map((asset) => asset.file.name),
-                  assetTypes: assetsIncluded.map((asset) => asset.type),
-                  assets: assetsIncluded.map((asset) => getUrl(asset.file) ?? ''),
-                },
-                metadata: currentBundle.metadata,
-                preferences,
-                mediaOptions,
-                ...toggles,
-              });
-            }}
-          >
-            Play
-            <i class="fa-solid fa-angle-right fa-sm"></i>
-          </button>
+                if (!currentBundle) {
+                  alert('No bundle is available.');
+                  return;
+                }
+                const assetsIncluded = assets.filter((asset) => asset.included);
+                start({
+                  resources: {
+                    song:
+                      getUrl(audioFiles.find((file) => file.id === currentBundle!.song)?.file) ??
+                      '',
+                    chart:
+                      getUrl(chartFiles.find((file) => file.id === currentBundle!.chart)?.file) ??
+                      '',
+                    illustration:
+                      imageFiles.find((file) => file.id === currentBundle!.illustration)?.url ?? '',
+                    assetNames: assetsIncluded.map((asset) => asset.file.name),
+                    assetTypes: assetsIncluded.map((asset) => asset.type),
+                    assets: assetsIncluded.map((asset) => getUrl(asset.file) ?? ''),
+                  },
+                  metadata: currentBundle.metadata,
+                  preferences,
+                  mediaOptions,
+                  resourcePack: ensureRespackSerializable(
+                    resourcePacks.find((pack) => pack.id === selectedResourcePack)!,
+                  ),
+                  ...toggles,
+                });
+              }}
+            >
+              Play
+              <i class="fa-solid fa-angle-right fa-sm"></i>
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    {:else}
+      <div class="w-full results">
+        {#each resourcePacks as pack}
+          <div
+            class="card text-left w-80 h-96 bg-base-100 overflow-hidden transition border-2 hover:shadow-lg"
+            class:normal-border={selectedResourcePack !== pack.id}
+            class:border-success={selectedResourcePack === pack.id}
+          >
+            <figure
+              class="w-full h-[167px] flex justify-center items-center"
+              class:backdrop-brightness-50={!pack.thumbnail}
+            >
+              {#if pack.thumbnail}
+                <img
+                  src={typeof pack.thumbnail === 'string'
+                    ? pack.thumbnail
+                    : URL.createObjectURL(pack.thumbnail)}
+                  alt="Thumbnail"
+                  class="w-full h-[167px] object-cover"
+                />
+              {:else}
+                <p>No thumbnail</p>
+              {/if}
+            </figure>
+            <div class="card-body py-5">
+              <div class="flex flex-col gap-3 pb-2">
+                <div class="flex flex-col">
+                  <h2 class="title-strong w-full truncate">
+                    {pack.name}
+                  </h2>
+                  <h2 class="subtitle opacity-80 w-full truncate">
+                    {pack.author}
+                  </h2>
+                </div>
+                <p class="description">
+                  {pack.description}
+                </p>
+              </div>
+            </div>
+            <div class="absolute bottom-5 right-5 flex gap-2">
+              <button
+                class="btn btn-sm rounded-full btn-outline btn-success"
+                class:btn-active={selectedResourcePack === pack.id}
+                onclick={() => {
+                  selectedResourcePack = pack.id;
+                }}
+              >
+                {selectedResourcePack === pack.id ? 'SELECTED' : 'SELECT'}
+              </button>
+              <button
+                class="btn btn-sm btn-circle btn-outline btn-success"
+                aria-label="Delete"
+                onclick={async () => {
+                  await exportRespack(
+                    getTypeOfRespack(pack) === 'string'
+                      ? await importRespack(pack as ResourcePackWithId<string>)
+                      : (pack as ResourcePackWithId<File>),
+                  );
+                }}
+              >
+                <i class="fa-solid fa-file-export"></i>
+              </button>
+              <button
+                class="btn btn-sm btn-circle btn-outline btn-error"
+                aria-label="Delete"
+                onclick={() => {
+                  resourcePacks = resourcePacks.filter((b) => b.id !== pack.id);
+                  if (selectedResourcePack === pack.id) {
+                    selectedResourcePack = DEFAULT_RESOURCE_PACK_ID;
+                  }
+                }}
+              >
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            </div>
+          </div>
+        {/each}
+      </div>
+    {/if}
   </div>
 </div>
 
-<style>
+<style lang="postcss">
   .collapse-transition {
     transition-property: grid-template-rows, height, opacity, border-color, shadow, margin-top;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     transition-duration: 300ms, 300ms, 300ms, 150ms, 150ms, 300ms;
   }
+
   .carousel-with-bar {
     display: inline-flex;
     overflow-x: auto;
     scroll-behavior: smooth;
+  }
+
+  .results {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-gap: 1.5rem;
+    justify-items: center;
+  }
+
+  .title-strong {
+    font-size: 1.25rem;
+    line-height: 1.4rem;
+    font-weight: 800;
+  }
+
+  .subtitle {
+    font-size: 1rem;
+    line-height: 1.2rem;
+    font-weight: 600;
+  }
+
+  .description {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    line-clamp: 3;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    white-space: pre-line;
+    word-break: break-word;
+    @apply leading-5;
+  }
+
+  .normal-border {
+    @apply border-gray-400 dark:border-gray-700;
   }
 </style>

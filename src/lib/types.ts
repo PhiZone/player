@@ -5,6 +5,7 @@ export interface Config {
   metadata: Metadata;
   preferences: Preferences;
   mediaOptions: MediaOptions;
+  resourcePack: ResourcePack<string>;
   autoplay: boolean;
   practice: boolean;
   adjustOffset: boolean;
@@ -28,7 +29,7 @@ export interface Metadata {
   composer: string | null;
   charter: string | null;
   illustrator: string | null;
-  levelType: 0 | 1 | 2 | 3 | 4;
+  levelType: LevelType;
   level: string | null;
   difficulty: number | null;
 }
@@ -71,6 +72,8 @@ export interface MediaOptions {
   audioBitrate: number;
   exportPath?: string;
 }
+
+export type LevelType = 0 | 1 | 2 | 3 | 4;
 
 export interface MetadataEntry {
   id?: number;
@@ -582,4 +585,99 @@ export interface EventMessage {
       | 'finished';
     value?: number;
   };
+}
+
+export type ResourcePackWithId<T> = ResourcePack<T> & {
+  id: string;
+};
+
+export interface ResourcePack<T> {
+  name: string;
+  author: string;
+  description?: string;
+  thumbnail?: T;
+  noteSkins: NoteSkin<T>[];
+  hitSounds: HitSound<T>[];
+  hitEffects?: HitEffects<T>;
+  ending: Ending<T>;
+  fonts: (Font<T> | BitmapFont<T>)[];
+}
+
+export type NoteSkinName =
+  | 'Tap'
+  | 'TapHL'
+  | 'HoldHead'
+  | 'HoldBody'
+  | 'HoldTail'
+  | 'HoldHeadHL'
+  | 'HoldBodyHL'
+  | 'HoldTailHL'
+  | 'Flick'
+  | 'FlickHL'
+  | 'Drag'
+  | 'DragHL';
+
+export interface NoteSkin<T> {
+  name: NoteSkinName;
+  file: T;
+}
+
+export type HitSoundName = 'Tap' | 'Flick' | 'Drag';
+
+export interface HitSound<T> {
+  name: HitSoundName;
+  file: T;
+}
+
+interface Particle {
+  count: number;
+}
+
+export interface OrdinaryParticle extends Particle {
+  style: 'circle' | 'square';
+}
+
+export interface PolygonParticle extends Particle {
+  style: 'polygon';
+  points: [number, number][];
+}
+
+export interface HitEffects<T> {
+  spriteSheet: T;
+  frameWidth: number;
+  frameHeight: number;
+  frameRate: number;
+  particle: OrdinaryParticle | PolygonParticle;
+}
+
+export interface Font<T> {
+  name: string;
+  type: 'truetype' | 'opentype';
+  file: T;
+}
+
+export interface BitmapFont<T> {
+  name: string;
+  type: 'bitmap';
+  texture: T;
+  descriptor: T;
+}
+
+export interface Ending<T> {
+  grades: GradeLetter<T>[];
+  music: ResultsMusic<T>[];
+}
+
+export type GradeLetterName = 'A' | 'B' | 'C' | 'F' | 'Phi' | 'S' | 'V-FC' | 'V';
+
+export interface GradeLetter<T> {
+  name: GradeLetterName;
+  file: T;
+}
+
+export interface ResultsMusic<T> {
+  levelType: LevelType;
+  beats: number;
+  bpm: number;
+  file: T;
 }

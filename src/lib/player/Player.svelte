@@ -14,8 +14,16 @@
   import start from './main';
   import { EventBus } from './EventBus';
   import { GameStatus, type Config } from '$lib/types';
-  import { clamp, getParams, IS_TAURI, notify, showPerformance, fromRichText } from '$lib/utils';
-  import { convertTime, findPredominantBpm, getTimeSec, triggerDownload } from './utils';
+  import {
+    clamp,
+    getParams,
+    IS_TAURI,
+    notify,
+    showPerformance,
+    fromRichText,
+    triggerDownload,
+  } from '$lib/utils';
+  import { convertTime, findPredominantBpm, getTimeSec } from './utils';
   import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
   import { ProgressBarStatus } from '@tauri-apps/api/window';
   import WaveSurfer, { type WaveSurferOptions } from 'wavesurfer.js';

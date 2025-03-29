@@ -35,22 +35,42 @@ export class HitEffects extends GameObjects.Sprite {
     });
     return [
       this,
-      ...Array(4)
+      ...Array(this._scene.respack.hitEffects.particle.count)
         .fill(null)
         .map(() => this.particle(tint)),
     ];
   }
 
   particle(tint?: number) {
-    const particle = new GameObjects.Arc(
-      this._scene,
-      this.x,
-      this.y,
-      this.scale * HIT_EFFECTS_PARTICLE_SIZE * Math.SQRT1_2,
-      undefined,
-      undefined,
-      undefined,
-      tint ?? this._color,
+    const pref = this._scene.respack.hitEffects.particle;
+    const particle = (
+      pref.style === 'polygon'
+        ? new GameObjects.Polygon(
+            this._scene,
+            this.x,
+            this.y,
+            pref.points.flat().map((v) => v * this.scale * HIT_EFFECTS_PARTICLE_SIZE),
+            tint ?? this._color,
+          )
+        : pref.style === 'circle'
+          ? new GameObjects.Arc(
+              this._scene,
+              this.x,
+              this.y,
+              this.scale * HIT_EFFECTS_PARTICLE_SIZE * Math.SQRT1_2,
+              undefined,
+              undefined,
+              undefined,
+              tint ?? this._color,
+            )
+          : new GameObjects.Rectangle(
+              this._scene,
+              this.x,
+              this.y,
+              this.scale * HIT_EFFECTS_PARTICLE_SIZE,
+              this.scale * HIT_EFFECTS_PARTICLE_SIZE,
+              tint ?? this._color,
+            )
     )
       .setOrigin(0.5)
       .setScale(0);

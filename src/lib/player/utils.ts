@@ -32,7 +32,7 @@ import { ROOT, type Node } from './objects/Node';
 import { tempDir } from '@tauri-apps/api/path';
 import { download as tauriDownload } from '@tauri-apps/plugin-upload';
 import { readFile, remove } from '@tauri-apps/plugin-fs';
-import { clamp, getLines, IS_IFRAME, IS_TAURI, isPec, send } from '$lib/utils';
+import { clamp, getLines, IS_TAURI, isPec } from '$lib/utils';
 import PhiEditerConverter from './converter/phiediter';
 import 'context-filter-polyfill';
 
@@ -97,7 +97,7 @@ export const download = async (url: string, name?: string) => {
     'loading-detail',
     url.startsWith('blob:') ? `Loading ${name ?? 'file'}` : `Downloading ${url.split('/').pop()}`,
   );
-  if (IS_TAURI && url.startsWith('https://')) {
+  if (IS_TAURI && (url.startsWith('http://') || url.startsWith('https://'))) {
     const filePath = (await tempDir()) + random(1e17, 1e18 - 1);
     await tauriDownload(url, filePath, (payload) => {
       EventBus.emit('loading', clamp(payload.progressTotal / payload.total, 0, 1));
@@ -819,30 +819,6 @@ export const getAudio = async (url: string): Promise<string> => {
   return URL.createObjectURL(
     new Blob([(data as Uint8Array).buffer as ArrayBuffer], { type: 'audio/wav' }),
   );
-};
-
-export const triggerDownload = (
-  blob: Blob,
-  name: string,
-  purpose: 'adjustedOffset',
-  always = false,
-) => {
-  if (IS_IFRAME) {
-    send({
-      type: 'fileOutput',
-      payload: {
-        purpose,
-        file: new File([blob], name),
-      },
-    });
-    if (!always) return;
-  }
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  a.click();
-  URL.revokeObjectURL(url);
 };
 
 export const urlToBase64 = async (url: string, name?: string) => {
