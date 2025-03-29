@@ -139,7 +139,7 @@ export const readMetadataForChart = (text?: string, chartMeta?: RpeMeta): Metada
       };
     }
     // TODO add support for other metadata formats
-    console.debug('Chart metadata format not recognized: ', text);
+    console.debug('Chart metadata format not recognized:', text);
     return {
       name: '',
       song: '',
@@ -168,7 +168,7 @@ export const readMetadataForRespack = (text: string) => {
     };
     return result;
   } catch (e) {
-    console.debug('Failed to parse resource pack metadata: ', e);
+    console.debug('Failed to parse resource pack metadata:', e);
     return null;
   }
 };

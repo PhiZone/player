@@ -681,3 +681,12 @@ export interface ResultsMusic<T> {
   bpm: number;
   file: T;
 }
+
+export interface PhiraResourcePack {
+  name: string;
+  author: string;
+  description: string;
+  hitFx: [number, number];
+  holdAtlas: [number, number];
+  holdAtlasMH: [number, number];
+}
