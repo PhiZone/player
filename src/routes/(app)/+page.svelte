@@ -65,6 +65,9 @@
   import { open } from '@tauri-apps/plugin-dialog';
   import Database from '$lib/player/services/database';
   import { DEFAULT_RESOURCE_PACK, DEFAULT_RESOURCE_PACK_ID } from '$lib/player/constants';
+  import type { EventBus } from '$lib/player/EventBus';
+  import { getFFmpeg, loadFFmpeg } from '$lib/player/services/ffmpeg';
+  import { fetchFile } from '@ffmpeg/util';
 
   interface FileEntry {
     id: number;
@@ -713,6 +716,25 @@
     return bundle;
   };
 
+  const convertAudio = async (audio: File) => {
+    progress = 0;
+    const ffmpeg = getFFmpeg();
+    ffmpeg.on('progress', (p) => {
+      progress = clamp(p.progress, 0, 1);
+    });
+    if (!ffmpeg.loaded) {
+      progressDetail = 'Loading FFmpeg';
+      await loadFFmpeg();
+    }
+    progressDetail = `Converting ${audio.name}`;
+    await ffmpeg.writeFile('input', await fetchFile(audio));
+    await ffmpeg.exec('-i input -ar 44100 -ac 2 -f wav -y output'.split(' '));
+    const data = await ffmpeg.readFile('output');
+    return new File([(data as Uint8Array).buffer as ArrayBuffer], audio.name, {
+      type: 'audio/wav',
+    });
+  };
+
   const importRespack = async (metadata: ResourcePackWithId<string>) => {
     const filesLocated: FileEntry[] = [];
     const findFile = async (str: string, files?: FileEntry[]) => {
@@ -752,7 +774,7 @@
       hitSounds: await Promise.all(
         metadata.hitSounds.map(async (e) => ({
           name: e.name,
-          file: await findFile(e.file, audioFiles),
+          file: await convertAudio(await findFile(e.file, audioFiles)),
         })),
       ),
       hitEffects: metadata.hitEffects
@@ -776,7 +798,7 @@
             levelType: e.levelType,
             beats: e.beats,
             bpm: e.bpm,
-            file: await findFile(e.file, audioFiles),
+            file: await convertAudio(await findFile(e.file, audioFiles)),
           })),
         ),
       },
