@@ -130,7 +130,7 @@
   let mediaOptions: MediaOptions = {
     frameRate: 60,
     overrideResolution: [1620, 1080],
-    endingLoopsToRender: 1,
+    resultsLoopsToRender: 1,
     videoCodec: 'libx264',
     videoBitrate: 6000,
     audioBitrate: 320,
@@ -1790,7 +1790,7 @@
                           type="number"
                           min={0}
                           step={0.1}
-                          bind:value={mediaOptions.endingLoopsToRender}
+                          bind:value={mediaOptions.resultsLoopsToRender}
                           class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
                         />
                       </div>

@@ -21,7 +21,7 @@ export class Renderer {
   private _frameCount: number = 0;
   private _isRendering: boolean = false;
   private _isStopped: boolean = false;
-  private _endingLoopsToRender: number;
+  private _resultsLoopsToRender: number;
   private _tempDir: string;
   private _length: number;
 
@@ -31,8 +31,8 @@ export class Renderer {
     this._scene = scene;
     this._options = mediaOptions;
     this._started = scene.game.getTime();
-    this._endingLoopsToRender = mediaOptions.endingLoopsToRender;
-    this._length = scene.song.duration + 2 + (mediaOptions.endingLoopsToRender * 192) / 7;
+    this._resultsLoopsToRender = mediaOptions.resultsLoopsToRender;
+    this._length = scene.song.duration + 2 + (mediaOptions.resultsLoopsToRender * 192) / 7;
     this._worker = new Worker();
   }
 
@@ -144,10 +144,10 @@ export class Renderer {
             { key: 'flick', data: await urlToBase64(`${base}/game/hitsounds/Flick.wav`) },
           ]
         : []),
-      ...(this._scene.preferences.hitSoundVolume > 0 && Math.ceil(this._endingLoopsToRender) > 0
+      ...(this._scene.preferences.hitSoundVolume > 0 && Math.ceil(this._resultsLoopsToRender) > 0
         ? [{ key: 'grade-hit', data: await urlToBase64(`${base}/game/ending/GradeHit.wav`) }]
         : []),
-      ...(this._scene.preferences.musicVolume > 0 && Math.ceil(this._endingLoopsToRender) > 0
+      ...(this._scene.preferences.musicVolume > 0 && Math.ceil(this._resultsLoopsToRender) > 0
         ? [
             {
               key: 'results',
@@ -162,7 +162,7 @@ export class Renderer {
       ...Array.from(
         {
           length:
-            this._scene.preferences.hitSoundVolume > 0 && Math.ceil(this._endingLoopsToRender) > 0
+            this._scene.preferences.hitSoundVolume > 0 && Math.ceil(this._resultsLoopsToRender) > 0
               ? 1
               : 0,
         },
@@ -175,7 +175,7 @@ export class Renderer {
       ...Array.from(
         {
           length:
-            this._scene.preferences.musicVolume > 0 ? Math.ceil(this._endingLoopsToRender) : 0,
+            this._scene.preferences.musicVolume > 0 ? Math.ceil(this._resultsLoopsToRender) : 0,
         },
         (_, i) => ({
           sound: 'results',

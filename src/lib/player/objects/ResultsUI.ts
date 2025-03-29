@@ -6,7 +6,7 @@ import { pad, position } from '../utils';
 import { EventBus } from '../EventBus';
 import { Capacitor } from '@capacitor/core';
 
-export class EndingUI extends GameObjects.Container {
+export class ResultsUI extends GameObjects.Container {
   private _scene: Game;
   private _innerContainer: GameObjects.Container;
   private _sound: Sound.NoAudioSound | Sound.HTML5AudioSound | Sound.WebAudioSound;

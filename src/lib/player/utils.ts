@@ -21,7 +21,7 @@ import {
 import { EventBus } from './EventBus';
 import { getFFmpeg, loadFFmpeg } from './services/ffmpeg';
 import type { Game } from './scenes/Game';
-import { ENDING_ILLUSTRATION_CORNER_RADIUS } from './constants';
+import { RESULTS_ILLUSTRATION_CORNER_RADIUS } from './constants';
 import { parseGIF, decompressFrames, type ParsedFrame } from 'gifuct-js';
 import { dot, gcd, random } from 'mathjs';
 import { fileTypeFromBlob } from 'file-type';
@@ -329,7 +329,7 @@ export const processIllustration = (
         ctx.filter = 'none';
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        const radius = (ENDING_ILLUSTRATION_CORNER_RADIUS * canvas.height) / 200;
+        const radius = (RESULTS_ILLUSTRATION_CORNER_RADIUS * canvas.height) / 200;
         ctx.beginPath();
         ctx.moveTo(radius, 0);
         ctx.lineTo(canvas.width - radius, 0);

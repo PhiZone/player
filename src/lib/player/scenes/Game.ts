@@ -25,7 +25,7 @@ import { Line } from '../objects/Line';
 import type { LongNote } from '../objects/LongNote';
 import type { PlainNote } from '../objects/PlainNote';
 import { GameUI } from '../objects/GameUI';
-import { EndingUI } from '../objects/EndingUI';
+import { ResultsUI } from '../objects/ResultsUI';
 import { PointerHandler } from '../handlers/PointerHandler';
 import { KeyboardHandler } from '../handlers/KeyboardHandler';
 import { JudgmentHandler } from '../handlers/JudgmentHandler';
@@ -103,7 +103,7 @@ export class Game extends Scene {
   private _song: Sound.NoAudioSound | Sound.HTML5AudioSound | Sound.WebAudioSound;
   private _background: GameObjects.Image;
   private _gameUI: GameUI;
-  private _endingUI?: EndingUI;
+  private _resultsUI?: ResultsUI;
 
   private _clock: Clock;
   private _renderer: Renderer;
@@ -451,8 +451,8 @@ export class Game extends Scene {
     this._keyboardHandler?.reset();
     this._judgmentHandler.reset();
     this._clock.setSeek(0);
-    this._endingUI?.destroy();
-    this._endingUI = undefined;
+    this._resultsUI?.destroy();
+    this._resultsUI = undefined;
     this.resetShadersAndVideos();
     this.initializeShaders();
     await this.initializeVideos();
@@ -477,7 +477,7 @@ export class Game extends Scene {
     this._status = GameStatus.FINISHED;
     this.out(() => {
       this.resetShadersAndVideos();
-      this._endingUI!.play();
+      this._resultsUI!.play();
       EventBus.emit('finished');
       send({
         type: 'event',
@@ -486,7 +486,7 @@ export class Game extends Scene {
         },
       });
     });
-    this._endingUI = new EndingUI(this, this._data.mediaOptions.endingLoopsToRender);
+    this._resultsUI = new ResultsUI(this, this._data.mediaOptions.resultsLoopsToRender);
   }
 
   setSeek(value: number) {
@@ -516,7 +516,7 @@ export class Game extends Scene {
     if (!this._render) {
       this._clock.update();
     }
-    if (this._endingUI) this._endingUI.update();
+    if (this._resultsUI) this._resultsUI.update();
     const status = this._status;
     if (this._isSeeking) this._status = GameStatus.SEEKING;
     this._pointerHandler?.update(delta);
@@ -554,7 +554,7 @@ export class Game extends Scene {
     this._song.destroy();
     this._lines.forEach((line) => line.destroy());
     this._gameUI.destroy();
-    if (this._endingUI) this._endingUI.destroy();
+    if (this._resultsUI) this._resultsUI.destroy();
     terminateFFmpeg();
   }
 
@@ -890,8 +890,8 @@ export class Game extends Scene {
     return this._gameUI;
   }
 
-  public get endingUI() {
-    return this._endingUI;
+  public get resultsUI() {
+    return this._resultsUI;
   }
 
   public get clock() {

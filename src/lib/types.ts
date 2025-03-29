@@ -65,7 +65,7 @@ export interface Preferences {
 export interface MediaOptions {
   frameRate: number;
   overrideResolution: [number, number] | null;
-  endingLoopsToRender: number;
+  resultsLoopsToRender: number;
   videoCodec: string;
   videoBitrate: number;
   audioBitrate: number;
