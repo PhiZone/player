@@ -33,7 +33,7 @@ import { tempDir } from '@tauri-apps/api/path';
 import { download as tauriDownload } from '@tauri-apps/plugin-upload';
 import { readFile, remove } from '@tauri-apps/plugin-fs';
 import { clamp, getLines, IS_TAURI, isPec } from '$lib/utils';
-import PhiEditerConverter from './converter/phiediter';
+import PhiEditerConverter from '../converters/phiediter';
 import 'context-filter-polyfill';
 
 const easingFunctions: ((x: number) => number)[] = [
