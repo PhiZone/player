@@ -112,6 +112,7 @@
     "phaser3-rex-plugins": "^1.80.12",
     "query-string": "^9.1.1",
     "send-intent": "^6.0.3",
+    "sharp": "^0.33.5",
     "stats-js": "^1.0.1",
     "wavesurfer.js": "^7.8.16",
     "yaml": "^2.7.1"
