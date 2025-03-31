@@ -689,4 +689,6 @@ export interface PhiraResourcePack {
   hitFx: [number, number];
   holdAtlas: [number, number];
   holdAtlasMH: [number, number];
+  hitFxDuration?: number;
+  hideParticles?: boolean;
 }

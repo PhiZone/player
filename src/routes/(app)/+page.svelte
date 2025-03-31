@@ -19,6 +19,12 @@
     ResourcePackWithId,
     Font,
     BitmapFont,
+    NoteSkin,
+    HitSound,
+    GradeLetter,
+    ResultsMusic,
+    PhiraResourcePack,
+    OrdinaryParticle,
   } from '$lib/types';
   import {
     clamp,
@@ -35,6 +41,7 @@
     isZip,
     notify,
     readMetadataForChart,
+    readMetadataForPhiraRespack,
     readMetadataForRespack,
     send,
     updateMetadata,
@@ -67,6 +74,7 @@
   import { DEFAULT_RESOURCE_PACK, DEFAULT_RESOURCE_PACK_ID } from '$lib/player/constants';
   import { getFFmpeg, loadFFmpeg } from '$lib/player/services/ffmpeg';
   import { fetchFile } from '@ffmpeg/util';
+  import { convertHoldAtlas, getImageDimensions } from '$lib/converters/phira/respack';
 
   interface FileEntry {
     id: number;
@@ -715,7 +723,10 @@
     return bundle;
   };
 
-  const convertAudio = async (audio: File) => {
+  const convertAudio = async (audio?: File) => {
+    if (!audio) {
+      return undefined;
+    }
     progress = 0;
     const ffmpeg = getFFmpeg();
     ffmpeg.on('progress', (p) => {
@@ -734,9 +745,9 @@
     });
   };
 
-  const importRespack = async (metadata: ResourcePackWithId<string>) => {
+  const importRespack = async (metadata: ResourcePackWithId<string>, panicOnNotFound = true) => {
     const filesLocated: FileEntry[] = [];
-    const findFile = async (str: string, files?: FileEntry[]) => {
+    const findFile = async (str: string) => {
       if (
         str.startsWith('/') ||
         str.startsWith('http://') ||
@@ -746,12 +757,13 @@
         const file = await download(str);
         return file;
       }
-      const file =
-        files?.find((file) => file.file.name === str) ??
-        assets.find((file) => file.file.name === str);
+      const file = assets.find((file) => file.file.name === str);
       if (file) {
         filesLocated.push(file);
         return file.file;
+      }
+      if (!panicOnNotFound) {
+        return undefined;
       }
       const message = `Unable to locate ${str} while importing resource pack ${metadata.name}.`;
       alert(message);
@@ -763,60 +775,80 @@
       name: metadata.name,
       author: metadata.author,
       description: metadata.description,
-      thumbnail: metadata.thumbnail ? await findFile(metadata.thumbnail, imageFiles) : undefined,
-      noteSkins: await Promise.all(
-        metadata.noteSkins.map(async (e) => ({
-          name: e.name,
-          file: await findFile(e.file, imageFiles),
-        })),
-      ),
-      hitSounds: await Promise.all(
-        metadata.hitSounds.map(async (e) => ({
-          name: e.name,
-          file: await convertAudio(await findFile(e.file, audioFiles)),
-        })),
-      ),
-      hitEffects: metadata.hitEffects
-        ? {
-            spriteSheet: await findFile(metadata.hitEffects.spriteSheet, imageFiles),
-            frameWidth: metadata.hitEffects.frameWidth,
-            frameHeight: metadata.hitEffects.frameHeight,
-            frameRate: metadata.hitEffects.frameRate,
-            particle: metadata.hitEffects.particle,
-          }
-        : undefined,
-      ending: {
-        grades: await Promise.all(
-          metadata.ending.grades.map(async (e) => ({
+      thumbnail: metadata.thumbnail ? await findFile(metadata.thumbnail) : undefined,
+      noteSkins: (
+        await Promise.all(
+          metadata.noteSkins.map(async (e) => ({
             name: e.name,
-            file: await findFile(e.file, imageFiles),
+            file: await findFile(e.file),
           })),
-        ),
-        music: await Promise.all(
-          metadata.ending.music.map(async (e) => ({
-            levelType: e.levelType,
-            beats: e.beats,
-            bpm: e.bpm,
-            file: await convertAudio(await findFile(e.file, audioFiles)),
+        )
+      ).filter((e) => e.file !== undefined) as NoteSkin<File>[],
+      hitSounds: (
+        await Promise.all(
+          metadata.hitSounds.map(async (e) => ({
+            name: e.name,
+            file: await convertAudio(await findFile(e.file)),
           })),
-        ),
+        )
+      ).filter((e) => e.file !== undefined) as HitSound<File>[],
+      hitEffects: await (async () => {
+        if (!metadata.hitEffects) {
+          return undefined;
+        }
+        const file = await findFile(metadata.hitEffects.spriteSheet);
+        return file
+          ? {
+              spriteSheet: file,
+              frameWidth: metadata.hitEffects.frameWidth,
+              frameHeight: metadata.hitEffects.frameHeight,
+              frameRate: metadata.hitEffects.frameRate,
+              particle: metadata.hitEffects.particle,
+            }
+          : undefined;
+      })(),
+      ending: {
+        grades: (
+          await Promise.all(
+            metadata.ending.grades.map(async (e) => ({
+              name: e.name,
+              file: await findFile(e.file),
+            })),
+          )
+        ).filter((e) => e.file !== undefined) as GradeLetter<File>[],
+        music: (
+          await Promise.all(
+            metadata.ending.music.map(async (e) => ({
+              levelType: e.levelType,
+              beats: e.beats,
+              bpm: e.bpm,
+              file: await convertAudio(await findFile(e.file)),
+            })),
+          )
+        ).filter((e) => e.file !== undefined) as ResultsMusic<File>[],
       },
-      fonts: await Promise.all(
-        metadata.fonts.map(async (e) =>
-          e.type === 'bitmap'
-            ? {
-                name: e.name,
-                type: e.type,
-                texture: await findFile(e.texture),
-                descriptor: await findFile(e.descriptor),
-              }
-            : {
-                name: e.name,
-                type: e.type,
-                file: await findFile(e.file),
-              },
-        ),
-      ),
+      fonts: (
+        await Promise.all(
+          metadata.fonts.map(async (e) =>
+            e.type === 'bitmap'
+              ? {
+                  name: e.name,
+                  type: e.type,
+                  texture: await findFile(e.texture),
+                  descriptor: await findFile(e.descriptor),
+                }
+              : {
+                  name: e.name,
+                  type: e.type,
+                  file: await findFile(e.file),
+                },
+          ),
+        )
+      ).filter(
+        (e) =>
+          ('file' in e && e.file !== undefined) ||
+          (e.texture !== undefined && e.descriptor !== undefined),
+      ) as (Font<File> | BitmapFont<File>)[],
     };
 
     audioFiles = audioFiles.filter((f) => !filesLocated.some((file) => file.id === f.id));
@@ -824,6 +856,106 @@
     assets = assets.filter((f) => !filesLocated.some((file) => file.id === f.id));
     declareFinished();
     return resourcePack;
+  };
+
+  const convertPhiraRespack = async (metadata: PhiraResourcePack) => {
+    const filesLocated: FileEntry[] = [];
+    const findImage = (str: string) => {
+      const file =
+        imageFiles?.find((file) => file.file.name === str) ??
+        assets.find((file) => file.file.name === str);
+      if (file) {
+        filesLocated.push(file);
+        return file.file;
+      }
+      const message = `Unable to locate ${str} while importing Phira resource pack ${metadata.name}.`;
+      alert(message);
+      throw new Error(message);
+    };
+    const results = [
+      ...(await convertHoldAtlas(findImage('hold.png'), metadata.holdAtlas, false)),
+      ...(await convertHoldAtlas(findImage('hold_mh.png'), metadata.holdAtlasMH, true)),
+    ];
+    assets.push(
+      ...results.map((result, i) => ({
+        id: -i - 1,
+        type: 0,
+        file: result.file,
+        included: false,
+      })),
+    );
+    imageFiles = imageFiles.filter((f) => !filesLocated.some((file) => file.id === f.id));
+    assets = assets.filter((f) => !filesLocated.some((file) => file.id === f.id));
+    const { width, height } = await getImageDimensions(findImage('hit_fx.png'));
+    const frameWidth = Math.floor(width / metadata.hitFx[0]);
+    const frameHeight = Math.floor(height / metadata.hitFx[1]);
+    return {
+      id: crypto.randomUUID(),
+      name: metadata.name,
+      author: metadata.author,
+      description: metadata.description,
+      noteSkins: [
+        ...results.map((e) => {
+          return {
+            name: e.name,
+            file: e.file.name,
+          };
+        }),
+        {
+          name: 'Tap',
+          file: 'click.png',
+        },
+        {
+          name: 'TapHL',
+          file: 'click_mh.png',
+        },
+        {
+          name: 'Flick',
+          file: 'flick.png',
+        },
+        {
+          name: 'FlickHL',
+          file: 'flick_mh.png',
+        },
+        {
+          name: 'Drag',
+          file: 'drag.png',
+        },
+        {
+          name: 'DragHL',
+          file: 'drag_mh.png',
+        },
+      ] as NoteSkin<string>[],
+      hitSounds: [
+        {
+          name: 'Tap',
+          file: 'click.ogg',
+        },
+        {
+          name: 'Flick',
+          file: 'flick.ogg',
+        },
+        {
+          name: 'Drag',
+          file: 'drag.ogg',
+        },
+      ] as HitSound<string>[],
+      hitEffects: {
+        spriteSheet: 'hit_fx.png',
+        frameWidth,
+        frameHeight,
+        frameRate: (metadata.hitFx[0] * metadata.hitFx[1]) / (metadata.hitFxDuration ?? 0.5),
+        particle: {
+          count: metadata.hideParticles ? 0 : 4,
+          style: 'square',
+        } as OrdinaryParticle,
+      },
+      ending: {
+        grades: [],
+        music: [],
+      },
+      fonts: [],
+    };
   };
 
   const ensureRespackSerializable = (pack: ResourcePack<File> | ResourcePack<string>) => {
@@ -905,6 +1037,7 @@
         continue;
       }
       const content = await asset.file.text();
+      // chart
       {
         let metadata = readMetadataForChart(content);
         if (metadata) {
@@ -927,11 +1060,27 @@
           }
         }
       }
+      // resource pack (PhiZone format)
       {
         const metadata = readMetadataForRespack(content);
         if (metadata) {
           try {
             resourcePacks.push(await importRespack(metadata));
+            resourcePacks = resourcePacks;
+            assets = assets.filter((a) => a.id !== asset.id);
+            respacksResolved++;
+          } catch (e) {
+            console.debug(e);
+            continue;
+          }
+        }
+      }
+      // resource pack (Phira format)
+      {
+        const metadata = readMetadataForPhiraRespack(content);
+        if (metadata) {
+          try {
+            resourcePacks.push(await importRespack(await convertPhiraRespack(metadata), false));
             resourcePacks = resourcePacks;
             assets = assets.filter((a) => a.id !== asset.id);
             respacksResolved++;

@@ -1,21 +1,25 @@
-import sharp from 'sharp';
-
 export const getImageDimensions = async (input: File) => {
   // Validate input
   if (!input) {
     throw new Error('Input file is required.');
   }
 
-  // Load image metadata
-  const buffer = await input.arrayBuffer();
-  const metadata = await sharp(buffer).metadata();
-  const { width, height } = metadata;
+  return new Promise<{ width: number; height: number }>((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(input);
 
-  if (!width || !height) {
-    throw new Error('Failed to retrieve image dimensions.');
-  }
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve({ width: img.width, height: img.height });
+    };
 
-  return { width, height };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Failed to load image.'));
+    };
+
+    img.src = url;
+  });
 };
 
 export const convertHoldAtlas = async (
@@ -28,14 +32,8 @@ export const convertHoldAtlas = async (
     throw new Error('Bounds must be non-negative numbers.');
   }
 
-  // Load image metadata
-  const buffer = await input.arrayBuffer();
-  const metadata = await sharp(buffer).metadata();
-  const { width, height, format } = metadata;
-
-  if (!width || !height) {
-    throw new Error('Failed to retrieve image dimensions.');
-  }
+  // Load image
+  const { width, height } = await getImageDimensions(input);
 
   if (bounds[0] + bounds[1] >= height) {
     throw new Error('The sum of bounds must be less than the image height.');
@@ -46,33 +44,52 @@ export const convertHoldAtlas = async (
   const middleHeight = height - bounds[0] - bounds[1];
   const lowerHeight = bounds[0];
 
+  // Create image element from file
+  const imgSrc = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(input);
+  });
+
+  const img = new Image();
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = reject;
+    img.src = imgSrc;
+  });
+
   const results: { name: string; file: File }[] = [];
-  const createFile = (buffer: Buffer<ArrayBufferLike>, name: string) => {
-    results.push({
-      name: `Hold${name}${highlight ? 'HL' : ''}`,
-      file: new File([buffer], `${input.name}-${name}.${format}`),
+
+  // Helper function to extract part of the image
+  const extractPart = (top: number, partHeight: number, name: string) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = partHeight;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Could not get canvas context');
+
+    ctx.drawImage(img, 0, top, width, partHeight, 0, 0, width, partHeight);
+
+    return new Promise<void>((resolve) => {
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const extension = input.name.split('.').pop() || 'png';
+          results.push({
+            name: `Hold${name}${highlight ? 'HL' : ''}`,
+            file: new File([blob], `${input.name}-${name}.${extension}`),
+          });
+        }
+        resolve();
+      });
     });
   };
 
   // Extract and save each part
-  sharp(buffer)
-    .extract({ left: 0, top: 0, width, height: upperHeight })
-    .toBuffer((err, buffer) => {
-      if (err) throw err;
-      createFile(buffer, 'Tail');
-    });
-  sharp(buffer)
-    .extract({ left: 0, top: upperHeight, width, height: middleHeight })
-    .toBuffer((err, buffer) => {
-      if (err) throw err;
-      createFile(buffer, 'Body');
-    });
-  sharp(buffer)
-    .extract({ left: 0, top: height - lowerHeight, width, height: lowerHeight })
-    .toBuffer((err, buffer) => {
-      if (err) throw err;
-      createFile(buffer, 'Head');
-    });
+  await extractPart(0, upperHeight, 'Tail');
+  await extractPart(upperHeight, middleHeight, 'Body');
+  await extractPart(height - lowerHeight, lowerHeight, 'Head');
 
   return results;
 };

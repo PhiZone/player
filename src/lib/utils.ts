@@ -4,6 +4,7 @@ import {
   type LevelType,
   type MetadataEntry,
   type OutgoingMessage,
+  type PhiraResourcePack,
   type ResourcePack,
   type ResourcePackWithId,
   type RpeMeta,
@@ -15,6 +16,7 @@ import Notiflix from 'notiflix';
 import 'context-filter-polyfill';
 import mime from 'mime/lite';
 import JSZip from 'jszip';
+import * as YAML from 'yaml';
 import { fileTypeFromBlob } from 'file-type';
 import { DEFAULT_RESOURCE_PACK } from './player/constants';
 
@@ -169,6 +171,15 @@ export const readMetadataForRespack = (text: string) => {
     return result;
   } catch (e) {
     console.debug('Failed to parse resource pack metadata:', e);
+    return null;
+  }
+};
+
+export const readMetadataForPhiraRespack = (text: string) => {
+  try {
+    return YAML.parse(text) as PhiraResourcePack;
+  } catch (e) {
+    console.debug('Failed to parse Phira resource pack metadata:', e);
     return null;
   }
 };
