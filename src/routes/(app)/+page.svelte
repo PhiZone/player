@@ -737,13 +737,18 @@
       progressDetail = 'Loading FFmpeg';
       await loadFFmpeg();
     }
-    progressDetail = `Converting ${audio.name}`;
-    await ffmpeg.writeFile('input', await fetchFile(audio));
-    await ffmpeg.exec('-i input -ar 44100 -ac 2 -f wav -y output'.split(' '));
-    const data = await ffmpeg.readFile('output');
-    return new File([(data as Uint8Array).buffer as ArrayBuffer], audio.name, {
-      type: 'audio/wav',
-    });
+    try {
+      progressDetail = `Converting ${audio.name}`;
+      await ffmpeg.writeFile('input', await fetchFile(audio));
+      await ffmpeg.exec('-i input -ar 44100 -ac 2 -f wav -y output'.split(' '));
+      const data = await ffmpeg.readFile('output');
+      return new File([(data as Uint8Array).buffer as ArrayBuffer], audio.name, {
+        type: 'audio/wav',
+      });
+    } catch (e) {
+      console.error(e);
+      return audio;
+    }
   };
 
   const importRespack = async (metadata: ResourcePackWithId<string>, panicOnNotFound = true) => {
@@ -1067,14 +1072,14 @@
       {
         const metadata = readMetadataForRespack(content);
         if (metadata) {
-          // try {
-          resourcePacks.push(await importRespack(metadata));
-          resourcePacks = resourcePacks;
-          assets = assets.filter((a) => a.id !== asset.id);
-          respacksResolved++;
-          // } catch (e) {
-          //   console.debug(e);
-          // }
+          try {
+            resourcePacks.push(await importRespack(metadata));
+            resourcePacks = resourcePacks;
+            assets = assets.filter((a) => a.id !== asset.id);
+            respacksResolved++;
+          } catch (e) {
+            console.debug(e);
+          }
           continue;
         }
       }
@@ -1082,14 +1087,14 @@
       {
         const metadata = readMetadataForPhiraRespack(content);
         if (metadata) {
-          // try {
-          resourcePacks.push(await importRespack(await convertPhiraRespack(metadata), false));
-          resourcePacks = resourcePacks;
-          assets = assets.filter((a) => a.id !== asset.id);
-          respacksResolved++;
-          // } catch (e) {
-          //   console.debug(e);
-          // }
+          try {
+            resourcePacks.push(await importRespack(await convertPhiraRespack(metadata), false));
+            resourcePacks = resourcePacks;
+            assets = assets.filter((a) => a.id !== asset.id);
+            respacksResolved++;
+          } catch (e) {
+            console.debug(e);
+          }
           continue;
         }
       }
