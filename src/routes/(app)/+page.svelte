@@ -1074,8 +1074,8 @@
             respacksResolved++;
           } catch (e) {
             console.debug(e);
-            continue;
           }
+          continue;
         }
       }
       // resource pack (Phira format)
@@ -1089,8 +1089,8 @@
             respacksResolved++;
           } catch (e) {
             console.debug(e);
-            continue;
           }
+          continue;
         }
       }
     }
