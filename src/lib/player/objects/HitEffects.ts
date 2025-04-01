@@ -1,6 +1,5 @@
 import { GameObjects } from 'phaser';
 import { JudgmentType } from '$lib/types';
-import { getJudgmentColor } from '../utils';
 import type { Game } from '../scenes/Game';
 import {
   HIT_EFFECTS_PARTICLE_SIZE,
@@ -16,13 +15,8 @@ export class HitEffects extends GameObjects.Sprite {
     super(scene, x, y, 'hit-effects');
 
     this._scene = scene;
-    this._color = getJudgmentColor(type);
-    this.setScale(
-      (256 / this.width) * this._scene.p(HIT_EFFECTS_SIZE * this._scene.preferences.noteSize),
-    );
-    this.setOrigin(0.5);
-    this.setTint(this._color);
-    this.setAlpha(type === JudgmentType.PERFECT ? 15 / 17 : 47 / 51);
+    this.setScale((256 / this.width) * scene.p(HIT_EFFECTS_SIZE * scene.preferences.noteSize));
+    this.setColor(scene.respack.getHitEffectsColor(type));
   }
 
   hit(tint?: number) {
@@ -109,5 +103,11 @@ export class HitEffects extends GameObjects.Sprite {
       },
     });
     return particle;
+  }
+
+  setColor(color: { hex: number; alpha: number }) {
+    this._color = color.hex;
+    this.setTint(this._color);
+    this.setAlpha(color.alpha);
   }
 }

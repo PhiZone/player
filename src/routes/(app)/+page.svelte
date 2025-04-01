@@ -75,6 +75,7 @@
   import { getFFmpeg, loadFFmpeg } from '$lib/player/services/ffmpeg';
   import { fetchFile } from '@ffmpeg/util';
   import { convertHoldAtlas, getImageDimensions } from '$lib/converters/phira/respack';
+  import { hexToRgba } from '$lib/player/utils';
 
   interface FileEntry {
     id: number;
@@ -945,6 +946,8 @@
         frameWidth,
         frameHeight,
         frameRate: (metadata.hitFx[0] * metadata.hitFx[1]) / (metadata.hitFxDuration ?? 0.5),
+        colorPerfect: hexToRgba(metadata.colorPerfect),
+        colorGood: hexToRgba(metadata.colorGood),
         particle: {
           count: metadata.hideParticles ? 0 : 4,
           style: 'square',

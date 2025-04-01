@@ -647,6 +647,8 @@ export interface HitEffects<T> {
   frameWidth: number;
   frameHeight: number;
   frameRate: number;
+  colorPerfect?: [number, number, number, number];
+  colorGood?: [number, number, number, number];
   particle: OrdinaryParticle | PolygonParticle;
 }
 
@@ -691,4 +693,6 @@ export interface PhiraResourcePack {
   holdAtlasMH: [number, number];
   hitFxDuration?: number;
   hideParticles?: boolean;
+  colorPerfect?: number;
+  colorGood?: number;
 }

@@ -408,6 +408,29 @@ export const isEqual = (a: number[] | undefined, b: number[] | undefined): boole
 export const rgbToHex = (rgb: number[] | undefined | null): number | undefined =>
   rgb ? (rgb[0] << 16) | (rgb[1] << 8) | rgb[2] : undefined;
 
+export const rgbaToHexAndAlpha = (
+  rgba: number[] | undefined | null,
+): { hex: number; alpha: number } | undefined =>
+  rgba
+    ? {
+        hex: (rgba[0] << 16) | (rgba[1] << 8) | rgba[2],
+        alpha: rgba[3] / 255,
+      }
+    : undefined;
+
+export const hexToRgba = (
+  hex: number | undefined | null,
+): [number, number, number, number] | undefined => {
+  return hex
+    ? [
+        (hex >> 16) & 0xff, // Red
+        (hex >> 8) & 0xff, // Green
+        hex & 0xff, // Blue
+        (hex >> 24) & 0xff || 255, // Alpha (defaults to 255 if not specified)
+      ]
+    : undefined;
+};
+
 export const getLineColor = (scene: Game): number => {
   const status = scene.preferences.fcApIndicator
     ? (scene.statistics?.fcApStatus ?? FcApStatus.AP)
@@ -422,17 +445,29 @@ export const getLineColor = (scene: Game): number => {
   }
 };
 
-export const getJudgmentColor = (type: JudgmentType): number => {
+export const getJudgmentColor = (type: JudgmentType) => {
   switch (type) {
     case JudgmentType.PERFECT:
-      return 0xffec9f;
+      return {
+        hex: 0xffec9f,
+        alpha: 15 / 17,
+      };
     case JudgmentType.GOOD_EARLY:
     case JudgmentType.GOOD_LATE:
-      return 0xb4e1ff;
+      return {
+        hex: 0xb4e1ff,
+        alpha: 47 / 51,
+      };
     case JudgmentType.BAD:
-      return 0x6b3b3a;
+      return {
+        hex: 0x6b3b3a,
+        alpha: 1,
+      };
     default:
-      return 0xffffff;
+      return {
+        hex: 0xffffff,
+        alpha: 1,
+      };
   }
 };
 

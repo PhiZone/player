@@ -1,14 +1,16 @@
-import type {
-  BitmapFont,
-  Font,
-  GradeLetterName,
-  HitEffects,
-  HitSoundName,
-  LevelType,
-  NoteSkinName,
-  ResourcePack,
+import {
+  JudgmentType,
+  type BitmapFont,
+  type Font,
+  type GradeLetterName,
+  type HitEffects,
+  type HitSoundName,
+  type LevelType,
+  type NoteSkinName,
+  type ResourcePack,
 } from '$lib/types';
 import { DEFAULT_RESOURCE_PACK } from '../constants';
+import { getJudgmentColor, isPerfectOrGood, rgbaToHexAndAlpha } from '../utils';
 
 export class ResourcePackHandler {
   private _pack: ResourcePack<string>;
@@ -33,6 +35,17 @@ export class ResourcePackHandler {
 
   getHitEffects() {
     return this.hitEffects;
+  }
+
+  getHitEffectsColor(type: JudgmentType) {
+    let color;
+    if (isPerfectOrGood(type)) {
+      color =
+        type === JudgmentType.PERFECT
+          ? this._pack.hitEffects?.colorPerfect
+          : this._pack.hitEffects?.colorGood;
+    }
+    return rgbaToHexAndAlpha(color) ?? getJudgmentColor(type);
   }
 
   getGrade(name: GradeLetterName) {
