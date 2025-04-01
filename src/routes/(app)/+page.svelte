@@ -103,23 +103,23 @@
     metadata: Metadata;
   }
 
-  let _respackDB = new Database<ResourcePack<File>>('resource_packs', RESPACK_DB_VERSION, {
-    structures: [
-      {
-        name: 'id',
-        options: { key: true, unique: true },
-      },
-      {
-        name: 'name',
-        options: { unique: false, index: true },
-      },
-      {
-        name: 'date_added',
-        options: { unique: false },
-      },
-    ],
-    autoIncrement: true,
-  });
+  // let _respackDB = new Database<ResourcePack<File>>('resource_packs', RESPACK_DB_VERSION, {
+  //   structures: [
+  //     {
+  //       name: 'id',
+  //       options: { key: true, unique: true },
+  //     },
+  //     {
+  //       name: 'name',
+  //       options: { unique: false, index: true },
+  //     },
+  //     {
+  //       name: 'date_added',
+  //       options: { unique: false },
+  //     },
+  //   ],
+  //   autoIncrement: true,
+  // });
 
   let showCollapse = false;
   let showRespack = false;
