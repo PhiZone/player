@@ -257,6 +257,7 @@ export const exportRespack = async (respack: ResourcePack<File>) => {
             },
       ),
     ),
+    options: respack.options,
   };
 
   zip.file('_META.json', JSON.stringify(metadata, null, 2));
@@ -318,6 +319,7 @@ export const convertRespackToURL = (respack: ResourcePack<File>) => {
             file: createURL(e.file),
           },
     ),
+    options: respack.options,
   };
 
   return result;

@@ -69,6 +69,14 @@ export class ResourcePackHandler {
     );
   }
 
+  isHoldBodyRepeat() {
+    return this._pack.options?.holdBodyRepeat ?? false;
+  }
+
+  isHoldCompact() {
+    return this._pack.options?.holdCompact ?? false;
+  }
+
   public get name() {
     return this._pack.name;
   }

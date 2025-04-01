@@ -601,6 +601,10 @@ export interface ResourcePack<T> {
   hitEffects?: HitEffects<T>;
   ending: Ending<T>;
   fonts: (Font<T> | BitmapFont<T>)[];
+  options?: {
+    holdBodyRepeat?: boolean;
+    holdCompact?: boolean;
+  };
 }
 
 export type NoteSkinName =
@@ -693,6 +697,8 @@ export interface PhiraResourcePack {
   holdAtlasMH: [number, number];
   hitFxDuration?: number;
   hideParticles?: boolean;
+  holdRepeat?: boolean;
+  holdCompact?: boolean;
   colorPerfect?: number;
   colorGood?: number;
 }
