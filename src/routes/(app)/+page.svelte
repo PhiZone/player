@@ -724,10 +724,7 @@
     return bundle;
   };
 
-  const convertAudio = async (audio?: File) => {
-    if (!audio) {
-      return undefined;
-    }
+  const convertAudio = async (audio: File) => {
     progress = 0;
     const ffmpeg = getFFmpeg();
     ffmpeg.on('progress', (p) => {
@@ -790,14 +787,20 @@
           })),
         )
       ).filter((e) => e.file !== undefined) as NoteSkin<File>[],
-      hitSounds: (
-        await Promise.all(
-          metadata.hitSounds.map(async (e) => ({
+      hitSounds: await (async () => {
+        const results = [];
+        for (const e of metadata.hitSounds) {
+          const file = await findFile(e.file);
+          if (!file) {
+            continue;
+          }
+          results.push({
             name: e.name,
-            file: await convertAudio(await findFile(e.file)),
-          })),
-        )
-      ).filter((e) => e.file !== undefined) as HitSound<File>[],
+            file: await convertAudio(file),
+          });
+        }
+        return results;
+      })(),
       hitEffects: await (async () => {
         if (!metadata.hitEffects) {
           return undefined;
@@ -822,16 +825,22 @@
             })),
           )
         ).filter((e) => e.file !== undefined) as GradeLetter<File>[],
-        music: (
-          await Promise.all(
-            metadata.ending.music.map(async (e) => ({
+        music: await (async () => {
+          const results = [];
+          for (const e of metadata.ending.music) {
+            const file = await findFile(e.file);
+            if (!file) {
+              continue;
+            }
+            results.push({
               levelType: e.levelType,
               beats: e.beats,
               bpm: e.bpm,
-              file: await convertAudio(await findFile(e.file)),
-            })),
-          )
-        ).filter((e) => e.file !== undefined) as ResultsMusic<File>[],
+              file: await convertAudio(file),
+            });
+          }
+          return results;
+        })(),
       },
       fonts: (
         await Promise.all(
@@ -855,6 +864,10 @@
           ('file' in e && e.file !== undefined) ||
           (e.texture !== undefined && e.descriptor !== undefined),
       ) as (Font<File> | BitmapFont<File>)[],
+      options: {
+        holdBodyRepeat: metadata.options?.holdBodyRepeat,
+        holdCompact: metadata.options?.holdCompact,
+      },
     };
 
     audioFiles = audioFiles.filter((f) => !filesLocated.some((file) => file.id === f.id));
@@ -963,6 +976,10 @@
         music: [],
       },
       fonts: [],
+      options: {
+        holdBodyRepeat: metadata.holdRepeat,
+        holdCompact: metadata.holdCompact,
+      },
     };
   };
 
