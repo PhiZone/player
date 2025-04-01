@@ -1067,14 +1067,14 @@
       {
         const metadata = readMetadataForRespack(content);
         if (metadata) {
-          try {
-            resourcePacks.push(await importRespack(metadata));
-            resourcePacks = resourcePacks;
-            assets = assets.filter((a) => a.id !== asset.id);
-            respacksResolved++;
-          } catch (e) {
-            console.debug(e);
-          }
+          // try {
+          resourcePacks.push(await importRespack(metadata));
+          resourcePacks = resourcePacks;
+          assets = assets.filter((a) => a.id !== asset.id);
+          respacksResolved++;
+          // } catch (e) {
+          //   console.debug(e);
+          // }
           continue;
         }
       }
@@ -1082,14 +1082,14 @@
       {
         const metadata = readMetadataForPhiraRespack(content);
         if (metadata) {
-          try {
-            resourcePacks.push(await importRespack(await convertPhiraRespack(metadata), false));
-            resourcePacks = resourcePacks;
-            assets = assets.filter((a) => a.id !== asset.id);
-            respacksResolved++;
-          } catch (e) {
-            console.debug(e);
-          }
+          // try {
+          resourcePacks.push(await importRespack(await convertPhiraRespack(metadata), false));
+          resourcePacks = resourcePacks;
+          assets = assets.filter((a) => a.id !== asset.id);
+          respacksResolved++;
+          // } catch (e) {
+          //   console.debug(e);
+          // }
           continue;
         }
       }
