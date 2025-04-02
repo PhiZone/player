@@ -54,6 +54,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             get_files_opened,
+            get_current_dir,
+            set_ffmpeg_path,
             get_ffmpeg_encoders,
             convert_audio,
             setup_video,
@@ -99,6 +101,18 @@ fn get_files_opened() -> Vec<String> {
         .into_iter()
         .map(|f| f.to_string_lossy().into_owned())
         .collect()
+}
+
+#[tauri::command]
+fn get_current_dir() -> String {
+    std::env::current_exe()
+        .map(|p| p.parent().unwrap().to_string_lossy().into_owned())
+        .unwrap_or_else(|_| String::new())
+}
+
+#[tauri::command]
+fn set_ffmpeg_path(path: &str) -> Result<(), String> {
+    ffmpeg::set_ffmpeg_path(path)
 }
 
 #[tauri::command]

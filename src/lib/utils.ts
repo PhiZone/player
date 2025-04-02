@@ -17,6 +17,8 @@ import 'context-filter-polyfill';
 import mime from 'mime/lite';
 import JSZip from 'jszip';
 import * as YAML from 'yaml';
+import tar from 'tar-stream';
+import { ungzip } from 'pako';
 import { fileTypeFromBlob } from 'file-type';
 import { DEFAULT_RESOURCE_PACK } from './player/constants';
 
@@ -521,6 +523,34 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
     newTab,
     inApp,
   };
+};
+
+export const extractTgz = async (blob: Blob): Promise<File[]> => {
+  const arrayBuffer = await blob.arrayBuffer(); // Convert Blob to ArrayBuffer
+  const ungzipped = ungzip(new Uint8Array(arrayBuffer)); // Decompress .tgz
+  const extract = tar.extract(); // Create a tar extractor
+
+  return new Promise((resolve, reject) => {
+    const files: File[] = [];
+
+    extract.on('entry', (header, stream, next) => {
+      const chunks: Uint8Array[] = [];
+
+      stream.on('data', (chunk) => chunks.push(new Uint8Array(chunk)));
+      stream.on('end', () => {
+        const fileBlob = new Blob(chunks, { type: 'application/octet-stream' });
+        files.push(new File([fileBlob], header.name.split('/').pop() ?? ''));
+        next();
+      });
+
+      stream.resume();
+    });
+
+    extract.on('finish', () => resolve(files));
+    extract.on('error', reject);
+
+    extract.end(ungzipped);
+  });
 };
 
 export const isZip = (file: File) =>

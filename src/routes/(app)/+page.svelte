@@ -29,6 +29,7 @@
     clamp,
     convertRespackToURL,
     exportRespack,
+    extractTgz,
     fit,
     getLines,
     getParams,
@@ -57,19 +58,22 @@
   import { platform, arch } from '@tauri-apps/plugin-os';
   import { App, type URLOpenListenerEvent } from '@capacitor/app';
   import { page } from '$app/state';
-  import { REPO_API_LINK, REPO_LINK, RESPACK_DB_VERSION, VERSION } from '$lib';
+  import { REPO_API_LINK, REPO_LINK, VERSION } from '$lib';
   import { SendIntent, type Intent } from 'send-intent';
   import { Filesystem } from '@capacitor/filesystem';
   import { join, tempDir, videoDir } from '@tauri-apps/api/path';
   import { download as tauriDownload } from '@tauri-apps/plugin-upload';
-  import { readFile, remove } from '@tauri-apps/plugin-fs';
+  import { readFile, remove, writeFile } from '@tauri-apps/plugin-fs';
   import { random } from 'mathjs';
   import { base } from '$app/paths';
   import { listen } from '@tauri-apps/api/event';
   import { invoke } from '@tauri-apps/api/core';
-  import { getEncoders } from '$lib/player/services/ffmpeg/tauri';
-  import { open } from '@tauri-apps/plugin-dialog';
-  import Database from '$lib/player/services/database';
+  import {
+    getEncoders,
+    getFFmpegDownloadLink,
+    setFFmpegPath,
+  } from '$lib/player/services/ffmpeg/tauri';
+  import { open, ask } from '@tauri-apps/plugin-dialog';
   import { DEFAULT_RESOURCE_PACK, DEFAULT_RESOURCE_PACK_ID } from '$lib/player/constants';
   import { getFFmpeg, loadFFmpeg } from '$lib/player/services/ffmpeg';
   import { fetchFile } from '@ffmpeg/util';
@@ -195,6 +199,7 @@
 
   let timeouts: NodeJS.Timeout[] = [];
 
+  let isFFmpegAvailable = true;
   let ffmpegEncoders: FFmpegEncoder[] | undefined;
 
   let isFirstLoad = !page.url.searchParams.get('t');
@@ -545,6 +550,7 @@
       });
       const data = await readFile(filePath);
       await remove(filePath);
+      progressSpeed = -1;
       return new File([data], filename);
     } else {
       const response = await fetch(url);
@@ -646,6 +652,31 @@
         ? (pack.fonts.at(0) as BitmapFont<string> | undefined)?.texture
         : (pack.fonts.at(0) as Font<string> | undefined)?.file)
     );
+
+  const setupFFmpeg = async () => {
+    if (ffmpegEncoders === undefined) {
+      const link = getFFmpegDownloadLink();
+      if (
+        link &&
+        (await ask('FFmpeg could not be found on your system. Do you want to install it?'))
+      ) {
+        resetProgress();
+        const tgz = await download(link);
+        progressDetail = 'Extracting files';
+        const files = await extractTgz(tgz);
+        console.log(files);
+        const executable = files.filter((file) => file.name.includes('ffmpeg'))[0];
+        const path = await join(await invoke('get_current_dir'), executable.name);
+        progressDetail = 'Setting up FFmpeg';
+        await writeFile(path, new Uint8Array(await executable.arrayBuffer()));
+        await setFFmpegPath(path);
+        ffmpegEncoders = await getEncoders();
+        declareFinished();
+      } else {
+        isFFmpegAvailable = false;
+      }
+    }
+  };
 
   const createBundle = async (
     chartFile: FileEntry,
@@ -1307,6 +1338,9 @@
     const url = paramsString.length <= 15360 ? `${base}/play/?${paramsString}` : `${base}/play/`;
 
     if (IS_TAURI) {
+      if (toggles.render) {
+        await setupFFmpeg();
+      }
       monitor = await currentMonitor();
       if (Capacitor.getPlatform() === 'web' && toggles.newTab) {
         const webview = new WebviewWindow(`player-${Date.now()}`, {
@@ -1971,14 +2005,13 @@
                   class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
                   aria-describedby="adjust-offset-description"
                   bind:checked={toggles.adjustOffset}
-                  disabled={!toggles.autoplay || (ffmpegEncoders !== undefined && toggles.render)}
+                  disabled={!toggles.autoplay || (isFFmpegAvailable && toggles.render)}
                 />
               </div>
               <label
                 for="adjust-offset"
                 class="ms-3 transition"
-                class:opacity-50={!toggles.autoplay ||
-                  (ffmpegEncoders !== undefined && toggles.render)}
+                class:opacity-50={!toggles.autoplay || (isFFmpegAvailable && toggles.render)}
               >
                 <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
                   Adjust offset
@@ -2001,14 +2034,13 @@
                   class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
                   aria-describedby="practice-description"
                   bind:checked={toggles.practice}
-                  disabled={toggles.autoplay || (ffmpegEncoders !== undefined && toggles.render)}
+                  disabled={toggles.autoplay || (isFFmpegAvailable && toggles.render)}
                 />
               </div>
               <label
                 for="practice"
                 class="ms-3 transition"
-                class:opacity-50={toggles.autoplay ||
-                  (ffmpegEncoders !== undefined && toggles.render)}
+                class:opacity-50={toggles.autoplay || (isFFmpegAvailable && toggles.render)}
               >
                 <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
                   Practice
@@ -2023,13 +2055,13 @@
             </div>
             {#if IS_TAURI}
               <div
-                class="flex flex-col {ffmpegEncoders === undefined
+                class="flex flex-col {!isFFmpegAvailable
                   ? 'tooltip'
                   : overrideResolution &&
                       (mediaResolutionWidth % 2 === 1 || mediaResolutionHeight % 2 === 1)
                     ? 'tooltip tooltip-warning'
                     : ''}"
-                data-tip={ffmpegEncoders === undefined
+                data-tip={!isFFmpegAvailable
                   ? 'FFmpeg could not be found on your system.'
                   : 'Some encoders may not support resolutions with odd dimensions.'}
               >
@@ -2042,7 +2074,7 @@
                       class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
                       aria-describedby="render-description"
                       checked={toggles.render}
-                      disabled={ffmpegEncoders === undefined}
+                      disabled={!isFFmpegAvailable}
                       oninput={(e) => {
                         toggles.render = e.currentTarget.checked;
                         if (toggles.render) {
@@ -2050,16 +2082,18 @@
                           toggles.adjustOffset = false;
                           toggles.practice = false;
                           toggles.autostart = true;
+                          setupFFmpeg();
                         }
                       }}
                     />
                   </div>
-                  <label for="render" class="ms-3" class:opacity-50={ffmpegEncoders === undefined}>
+                  <label for="render" class="ms-3" class:opacity-50={!isFFmpegAvailable}>
                     <button
                       class="flex items-center gap-1 text-sm font-semibold text-gray-800 dark:text-neutral-300 disabled:pointer-events-none"
-                      disabled={ffmpegEncoders === undefined}
+                      disabled={!isFFmpegAvailable}
                       onclick={() => {
                         showMediaCollapse = !showMediaCollapse;
+                        setupFFmpeg();
                       }}
                     >
                       <p>Render</p>
@@ -2246,13 +2280,13 @@
                   class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
                   aria-describedby="autostart-description"
                   bind:checked={toggles.autostart}
-                  disabled={ffmpegEncoders !== undefined && toggles.render}
+                  disabled={isFFmpegAvailable && toggles.render}
                 />
               </div>
               <label
                 for="autostart"
                 class="ms-3"
-                class:opacity-50={ffmpegEncoders !== undefined && toggles.render}
+                class:opacity-50={isFFmpegAvailable && toggles.render}
               >
                 <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
                   Autostart
