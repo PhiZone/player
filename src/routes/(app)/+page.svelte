@@ -22,7 +22,6 @@
     NoteSkin,
     HitSound,
     GradeLetter,
-    ResultsMusic,
     PhiraResourcePack,
     OrdinaryParticle,
   } from '$lib/types';
