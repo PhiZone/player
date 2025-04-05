@@ -1,12 +1,14 @@
 use futures::{SinkExt, StreamExt};
+#[cfg(unix)]
+use std::fs;
 use std::io::Write;
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 use std::process::{ChildStdin, Command};
 use std::sync::{LazyLock, Mutex};
 use tauri::{AppHandle, Emitter};
 use tokio::net::TcpListener;
 use tokio_tungstenite::accept_async;
-use std::fs;
-use std::os::unix::fs::PermissionsExt;
 
 static FFMPEG_CMD: LazyLock<Mutex<String>> = LazyLock::new(|| Mutex::new("ffmpeg".to_string()));
 static FFMPEG_STDIN: LazyLock<Mutex<Option<ChildStdin>>> = LazyLock::new(|| Mutex::new(None));
@@ -28,14 +30,18 @@ pub fn set_ffmpeg_path(path: &str) -> Result<(), String> {
         return Ok(());
     }
 
-    // Check if the executable at the provided path has executable permissions, and if not, grant them
-    let metadata = fs::metadata(path).map_err(|e| format!("Failed to access file metadata: {}", e))?;
-    let mut permissions = metadata.permissions();
+    #[cfg(unix)]
+    {
+        // Check if the executable at the provided path has executable permissions, and if not, grant them
+        let metadata =
+            fs::metadata(path).map_err(|e| format!("Failed to access file metadata: {}", e))?;
+        let mut permissions = metadata.permissions();
 
-    if (permissions.mode() & 0o111) == 0 {
-        permissions.set_mode(permissions.mode() | 0o111);
-        fs::set_permissions(path, permissions)
-            .map_err(|e| format!("Failed to set executable permissions: {}", e))?;
+        if (permissions.mode() & 0o111) == 0 {
+            permissions.set_mode(permissions.mode() | 0o111);
+            fs::set_permissions(path, permissions)
+                .map_err(|e| format!("Failed to set executable permissions: {}", e))?;
+        }
     }
 
     // Test the provided path
