@@ -90,11 +90,11 @@ export class Renderer {
     const sharedView = new Uint8Array(sharedBuffer);
     const rawBufferView = new Uint8Array(new ArrayBuffer(canvas.width * canvas.height * 4));
 
-    // Send the shared buffer reference to worker once
     this._worker.postMessage({ type: 'init', buffer: sharedBuffer });
 
     this._scene.game.events.addListener('postrender', () => {
       if (this._isStopped) return;
+
       (this._scene.renderer as Phaser.Renderer.WebGL.WebGLRenderer).snapshot(
         () => {
           for (let i = 0, j = 0; i < rawBufferView.length; i += 4, j += 3) {
@@ -109,6 +109,7 @@ export class Renderer {
         undefined,
         rawBufferView,
       );
+
       if (this._isRendering) {
         this.setTick(this._frameCount / frameRate);
       }
