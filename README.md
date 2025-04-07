@@ -245,59 +245,53 @@ A version is reached when at least one feature from the current or future versio
 
 ## Assets
 
-Game assets are stored in `./static/game`. A tree view of the folder is as follows:
+Game assets are stored in `/static/game`. A tree view of the folder is as follows:
 
 ```
 game
-│   HitEffects.png
-│   line.png
-│   Pause.svg
-│   Progress.png
+│  HitEffects.png
+│  line.png
+│  Pause.svg
+│  Progress.png
 │
-├───ending
-│       GradeHit.wav
-│       LevelOver0.wav
-│       LevelOver1.wav
-│       LevelOver2.wav
-│       LevelOver3.wav
-│       LevelOver4.wav
+├─ending
+│      GradeHit.wav
+│      LevelOver0.wav
+│      LevelOver1.wav
+│      LevelOver2.wav
+│      LevelOver3.wav
+│      LevelOver4.wav
 │
-├───fonts
-│   └───Outfit
-│           OFL.txt
-│           Outfit.fnt
-│           Outfit.png
+├─grades
+│      A.png
+│      B.png
+│      C.png
+│      F.png
+│      Phi.png
+│      S.png
+│      V-FC.png
+│      V.png
 │
-├───grades
-│       A.png
-│       B.png
-│       C.png
-│       F.png
-│       Phi.png
-│       S.png
-│       V-FC.png
-│       V.png
+├─hitsounds
+│      Drag.wav
+│      Flick.wav
+│      Tap.wav
 │
-├───hitsounds
-│       Drag.wav
-│       Flick.wav
-│       Tap.wav
+├─notes
+│      Drag.png
+│      DragHL.png
+│      Flick.png
+│      FlickHL.png
+│      HoldBody.png
+│      HoldBodyHL.png
+│      HoldHead.png
+│      HoldHeadHL.png
+│      HoldTail.png
+│      HoldTailHL.png
+│      Tap.png
+│      TapHL.png
 │
-├───notes
-│       Drag.png
-│       DragHL.png
-│       Flick.png
-│       FlickHL.png
-│       HoldBody.png
-│       HoldBodyHL.png
-│       HoldTail.png
-│       HoldTailHL.png
-│       HoldHead.png
-│       HoldHeadHL.png
-│       Tap.png
-│       TapHL.png
-│
-└───shaders
+└─shaders
         chromatic.glsl
         circleBlur.glsl
         fisheye.glsl
@@ -317,7 +311,7 @@ We deeply appreciate those who generously granted us permission to use their wor
 - results music by Supa7onyz a.k.a. Normal1zer (**PHIZONE PROPRIETARY ASSETS**);
 - grade letters by Naptie (using [Black Ops One](https://fonts.google.com/specimen/Black+Ops+One/) font by James Grieshaber and Eben Sorkin licensed under [SIL Open Font License Version 1.1](https://openfontlicense.org/open-font-license-official-text/))
 - shaders (`shaders/*`), the majority of which are licensed under MIT/CC0, with a few exceptions from [ShaderToy](https://www.shadertoy.com/) licensed under the default [CC BY-NC-SA 3.0](https://creativecommons.org/licenses/by-nc-sa/3.0/) license specified by the site;
-- fonts (`fonts/**`), licenses presented in `OFL.txt` in each font folder;
+- fonts (`/static/fonts/**`), licenses presented in `OFL.txt` in each font folder;
 - `Pause.svg` by Font Awesome, licensed under [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/);
 - `ending/GradeHit.wav` by Naptie with sound effects on [Pixabay](https://pixabay.com/), licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/).
 
