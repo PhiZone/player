@@ -152,7 +152,7 @@ pub fn combine_streams(
         let app = app.clone();
         move || {
             let filter_complex = format!(
-                "[1:a]adelay=1000|1000,volume={}[a2];[2:a][a2]amix=inputs=2,alimiter=limit=1.0:level=false:attack=0.1:release=1[a]",
+                "[1:a]adelay=1000|1000,volume={}[a2];[2:a][a2]amix=inputs=2:normalize=0,alimiter=limit=1.0:level=false:attack=0.1:release=1[a]",
                 music_volume
             );
             let _ = Command::new(&*FFMPEG_CMD.lock().unwrap())
