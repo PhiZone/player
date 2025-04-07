@@ -10,11 +10,3 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vercel
 build.sh
-
-static/game/**/*
-!static/game/**/
-!static/game/**/.gitkeep
-!static/game/fonts/**
-!static/game/shaders/*
-!static/game/Pause.svg
-!static/game/ending/GradeHit.wav

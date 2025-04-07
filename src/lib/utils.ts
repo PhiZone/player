@@ -1,10 +1,26 @@
 import { page } from '$app/state';
-import { type Config, type MetadataEntry, type OutgoingMessage, type RpeMeta } from './types';
+import {
+  type Config,
+  type LevelType,
+  type MetadataEntry,
+  type OutgoingMessage,
+  type PhiraResourcePack,
+  type ResourcePack,
+  type ResourcePackWithId,
+  type RpeMeta,
+} from './types';
 import { AndroidFullScreen } from '@awesome-cordova-plugins/android-full-screen';
 import { Capacitor } from '@capacitor/core';
 import { Clipboard } from '@capacitor/clipboard';
 import Notiflix from 'notiflix';
 import 'context-filter-polyfill';
+import mime from 'mime/lite';
+import JSZip from 'jszip';
+import * as YAML from 'yaml';
+import tar from 'tar-stream';
+import { ungzip } from 'pako';
+import { fileTypeFromBlob } from 'file-type';
+import { DEFAULT_RESOURCE_PACK } from './player/constants';
 
 export const IS_TAURI = '__TAURI_INTERNALS__' in window;
 
@@ -69,7 +85,7 @@ export const getLines = (text: string) =>
 export const isPec = (pecCriteria: string[]) =>
   !isNaN(parseFloat(pecCriteria[0])) && /^bp \d+(\.\d+)? \d+(\.\d+)?$/.test(pecCriteria[1]);
 
-export const readMetadata = (text?: string, chartMeta?: RpeMeta): MetadataEntry => {
+export const readMetadataForChart = (text?: string, chartMeta?: RpeMeta): MetadataEntry => {
   const readFromText = (text: string = '') => {
     const lines = getLines(text);
     const fields = ['Name', 'Song', 'Picture', 'Chart', 'Composer', 'Charter', 'Level'];
@@ -127,7 +143,7 @@ export const readMetadata = (text?: string, chartMeta?: RpeMeta): MetadataEntry 
       };
     }
     // TODO add support for other metadata formats
-    console.debug('Metadata format not recognized: ', text);
+    console.debug('Chart metadata format not recognized:', text);
     return {
       name: '',
       song: '',
@@ -147,6 +163,170 @@ export const readMetadata = (text?: string, chartMeta?: RpeMeta): MetadataEntry 
   return metadata;
 };
 
+export const readMetadataForRespack = (text: string) => {
+  try {
+    const { id, ...rest } = JSON.parse(text) as ResourcePackWithId<string>;
+    const result: ResourcePackWithId<string> = {
+      id: id || crypto.randomUUID(),
+      ...rest,
+    };
+    return result;
+  } catch (e) {
+    console.debug('Failed to parse resource pack metadata:', e);
+    return null;
+  }
+};
+
+export const readMetadataForPhiraRespack = (text: string) => {
+  try {
+    return YAML.parse(text) as PhiraResourcePack;
+  } catch (e) {
+    console.debug('Failed to parse Phira resource pack metadata:', e);
+    return null;
+  }
+};
+
+export const exportRespack = async (respack: ResourcePack<File>) => {
+  const zip = new JSZip();
+
+  const createFile = async (file: File, filename: string, fallbackExtension: string) => {
+    const extension =
+      (await fileTypeFromBlob(file))?.ext ??
+      mime.getExtension(mime.getType(file.name) ?? '') ??
+      fallbackExtension;
+    filename = `${ensafeFilename(filename)}.${extension}`;
+    zip.file(filename, file);
+    return filename;
+  };
+
+  const metadata: ResourcePack<string> = {
+    name: respack.name,
+    author: respack.author,
+    description: respack.description,
+    thumbnail: respack.thumbnail
+      ? await createFile(respack.thumbnail, 'Thumbnail', 'png')
+      : undefined,
+    noteSkins: await Promise.all(
+      respack.noteSkins.map(async (e) => ({
+        name: e.name,
+        file: await createFile(e.file, e.name, 'png'),
+      })),
+    ),
+    hitSounds: await Promise.all(
+      respack.hitSounds.map(async (e) => ({
+        name: e.name,
+        file: await createFile(e.file, e.name, 'wav'),
+      })),
+    ),
+    hitEffects: respack.hitEffects
+      ? {
+          spriteSheet: await createFile(respack.hitEffects.spriteSheet, 'HitEffects', 'png'),
+          frameWidth: respack.hitEffects.frameWidth,
+          frameHeight: respack.hitEffects.frameHeight,
+          frameRate: respack.hitEffects.frameRate,
+          particle: respack.hitEffects.particle,
+        }
+      : undefined,
+    ending: {
+      grades: await Promise.all(
+        respack.ending.grades.map(async (e) => ({
+          name: e.name,
+          file: await createFile(e.file, e.name, 'png'),
+        })),
+      ),
+      music: await Promise.all(
+        respack.ending.music.map(async (e) => ({
+          levelType: e.levelType,
+          beats: e.beats,
+          bpm: e.bpm,
+          file: await createFile(e.file, `LevelOver${e.levelType}`, 'wav'),
+        })),
+      ),
+    },
+    fonts: await Promise.all(
+      respack.fonts.map(async (e) =>
+        e.type === 'bitmap'
+          ? {
+              name: e.name,
+              type: e.type,
+              texture: await createFile(e.texture, e.name, 'png'),
+              descriptor: await createFile(e.descriptor, e.name, 'fnt'),
+            }
+          : {
+              name: e.name,
+              type: e.type,
+              file: await createFile(e.file, e.name, e.type === 'truetype' ? 'ttf' : 'otf'),
+            },
+      ),
+    ),
+    options: respack.options,
+  };
+
+  zip.file('_META.json', JSON.stringify(metadata, null, 2));
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const filename = ensafeFilename(respack.name) + '.zip';
+  triggerDownload(blob, filename, 'resourcePack');
+};
+
+export const convertRespackToURL = (respack: ResourcePack<File>) => {
+  const createURL = (file: File) => {
+    return URL.createObjectURL(file);
+  };
+
+  const result: ResourcePack<string> = {
+    name: respack.name,
+    author: respack.author,
+    description: respack.description,
+    thumbnail: respack.thumbnail ? createURL(respack.thumbnail) : undefined,
+    noteSkins: respack.noteSkins.map((e) => ({
+      name: e.name,
+      file: createURL(e.file),
+    })),
+    hitSounds: respack.hitSounds.map((e) => ({
+      name: e.name,
+      file: createURL(e.file),
+    })),
+    hitEffects: respack.hitEffects
+      ? {
+          spriteSheet: createURL(respack.hitEffects.spriteSheet),
+          frameWidth: respack.hitEffects.frameWidth,
+          frameHeight: respack.hitEffects.frameHeight,
+          frameRate: respack.hitEffects.frameRate,
+          particle: respack.hitEffects.particle,
+        }
+      : undefined,
+    ending: {
+      grades: respack.ending.grades.map((e) => ({
+        name: e.name,
+        file: createURL(e.file),
+      })),
+      music: respack.ending.music.map((e) => ({
+        levelType: e.levelType,
+        beats: e.beats,
+        bpm: e.bpm,
+        file: createURL(e.file),
+      })),
+    },
+    fonts: respack.fonts.map((e) =>
+      e.type === 'bitmap'
+        ? {
+            name: e.name,
+            type: e.type,
+            texture: createURL(e.texture),
+            descriptor: createURL(e.descriptor),
+          }
+        : {
+            name: e.name,
+            type: e.type,
+            file: createURL(e.file),
+          },
+    ),
+    options: respack.options,
+  };
+
+  return result;
+};
+
 export const updateMetadata = (metadata: MetadataEntry, chartMeta: RpeMeta) => {
   metadata.name = chartMeta.name;
   metadata.song = chartMeta.song;
@@ -158,7 +338,7 @@ export const updateMetadata = (metadata: MetadataEntry, chartMeta: RpeMeta) => {
   return metadata;
 };
 
-export const inferLevelType = (level: string | null): 0 | 1 | 2 | 3 | 4 => {
+export const inferLevelType = (level: string | null): LevelType => {
   if (!level) return 2;
   level = level.toLowerCase();
   if (level.includes(' ')) {
@@ -192,6 +372,30 @@ export const fit = (
   return { width, height };
 };
 
+export const triggerDownload = (
+  blob: Blob,
+  name: string,
+  purpose: 'adjustedOffset' | 'resourcePack',
+  always = false,
+) => {
+  if (IS_IFRAME && purpose !== 'resourcePack') {
+    send({
+      type: 'fileOutput',
+      payload: {
+        purpose,
+        file: new File([blob], name),
+      },
+    });
+    if (!always) return;
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
 export const getParams = (url?: string, loadFromStorage = true): Config | null => {
   const p = (url ? new URL(url) : page.url).searchParams;
   const song = p.get('song');
@@ -213,8 +417,7 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
   const illustrator = p.get('illustrator');
   const level = p.get('level');
   const levelType =
-    (clamp(parseInt(p.get('levelType') ?? '2'), 0, 4) as 0 | 1 | 2 | 3 | 4) ??
-    inferLevelType(level);
+    (clamp(parseInt(p.get('levelType') ?? '2'), 0, 4) as LevelType) ?? inferLevelType(level);
   const difficulty = p.get('difficulty');
 
   const aspectRatio: number[] | null = p.getAll('aspectRatio').map((v) => parseInt(v));
@@ -238,7 +441,7 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
   const overrideResolution: number[] | null = p
     .getAll('overrideResolution')
     .map((v) => parseInt(v));
-  const endingLoopsToRender = parseFloat(p.get('endingLoopsToRender') ?? '1');
+  const resultsLoopsToRender = parseFloat(p.get('resultsLoopsToRender') ?? '1');
   const videoCodec = p.get('videoCodec') ?? 'libx264';
   const videoBitrate = parseInt(p.get('videoBitrate') ?? '6000');
   const audioBitrate = parseInt(p.get('audioBitrate') ?? '320');
@@ -251,6 +454,17 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
   const autostart = ['1', 'true'].some((v) => v == p.get('autostart'));
   const newTab = ['1', 'true'].some((v) => v == p.get('newTab'));
   const inApp = parseInt(p.get('inApp') ?? '0');
+
+  let resourcePack = DEFAULT_RESOURCE_PACK as ResourcePack<string>;
+  const respackParam = p.get('resourcePack');
+  if (respackParam) {
+    try {
+      resourcePack = JSON.parse(decodeURIComponent(respackParam)) as ResourcePack<string>;
+    } catch (e) {
+      console.error('Failed to parse resource pack: ', e);
+    }
+  }
+
   if (!song || !chart || !illustration || assetNames.length < assets.length) {
     if (!loadFromStorage) return null;
     const storageItem = localStorage.getItem('player');
@@ -294,20 +508,49 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
       frameRate,
       overrideResolution:
         overrideResolution.length >= 2 ? [overrideResolution[0], overrideResolution[1]] : null,
-      endingLoopsToRender,
+      resultsLoopsToRender,
       videoCodec,
       videoBitrate,
       audioBitrate,
       exportPath,
     },
+    resourcePack,
     autoplay,
     practice,
     adjustOffset,
-    render: render,
+    render,
     autostart,
     newTab,
     inApp,
   };
+};
+
+export const extractTgz = async (blob: Blob): Promise<File[]> => {
+  const arrayBuffer = await blob.arrayBuffer(); // Convert Blob to ArrayBuffer
+  const ungzipped = ungzip(new Uint8Array(arrayBuffer)); // Decompress .tgz
+  const extract = tar.extract(); // Create a tar extractor
+
+  return new Promise((resolve, reject) => {
+    const files: File[] = [];
+
+    extract.on('entry', (header, stream, next) => {
+      const chunks: Uint8Array[] = [];
+
+      stream.on('data', (chunk) => chunks.push(new Uint8Array(chunk)));
+      stream.on('end', () => {
+        const fileBlob = new Blob(chunks, { type: 'application/octet-stream' });
+        files.push(new File([fileBlob], header.name.split('/').pop() ?? ''));
+        next();
+      });
+
+      stream.resume();
+    });
+
+    extract.on('finish', () => resolve(files));
+    extract.on('error', reject);
+
+    extract.end(ungzipped);
+  });
 };
 
 export const isZip = (file: File) =>

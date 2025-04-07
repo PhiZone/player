@@ -21,7 +21,7 @@ import {
   isEqual,
 } from '../utils';
 import type { Game } from '../scenes/Game';
-import { FONT_FAMILY, NOTE_BASE_SIZE } from '../constants';
+import { NOTE_BASE_SIZE } from '../constants';
 import { dot } from 'mathjs';
 import type { Video } from './Video';
 import { isDebug } from '$lib/utils';
@@ -95,7 +95,7 @@ export class Line {
       this._scene.textures.exists(`asset-${lineData.Texture}`);
     this._line = this._hasText
       ? new GameObjects.Text(scene, 0, 0, this._text ?? '', {
-          fontFamily: FONT_FAMILY,
+          fontFamily: scene.respack.fonts[0].name,
           fontSize: 50,
           color: '#ffffff',
           align: 'left',

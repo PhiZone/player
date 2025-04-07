@@ -46,9 +46,9 @@ export class LongNote extends GameObjects.Container {
     this._head = new GameObjects.Image(scene, 0, 0, `2-h${highlight ? '-hl' : ''}`);
     this._body = new GameObjects.Image(scene, 0, 0, `2${highlight ? '-hl' : ''}`);
     this._tail = new GameObjects.Image(scene, 0, 0, `2-t${highlight ? '-hl' : ''}`);
-    this._head.setOrigin(0.5, 0);
+    this._head.setOrigin(0.5, scene.respack.isHoldCompact() ? 1 : 0);
     this._body.setOrigin(0.5, 1);
-    this._tail.setOrigin(0.5, 1);
+    this._tail.setOrigin(0.5, scene.respack.isHoldCompact() ? 0 : 1);
     this.resize();
     this.setAlpha(data.alpha / 255);
     if (data.tint) {

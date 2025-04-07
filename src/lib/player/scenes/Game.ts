@@ -17,7 +17,9 @@ import {
   type Bpm,
   type Config,
   type GameObject,
+  type LevelType,
   type PhiraExtra,
+  type ResultsMusic,
   type RpeJson,
   type ShaderEffect,
 } from '$lib/types';
@@ -25,7 +27,7 @@ import { Line } from '../objects/Line';
 import type { LongNote } from '../objects/LongNote';
 import type { PlainNote } from '../objects/PlainNote';
 import { GameUI } from '../objects/GameUI';
-import { EndingUI } from '../objects/EndingUI';
+import { ResultsUI } from '../objects/ResultsUI';
 import { PointerHandler } from '../handlers/PointerHandler';
 import { KeyboardHandler } from '../handlers/KeyboardHandler';
 import { JudgmentHandler } from '../handlers/JudgmentHandler';
@@ -39,6 +41,7 @@ import { ShaderNode } from '../objects/ShaderNode';
 import { base } from '$app/paths';
 import { Clock } from '../services/clock';
 import { Renderer } from '../services/renderer';
+import { ResourcePackHandler } from '../handlers/ResourcePackHandler';
 
 export class Game extends Scene {
   private _status: GameStatus = GameStatus.LOADING;
@@ -51,6 +54,8 @@ export class Game extends Scene {
   private _extraUrl: string | undefined;
   private _extra: PhiraExtra | undefined;
   private _lineCsvUrl: string | undefined;
+  private _hitEffectsFrameRate: number;
+  private _resultsMusic: ResultsMusic<string>;
   private _animatedAssets: {
     key: string;
     url: string;
@@ -67,7 +72,7 @@ export class Game extends Scene {
   private _composer: string | null;
   private _charter: string | null;
   private _illustrator: string | null;
-  private _levelType: 0 | 1 | 2 | 3 | 4;
+  private _levelType: LevelType;
   private _level: string | null;
   private _offset: number;
   private _bpmList: Bpm[];
@@ -103,7 +108,7 @@ export class Game extends Scene {
   private _song: Sound.NoAudioSound | Sound.HTML5AudioSound | Sound.WebAudioSound;
   private _background: GameObjects.Image;
   private _gameUI: GameUI;
-  private _endingUI?: EndingUI;
+  private _resultsUI?: ResultsUI;
 
   private _clock: Clock;
   private _renderer: Renderer;
@@ -111,6 +116,7 @@ export class Game extends Scene {
   private _keyboardHandler?: KeyboardHandler;
   private _judgmentHandler: JudgmentHandler;
   private _statisticsHandler: StatisticsHandler;
+  private _respack: ResourcePackHandler;
 
   constructor() {
     super('Game');
@@ -162,54 +168,59 @@ export class Game extends Scene {
     this._adjustOffset = this._data.adjustOffset;
     this._render = this._data.render && IS_TAURI;
 
+    this._respack = new ResourcePackHandler(this._data.resourcePack);
+
     if (new window.AudioContext().state === 'suspended') {
       this._autostart = false;
     }
 
-    this.load.bitmapFont(
-      'Outfit',
-      `${base}/fonts/Outfit/Outfit.png`,
-      `${base}/fonts/Outfit/Outfit.fnt`,
-    );
-
     this.load.setPath(`${base}/game`);
-
     this.load.svg('pause', 'Pause.svg', { width: 128, height: 128 });
     this.load.image('progress-bar', 'Progress.png');
-
-    this.loadAudio('4', 'hitsounds/Drag.wav');
-    this.loadAudio('3', 'hitsounds/Flick.wav');
-    this.loadAudio('2', 'hitsounds/Tap.wav');
-    this.loadAudio('1', 'hitsounds/Tap.wav');
-    this.loadAudio('grade-hit', 'ending/GradeHit.wav');
-
-    this.load.image('4', 'notes/Drag.png');
-    this.load.image('4-hl', 'notes/DragHL.png');
-    this.load.image('3', 'notes/Flick.png');
-    this.load.image('3-hl', 'notes/FlickHL.png');
-    this.load.image('2', 'notes/Hold.png');
-    this.load.image('2-hl', 'notes/HoldHL.png');
-    this.load.image('2-h', 'notes/HoldHead.png');
-    this.load.image('2-h-hl', 'notes/HoldHeadHL.png');
-    this.load.image('2-t', 'notes/HoldTail.png');
-    this.load.image('2-t-hl', 'notes/HoldTailHL.png');
-    this.load.image('1', 'notes/Tap.png');
-    this.load.image('1-hl', 'notes/TapHL.png');
-
-    this.load.image('grade-3', 'grades/A.png');
-    this.load.image('grade-2', 'grades/B.png');
-    this.load.image('grade-1', 'grades/C.png');
-    this.load.image('grade-0', 'grades/F.png');
-    this.load.image('grade-7', 'grades/Phi.png');
-    this.load.image('grade-4', 'grades/S.png');
-    this.load.image('grade-6', 'grades/V-FC.png');
-    this.load.image('grade-5', 'grades/V.png');
-
     this.load.image('asset-line.png', 'line.png');
-    this.load.spritesheet('hit-effects', 'HitEffects.png', {
-      frameWidth: 375,
-      frameHeight: 375,
+    this.loadAudio('grade-hit', 'ending/GradeHit.wav');
+    this.load.setPath(undefined);
+
+    this.loadAudio('4', this._respack.getHitSound('Drag'));
+    this.loadAudio('3', this._respack.getHitSound('Flick'));
+    this.loadAudio('2', this._respack.getHitSound('Tap'));
+    this.loadAudio('1', this._respack.getHitSound('Tap'));
+
+    this.load.image('4', this._respack.getNoteSkin('Drag'));
+    this.load.image('4-hl', this._respack.getNoteSkin('DragHL'));
+    this.load.image('3', this._respack.getNoteSkin('Flick'));
+    this.load.image('3-hl', this._respack.getNoteSkin('FlickHL'));
+    this.load.image('2', this._respack.getNoteSkin('HoldBody'));
+    this.load.image('2-hl', this._respack.getNoteSkin('HoldBodyHL'));
+    this.load.image('2-h', this._respack.getNoteSkin('HoldHead'));
+    this.load.image('2-h-hl', this._respack.getNoteSkin('HoldHeadHL'));
+    this.load.image('2-t', this._respack.getNoteSkin('HoldTail'));
+    this.load.image('2-t-hl', this._respack.getNoteSkin('HoldTailHL'));
+    this.load.image('1', this._respack.getNoteSkin('Tap'));
+    this.load.image('1-hl', this._respack.getNoteSkin('TapHL'));
+
+    this.load.image('grade-3', this._respack.getGrade('A'));
+    this.load.image('grade-2', this._respack.getGrade('B'));
+    this.load.image('grade-1', this._respack.getGrade('C'));
+    this.load.image('grade-0', this._respack.getGrade('F'));
+    this.load.image('grade-7', this._respack.getGrade('Phi'));
+    this.load.image('grade-4', this._respack.getGrade('S'));
+    this.load.image('grade-6', this._respack.getGrade('V-FC'));
+    this.load.image('grade-5', this._respack.getGrade('V'));
+
+    this._respack.fonts.forEach((font) => {
+      this.load.font(font.name, font.file, font.type);
     });
+    this._respack.bitmapFonts.forEach((font) => {
+      this.load.bitmapFont(font.name, font.texture, font.descriptor);
+    });
+
+    const { spriteSheet, frameWidth, frameHeight, frameRate } = this._respack.getHitEffects();
+    this.load.spritesheet('hit-effects', spriteSheet, {
+      frameWidth,
+      frameHeight,
+    });
+    this._hitEffectsFrameRate = frameRate;
 
     assets.forEach((asset, i) => {
       const name = assetNames[i];
@@ -314,7 +325,8 @@ export class Game extends Scene {
           }
         }
       }
-      this.loadAudio('ending', `ending/LevelOver${this._levelType}.wav`);
+      this._resultsMusic = this._respack.getResultsMusic(this._levelType);
+      this.loadAudio('ending', this._resultsMusic.file);
       this.load.once('complete', async () => {
         this.createTextureAnimations();
         this.initializeChart();
@@ -451,8 +463,8 @@ export class Game extends Scene {
     this._keyboardHandler?.reset();
     this._judgmentHandler.reset();
     this._clock.setSeek(0);
-    this._endingUI?.destroy();
-    this._endingUI = undefined;
+    this._resultsUI?.destroy();
+    this._resultsUI = undefined;
     this.resetShadersAndVideos();
     this.initializeShaders();
     await this.initializeVideos();
@@ -477,7 +489,7 @@ export class Game extends Scene {
     this._status = GameStatus.FINISHED;
     this.out(() => {
       this.resetShadersAndVideos();
-      this._endingUI!.play();
+      this._resultsUI!.play();
       EventBus.emit('finished');
       send({
         type: 'event',
@@ -486,7 +498,11 @@ export class Game extends Scene {
         },
       });
     });
-    this._endingUI = new EndingUI(this, this._data.mediaOptions.endingLoopsToRender);
+    this._resultsUI = new ResultsUI(
+      this,
+      this._resultsMusic,
+      this._data.mediaOptions.resultsLoopsToRender,
+    );
   }
 
   setSeek(value: number) {
@@ -516,7 +532,7 @@ export class Game extends Scene {
     if (!this._render) {
       this._clock.update();
     }
-    if (this._endingUI) this._endingUI.update();
+    if (this._resultsUI) this._resultsUI.update();
     const status = this._status;
     if (this._isSeeking) this._status = GameStatus.SEEKING;
     this._pointerHandler?.update(delta);
@@ -554,7 +570,7 @@ export class Game extends Scene {
     this._song.destroy();
     this._lines.forEach((line) => line.destroy());
     this._gameUI.destroy();
-    if (this._endingUI) this._endingUI.destroy();
+    if (this._resultsUI) this._resultsUI.destroy();
     terminateFFmpeg();
   }
 
@@ -718,7 +734,7 @@ export class Game extends Scene {
     this.anims.create({
       key: 'hit-effects',
       frames: 'hit-effects',
-      frameRate: 120,
+      frameRate: this._hitEffectsFrameRate,
       repeat: 0,
     });
   }
@@ -890,8 +906,8 @@ export class Game extends Scene {
     return this._gameUI;
   }
 
-  public get endingUI() {
-    return this._endingUI;
+  public get resultsUI() {
+    return this._resultsUI;
   }
 
   public get clock() {
@@ -916,6 +932,10 @@ export class Game extends Scene {
 
   public get statistics() {
     return this._statisticsHandler;
+  }
+
+  public get respack() {
+    return this._respack;
   }
 
   public get lines() {

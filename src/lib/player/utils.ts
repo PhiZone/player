@@ -21,7 +21,7 @@ import {
 import { EventBus } from './EventBus';
 import { getFFmpeg, loadFFmpeg } from './services/ffmpeg';
 import type { Game } from './scenes/Game';
-import { ENDING_ILLUSTRATION_CORNER_RADIUS } from './constants';
+import { RESULTS_ILLUSTRATION_CORNER_RADIUS } from './constants';
 import { parseGIF, decompressFrames, type ParsedFrame } from 'gifuct-js';
 import { dot, gcd, random } from 'mathjs';
 import { fileTypeFromBlob } from 'file-type';
@@ -32,8 +32,8 @@ import { ROOT, type Node } from './objects/Node';
 import { tempDir } from '@tauri-apps/api/path';
 import { download as tauriDownload } from '@tauri-apps/plugin-upload';
 import { readFile, remove } from '@tauri-apps/plugin-fs';
-import { clamp, getLines, IS_IFRAME, IS_TAURI, isPec, send } from '$lib/utils';
-import PhiEditerConverter from './converter/phiediter';
+import { clamp, getLines, IS_TAURI, isPec } from '$lib/utils';
+import PhiEditerConverter from '../converters/phiediter';
 import 'context-filter-polyfill';
 
 const easingFunctions: ((x: number) => number)[] = [
@@ -97,7 +97,7 @@ export const download = async (url: string, name?: string) => {
     'loading-detail',
     url.startsWith('blob:') ? `Loading ${name ?? 'file'}` : `Downloading ${url.split('/').pop()}`,
   );
-  if (IS_TAURI && url.startsWith('https://')) {
+  if (IS_TAURI && (url.startsWith('http://') || url.startsWith('https://'))) {
     const filePath = (await tempDir()) + random(1e17, 1e18 - 1);
     await tauriDownload(url, filePath, (payload) => {
       EventBus.emit('loading', clamp(payload.progressTotal / payload.total, 0, 1));
@@ -329,7 +329,7 @@ export const processIllustration = (
         ctx.filter = 'none';
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        const radius = (ENDING_ILLUSTRATION_CORNER_RADIUS * canvas.height) / 200;
+        const radius = (RESULTS_ILLUSTRATION_CORNER_RADIUS * canvas.height) / 200;
         ctx.beginPath();
         ctx.moveTo(radius, 0);
         ctx.lineTo(canvas.width - radius, 0);
@@ -408,6 +408,29 @@ export const isEqual = (a: number[] | undefined, b: number[] | undefined): boole
 export const rgbToHex = (rgb: number[] | undefined | null): number | undefined =>
   rgb ? (rgb[0] << 16) | (rgb[1] << 8) | rgb[2] : undefined;
 
+export const rgbaToHexAndAlpha = (
+  rgba: number[] | undefined | null,
+): { hex: number; alpha: number } | undefined =>
+  rgba
+    ? {
+        hex: (rgba[0] << 16) | (rgba[1] << 8) | rgba[2],
+        alpha: rgba[3] / 255,
+      }
+    : undefined;
+
+export const hexToRgba = (
+  hex: number | undefined | null,
+): [number, number, number, number] | undefined => {
+  return hex
+    ? [
+        (hex >> 16) & 0xff, // Red
+        (hex >> 8) & 0xff, // Green
+        hex & 0xff, // Blue
+        (hex >> 24) & 0xff || 255, // Alpha (defaults to 255 if not specified)
+      ]
+    : undefined;
+};
+
 export const getLineColor = (scene: Game): number => {
   const status = scene.preferences.fcApIndicator
     ? (scene.statistics?.fcApStatus ?? FcApStatus.AP)
@@ -422,17 +445,29 @@ export const getLineColor = (scene: Game): number => {
   }
 };
 
-export const getJudgmentColor = (type: JudgmentType): number => {
+export const getJudgmentColor = (type: JudgmentType) => {
   switch (type) {
     case JudgmentType.PERFECT:
-      return 0xffec9f;
+      return {
+        hex: 0xffec9f,
+        alpha: 15 / 17,
+      };
     case JudgmentType.GOOD_EARLY:
     case JudgmentType.GOOD_LATE:
-      return 0xb4e1ff;
+      return {
+        hex: 0xb4e1ff,
+        alpha: 47 / 51,
+      };
     case JudgmentType.BAD:
-      return 0x6b3b3a;
+      return {
+        hex: 0x6b3b3a,
+        alpha: 1,
+      };
     default:
-      return 0xffffff;
+      return {
+        hex: 0xffffff,
+        alpha: 1,
+      };
   }
 };
 
@@ -814,35 +849,11 @@ export const getAudio = async (url: string): Promise<string> => {
   }
   EventBus.emit('loading-detail', 'Processing audio');
   await ffmpeg.writeFile('input', await fetchFile(originalAudio));
-  await ffmpeg.exec(['-i', 'input', '-f', 'wav', 'output']);
+  await ffmpeg.exec('-i input -ar 44100 -ac 2 -f wav -y output'.split(' '));
   const data = await ffmpeg.readFile('output');
   return URL.createObjectURL(
     new Blob([(data as Uint8Array).buffer as ArrayBuffer], { type: 'audio/wav' }),
   );
-};
-
-export const triggerDownload = (
-  blob: Blob,
-  name: string,
-  purpose: 'adjustedOffset',
-  always = false,
-) => {
-  if (IS_IFRAME) {
-    send({
-      type: 'fileOutput',
-      payload: {
-        purpose,
-        file: new File([blob], name),
-      },
-    });
-    if (!always) return;
-  }
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  a.click();
-  URL.revokeObjectURL(url);
 };
 
 export const urlToBase64 = async (url: string, name?: string) => {

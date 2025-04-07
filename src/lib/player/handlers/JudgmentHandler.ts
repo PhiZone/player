@@ -57,7 +57,7 @@ export class JudgmentHandler {
         this.createHitsound(note);
         this.createHitEffects(type, note);
       } else if (type === JudgmentType.BAD) {
-        note.setTint(getJudgmentColor(type));
+        note.setTint(getJudgmentColor(type).hex);
         this._scene.tweens.add({
           targets: note,
           alpha: 0,

@@ -1,12 +1,11 @@
 import { GameObjects, Sound } from 'phaser';
 import type { Game } from '../scenes/Game';
-import { FONT_FAMILY } from '../constants';
-import type { Grade } from '$lib/types';
+import type { Grade, ResultsMusic } from '$lib/types';
 import { pad, position } from '../utils';
 import { EventBus } from '../EventBus';
 import { Capacitor } from '@capacitor/core';
 
-export class EndingUI extends GameObjects.Container {
+export class ResultsUI extends GameObjects.Container {
   private _scene: Game;
   private _innerContainer: GameObjects.Container;
   private _sound: Sound.NoAudioSound | Sound.HTML5AudioSound | Sound.WebAudioSound;
@@ -23,13 +22,16 @@ export class EndingUI extends GameObjects.Container {
   private _miss: DataBoard;
   private _early: DataBoard;
   private _late: DataBoard;
+  private _bpm: number;
+  private _beats: number;
+  private _beatLength: number;
   private _tweening: boolean = true;
   private _timer: NodeJS.Timeout | undefined;
   private _started: DOMHighResTimeStamp | undefined;
-  private _loopsToRender: number;
   private _render: boolean = false;
+  private _loopsToRender: number;
 
-  constructor(scene: Game, loopsToRender: number) {
+  constructor(scene: Game, resultsMusic: ResultsMusic<string>, loopsToRender: number) {
     super(scene, scene.w(0), scene.h(-500) + scene.d(0.41));
 
     this._scene = scene;
@@ -98,8 +100,11 @@ export class EndingUI extends GameObjects.Container {
     this._illustration = this.createIllustration();
     this._overlay = this.createOverlay();
     this._grade = this.createGrade(stats.grade);
-    this._loopsToRender = loopsToRender;
     this._render = this._scene.render;
+    this._loopsToRender = loopsToRender;
+    this._beats = resultsMusic.beats;
+    this._bpm = resultsMusic.bpm;
+    this._beatLength = 6e4 / this._bpm;
 
     position(
       [this._accuracy, this._maxCombo, this._stdDev],
@@ -122,7 +127,8 @@ export class EndingUI extends GameObjects.Container {
     }
     if (
       this._render &&
-      this._scene.game.getTime() - this._started > (this._loopsToRender * 192e3) / 7
+      this._scene.game.getTime() - this._started >
+        this._loopsToRender * this._beatLength * this._beats
     ) {
       EventBus.emit('render-stop');
       this._started = undefined;
@@ -199,7 +205,7 @@ export class EndingUI extends GameObjects.Container {
     size: number = 68,
   ) {
     return new GameObjects.Text(this._scene, x, y, text, {
-      fontFamily: FONT_FAMILY,
+      fontFamily: this._scene.respack.fonts[0].name,
       fontSize: size,
       color: '#ffffff',
       align: 'center',
@@ -238,12 +244,16 @@ export class EndingUI extends GameObjects.Container {
     if (!this._scene.render) {
       this._sound = this._scene.sound.add('ending');
       this._sound.setVolume(this._scene.preferences.musicVolume).play();
-      this._scene.sound.add('grade-hit').setVolume(this._scene.preferences.hitSoundVolume).play();
+      this._scene.sound
+        .add('grade-hit')
+        .setVolume(this._scene.preferences.hitSoundVolume)
+        .setRate(this._bpm / 140)
+        .play();
       this._timer = setInterval(
         () => {
           this._sound.play();
         },
-        192e3 / 7 / this._scene.tweens.timeScale,
+        (this._beatLength * this._beats) / this._scene.tweens.timeScale,
       );
     }
 
@@ -251,21 +261,21 @@ export class EndingUI extends GameObjects.Container {
     this._started = this._scene.game.getTime();
 
     if (Capacitor.getPlatform() !== 'android')
-      this._grade.preFX?.addShine((7 / 6) * this._scene.tweens.timeScale, 1, 3, false);
+      this._grade.preFX?.addShine((this._bpm / 120) * this._scene.tweens.timeScale, 1, 3, false);
 
     // Overlay (to dim the background)
     this._scene.tweens.add({
       targets: this._overlay,
       alpha: 0.7,
       ease: 'Quint.easeOut',
-      duration: 9e3 / 14,
+      duration: 1.5 * this._beatLength,
     });
     this._scene.tweens.add({
       targets: this._overlay,
       alpha: 0,
       ease: 'Expo.easeIn',
-      duration: 9e3 / 14,
-      delay: 9e3 / 14,
+      duration: 1.5 * this._beatLength,
+      delay: 1.5 * this._beatLength,
     });
 
     // Containers
@@ -273,19 +283,19 @@ export class EndingUI extends GameObjects.Container {
       targets: this,
       y: this._scene.h(0) + this._scene.d(0.41),
       ease: 'Cubic.easeOut',
-      duration: 9e3 / 7,
+      duration: 3 * this._beatLength,
     });
     this._scene.tweens.add({
       targets: this._innerContainer,
       y: 0,
       ease: 'Expo.easeOut',
-      duration: 9e3 / 7,
+      duration: 3 * this._beatLength,
     });
     this._scene.tweens.add({
       targets: this._innerContainer,
       scale: 1,
       ease: 'Expo.easeIn',
-      duration: 9e3 / 7,
+      duration: 3 * this._beatLength,
     });
 
     // Grade
@@ -293,21 +303,21 @@ export class EndingUI extends GameObjects.Container {
       targets: this._grade,
       scale: this._scene.d(1.8) / this._grade.texture.getSourceImage().height,
       ease: 'Expo.easeIn',
-      duration: 9e3 / 7,
+      duration: 3 * this._beatLength,
     });
     this._scene.tweens.add({
       targets: this._grade,
       y: -this._scene.d(0.41),
       ease: 'Quint.easeOut',
-      duration: 9e3 / 14,
+      duration: 1.5 * this._beatLength,
     });
     this._scene.tweens.add({
       targets: this._grade,
       x: -this._scene.d(32 / 9 - 0.9),
       y: -this._scene.d(2.9),
       ease: 'Expo.easeIn',
-      duration: 9e3 / 14,
-      delay: 9e3 / 14,
+      duration: 1.5 * this._beatLength,
+      delay: 1.5 * this._beatLength,
     });
 
     // Stats
@@ -315,36 +325,36 @@ export class EndingUI extends GameObjects.Container {
       targets: this._score,
       y: -this._scene.d(3.8),
       ease: 'Expo.easeOut',
-      duration: 9e3 / 14,
-      delay: 9e3 / 7,
+      duration: 1.5 * this._beatLength,
+      delay: 3 * this._beatLength,
     });
     this._scene.tweens.add({
       targets: [this._accuracy, this._maxCombo, this._stdDev],
       y: -this._scene.d(2.67),
       ease: 'Expo.easeOut',
-      duration: 9e3 / 14,
-      delay: 9e3 / 7,
+      duration: 1.5 * this._beatLength,
+      delay: 3 * this._beatLength,
     });
     this._scene.tweens.add({
       targets: [this._perfect, this._good, this._bad, this._miss],
       y: this._scene.d(2.16),
       ease: 'Expo.easeOut',
-      duration: 9e3 / 14,
-      delay: 9e3 / 7,
+      duration: 1.5 * this._beatLength,
+      delay: 3 * this._beatLength,
     });
     this._scene.tweens.add({
       targets: this._early,
       y: this._scene.d(2.14),
       ease: 'Expo.easeOut',
-      duration: 9e3 / 14,
-      delay: 9e3 / 7,
+      duration: 1.5 * this._beatLength,
+      delay: 3 * this._beatLength,
     });
     this._scene.tweens.add({
       targets: this._late,
       y: this._scene.d(2.39),
       ease: 'Expo.easeOut',
-      duration: 9e3 / 14,
-      delay: 9e3 / 7,
+      duration: 1.5 * this._beatLength,
+      delay: 3 * this._beatLength,
     });
 
     // Shake
@@ -354,8 +364,8 @@ export class EndingUI extends GameObjects.Container {
       y: this._scene.h(28.13) + this._scene.d(0.41),
       rotation: (-28.13 / 2520) * Math.PI,
       ease: 'Sine.easeOut',
-      duration: 3e3 / 28,
-      delay: 9e3 / 7,
+      duration: 0.25 * this._beatLength,
+      delay: 3 * this._beatLength,
     });
     this._scene.tweens.add({
       targets: this,
@@ -363,8 +373,8 @@ export class EndingUI extends GameObjects.Container {
       y: this._scene.h(-12.5) + this._scene.d(0.41),
       rotation: (12.5 / 2520) * Math.PI,
       ease: 'Sine.easeInOut',
-      duration: 6e3 / 28,
-      delay: 39e3 / 28,
+      duration: 0.5 * this._beatLength,
+      delay: 3.25 * this._beatLength,
     });
     this._scene.tweens.add({
       targets: this,
@@ -372,8 +382,8 @@ export class EndingUI extends GameObjects.Container {
       y: this._scene.h(3.13) + this._scene.d(0.41),
       rotation: (-3.13 / 2520) * Math.PI,
       ease: 'Sine.easeInOut',
-      duration: 6e3 / 28,
-      delay: 45e3 / 28,
+      duration: 0.5 * this._beatLength,
+      delay: 3.75 * this._beatLength,
     });
     this._scene.tweens.add({
       targets: this,
@@ -381,8 +391,8 @@ export class EndingUI extends GameObjects.Container {
       y: this._scene.h(0) + this._scene.d(0.41),
       rotation: 0,
       ease: 'Sine.easeInOut',
-      duration: 6e3 / 28,
-      delay: 51e3 / 28,
+      duration: 0.5 * this._beatLength,
+      delay: 4.25 * this._beatLength,
       onComplete: () => {
         this._tweening = false;
       },
@@ -408,7 +418,7 @@ class DataBoard extends GameObjects.Container {
 
     this._scene = scene;
     this._key = new GameObjects.Text(scene, 0, 0, key, {
-      fontFamily: FONT_FAMILY,
+      fontFamily: scene.respack.fonts[0].name,
       fontSize: scene.d(0.16),
       color: '#ffffff',
     })
@@ -420,7 +430,7 @@ class DataBoard extends GameObjects.Container {
       singleLineWidth ? 0 : this._key.displayHeight,
       value,
       {
-        fontFamily: FONT_FAMILY,
+        fontFamily: scene.respack.fonts[0].name,
         fontSize: scene.d(singleLineWidth ? 0.26 : 0.32),
         color: '#ffffff',
       },
@@ -456,7 +466,7 @@ class ScoreBoard extends GameObjects.Container {
 
     this._scene = scene;
     this._score = new GameObjects.Text(scene, 0, 0, pad(score, 7), {
-      fontFamily: FONT_FAMILY,
+      fontFamily: scene.respack.fonts[0].name,
       fontSize: this._scene.d(1.05),
       color: '#ffffff',
     }).setOrigin(1, 0);

@@ -2,7 +2,7 @@ import { GameObjects, Tweens, type Types } from 'phaser';
 import type { Game } from '../scenes/Game';
 import { convertTime, pad } from '../utils';
 import { GameStatus } from '$lib/types';
-import { COMBO_TEXT, FONT_FAMILY } from '../constants';
+import { COMBO_TEXT } from '../constants';
 import { isDebug } from '$lib/utils';
 
 export class GameUI {
@@ -89,7 +89,7 @@ export class GameUI {
       9,
       stats.combo.toString(),
       scene.p(this._fontSizes[1]),
-      'Outfit',
+      scene.respack.bitmapFonts[0].name,
     );
 
     this._comboText = this.createComponent(
@@ -116,7 +116,7 @@ export class GameUI {
       11,
       pad(stats.displayScore, 7),
       scene.p(this._fontSizes[3]),
-      'Outfit',
+      scene.respack.bitmapFonts[0].name,
     );
 
     this._accuracy = this.createComponent(
@@ -133,7 +133,7 @@ export class GameUI {
         minimumFractionDigits: 2,
       })}`,
       scene.p(this._fontSizes[4]),
-      'Outfit',
+      scene.respack.bitmapFonts[0].name,
     );
     this._accuracy.text.setAlpha(0.7);
 
@@ -480,7 +480,7 @@ class UIComponent extends GameObjects.Container {
           offsetY,
           text,
           textStyle ?? {
-            fontFamily: FONT_FAMILY,
+            fontFamily: scene.respack.fonts[0].name,
             fontSize: fontSize ?? 32,
             color: '#ffffff',
             align: 'center',

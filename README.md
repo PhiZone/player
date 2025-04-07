@@ -1,6 +1,6 @@
 # PhiZone Player
 
-![PhiZone Player Banner](resources/banner.png)
+![PhiZone Player Banner](static/banner.png)
 
 PhiZone Player is an HTML5 Phigros chart player/simulator based on Phaser.
 
@@ -213,19 +213,19 @@ Notice that there are two events that share the same shader code. This is a work
 | Offset adjustment mode                            | 0.0.6   |                                                                                                                                   | ✅ Done             | 延迟调整模式                     |
 | Full support for the extended event layer         | 0.0.6   | GIF events & incline events                                                                                                       | ✅ Done             | 扩展事件层的完全适配             |
 | Support for all note properties                   | 0.0.7   |                                                                                                                                   | ✅ Done             | 所有 Note 属性的适配             |
-| Better input detections                           | 0.0.8   | Especially for Flicks                                                                                                             | ✅ Done             | 输入检测优化                     |
+| Better input detections                           | 0.0.8   | Especially for Flicks                                                                                                             | ✅ Done<sup>2</sup> | 输入检测优化                     |
 | Full RPE support                                  | 0.1.0   |                                                                                                                                   | ✅ Done             | 完全 RPE 适配                    |
 | Web deployment                                    | 0.1.0   |                                                                                                                                   | ✅ Done             | Web 部署                         |
 | Optimized shader node insertion logic             | 0.1.1   |                                                                                                                                   | ✅ Done             | 着色器节点插入逻辑优化           |
 | New version notification                          | 0.1.1   |                                                                                                                                   | ✅ Done             | 新版本通知                       |
 | File association                                  | 0.1.2   | For desktop distributions                                                                                                         | ✅ Done             | 文件关联                         |
-| Send intent                                       | 0.1.2   |                                                                                                                                   | ✅ Done<sup>2</sup> | 发送意图                         |
+| Send intent                                       | 0.1.2   |                                                                                                                                   | ✅ Done<sup>3</sup> | 发送意图                         |
 | Channel messaging                                 | 0.1.2   | Send/receive message events                                                                                                       | ✅ Done             | 频道通信                         |
 | PE support                                        | 0.1.2   |                                                                                                                                   | ✅ Done             | PE 适配                          |
 | Keyboard input                                    | 0.1.2   |                                                                                                                                   | ✅ Done             | 键盘输入                         |
-| Rendering mode                                    | 0.2.0   |                                                                                                                                   | 🚧 Working          | 渲染模式                         |
+| Rendering mode                                    | 0.2.0   |                                                                                                                                   | ✅ Done<sup>4</sup> | 渲染模式                         |
 | Customizable resource pack                        | 0.2.0   |                                                                                                                                   | 🚧 Working          | 可自定义资源包                   |
-| Local chart bundle storage                        | 0.2.1   |                                                                                                                                   |                     | 本地谱包存储                     |
+| Local storage                                     | 0.2.1   |                                                                                                                                   | 🚧 Working          | 本地存储                         |
 | Alignment with official/RPE constants             | 0.2.2   | Hold tolerances, texture size units, etc.                                                                                         | 🚧 Working          | 官/RPE 常数对齐                  |
 | Optimization                                      | 0.2.2   |                                                                                                                                   | 🚧 Working          | 优化                             |
 | Streaming mode                                    | 0.3.0   |                                                                                                                                   | ⏳ Postponed        | 流转模式                         |
@@ -237,7 +237,9 @@ Notice that there are two events that share the same shader code. This is a work
 | Sceneplex                                         | 2.1.0   | UML/DSL for fully-customizable scenes                                                                                             |                     | 场景综合演绎                     |
 
 <sup>1</sup> Support for fragment shaders is partial, due to WebGL relying on an older version of GLSL.  
-<sup>2</sup> The app currently shows up for `application/zip` and `application/octet-stream` files on Android and any type of files on iOS/iPadOS. This is not the desired behavior and is subject to change.
+<sup>2</sup> The feature needs improving.  
+<sup>3</sup> The app currently shows up for `application/zip` and `application/octet-stream` files on Android and any type of files on iOS/iPadOS. This is not the desired behavior and is subject to change.  
+<sup>4</sup> The feature is usable but not efficient. Major refactorizations might take place.
 
 A version is reached when at least one feature from the current or future versions is marked as `🚧 Working` and all features from the previous versions are marked as `✅ Done`. A version is released only when all features from both the current and preceding versions are marked as `✅ Done`.
 
@@ -286,12 +288,12 @@ game
 │       DragHL.png
 │       Flick.png
 │       FlickHL.png
-│       Hold.png
+│       HoldBody.png
+│       HoldBodyHL.png
 │       HoldTail.png
 │       HoldTailHL.png
 │       HoldHead.png
 │       HoldHeadHL.png
-│       HoldHL.png
 │       Tap.png
 │       TapHL.png
 │
