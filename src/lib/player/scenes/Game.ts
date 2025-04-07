@@ -719,7 +719,7 @@ export class Game extends Scene {
   }
 
   async startRendering() {
-    this._renderer = new Renderer(this, this._data.mediaOptions);
+    this._renderer = new Renderer(this, this._data.mediaOptions, this._resultsMusic);
     await this._renderer.setup();
     this.start();
   }

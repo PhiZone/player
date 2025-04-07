@@ -1,4 +1,4 @@
-import type { MediaOptions } from '$lib/types';
+import type { MediaOptions, ResultsMusic } from '$lib/types';
 import { EventBus } from '../EventBus';
 import { combineStreams, convertAudio, finishVideo, setupVideo } from './ffmpeg/tauri';
 import type { Game } from '../scenes/Game';
@@ -22,17 +22,24 @@ export class Renderer {
   private _isRendering: boolean = false;
   private _isStopped: boolean = false;
   private _resultsLoopsToRender: number;
+  private _resultsLoopDuration: number;
+  private _resultsDuration: number;
+  private _resultsBpm: number;
   private _tempDir: string;
   private _length: number;
 
   private _worker: Worker;
 
-  constructor(scene: Game, mediaOptions: MediaOptions) {
+  constructor(scene: Game, mediaOptions: MediaOptions, resultsMusic: ResultsMusic<string>) {
     this._scene = scene;
     this._options = mediaOptions;
     this._started = scene.game.getTime();
+    this._resultsBpm = resultsMusic.bpm;
+    const beatLength = 6e4 / this._resultsBpm;
     this._resultsLoopsToRender = mediaOptions.resultsLoopsToRender;
-    this._length = scene.song.duration + 2 + (mediaOptions.resultsLoopsToRender * 192) / 7;
+    this._resultsLoopDuration = beatLength * resultsMusic.beats;
+    this._resultsDuration = this._resultsLoopsToRender * this._resultsLoopDuration;
+    this._length = scene.song.duration + 2 + this._resultsDuration;
     this._worker = new Worker();
   }
 
@@ -143,10 +150,10 @@ export class Renderer {
             { key: 'flick', data: await urlToBase64(`${base}/game/hitsounds/Flick.wav`) },
           ]
         : []),
-      ...(this._scene.preferences.hitSoundVolume > 0 && Math.ceil(this._resultsLoopsToRender) > 0
+      ...(this._scene.preferences.hitSoundVolume > 0 && Math.ceil(this._resultsDuration) > 0
         ? [{ key: 'grade-hit', data: await urlToBase64(`${base}/game/ending/GradeHit.wav`) }]
         : []),
-      ...(this._scene.preferences.musicVolume > 0 && Math.ceil(this._resultsLoopsToRender) > 0
+      ...(this._scene.preferences.musicVolume > 0 && Math.ceil(this._resultsDuration) > 0
         ? [
             {
               key: 'results',
@@ -161,7 +168,7 @@ export class Renderer {
       ...Array.from(
         {
           length:
-            this._scene.preferences.hitSoundVolume > 0 && Math.ceil(this._resultsLoopsToRender) > 0
+            this._scene.preferences.hitSoundVolume > 0 && Math.ceil(this._resultsDuration) > 0
               ? 1
               : 0,
         },
@@ -169,16 +176,19 @@ export class Renderer {
           sound: 'grade-hit',
           time: this._scene.song.duration + 2,
           volume: this._scene.preferences.hitSoundVolume,
+          rate: this._resultsBpm / 140,
         }),
       ),
       ...Array.from(
         {
           length:
-            this._scene.preferences.musicVolume > 0 ? Math.ceil(this._resultsLoopsToRender) : 0,
+            this._scene.preferences.musicVolume > 0 && Math.ceil(this._resultsDuration) > 0
+              ? Math.ceil(this._resultsLoopsToRender)
+              : 0,
         },
         (_, i) => ({
           sound: 'results',
-          time: this._scene.song.duration + 2 + (i * 192) / 7,
+          time: this._scene.song.duration + 2 + i * this._resultsLoopDuration,
           volume: this._scene.preferences.musicVolume,
         }),
       ),

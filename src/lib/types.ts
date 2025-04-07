@@ -508,6 +508,7 @@ export interface Timestamp {
   sound: string;
   time: number;
   volume: number;
+  rate?: number;
 }
 
 export type IncomingMessage = BlobInputMessage | UrlInputMessage | PlayMessage;

@@ -17,7 +17,14 @@ pub struct Timestamp {
     sound: String,
     time: f64,   // Time in seconds after stream start
     volume: f32, // Volume level (0.0 - 1.0)
+    #[serde(default = "default_rate")]
+    rate: f32, // Playback rate (1.0 is normal speed)
 }
+
+fn default_rate() -> f32 {
+    1.0
+}
+
 pub fn mix_audio(
     app: AppHandle,
     sounds: Vec<Sound>,
@@ -31,21 +38,24 @@ pub fn mix_audio(
             let mut decoded_sound_map: HashMap<String, Vec<f32>> = HashMap::new();
 
             for sound in sounds {
-                let sound_data = if sound.data.starts_with("data:") || sound.data.contains(";base64,") {
-                    let base64_data = sound.data.split(",").last().unwrap_or(&sound.data);
-                    STANDARD.decode(base64_data).map_err(|e| {
-                        format!("Error decoding base64 sound data for {}: {}", sound.key, e)
-                    })?
-                } else {
-                    std::fs::read(&sound.data).map_err(|e| {
-                        format!("Error reading sound file {} for {}: {}", sound.data, sound.key, e)
-                    })?
-                };
+                let sound_data =
+                    if sound.data.starts_with("data:") || sound.data.contains(";base64,") {
+                        let base64_data = sound.data.split(",").last().unwrap_or(&sound.data);
+                        STANDARD.decode(base64_data).map_err(|e| {
+                            format!("Error decoding base64 sound data for {}: {}", sound.key, e)
+                        })?
+                    } else {
+                        std::fs::read(&sound.data).map_err(|e| {
+                            format!(
+                                "Error reading sound file {} for {}: {}",
+                                sound.data, sound.key, e
+                            )
+                        })?
+                    };
 
                 let cursor = Cursor::new(sound_data);
-                let source = Decoder::new(cursor).map_err(|e| {
-                    format!("Error decoding audio for {}: {}", sound.key, e)
-                })?;
+                let source = Decoder::new(cursor)
+                    .map_err(|e| format!("Error decoding audio for {}: {}", sound.key, e))?;
 
                 let decoded_samples: Vec<f32> = source
                     .map(|sample| sample as f32 / i16::MAX as f32) // i16 -> f32
@@ -80,12 +90,50 @@ pub fn mix_audio(
                 let position_begin =
                     (timestamp.time * spec.sample_rate as f64).round() as usize * 2;
 
-                for (i, sample) in sound_samples.iter().enumerate() {
-                    let slice = &mut combined_samples[position_begin..];
-                    if i >= slice.len() {
-                        break;
+                // Handle playback rate
+                if timestamp.rate == 1.0 {
+                    // Normal playback rate, no interpolation needed
+                    for (i, sample) in sound_samples.iter().enumerate() {
+                        let slice = &mut combined_samples[position_begin..];
+                        if i >= slice.len() {
+                            break;
+                        }
+                        slice[i] += sample * timestamp.volume;
                     }
-                    slice[i] += sample * timestamp.volume;
+                } else {
+                    // Adjusted playback rate using linear interpolation
+                    let sample_count = sound_samples.len();
+                    let mut source_idx: f32 = 0.0;
+
+                    let mut i = 0;
+                    while source_idx < sample_count as f32
+                        && i < combined_samples.len() - position_begin
+                    {
+                        let source_idx_floor = source_idx.floor() as usize;
+                        let source_idx_ceil = source_idx.ceil() as usize;
+
+                        if source_idx_ceil >= sample_count {
+                            break;
+                        }
+
+                        let frac = source_idx - source_idx_floor as f32;
+                        let sample = if source_idx_floor == source_idx_ceil {
+                            sound_samples[source_idx_floor]
+                        } else {
+                            // Linear interpolation between adjacent samples
+                            let s1 = sound_samples[source_idx_floor];
+                            let s2 = sound_samples[source_idx_ceil];
+                            s1 * (1.0 - frac) + s2 * frac
+                        };
+
+                        let output_idx = position_begin + i;
+                        if output_idx < combined_samples.len() {
+                            combined_samples[output_idx] += sample * timestamp.volume;
+                        }
+
+                        i += 1;
+                        source_idx += timestamp.rate;
+                    }
                 }
             }
 
