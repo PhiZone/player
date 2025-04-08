@@ -70,6 +70,7 @@ export interface MediaOptions {
   videoCodec: string;
   videoBitrate: number;
   audioBitrate: number;
+  vsync: boolean;
   exportPath?: string;
 }
 

@@ -83,16 +83,13 @@ export class Renderer {
     this._isRendering = true;
     EventBus.emit('rendering-detail', 'Rendering frames');
 
-    this._scene.game.loop.stop();
-    this.setTick(0);
-
     const sharedBuffer = new SharedArrayBuffer(canvas.width * canvas.height * 3);
     const sharedView = new Uint8Array(sharedBuffer);
     const rawBufferView = new Uint8Array(new ArrayBuffer(canvas.width * canvas.height * 4));
 
     this._worker.postMessage({ type: 'init', buffer: sharedBuffer });
 
-    this._scene.game.events.addListener('postrender', () => {
+    this._scene.game.events.on('prerender', () => {
       if (this._isStopped) return;
 
       (this._scene.renderer as Phaser.Renderer.WebGL.WebGLRenderer).snapshot(
@@ -110,7 +107,9 @@ export class Renderer {
         rawBufferView,
       );
 
-      if (this._isRendering) {
+      if (this._options.vsync) {
+        this._isRendering = false;
+      } else if (this._isRendering) {
         this.setTick(this._frameCount / frameRate);
       }
     });
@@ -124,6 +123,9 @@ export class Renderer {
       EventBus.emit('rendering-detail', 'Finished');
       await remove(this._tempDir, { recursive: true });
     });
+
+    this._scene.game.loop.stop();
+    this.setTick(0);
   }
 
   async setTick(progress: number) {

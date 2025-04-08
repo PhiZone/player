@@ -13,8 +13,8 @@
     "windows": [
       {
         "title": "PhiZone Player",
-        "width": 1200,
-        "height": 900,
+        "width": 1680,
+        "height": 945,
         "resizable": true,
         "fullscreen": false
       }

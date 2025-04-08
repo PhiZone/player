@@ -176,6 +176,7 @@
     videoCodec: 'libx264',
     videoBitrate: 6000,
     audioBitrate: 320,
+    vsync: true,
     exportPath: undefined,
   };
   let mediaResolutionWidth = 1620;
@@ -2209,7 +2210,21 @@
                           </div>
                         </div>
                       </div>
-                      <div class="sm:col-span-3 md:col-span-1 lg:col-span-3">
+                      <div class="sm:col-span-2 md:col-span-1 lg:col-span-2">
+                        <span class="block text-left text-sm font-medium mb-1 dark:text-white">
+                          Vsync
+                        </span>
+                        <div class="relative">
+                          <select
+                            bind:value={mediaOptions.vsync}
+                            class="form-select py-3 px-4 pe-8 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                          >
+                            <option value={true}>On</option>
+                            <option value={false}>Off</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div class="sm:col-span-2 md:col-span-1 lg:col-span-2">
                         <span class="block text-left text-sm font-medium mb-1 dark:text-white">
                           Results loops
                         </span>
@@ -2223,7 +2238,7 @@
                           />
                         </div>
                       </div>
-                      <div class="sm:col-span-3 md:col-span-1 lg:col-span-3">
+                      <div class="sm:col-span-2 md:col-span-1 lg:col-span-2">
                         <span class="block text-left text-sm font-medium mb-1 dark:text-white">
                           Audio bitrate
                         </span>

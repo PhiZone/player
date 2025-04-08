@@ -445,6 +445,7 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
   const videoCodec = p.get('videoCodec') ?? 'libx264';
   const videoBitrate = parseInt(p.get('videoBitrate') ?? '6000');
   const audioBitrate = parseInt(p.get('audioBitrate') ?? '320');
+  const vsync = ['1', 'true'].some((v) => v == (p.get('vsync') ?? '1'));
   const exportPath = p.get('exportPath') ?? undefined;
 
   const autoplay = ['1', 'true'].some((v) => v == p.get('autoplay'));
@@ -512,6 +513,7 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
       videoCodec,
       videoBitrate,
       audioBitrate,
+      vsync,
       exportPath,
     },
     resourcePack,

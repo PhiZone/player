@@ -63,6 +63,7 @@ class FrameSender {
     const frame = new Uint8Array(new ArrayBuffer(this._sharedView.length));
     frame.set(this._sharedView);
     this._frameQueue.push(frame);
+    this.dispatch(true);
     this.sendFrame();
   }
 
