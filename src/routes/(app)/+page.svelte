@@ -200,7 +200,7 @@
 
   let timeouts: NodeJS.Timeout[] = [];
 
-  let isFFmpegAvailable = true;
+  let isRenderingAvailable = true;
   let ffmpegEncoders: FFmpegEncoder[] | undefined;
 
   let isFirstLoad = !page.url.searchParams.get('t');
@@ -315,7 +315,7 @@
         await handleFilePaths(filePaths, handler);
       });
       if (isFirstLoad) {
-        ffmpegEncoders = await getEncoders();
+        if (crossOriginIsolated) ffmpegEncoders = await getEncoders();
         const result = await invoke('get_files_opened');
         if (result) {
           await handleFilePaths(result as string[], handler);
@@ -654,6 +654,19 @@
         : (pack.fonts.at(0) as Font<string> | undefined)?.file)
     );
 
+  const setupRendering = async () => {
+    if (!crossOriginIsolated) {
+      isRenderingAvailable = false;
+      ffmpegEncoders = [];
+      alert(
+        'Rendering is not available in this environment. Please switch to a different OS or enable cross-origin isolation.',
+      );
+      return false;
+    }
+    await setupFFmpeg();
+    return true;
+  };
+
   const setupFFmpeg = async () => {
     if (ffmpegEncoders === undefined) {
       const link = getFFmpegDownloadLink();
@@ -674,7 +687,7 @@
         ffmpegEncoders = await getEncoders();
         declareFinished();
       } else {
-        isFFmpegAvailable = false;
+        isRenderingAvailable = false;
       }
     }
   };
@@ -1340,7 +1353,7 @@
 
     if (IS_TAURI) {
       if (toggles.render) {
-        await setupFFmpeg();
+        await setupRendering();
       }
       monitor = await currentMonitor();
       if (Capacitor.getPlatform() === 'web' && toggles.newTab) {
@@ -2006,13 +2019,13 @@
                   class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
                   aria-describedby="adjust-offset-description"
                   bind:checked={toggles.adjustOffset}
-                  disabled={!toggles.autoplay || (isFFmpegAvailable && toggles.render)}
+                  disabled={!toggles.autoplay || (isRenderingAvailable && toggles.render)}
                 />
               </div>
               <label
                 for="adjust-offset"
                 class="ms-3 transition"
-                class:opacity-50={!toggles.autoplay || (isFFmpegAvailable && toggles.render)}
+                class:opacity-50={!toggles.autoplay || (isRenderingAvailable && toggles.render)}
               >
                 <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
                   Adjust offset
@@ -2035,13 +2048,13 @@
                   class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
                   aria-describedby="practice-description"
                   bind:checked={toggles.practice}
-                  disabled={toggles.autoplay || (isFFmpegAvailable && toggles.render)}
+                  disabled={toggles.autoplay || (isRenderingAvailable && toggles.render)}
                 />
               </div>
               <label
                 for="practice"
                 class="ms-3 transition"
-                class:opacity-50={toggles.autoplay || (isFFmpegAvailable && toggles.render)}
+                class:opacity-50={toggles.autoplay || (isRenderingAvailable && toggles.render)}
               >
                 <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
                   Practice
@@ -2056,13 +2069,13 @@
             </div>
             {#if IS_TAURI}
               <div
-                class="flex flex-col {!isFFmpegAvailable
+                class="flex flex-col {!isRenderingAvailable && ffmpegEncoders === undefined
                   ? 'tooltip'
                   : overrideResolution &&
                       (mediaResolutionWidth % 2 === 1 || mediaResolutionHeight % 2 === 1)
                     ? 'tooltip tooltip-warning'
                     : ''}"
-                data-tip={!isFFmpegAvailable
+                data-tip={!isRenderingAvailable && ffmpegEncoders === undefined
                   ? 'FFmpeg could not be found on your system.'
                   : 'Some encoders may not support resolutions with odd dimensions.'}
               >
@@ -2075,26 +2088,28 @@
                       class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
                       aria-describedby="render-description"
                       checked={toggles.render}
-                      disabled={!isFFmpegAvailable}
-                      oninput={(e) => {
+                      disabled={!isRenderingAvailable}
+                      oninput={async (e) => {
+                        if (e.currentTarget.checked && !(await setupRendering())) {
+                          e.currentTarget.checked = false;
+                        }
                         toggles.render = e.currentTarget.checked;
                         if (toggles.render) {
                           toggles.autoplay = true;
                           toggles.adjustOffset = false;
                           toggles.practice = false;
                           toggles.autostart = true;
-                          setupFFmpeg();
                         }
                       }}
                     />
                   </div>
-                  <label for="render" class="ms-3" class:opacity-50={!isFFmpegAvailable}>
+                  <label for="render" class="ms-3" class:opacity-50={!isRenderingAvailable}>
                     <button
                       class="flex items-center gap-1 text-sm font-semibold text-gray-800 dark:text-neutral-300 disabled:pointer-events-none"
-                      disabled={!isFFmpegAvailable}
-                      onclick={() => {
+                      disabled={!isRenderingAvailable}
+                      onclick={async () => {
                         showMediaCollapse = !showMediaCollapse;
-                        setupFFmpeg();
+                        await setupRendering();
                       }}
                     >
                       <p>Render</p>
@@ -2295,13 +2310,13 @@
                   class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
                   aria-describedby="autostart-description"
                   bind:checked={toggles.autostart}
-                  disabled={isFFmpegAvailable && toggles.render}
+                  disabled={isRenderingAvailable && toggles.render}
                 />
               </div>
               <label
                 for="autostart"
                 class="ms-3"
-                class:opacity-50={isFFmpegAvailable && toggles.render}
+                class:opacity-50={isRenderingAvailable && toggles.render}
               >
                 <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
                   Autostart
