@@ -101,6 +101,10 @@ export class Renderer {
           }
           this._worker.postMessage({ type: 'frame', frameNumber: this._frameCount++ });
           EventBus.emit('rendering', this._frameCount);
+
+          if (!this._options.vsync && this._isRendering) {
+            this.setTick(this._frameCount / frameRate);
+          }
         },
         'raw',
         undefined,
@@ -109,8 +113,6 @@ export class Renderer {
 
       if (this._options.vsync) {
         this._isRendering = false;
-      } else if (this._isRendering) {
-        this.setTick(this._frameCount / frameRate);
       }
     });
 
