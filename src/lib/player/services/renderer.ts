@@ -35,7 +35,7 @@ export class Renderer {
     this._options = mediaOptions;
     this._started = scene.game.getTime();
     this._resultsBpm = resultsMusic.bpm;
-    const beatLength = 6e4 / this._resultsBpm;
+    const beatLength = 60 / this._resultsBpm;
     this._resultsLoopsToRender = mediaOptions.resultsLoopsToRender;
     this._resultsLoopDuration = beatLength * resultsMusic.beats;
     this._resultsDuration = this._resultsLoopsToRender * this._resultsLoopDuration;
