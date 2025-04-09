@@ -16,6 +16,7 @@ class FrameSender {
   private _renderedFrameCount: number = 0;
   private _processedFrameCount: number = 0;
   private _sentFrameCount: number = 0;
+  private _timeout: NodeJS.Timeout | null = null;
 
   constructor() {
     this._ws = new WebSocket(WEBSOCKET_URL);
@@ -63,8 +64,10 @@ class FrameSender {
     const frame = new Uint8Array(new ArrayBuffer(this._sharedView.length));
     frame.set(this._sharedView);
     this._frameQueue.push(frame);
-    this.dispatch(true);
-    this.sendFrame();
+    if (this._wsState !== WebSocketState.PAUSED) {
+      this.dispatch(true);
+      this.sendFrame();
+    }
   }
 
   async sendFrame() {
@@ -76,7 +79,12 @@ class FrameSender {
       return;
 
     if (this._wsState === WebSocketState.PAUSED) {
-      setTimeout(() => this.sendFrame(), 100);
+      if (!this._timeout) {
+        this._timeout = setTimeout(() => {
+          this._timeout = null;
+          this.sendFrame();
+        }, 100);
+      }
       return;
     }
 
