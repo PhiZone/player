@@ -19,8 +19,9 @@ export class LongNote extends GameObjects.Container {
   private _xModifier: 1 | -1 = 1;
   private _yModifier: 1 | -1;
   private _head: GameObjects.Image;
-  private _body: GameObjects.Image;
+  private _body: GameObjects.Image | GameObjects.TileSprite;
   private _tail: GameObjects.Image;
+  private _isBodyRepeat: boolean = false;
   private _bodyHeight: number;
   private _hitTime: number;
   private _targetHeadHeight: number = 0;
@@ -44,7 +45,10 @@ export class LongNote extends GameObjects.Container {
     this._data = data;
     this._yModifier = data.above ? -1 : 1;
     this._head = new GameObjects.Image(scene, 0, 0, `2-h${highlight ? '-hl' : ''}`);
-    this._body = new GameObjects.Image(scene, 0, 0, `2${highlight ? '-hl' : ''}`);
+    this._isBodyRepeat = scene.respack.isHoldBodyRepeat();
+    this._body = this._isBodyRepeat
+      ? new GameObjects.TileSprite(scene, 0, 0, 0, 0, `2${highlight ? '-hl' : ''}`)
+      : new GameObjects.Image(scene, 0, 0, `2${highlight ? '-hl' : ''}`);
     this._tail = new GameObjects.Image(scene, 0, 0, `2-t${highlight ? '-hl' : ''}`);
     this._head.setOrigin(0.5, scene.respack.isHoldCompact() ? 1 : 0);
     this._body.setOrigin(0.5, 1);
@@ -114,12 +118,13 @@ export class LongNote extends GameObjects.Container {
     this._head.setY(this._yModifier * headDist);
     this._body.setY(this._yModifier * (this._line.data.isCover ? Math.max(0, headDist) : headDist));
     this._tail.setY(this._yModifier * tailDist);
-    this._body.scaleY =
-      (-this._yModifier *
-        (this._line.data.isCover
-          ? Math.max(0, tailDist - Math.max(0, headDist))
-          : Math.max(0, tailDist - headDist))) /
-      this._bodyHeight;
+    const bodyHeight =
+      -this._yModifier *
+      (this._line.data.isCover
+        ? Math.max(0, tailDist - Math.max(0, headDist))
+        : Math.max(0, tailDist - headDist));
+    if (this._isBodyRepeat) this._body.height = bodyHeight;
+    else this._body.scaleY = bodyHeight / this._bodyHeight;
     if (this._data.isFake) {
       if (this._judgmentType !== JudgmentType.PASSED && beat >= this._data.endBeat)
         this._judgmentType = JudgmentType.PASSED;
@@ -217,7 +222,7 @@ export class LongNote extends GameObjects.Container {
       (989 / this._scene.skinSize) *
       this._scene.p(NOTE_BASE_SIZE * this._scene.preferences.noteSize);
     this._head.setScale(this._data.size * scale, -this._yModifier * scale);
-    this._body.scaleX = this._data.size * scale;
+    this._body.setScale(this._data.size * scale, scale);
     this._tail.setScale(this._data.size * scale, -this._yModifier * scale);
   }
 
