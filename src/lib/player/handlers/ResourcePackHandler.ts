@@ -77,6 +77,11 @@ export class ResourcePackHandler {
     return this._pack.options?.holdCompact ?? false;
   }
 
+  isHoldKeepHead() {
+    console.log(this._pack.options);
+    return this._pack.options?.holdKeepHead ?? false;
+  }
+
   public get name() {
     return this._pack.name;
   }

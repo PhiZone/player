@@ -606,6 +606,7 @@ export interface ResourcePack<T> {
   options?: {
     holdBodyRepeat?: boolean;
     holdCompact?: boolean;
+    holdKeepHead?: boolean;
   };
 }
 
@@ -701,6 +702,7 @@ export interface PhiraResourcePack {
   hideParticles?: boolean;
   holdRepeat?: boolean;
   holdCompact?: boolean;
+  holdKeepHead?: boolean;
   colorPerfect?: number;
   colorGood?: number;
 }

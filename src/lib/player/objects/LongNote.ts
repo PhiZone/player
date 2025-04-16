@@ -22,6 +22,7 @@ export class LongNote extends GameObjects.Container {
   private _body: GameObjects.Image | GameObjects.TileSprite;
   private _tail: GameObjects.Image;
   private _isBodyRepeat: boolean = false;
+  private _isKeepHead: boolean = false;
   private _bodyHeight: number;
   private _hitTime: number;
   private _targetHeadHeight: number = 0;
@@ -46,11 +47,12 @@ export class LongNote extends GameObjects.Container {
     this._yModifier = data.above ? -1 : 1;
     this._head = new GameObjects.Image(scene, 0, 0, `2-h${highlight ? '-hl' : ''}`);
     this._isBodyRepeat = scene.respack.isHoldBodyRepeat();
+    this._isKeepHead = scene.respack.isHoldKeepHead();
     this._body = this._isBodyRepeat
       ? new GameObjects.TileSprite(scene, 0, 0, 0, 0, `2${highlight ? '-hl' : ''}`)
       : new GameObjects.Image(scene, 0, 0, `2${highlight ? '-hl' : ''}`);
     this._tail = new GameObjects.Image(scene, 0, 0, `2-t${highlight ? '-hl' : ''}`);
-    this._head.setOrigin(0.5, scene.respack.isHoldCompact() ? 1 : 0);
+    this._head.setOrigin(0.5, this._isKeepHead ? 0.5 : scene.respack.isHoldCompact() ? 1 : 0);
     this._body.setOrigin(0.5, 1);
     this._tail.setOrigin(0.5, scene.respack.isHoldCompact() ? 0 : 1);
     this.resize();
@@ -61,7 +63,7 @@ export class LongNote extends GameObjects.Container {
     this._bodyHeight = this._body.texture.getSourceImage().height;
     this._hitTime = getTimeSec(scene.bpmList, data.startBeat);
 
-    this.add([this._head, this._body, this._tail]);
+    this.add([this._body, this._tail, this._head]);
 
     if ([1, 2].includes(scene.preferences.chartFlipping)) {
       this._xModifier = -1;
@@ -95,13 +97,15 @@ export class LongNote extends GameObjects.Container {
     }
 
     if (beat > this._data.startBeat) {
-      this._head.setVisible(false);
+      this._head.setVisible(this._isKeepHead && beat <= this._data.endBeat);
       headDist = yOffset;
     } else {
       this._head.setVisible(
         visible &&
           songTime >= this._hitTime - this._data.visibleTime &&
-          (headDist * this._data.speed >= 0 || !this._line.data.isCover),
+          (headDist * this._data.speed >= 0 ||
+            !this._line.data.isCover ||
+            (this._isKeepHead && beat <= this._data.endBeat)),
       );
     }
     if (beat > this._data.endBeat) {

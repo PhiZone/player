@@ -911,6 +911,7 @@
       options: {
         holdBodyRepeat: metadata.options?.holdBodyRepeat,
         holdCompact: metadata.options?.holdCompact,
+        holdKeepHead: metadata.options?.holdKeepHead,
       },
     };
 
@@ -1023,6 +1024,7 @@
       options: {
         holdBodyRepeat: metadata.holdRepeat,
         holdCompact: metadata.holdCompact,
+        holdKeepHead: metadata.holdKeepHead,
       },
     };
   };
