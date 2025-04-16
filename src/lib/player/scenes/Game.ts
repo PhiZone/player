@@ -678,9 +678,9 @@ export class Game extends Scene {
     });
 
     const precedences = calculatePrecedences(this._chart.judgeLineList.map((data) => data.zOrder));
-    const moments = findHighlightMoments(
-      this._chart.judgeLineList.map((line) => line.notes ?? []).flat(),
-    );
+    const moments = this._data.preferences.simultaneousNoteHint
+      ? findHighlightMoments(this._chart.judgeLineList.map((line) => line.notes ?? []).flat())
+      : [];
     this._lines = this._chart.judgeLineList.map(
       (data, i) => new Line(this, data, i, precedences.get(data.zOrder)!, moments),
     );
