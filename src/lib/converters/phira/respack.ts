@@ -40,9 +40,9 @@ export const convertHoldAtlas = async (
   }
 
   // Calculate dimensions for each part
-  const upperHeight = bounds[1];
+  const upperHeight = bounds[0];
   const middleHeight = height - bounds[0] - bounds[1];
-  const lowerHeight = bounds[0];
+  const lowerHeight = bounds[1];
 
   // Create image element from file
   const imgSrc = await new Promise<string>((resolve, reject) => {
