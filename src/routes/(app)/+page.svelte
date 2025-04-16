@@ -1194,6 +1194,9 @@
       selectedChart = currentBundle.chart;
       selectedIllustration = currentBundle.illustration;
     }
+    if (resourcePacks.length > 1 && selectedResourcePack === DEFAULT_RESOURCE_PACK_ID) {
+      selectedResourcePack = resourcePacks[1].id;
+    }
     chartFiles = chartFiles;
     audioFiles = audioFiles;
     imageFiles = imageFiles;
