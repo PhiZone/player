@@ -4,7 +4,10 @@ import { toBlobURL } from '@ffmpeg/util';
 import { base } from '$app/paths';
 
 const ffmpeg = new FFmpeg();
-const baseURL = 'PUBLIC_FFMPEG_URL' in env ? (env.PUBLIC_FFMPEG_URL as string) : `${base}/ffmpeg`;
+const baseURL =
+  'PUBLIC_FFMPEG_URL' in env && env.PUBLIC_FFMPEG_URL
+    ? (env.PUBLIC_FFMPEG_URL as string)
+    : `${base}/ffmpeg`;
 
 export const loadFFmpeg = async (
   callback?: ({
