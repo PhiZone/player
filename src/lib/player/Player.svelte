@@ -299,6 +299,7 @@
   });
 
   const exit = () => {
+    localStorage.removeItem('player');
     if (IS_TAURI) {
       getCurrentWebviewWindow().setProgressBar({
         status: ProgressBarStatus.None,

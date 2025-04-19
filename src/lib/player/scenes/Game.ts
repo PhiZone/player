@@ -130,7 +130,6 @@ export class Game extends Scene {
       return;
     }
     this._data = JSON.parse(val);
-    localStorage.removeItem('player');
   }
 
   preload() {
