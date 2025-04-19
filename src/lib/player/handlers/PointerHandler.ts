@@ -132,7 +132,9 @@ export class PointerHandler {
     const drag = this._pointerDrags
       .filter((input) => {
         return (
-          input.distance <= this._scene.p(JUDGMENT_THRESHOLD) &&
+          input.distance <=
+            this._scene.p(JUDGMENT_THRESHOLD) *
+              (note.note.judgeSize > 0 ? note.note.judgeSize : Infinity) &&
           (!requireVelocity ||
             (input.velocity.lengthSq() > 0 &&
               (!input.velocityConsumed || input.velocity.dot(input.velocityConsumed) < 0)))

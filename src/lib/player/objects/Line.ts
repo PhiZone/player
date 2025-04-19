@@ -176,6 +176,7 @@ export class Line {
       this._data.notes.forEach((note) => {
         note.startBeat = toBeats(note.startTime);
         note.endBeat = toBeats(note.endTime);
+        note.judgeSize ??= note.size;
       });
       this._data.notes.sort((a, b) => a.startBeat - b.startBeat);
       this._data.notes.forEach((data, i) => {

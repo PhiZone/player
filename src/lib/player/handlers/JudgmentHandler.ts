@@ -209,7 +209,7 @@ export class JudgmentHandler {
             ) *
               1350) /
               this._scene.sys.canvas.width <=
-            threshold,
+            threshold * (note.note.judgeSize > 0 ? note.note.judgeSize : Infinity),
         );
     for (const note of currentJudgeWindow) {
       if (!note.consumeTap || note.isTapped || note.judgmentType !== JudgmentType.UNJUDGED) {

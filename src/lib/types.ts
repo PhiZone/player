@@ -166,6 +166,7 @@ export interface Note {
   zIndexHitEffects?: number;
   tint?: [number, number, number] | null;
   tintHitEffects?: [number, number, number] | null;
+  judgeSize: number;
 }
 
 export interface Extended {
