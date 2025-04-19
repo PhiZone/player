@@ -1337,7 +1337,7 @@
   const start = async (config: Config) => {
     localStorage.setItem('player', JSON.stringify(config));
 
-    const { resourcePack, ...rest } = config;
+    const { resourcePack, metadata, preferences, resources, mediaOptions, ...rest } = config;
 
     const paramsString = queryString.stringify(
       {
@@ -1345,6 +1345,10 @@
           resourcePack === DEFAULT_RESOURCE_PACK
             ? null
             : encodeURIComponent(JSON.stringify(resourcePack)),
+        ...metadata,
+        ...preferences,
+        ...resources,
+        ...mediaOptions,
         ...rest,
       },
       {
