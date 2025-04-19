@@ -178,6 +178,111 @@ Notice that there are two events that share the same shader code. This is a work
 
 </details>
 
+### Customizable resource pack
+
+We have support for Phira resource packs (except for `hitFxScale`, `hitFxRotate`, `hitFxTinted`). Moreover, we've designed a new format to allow for more customizations:
+
+- Root:
+
+  | Property                 | Type                        | Description                                                                                                                                                                                                       |
+  | ------------------------ | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | `name`                   | String                      | The name of the resource pack.                                                                                                                                                                                    |
+  | `author`                 | String                      | The author of the resource pack.                                                                                                                                                                                  |
+  | `description` (optional) | String                      | The description of the resource pack.                                                                                                                                                                             |
+  | `thumbnail` (optional)   | String                      | The file name of the thumbnail image of the resource pack.                                                                                                                                                        |
+  | `noteSkins`              | Array of NoteSkin           |                                                                                                                                                                                                                   |
+  | `hitSounds`              | Array of HitSound           |                                                                                                                                                                                                                   |
+  | `hitEffects` (optional)  | HitEffects (object)         |                                                                                                                                                                                                                   |
+  | `ending`                 | Ending (object)             |                                                                                                                                                                                                                   |
+  | `fonts`                  | Array of Font or BitmapFont | The fonts of the resource pack. The first bitmap font will be used by the combo counter, the score and the std deviation & accuracy texts of the UI, and the first vector font by the other components of the UI. |
+  | `options` (optional)     | Options (object)            | The options of the resource pack.                                                                                                                                                                                 |
+
+- NoteSkin:
+
+  | Property | Type   | Description                                                                                                                                |
+  | -------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+  | `name`   | String | One of `Tap`, `TapHL`, `HoldHead`, `HoldBody`, `HoldTail`, `HoldHeadHL`, `HoldBodyHL`, `HoldTailHL`, `Flick`, `FlickHL`, `Drag`, `DragHL`. |
+  | `file`   | String | The file name of the image of the note skin.                                                                                               |
+
+- HitSound:
+
+  | Property | Type   | Description                     |
+  | -------- | ------ | ------------------------------- |
+  | `name`   | String | One of `Tap`, `Flick`, `Drag`.  |
+  | `file`   | String | The file name of the hit sound. |
+
+- HitEffects:
+
+  | Property                  | Type                             | Description                                                       |
+  | ------------------------- | -------------------------------- | ----------------------------------------------------------------- |
+  | `spriteSheet`             | String                           | The file name of the sprite sheet of the hit effects.             |
+  | `frameWidth`              | Number                           | The width of each frame of the sprite sheet.                      |
+  | `frameHeight`             | Number                           | The height of each frame of the sprite sheet.                     |
+  | `frameRate`               | Number                           | The frame rate of the hit effects.                                |
+  | `colorPerfect` (optional) | [Number, Number, Number, Number] | RGBA values (each 0~255) of the perfect color of the hit effects. |
+  | `colorGood` (optional)    | [Number, Number, Number, Number] | RGBA values (each 0~255) of the good color of the hit effects.    |
+  | `particle`                | Particle (object)                | The particle settings of the hit effects.                         |
+
+- Particle:
+
+  | Property | Type                      | Description                                                                                            |
+  | -------- | ------------------------- | ------------------------------------------------------------------------------------------------------ |
+  | `count`  | Number                    | The number of particles to be created in one instance of hit effects.                                  |
+  | `style`  | String                    | One of `circle`, `square`, `polygon`.                                                                  |
+  | `points` | Array of [Number, Number] | The coordinates of the points of a polygon particle. Must be present when `style` is set to `polygon`. |
+
+- Ending:
+
+  | Property | Type                  | Description                                       |
+  | -------- | --------------------- | ------------------------------------------------- |
+  | `grades` | Array of GradeLetter  | The grade letters to display on the ending scene. |
+  | `music`  | Array of ResultsMusic | The audio loops to play on the ending scene.      |
+
+- GradeLetter:
+
+  | Property | Type   | Description                                         |
+  | -------- | ------ | --------------------------------------------------- |
+  | `name`   | String | One of `A`, `B`, `C`, `F`, `Phi`, `S`, `V-FC`, `V`. |
+  | `file`   | String | The file name of the image of the grade letter.     |
+
+- ResultsMusic:
+
+  | Property    | Type   | Description                                                                                       |
+  | ----------- | ------ | ------------------------------------------------------------------------------------------------- |
+  | `levelType` | String | The level type the audio corresponds to. One of `0` (EZ), `1` (HD), `2` (IN), `3` (AT), `4` (SP). |
+  | `beats`     | Number | The beat count of the audio loop.                                                                 |
+  | `bpm`       | Number | The BPM of the audio loop.                                                                        |
+  | `file`      | String | The file name of the audio loop.                                                                  |
+
+- Font:
+
+  | Property | Type   | Description                    |
+  | -------- | ------ | ------------------------------ |
+  | `name`   | String | The name of the font.          |
+  | `type`   | String | One of `truetype`, `opentype`. |
+  | `file`   | String | The file name of the font.     |
+
+- BitmapFont:
+
+  | Property     | Type   | Description                                  |
+  | ------------ | ------ | -------------------------------------------- |
+  | `name`       | String | The name of the bitmap font.                 |
+  | `type`       | String | Must be `bitmap`.                            |
+  | `texture`    | String | The file name of the texture.                |
+  | `descriptor` | String | The file name of the bitmap font descriptor. |
+
+- Options:
+
+  | Property                    | Type    | Description                                                                                        |
+  | --------------------------- | ------- | -------------------------------------------------------------------------------------------------- |
+  | `holdBodyRepeat` (optional) | Boolean | Whether the hold note's body part should be repeated, or otherwise stretched. Defaults to `false`. |
+  | `holdCompact` (optional)    | Boolean | Whether the hold note's head and tail parts should center their anchors. Defaults to `false`.      |
+  | `holdKeepHead` (optional)   | Boolean | Whether the hold note should retain its head part while being played. Defaults to `false`.         |
+
+The above metadata can be stored as a JSON file (`_META.json`) alongside other resource files in a folder or a ZIP archive. Import files the usual way, and the program will automatically detect text files in the format as well as the resource files being referenced.
+
+Export the default resource pack to view an example.
+
 ## Requirements
 
 [`pnpm`](https://pnpm.io/) is required to install dependencies and run scripts.
