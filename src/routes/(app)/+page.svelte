@@ -932,8 +932,7 @@
         filesLocated.push(file);
         return file.file;
       }
-      const message = `Unable to locate ${str} while importing Phira resource pack ${metadata.name}.`;
-      alert(message);
+      const message = `Unable to locate ${str} while converting Phira resource pack ${metadata.name}.`;
       throw new Error(message);
     };
     const results = [
