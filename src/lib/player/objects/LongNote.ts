@@ -23,6 +23,7 @@ export class LongNote extends GameObjects.Container {
   private _tail: GameObjects.Image;
   private _isBodyRepeat: boolean = false;
   private _isKeepHead: boolean = false;
+  private _bodyWidth: number;
   private _bodyHeight: number;
   private _hitTime: number;
   private _targetHeadHeight: number = 0;
@@ -61,8 +62,10 @@ export class LongNote extends GameObjects.Container {
     if (data.tint) {
       this.setTint(rgbToHex(data.tint));
     }
-    this._bodyHeight = this._body.texture.getSourceImage().height;
     this._hitTime = getTimeSec(scene.bpmList, data.startBeat);
+    const bodyTexture = this._body.texture.getSourceImage();
+    this._bodyWidth = bodyTexture.width;
+    this._bodyHeight = bodyTexture.height;
 
     this.add([this._body, this._tail, this._head]);
 
@@ -227,7 +230,13 @@ export class LongNote extends GameObjects.Container {
       (989 / this._scene.skinSize) *
       this._scene.p(NOTE_BASE_SIZE * this._scene.preferences.noteSize);
     this._head.setScale(this._data.size * scale, -this._yModifier * scale);
-    this._body.setScale(this._data.size * scale, scale);
+    if (this._isBodyRepeat) {
+      this._body.scaleX = this._data.size;
+      this._body.width = scale * this._bodyWidth;
+      (this._body as GameObjects.TileSprite).setTileScale(this._data.size * scale, scale);
+    } else {
+      this._body.setScale(this._data.size * scale, scale);
+    }
     this._tail.setScale(this._data.size * scale, -this._yModifier * scale);
   }
 
