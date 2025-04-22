@@ -20,7 +20,7 @@ export const HIT_EFFECTS_PARTICLE_SIZE = 27;
     The sidelength (in pixels) of the square area in which the hit effects particles will be
     randomly scattered, which will be scaled by HIT_EFFECTS_SIZE.
 */
-export const HIT_EFFECTS_PARTICLE_SPREAD_RANGE = 600;
+export const HIT_EFFECTS_PARTICLE_SPREAD_RANGE = 400;
 
 /*
     The base size of notes, which will be scaled by the note size from the preferences.

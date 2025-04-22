@@ -68,11 +68,12 @@ export class HitEffects extends GameObjects.Sprite {
     )
       .setOrigin(0.5)
       .setScale(0);
-    const range = this.scale * HIT_EFFECTS_PARTICLE_SPREAD_RANGE;
+    const range = Math.random() * this.scale * HIT_EFFECTS_PARTICLE_SPREAD_RANGE;
+    const angle = Math.random() * Math.PI * 2;
     this.scene.tweens.add({
       targets: particle,
-      x: this.x + Math.random() * range - range / 2,
-      y: this.y + Math.random() * range - range / 2,
+      x: this.x + range * Math.cos(angle),
+      y: this.y + range * Math.sin(angle),
       ease: 'Quint',
       duration: 800,
       repeat: 0,
