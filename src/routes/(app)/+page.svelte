@@ -1210,6 +1210,7 @@
       type: 'inputResponse',
       payload: {
         bundlesResolved,
+        respacksResolved,
       },
     });
   };

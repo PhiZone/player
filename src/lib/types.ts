@@ -546,6 +546,7 @@ export interface InputResponseMessage {
   type: 'inputResponse';
   payload: {
     bundlesResolved: number;
+    respacksResolved: number;
   };
 }
 
