@@ -678,7 +678,7 @@
         const tgz = await download(link);
         progressDetail = 'Extracting files';
         const files = await extractTgz(tgz);
-        console.log(files);
+        // console.log(files);
         const executable = files.filter((file) => file.name.includes('ffmpeg'))[0];
         const path = await join(await invoke('get_current_dir'), executable.name);
         progressDetail = 'Setting up FFmpeg';

@@ -78,7 +78,6 @@ export class ResourcePackHandler {
   }
 
   isHoldKeepHead() {
-    console.log(this._pack.options);
     return this._pack.options?.holdKeepHead ?? false;
   }
 
