@@ -1,7 +1,9 @@
 runtime: static
 install:
+  - ls
+  - ls patches
+  - cat package.json
   - npm install pnpm@latest --force --omit=dev
   - npx pnpm -v
   - ls
-  - ls patches
   - npx pnpm install --no-frozen-lockfile
