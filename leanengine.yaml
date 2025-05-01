@@ -1,6 +1,7 @@
 runtime: static
 install:
-  - ls ..
+  - ls ../app
+  - ls ../transformed
   - cat package.json
   - npm install pnpm@latest --force --omit=dev
   - cat package.json
