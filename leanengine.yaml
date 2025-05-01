@@ -1,6 +1,6 @@
 runtime: static
 install:
-  - ls
+  - ls ..
   - cat package.json
   - npm install pnpm@latest --force --omit=dev
   - cat package.json
