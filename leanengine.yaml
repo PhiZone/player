@@ -1,7 +1,6 @@
 runtime: static
 install:
-  - npm -v
-  - npm install -g pnpm@latest
+  - npm install pnpm@latest
   - pnpm -v
   - pnpm config set registry https://registry.npmmirror.com/
   - pnpm install --no-frozen-lockfile
