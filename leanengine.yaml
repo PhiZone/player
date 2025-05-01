@@ -1,8 +1,10 @@
 runtime: static
 install:
-  - ls ../app
   - ls ../transformed
   - cat package.json
+  - cat ../transformed/package.json
+  - mkdir patches
+  - curl -o patches/phaser@3.88.2.patch https://raw.githubusercontent.com/PhiZone/player/refs/heads/main/patches/phaser%403.88.2.patch
   - npm install pnpm@latest --force --omit=dev
   - cat package.json
   - npx pnpm -v
