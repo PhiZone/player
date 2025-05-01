@@ -23,7 +23,7 @@
     "vite"
   ],
   "engines": {
-    "node": ">= 20"
+    "node": "22.x"
   },
   "scripts": {
     "dev": "vite --config vite/config.dev.mjs --host",
