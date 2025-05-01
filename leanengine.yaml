@@ -1,5 +1,5 @@
 runtime: static
 install:
-  - npm install pnpm@latest --force
+  - npm install pnpm@latest --force --omit=dev
   - npx pnpm -v
   - npx pnpm install --no-frozen-lockfile
