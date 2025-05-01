@@ -1,4 +1,5 @@
 runtime: static
 install:
+  - pnpm -v
   - pnpm config set registry https://registry.npmmirror.com/
   - pnpm install --no-frozen-lockfile
