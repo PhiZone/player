@@ -380,10 +380,19 @@ export const processEvents = (
     | (Event | SpeedEvent | ColorEvent | GifEvent | TextEvent | VariableEvent)[]
     | null
     | undefined,
+  layerIndex?: number | string,
+  lineIndex?: number,
+  source?: string,
 ): void => {
   events?.forEach((event) => {
     event.startBeat = toBeats(event.startTime);
     event.endBeat = toBeats(event.endTime);
+    if (event.endBeat < event.startBeat) {
+      alert(
+        `Event end time is before start time: ${event.startTime} → ${event.endTime} (${source ?? `Layer ${layerIndex}, Line ${lineIndex}`})`,
+      );
+      event.endBeat = event.startBeat;
+    }
   });
   events?.sort((a, b) => a.startBeat - b.startBeat);
 };

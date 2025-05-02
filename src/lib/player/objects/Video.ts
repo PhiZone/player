@@ -28,10 +28,10 @@ export class Video extends GameObjects.Container {
     this._data = data;
     this._video = new GameObjects.Video(scene, 0, 0, `asset-${data.path}`);
     if (Array.isArray(data.alpha)) {
-      this._alphaAnimator = new VariableAnimator(data.alpha);
+      this._alphaAnimator = new VariableAnimator(data.alpha, data.path);
     }
     if (Array.isArray(data.dim)) {
-      this._dimAnimator = new VariableAnimator(data.dim);
+      this._dimAnimator = new VariableAnimator(data.dim, data.path);
     }
     this._video.play();
     this._video.on('metadata', () => {
@@ -235,9 +235,9 @@ class VariableAnimator {
   private _events: VariableEvent[];
   private _cur: number = 0;
 
-  constructor(events: AnimatedVariable) {
+  constructor(events: AnimatedVariable, videoName: string) {
     this._events = events;
-    processEvents(this._events);
+    processEvents(this._events, undefined, undefined, `Video ${videoName}`);
   }
 
   handleEvent(beat: number) {

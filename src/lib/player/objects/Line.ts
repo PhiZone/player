@@ -132,21 +132,21 @@ export class Line {
     this.setVisible(false);
     scene.registerNode(this._line, `line-${num}`);
 
-    this._data.eventLayers.forEach((layer) => {
-      processEvents(layer?.alphaEvents);
-      processEvents(layer?.moveXEvents);
-      processEvents(layer?.moveYEvents);
-      processEvents(layer?.rotateEvents);
-      processEvents(layer?.speedEvents);
+    this._data.eventLayers.forEach((layer, i) => {
+      processEvents(layer?.alphaEvents, i, this._index);
+      processEvents(layer?.moveXEvents, i, this._index);
+      processEvents(layer?.moveYEvents, i, this._index);
+      processEvents(layer?.rotateEvents, i, this._index);
+      processEvents(layer?.speedEvents, i, this._index);
     });
 
     if (this._data.extended) {
-      processEvents(this._data.extended.colorEvents);
-      processEvents(this._data.extended.gifEvents);
-      processEvents(this._data.extended.inclineEvents);
-      processEvents(this._data.extended.scaleXEvents);
-      processEvents(this._data.extended.scaleYEvents);
-      processEvents(this._data.extended.textEvents);
+      processEvents(this._data.extended.colorEvents, 'Extended', this._index);
+      processEvents(this._data.extended.gifEvents, 'Extended', this._index);
+      processEvents(this._data.extended.inclineEvents, 'Extended', this._index);
+      processEvents(this._data.extended.scaleXEvents, 'Extended', this._index);
+      processEvents(this._data.extended.scaleYEvents, 'Extended', this._index);
+      processEvents(this._data.extended.textEvents, 'Extended', this._index);
     }
 
     processControlNodes(this._data.alphaControl);

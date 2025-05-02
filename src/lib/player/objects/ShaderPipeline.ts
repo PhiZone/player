@@ -230,7 +230,7 @@ class VariableAnimator {
     this._shader = shader;
     this._name = name;
     this._events = events;
-    processEvents(this._events);
+    processEvents(this._events, undefined, undefined, `Var ${name}, Shader ${this._shader.name}`);
     if (
       ['color', 'tint', 'rgb', 'rgba'].some((e) => name.toLowerCase().includes(e)) &&
       this._events.some((e) =>
