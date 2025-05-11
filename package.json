@@ -23,7 +23,7 @@
     "vite"
   ],
   "engines": {
-    "node": "22.x"
+    "node": ">=22"
   },
   "packageManager": "pnpm@10.10.0",
   "scripts": {
@@ -114,7 +114,7 @@
     "phaser": "^3.88.2",
     "phaser3-rex-plugins": "^1.80.12",
     "query-string": "^9.1.1",
-    "send-intent": "^6.0.3",
+    "send-intent": "^7.0.0",
     "stats-js": "^1.0.1",
     "tar-stream": "^3.1.7",
     "wavesurfer.js": "^7.8.16",
