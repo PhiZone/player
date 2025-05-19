@@ -1,7 +1,7 @@
 <script lang="ts">
   import JSZip from 'jszip';
   import mime from 'mime/lite';
-  import { onMount } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import queryString from 'query-string';
   import { fileTypeFromBlob } from 'file-type';
   import type {
@@ -52,11 +52,13 @@
   import { Capacitor } from '@capacitor/core';
   import { Network } from '@capacitor/network';
   import { getCurrentWebviewWindow, WebviewWindow } from '@tauri-apps/api/webviewWindow';
+  import { getCurrentWindow } from '@tauri-apps/api/window';
   import { PhysicalPosition, PhysicalSize } from '@tauri-apps/api/dpi';
   import { currentMonitor, type Monitor } from '@tauri-apps/api/window';
   import { getCurrent, onOpenUrl } from '@tauri-apps/plugin-deep-link';
   import { platform, arch } from '@tauri-apps/plugin-os';
   import { App, type URLOpenListenerEvent } from '@capacitor/app';
+  import { Clipboard } from '@capacitor/clipboard';
   import { page } from '$app/state';
   import { REPO_API_LINK, REPO_LINK, VERSION } from '$lib';
   import { SendIntent, type Intent } from 'send-intent';
@@ -66,7 +68,7 @@
   import { readFile, remove, writeFile } from '@tauri-apps/plugin-fs';
   import { random } from 'mathjs';
   import { base } from '$app/paths';
-  import { listen } from '@tauri-apps/api/event';
+  import { listen, type UnlistenFn } from '@tauri-apps/api/event';
   import { invoke } from '@tauri-apps/api/core';
   import {
     getEncoders,
@@ -130,7 +132,8 @@
   let overrideResolution = false;
   let modalMem = false;
   let directoryInput: HTMLInputElement;
-  let modal: HTMLDialogElement;
+  let appModal: HTMLDialogElement;
+  let clipboardModal: HTMLDialogElement;
   let monitor: Monitor | null = null;
 
   let progress = -1;
@@ -204,6 +207,10 @@
   let ffmpegEncoders: FFmpegEncoder[] | undefined;
 
   let isFirstLoad = !page.url.searchParams.get('t');
+
+  let clipboardUrl: URL | undefined;
+
+  const unlistens: UnlistenFn[] = [];
 
   onMount(async () => {
     const checkParam = (key: string, values: string[]) =>
@@ -321,6 +328,22 @@
           await handleFilePaths(result as string[], handler);
         }
       }
+      unlistens.push(
+        await getCurrentWindow().onFocusChanged(async ({ payload: focused }) => {
+          if (focused) {
+            await handleClipboard();
+          }
+        }),
+      );
+    } else {
+      addEventListener('visibilitychange', async () => {
+        if (document.visibilityState === 'visible') {
+          await handleClipboard();
+        }
+      });
+      window.onfocus = async () => {
+        await handleClipboard();
+      };
     }
 
     if (Capacitor.getPlatform() !== 'web') {
@@ -337,6 +360,11 @@
         name: 'ready',
       },
     });
+  });
+
+  onDestroy(() => {
+    unlistens.forEach((unlisten) => unlisten());
+    timeouts.forEach((id) => clearTimeout(id));
   });
 
   const init = async () => {
@@ -396,7 +424,7 @@
       (page.url.searchParams.has('file') || page.url.searchParams.has('zip'))
     ) {
       if (toggles.inApp === 0) {
-        modal.showModal();
+        appModal.showModal();
       } else if (toggles.inApp === 1) {
         window.open(`${IS_ANDROID_OR_IOS ? `${base}/app` : 'phizone-player://'}${page.url.search}`);
       } else {
@@ -466,6 +494,35 @@
     } else {
       const searchParams = new URL(url).searchParams;
       await handleParamFiles(searchParams);
+    }
+  };
+
+  const handleClipboard = async () => {
+    if (!IS_TAURI && !document.hasFocus()) return;
+    let text: string | undefined;
+    if (Capacitor.getPlatform() === 'web') {
+      text = await navigator.clipboard.readText();
+    } else {
+      const result = await Clipboard.read();
+      if (['string', 'url'].includes(result.type)) {
+        text = result.value;
+      }
+    }
+    if (!text || clipboardModal.open) return;
+    try {
+      const url = new URL(text);
+      if (url.protocol === 'http:' || url.protocol === 'https:') {
+        const lastResolved = localStorage.getItem('clipboardUrl');
+        if (lastResolved && lastResolved === url.toString()) {
+          return;
+        }
+        clipboardUrl = url;
+        localStorage.setItem('clipboardUrl', url.toString());
+        clipboardModal.showModal();
+      }
+    } catch (e) {
+      console.debug('Not a URL:', e);
+      return;
     }
   };
 
@@ -1394,6 +1451,46 @@
   <title>PhiZone Player</title>
 </svelte:head>
 
+<dialog id="clipboard" class="modal" bind:this={clipboardModal}>
+  <div class="modal-box max-w-3xl">
+    <h3 class="text-lg font-bold">Resolve URL?</h3>
+    <p class="w-full py-4 inline-flex flex-col gap-2 text-center break-words">
+      The following URL was detected in your clipboard:
+      <span class="font-semibold">{clipboardUrl?.href}</span>
+      Would you like to resolve it as a ZIP or a plain file, or ignore it instead?
+    </p>
+    <div class="modal-action">
+      <form method="dialog" class="gap-3 flex justify-center">
+        <button
+          class="inline-flex justify-center items-center gap-x-3 text-center bg-gradient-to-tl from-blue-500 via-violet-500 to-fuchsia-500 dark:from-blue-700 dark:via-violet-700 dark:to-fuchsia-700 text-white text-sm font-medium rounded-md focus:outline-none py-3 px-4 transition-all duration-300 bg-size-200 bg-pos-0 hover:bg-pos-100"
+          onclick={() => {
+            handleParamFiles(new URLSearchParams({ zip: clipboardUrl!.href }));
+          }}
+        >
+          Resolve as ZIP
+        </button>
+        <button
+          class="py-3 px-4 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-100 focus:outline-none focus:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-700 dark:focus:bg-neutral-700 transition"
+          onclick={async () => {
+            handleParamFiles(new URLSearchParams({ file: clipboardUrl!.href }));
+          }}
+        >
+          Resolve as plain file
+        </button>
+        <button
+          class="py-3 px-4 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-100 focus:outline-none focus:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-700 dark:focus:bg-neutral-700 transition"
+          onclick={async () => {
+            clipboardModal.close();
+            clipboardUrl = undefined;
+          }}
+        >
+          Ignore
+        </button>
+      </form>
+    </div>
+  </div>
+</dialog>
+
 <div class="max-w-2xl text-center mx-auto">
   <h1 class="block font-bold text-gray-800 text-4xl md:text-5xl lg:text-6xl dark:text-neutral-200">
     PhiZone
@@ -1437,7 +1534,7 @@
       Get the app
       <i class="fa-solid fa-download"></i>
     </a>
-    <dialog id="app" class="modal" bind:this={modal}>
+    <dialog id="app" class="modal" bind:this={appModal}>
       <div class="modal-box">
         <h3 class="text-lg font-bold">Use the app?</h3>
         <p class="py-4">
