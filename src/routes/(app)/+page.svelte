@@ -209,6 +209,7 @@
   let isFirstLoad = !page.url.searchParams.get('t');
 
   let clipboardUrl: URL | undefined;
+  let lastResolvedClipboardUrl: URL | undefined;
 
   const unlistens: UnlistenFn[] = [];
 
@@ -499,7 +500,7 @@
 
   const resolveClipboardUrl = async (type: 'zip' | 'file') => {
     handleParamFiles(new URLSearchParams({ [type]: clipboardUrl!.href }));
-    localStorage.setItem('clipboardUrl', clipboardUrl!.toString());
+    lastResolvedClipboardUrl = clipboardUrl;
   };
 
   const handleClipboard = async () => {
@@ -513,12 +514,14 @@
         text = result.value;
       }
     }
-    if (!text || clipboardModal.open) return;
+    if (!text || (clipboardModal && clipboardModal.open)) return;
     try {
       const url = new URL(text);
       if (url.protocol === 'http:' || url.protocol === 'https:') {
-        const lastResolved = localStorage.getItem('clipboardUrl');
-        if (lastResolved && lastResolved === url.toString()) {
+        if (
+          lastResolvedClipboardUrl &&
+          lastResolvedClipboardUrl.href === url.href
+        ) {
           return;
         }
         clipboardUrl = url;
