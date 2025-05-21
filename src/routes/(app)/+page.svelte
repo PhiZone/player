@@ -497,6 +497,11 @@
     }
   };
 
+  const resolveClipboardUrl = async (type: 'zip' | 'file') => {
+    handleParamFiles(new URLSearchParams({ [type]: clipboardUrl!.href }));
+    localStorage.setItem('clipboardUrl', clipboardUrl!.toString());
+  };
+
   const handleClipboard = async () => {
     if (!IS_TAURI && !document.hasFocus()) return;
     let text: string | undefined;
@@ -517,7 +522,6 @@
           return;
         }
         clipboardUrl = url;
-        localStorage.setItem('clipboardUrl', url.toString());
         clipboardModal.showModal();
       }
     } catch (e) {
@@ -599,7 +603,7 @@
     progressSpeed = 0;
     progressDetail = `Downloading ${filename}`;
 
-    if (IS_TAURI && url.startsWith('https://')) {
+    if (IS_TAURI && (url.startsWith('https://') || url.startsWith('http://'))) {
       const filePath = (await tempDir()) + random(1e17, 1e18 - 1);
       await tauriDownload(url, filePath, (payload) => {
         if (progressSpeed === -1) return;
@@ -614,7 +618,7 @@
       const response = await fetch(url);
       const contentLength = response.headers.get('content-length');
       if (!response.body) {
-        throw new Error('Unable to fetch data.');
+        throw new Error(`Failed to fetch from ${url}`);
       }
 
       const totalSize = parseInt(contentLength ?? '-1');
@@ -1464,15 +1468,15 @@
         <button
           class="inline-flex justify-center items-center gap-x-3 text-center bg-gradient-to-tl from-blue-500 via-violet-500 to-fuchsia-500 dark:from-blue-700 dark:via-violet-700 dark:to-fuchsia-700 text-white text-sm font-medium rounded-md focus:outline-none py-3 px-4 transition-all duration-300 bg-size-200 bg-pos-0 hover:bg-pos-100"
           onclick={() => {
-            handleParamFiles(new URLSearchParams({ zip: clipboardUrl!.href }));
+            resolveClipboardUrl('zip');
           }}
         >
           Resolve as ZIP
         </button>
         <button
           class="py-3 px-4 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-100 focus:outline-none focus:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-700 dark:focus:bg-neutral-700 transition"
-          onclick={async () => {
-            handleParamFiles(new URLSearchParams({ file: clipboardUrl!.href }));
+          onclick={() => {
+            resolveClipboardUrl('file');
           }}
         >
           Resolve as plain file
