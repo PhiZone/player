@@ -228,6 +228,9 @@ export interface EventLayer {
 }
 
 export interface SpeedEvent {
+  easingLeft: number;
+  easingRight: number;
+  easingType: number;
   end: number;
   endTime: [number, number, number];
   endBeat: number;

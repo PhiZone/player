@@ -36,7 +36,7 @@ import { clamp, getLines, IS_TAURI, isPec } from '$lib/utils';
 import PhiEditerConverter from '../converters/phiediter';
 import 'context-filter-polyfill';
 
-const easingFunctions: ((x: number) => number)[] = [
+const EASINGS: ((x: number) => number)[] = [
   (x) => x,
   (x) => Math.sin((x * Math.PI) / 2),
   (x) => 1 - Math.cos((x * Math.PI) / 2),
@@ -86,10 +86,49 @@ const easingFunctions: ((x: number) => number)[] = [
         : x < 2.5 / 2.75
           ? 7.5625 * (x -= 2.25 / 2.75) * x + 0.9375
           : 7.5625 * (x -= 2.625 / 2.75) * x + 0.984375,
-  (x) => 1 - easingFunctions[25](1 - x),
-  (x) =>
-    x < 0.5 ? (1 - easingFunctions[25](1 - 2 * x)) / 2 : (1 + easingFunctions[25](2 * x - 1)) / 2,
+  (x) => 1 - EASINGS[25](1 - x),
+  (x) => (x < 0.5 ? (1 - EASINGS[25](1 - 2 * x)) / 2 : (1 + EASINGS[25](2 * x - 1)) / 2),
 ];
+
+const calculateEasingValue = (
+  func: (x: number) => number,
+  x: number,
+  easingLeft = 0,
+  easingRight = 1,
+) => {
+  const progress = func(easingLeft + (easingRight - easingLeft) * x);
+  const progressStart = func(easingLeft);
+  const progressEnd = func(easingRight);
+  return (progress - progressStart) / (progressEnd - progressStart);
+};
+
+const calculateDerivativeValue = (
+  func: (x: number) => number,
+  x: number,
+  easingLeft = 0,
+  easingRight = 1,
+  epsilon = 1e-12,
+) => {
+  const leftX = Math.max(1e-16, x - epsilon);
+  const rightX = Math.min(1 - 1e-16, x + epsilon);
+  const leftY = calculateEasingValue(func, leftX, easingLeft, easingRight);
+  const rightY = calculateEasingValue(func, rightX, easingLeft, easingRight);
+  return (rightY - leftY) / (rightX - leftX);
+};
+
+const EASING_DERIVATIVE_ENDS = EASINGS.map((func) => [
+  calculateDerivativeValue(func, 0),
+  calculateDerivativeValue(func, 1),
+]);
+
+const sanitizeEasingParams = (type: number, x: number, easingLeft: number, easingRight: number) => {
+  return {
+    type: type > 0 && type <= EASINGS.length ? type : 1,
+    x: clamp(x, 0, 1),
+    easingLeft: clamp(easingLeft, 0, 1),
+    easingRight: clamp(easingRight, 0, 1),
+  };
+};
 
 export const download = async (url: string, name?: string) => {
   EventBus.emit('loading', 0);
@@ -487,19 +526,25 @@ export const easing = (
   easingLeft: number = 0,
   easingRight: number = 1,
 ): number => {
-  x = clamp(x, 0, 1);
   const useBezier = bezierPoints && bezierPoints.length >= 4;
   const bezierFunc = useBezier
     ? bezier(...(bezierPoints.slice(0, 4) as [number, number, number, number]))
     : undefined;
-  easingLeft = useBezier ? 0 : clamp(easingLeft, 0, 1);
-  easingRight = useBezier ? 1 : clamp(easingRight, 0, 1);
-  if (type <= 0 || type > easingFunctions.length) return x;
-  const func = bezierFunc ?? easingFunctions[type - 1] ?? easingFunctions[0];
-  const progress = func(easingLeft + (easingRight - easingLeft) * x);
-  const progressStart = func(easingLeft);
-  const progressEnd = func(easingRight);
-  return (progress - progressStart) / (progressEnd - progressStart);
+  const p = sanitizeEasingParams(type, x, easingLeft, easingRight);
+  const func = bezierFunc ?? EASINGS[p.type - 1];
+  return calculateEasingValue(func, p.x, p.easingLeft, p.easingRight);
+};
+
+export const derivative = (
+  type: number,
+  x: number,
+  easingLeft: number = 0,
+  easingRight: number = 1,
+) => {
+  const p = sanitizeEasingParams(type, x, easingLeft, easingRight);
+  return (p.x === 0 || p.x === 1) && p.easingLeft === 0 && p.easingRight === 1
+    ? EASING_DERIVATIVE_ENDS[p.type - 1][p.x]
+    : calculateDerivativeValue(EASINGS[p.type - 1], p.x, p.easingLeft, p.easingRight);
 };
 
 export const calculateValue = (
@@ -589,18 +634,30 @@ export const calculateValue = (
 export const getEventValue = (
   beat: number,
   event: Event | SpeedEvent | ColorEvent | TextEvent | GifEvent | VariableEvent,
-) =>
-  calculateValue(
-    event.start,
-    event.end,
-    easing(
-      'easingType' in event ? event.easingType : 0,
-      'bezier' in event && event.bezier === 1 ? event.bezierPoints : undefined,
-      (beat - event.startBeat) / (event.endBeat - event.startBeat),
-      'easingLeft' in event ? event.easingLeft : 0,
-      'easingRight' in event ? event.easingRight : 1,
-    ),
+) => {
+  const progress = easing(
+    'easingType' in event ? event.easingType : 0,
+    'bezier' in event && event.bezier === 1 ? event.bezierPoints : undefined,
+    (beat - event.startBeat) / (event.endBeat - event.startBeat),
+    'easingLeft' in event ? event.easingLeft : 0,
+    'easingRight' in event ? event.easingRight : 1,
   );
+  if (progress === 0) return event.start;
+  if (progress === 1) return event.end;
+  return calculateValue(event.start, event.end, progress);
+};
+
+export const integrate = (
+  type: number,
+  x: number,
+  k: number,
+  b: number,
+  easingLeft = 0,
+  easingRight = 1,
+) => {
+  const p = sanitizeEasingParams(type, x, easingLeft, easingRight);
+  return k * calculateEasingValue(EASINGS[p.type - 1], p.x, p.easingLeft, p.easingRight) + b * p.x;
+};
 
 export const getIntegral = (
   event: SpeedEvent | undefined,
@@ -608,17 +665,21 @@ export const getIntegral = (
   beat: number | undefined = undefined,
 ): number => {
   if (!event) return 0;
-  if (beat === undefined || beat >= event.endBeat)
-    return (
-      ((event.start + event.end) *
-        (getTimeSec(bpmList, event.endBeat) - getTimeSec(bpmList, event.startBeat))) /
-      2
-    );
-  return (
-    ((event.start + (getEventValue(beat, event) as number)) *
-      (getTimeSec(bpmList, beat) - getTimeSec(bpmList, event.startBeat))) /
-    2
-  );
+  if (beat === undefined || beat >= event.endBeat) beat = event.endBeat;
+  const lengthBeat = event.endBeat - event.startBeat;
+  const lengthSec = getTimeSec(bpmList, event.endBeat) - getTimeSec(bpmList, event.startBeat);
+  if ('easingType' in event && event.easingType > 1) {
+    const easingLeft = 'easingLeft' in event ? event.easingLeft : 0;
+    const easingRight = 'easingRight' in event ? event.easingRight : 1;
+    const df0 = derivative(event.easingType, 0, easingLeft, easingRight);
+    const df1 = derivative(event.easingType, 1, easingLeft, easingRight);
+    const k = (event.end - event.start) / (df1 - df0);
+    const b = event.start - k * df0;
+    const x = (beat - event.startBeat) / (event.endBeat - event.startBeat);
+    const progress = integrate(event.easingType, x, k, b, easingLeft, easingRight);
+    return (progress * lengthSec) / lengthBeat;
+  }
+  return ((event.start + (getEventValue(beat, event) as number)) * lengthSec) / 2;
 };
 
 export const getJudgmentPosition = (input: PointerTap | PointerDrag, line: Line) => {
