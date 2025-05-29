@@ -17,6 +17,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_upload::init())
         .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             let mut files: Vec<PathBuf> = Vec::new();
             parse_files_opened(&mut files, args.iter().map(|s| s.to_string()));
