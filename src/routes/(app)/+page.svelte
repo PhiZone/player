@@ -57,6 +57,7 @@
   import { currentMonitor, type Monitor } from '@tauri-apps/api/window';
   import { getCurrent, onOpenUrl } from '@tauri-apps/plugin-deep-link';
   import { platform, arch } from '@tauri-apps/plugin-os';
+  import { readText } from '@tauri-apps/plugin-clipboard-manager';
   import { App, type URLOpenListenerEvent } from '@capacitor/app';
   import { Clipboard } from '@capacitor/clipboard';
   import { page } from '$app/state';
@@ -506,22 +507,24 @@
   const handleClipboard = async () => {
     if (!IS_TAURI && !document.hasFocus()) return;
     let text: string | undefined;
-    if (Capacitor.getPlatform() === 'web') {
-      text = await navigator.clipboard.readText();
-    } else {
-      const result = await Clipboard.read();
-      if (['string', 'url'].includes(result.type)) {
-        text = result.value;
+    try {
+      if (Capacitor.getPlatform() === 'web') {
+        text = await (IS_TAURI ? readText() : navigator.clipboard.readText());
+      } else {
+        const result = await Clipboard.read();
+        if (['string', 'url'].includes(result.type)) {
+          text = result.value;
+        }
       }
+    } catch (e) {
+      console.warn('Failed to read clipboard:', e);
+      return;
     }
     if (!text || (clipboardModal && clipboardModal.open)) return;
     try {
       const url = new URL(text);
       if (url.protocol === 'http:' || url.protocol === 'https:') {
-        if (
-          lastResolvedClipboardUrl &&
-          lastResolvedClipboardUrl.href === url.href
-        ) {
+        if (lastResolvedClipboardUrl && lastResolvedClipboardUrl.href === url.href) {
           return;
         }
         clipboardUrl = url;

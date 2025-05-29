@@ -49,6 +49,9 @@ importers:
       '@tauri-apps/api':
         specifier: ^2.2.0
         version: 2.5.0
+      '@tauri-apps/plugin-clipboard-manager':
+        specifier: ^2.2.2
+        version: 2.2.2
       '@tauri-apps/plugin-deep-link':
         specifier: ~2.2.0
         version: 2.2.1
@@ -1283,6 +1286,9 @@ packages:
     resolution: {integrity: sha512-PaefTQUCYYqvZWdH8EhXQkyJEjQwtoy/OHGoPcZx7Gk3D3K6AtGSxZ9OlHIz3Bu5LDGgVBk36vKtHW0WYsWnbw==}
     engines: {node: '>= 10'}
     hasBin: true
+
+  '@tauri-apps/plugin-clipboard-manager@2.2.2':
+    resolution: {integrity: sha512-bZvDLMqfcNmsw7Ag8I49jlaCjdpDvvlJHnpp6P+Gg/3xtpSERdwlDxm7cKGbs2mj46dsw4AuG3RoAgcpwgioUA==}
 
   '@tauri-apps/plugin-deep-link@2.2.1':
     resolution: {integrity: sha512-8skZ6qIH/kWaV8d6jj3aPvvkIOuqkVk0APRDey9n9N3Ueu3n4MIbuxpAKR2EdoAyQxnXxPTNVyjw2D35/vfGyg==}
@@ -4686,6 +4692,10 @@ snapshots:
       '@tauri-apps/cli-win32-arm64-msvc': 2.2.5
       '@tauri-apps/cli-win32-ia32-msvc': 2.2.5
       '@tauri-apps/cli-win32-x64-msvc': 2.2.5
+
+  '@tauri-apps/plugin-clipboard-manager@2.2.2':
+    dependencies:
+      '@tauri-apps/api': 2.5.0
 
   '@tauri-apps/plugin-deep-link@2.2.1':
     dependencies:

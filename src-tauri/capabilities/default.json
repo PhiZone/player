@@ -21,6 +21,7 @@
     "fs:allow-remove",
     "opener:default",
     "dialog:default",
+    "clipboard-manager:default",
     {
       "identifier": "fs:scope",
       "allow": [

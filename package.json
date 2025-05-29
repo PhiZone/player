@@ -93,6 +93,7 @@
     "@fortawesome/fontawesome-free": "^6.7.2",
     "@sentry/sveltekit": "^8.54.0",
     "@tauri-apps/api": "^2.2.0",
+    "@tauri-apps/plugin-clipboard-manager": "^2.2.2",
     "@tauri-apps/plugin-deep-link": "~2.2.0",
     "@tauri-apps/plugin-dialog": "~2",
     "@tauri-apps/plugin-fs": "~2",
