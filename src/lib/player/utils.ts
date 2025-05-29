@@ -23,7 +23,7 @@ import { getFFmpeg, loadFFmpeg } from './services/ffmpeg';
 import type { Game } from './scenes/Game';
 import { RESULTS_ILLUSTRATION_CORNER_RADIUS } from './constants';
 import { parseGIF, decompressFrames, type ParsedFrame } from 'gifuct-js';
-import { dot, gcd, random } from 'mathjs';
+import { dot, e, gcd, random } from 'mathjs';
 import { fileTypeFromBlob } from 'file-type';
 import parseAPNG, { type Frame } from 'apng-js';
 import bezier from 'bezier-easing';
@@ -666,8 +666,8 @@ export const getIntegral = (
 ): number => {
   if (!event) return 0;
   if (beat === undefined || beat >= event.endBeat) beat = event.endBeat;
-  const lengthBeat = event.endBeat - event.startBeat;
-  const lengthSec = getTimeSec(bpmList, event.endBeat) - getTimeSec(bpmList, event.startBeat);
+  const startSec = getTimeSec(bpmList, event.startBeat);
+  const progressedSec = getTimeSec(bpmList, beat) - startSec;
   if ('easingType' in event && event.easingType > 1) {
     const easingLeft = 'easingLeft' in event ? event.easingLeft : 0;
     const easingRight = 'easingRight' in event ? event.easingRight : 1;
@@ -675,11 +675,14 @@ export const getIntegral = (
     const df1 = derivative(event.easingType, 1, easingLeft, easingRight);
     const k = (event.end - event.start) / (df1 - df0);
     const b = event.start - k * df0;
-    const x = (beat - event.startBeat) / (event.endBeat - event.startBeat);
-    const progress = integrate(event.easingType, x, k, b, easingLeft, easingRight);
-    return (progress * lengthSec) / lengthBeat;
+    const lengthSec = getTimeSec(bpmList, event.endBeat) - startSec;
+    const x = progressedSec / lengthSec;
+    return (
+      (integrate(event.easingType, x, k, b, easingLeft, easingRight) * lengthSec) /
+      (event.endBeat - event.startBeat)
+    );
   }
-  return ((event.start + (getEventValue(beat, event) as number)) * lengthSec) / 2;
+  return ((event.start + (getEventValue(beat, event) as number)) * progressedSec) / 2;
 };
 
 export const getJudgmentPosition = (input: PointerTap | PointerDrag, line: Line) => {
