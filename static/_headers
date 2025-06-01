@@ -1,2 +1,3 @@
-*
-  X-Frame-Options: ALLOW-FROM www.phizone.cn
+/* 
+  !X-Frame-Options
+  Content-Security-Policy: frame-ancestors https://www.phi.zone https://www.phizone.cn https://insider.phizone.cn;
