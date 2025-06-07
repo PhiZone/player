@@ -194,7 +194,7 @@ We have support for Phira resource packs (except for `hitFxScale`, `hitFxRotate`
   | `hitSounds`              | Array of HitSound           |                                                                                                                                                                                                                   |
   | `hitEffects` (optional)  | HitEffects (object)         |                                                                                                                                                                                                                   |
   | `ending`                 | Ending (object)             |                                                                                                                                                                                                                   |
-  | `fonts`                  | Array of Font or BitmapFont | The fonts of the resource pack. The first bitmap font will be used by the combo counter, the score and the std deviation & accuracy texts of the UI, and the first vector font by the other components of the UI. |
+  | `fonts`                  | Array of Font or BitmapFont | The fonts of the resource pack. The first bitmap font will be used by the combo counter, the score, and the standard deviation and accuracy texts of the UI. The first vector font will be used by the other components of the UI. |
   | `options` (optional)     | Options (object)            | The options of the resource pack.                                                                                                                                                                                 |
 
 - NoteSkin:
@@ -279,7 +279,7 @@ We have support for Phira resource packs (except for `hitFxScale`, `hitFxRotate`
   | `holdCompact` (optional)    | Boolean | Whether the hold note's head and tail parts should center their anchors. Defaults to `false`.      |
   | `holdKeepHead` (optional)   | Boolean | Whether the hold note should retain its head part while being played. Defaults to `false`.         |
 
-The above metadata can be stored as a JSON file (`_META.json`) alongside other resource files in a folder or a ZIP archive. Import files the usual way, and the program will automatically detect text files in the format as well as the resource files being referenced.
+The metadata can be stored as a JSON file (`_META.json`) alongside other resource files in a folder or a ZIP archive. Import files the usual way, and the program will automatically seek out text files in this format, as well as, if one is found, the resource files it references.
 
 Export the default resource pack to view an example.
 
