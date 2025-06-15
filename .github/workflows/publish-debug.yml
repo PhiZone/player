@@ -51,7 +51,7 @@ jobs:
       version-name: ${{ steps.version.outputs.VERSION }}_${{ steps.current-datetime.outputs.CURRENT_DATETIME }}
 
   publish-web:
-    name: Publish to Sentry, GitHub Pages and Vercel
+    name: Publish to Sentry and GitHub Pages
     runs-on: ubuntu-22.04
     if: github.event_name == 'push'
     needs: metadata
@@ -116,15 +116,6 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-
-      - name: Deploy to Vercel
-        env:
-          PROJECT_JSON: ${{ secrets.VERCEL_PROJECT_JSON }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          mkdir .vercel
-          echo -n "$PROJECT_JSON" > .vercel/project.json
-          npx vercel --prod --token $VERCEL_TOKEN
 
   publish-capacitor-ios:
     name: Build for iOS
