@@ -150,9 +150,9 @@ export class Renderer {
     const sounds = [
       ...(this._scene.preferences.hitSoundVolume > 0
         ? [
-            { key: 'tap', data: await urlToBase64(`${base}/game/hitsounds/Tap.wav`) },
-            { key: 'drag', data: await urlToBase64(`${base}/game/hitsounds/Drag.wav`) },
-            { key: 'flick', data: await urlToBase64(`${base}/game/hitsounds/Flick.wav`) },
+            { key: 'tap', data: await urlToBase64(this._scene.respack.getHitSound('Tap')) },
+            { key: 'drag', data: await urlToBase64(this._scene.respack.getHitSound('Drag')) },
+            { key: 'flick', data: await urlToBase64(this._scene.respack.getHitSound('Flick')) },
           ]
         : []),
       ...(this._scene.preferences.hitSoundVolume > 0 && Math.ceil(this._resultsDuration) > 0
@@ -163,7 +163,7 @@ export class Renderer {
             {
               key: 'results',
               data: await urlToBase64(
-                `${base}/game/ending/LevelOver${this._scene.metadata.levelType}.wav`,
+                this._scene.respack.getResultsMusic(this._scene.metadata.levelType).file,
               ),
             },
           ]
