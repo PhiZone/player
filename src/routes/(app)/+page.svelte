@@ -721,7 +721,7 @@
         : (pack.fonts.at(0) as Font<string> | undefined)?.file)
     );
 
-  const setupRendering = async () => {
+  const setupRendering = () => {
     if (!crossOriginIsolated) {
       isRenderingAvailable = false;
       ffmpegEncoders = [];
@@ -730,7 +730,7 @@
       );
       return false;
     }
-    await setupFFmpeg();
+    setupFFmpeg();
     return true;
   };
 
@@ -2205,8 +2205,8 @@
                       aria-describedby="render-description"
                       checked={toggles.render}
                       disabled={!isRenderingAvailable}
-                      oninput={async (e) => {
-                        if (e.currentTarget.checked && !(await setupRendering())) {
+                      oninput={(e) => {
+                        if (e.currentTarget.checked && !setupRendering()) {
                           e.currentTarget.checked = false;
                         }
                         toggles.render = e.currentTarget.checked;
