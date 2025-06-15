@@ -421,10 +421,9 @@ We deeply appreciate those who generously granted us permission to use their wor
 A list of web deployments is as follows:
 
 - [player.phi.zone](https://player.phi.zone/) - Cloudflare Pages
-- [player.phizone.cn](https://player.phizone.cn/) - self-hosted
+- [player.phizone.cn](https://player.phizone.cn/) - LeanCloud (TapTap)
 - [phizone.github.io/player](https://phizone.github.io/player/) - GitHub Pages
-- [www.phi.zone/player](https://www.phi.zone/player/) - Vercel
-- [www.phizone.cn/player](https://www.phizone.cn/player/) - self-hosted
+- [www.phi.zone/player](https://www.phi.zone/player/) - Cloudflare Pages
 
 App distributions for Windows, macOS, Linux, Android and iOS/iPadOS can be found in the GitHub releases.
 
