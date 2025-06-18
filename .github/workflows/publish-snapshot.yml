@@ -1,8 +1,8 @@
 name: Publish (Snapshot)
 run-name: Publish snapshot builds
 on:
-  schedule:
-    - cron: '0 4 * * 1'
+  # schedule:
+  #   - cron: '0 4 * * 1'
   workflow_dispatch:
     inputs:
       iteration:
