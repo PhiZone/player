@@ -7,6 +7,8 @@ on:
     paths:
       - 'android/**'
       - 'ios/**'
+      - 'messages/**'
+      - 'project.inlang/**'
       - 'src/**'
       - 'src-tauri/**'
       - 'static/**'
