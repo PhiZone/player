@@ -23,7 +23,7 @@ import { getFFmpeg, loadFFmpeg } from './services/ffmpeg';
 import type { Game } from './scenes/Game';
 import { RESULTS_ILLUSTRATION_CORNER_RADIUS } from './constants';
 import { parseGIF, decompressFrames, type ParsedFrame } from 'gifuct-js';
-import { dot, e, gcd, random } from 'mathjs';
+import { dot, gcd, random } from 'mathjs';
 import { fileTypeFromBlob } from 'file-type';
 import parseAPNG, { type Frame } from 'apng-js';
 import bezier from 'bezier-easing';

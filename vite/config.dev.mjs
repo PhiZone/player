@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import { sveltekit } from '@sveltejs/kit/vite';
+import { paraglideVitePlugin } from '@inlang/paraglide-js';
 
 const viteServerConfig = () => ({
   name: 'add-headers',
@@ -16,7 +17,15 @@ const viteServerConfig = () => ({
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [sveltekit(), viteServerConfig()],
+  plugins: [
+    sveltekit(),
+    viteServerConfig(),
+    paraglideVitePlugin({
+      project: './project.inlang',
+      outdir: './src/lib/paraglide',
+      strategy: ['cookie', 'localStorage', 'preferredLanguage', 'baseLocale'],
+    }),
+  ],
   optimizeDeps: {
     exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/util'],
   },

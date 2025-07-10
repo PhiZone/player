@@ -82,6 +82,8 @@
   import { fetchFile } from '@ffmpeg/util';
   import { convertHoldAtlas, getImageDimensions } from '$lib/converters/phira/respack';
   import { hexToRgba } from '$lib/player/utils';
+  import { m } from '$lib/paraglide/messages';
+  import LanguageSwitcher from '$lib/components/LanguageSwitcher.svelte';
 
   interface FileEntry {
     id: number;
@@ -218,15 +220,15 @@
     const checkParam = (key: string, values: string[]) =>
       values.some((v) => v === page.url.searchParams.get(key));
     [
-      { key: 'debug', name: 'debug mode' },
-      { key: 'performance', name: 'performance metrics' },
+      { key: 'debug', name: m.debug_mode() },
+      { key: 'performance', name: m.performance_metrics() },
     ].forEach((e) => {
       if (checkParam(e.key, ['1', 'true'])) {
         localStorage.setItem(e.key, 'true');
-        notify(`Enabled ${e.name}.`, 'info');
+        notify(m.enabled({ name: e.name }), 'info');
       } else if (checkParam(e.key, ['0', 'false']) && localStorage.getItem(e.key)) {
         localStorage.removeItem(e.key);
-        notify(`Disabled ${e.name}.`, 'info');
+        notify(m.disabled({ name: e.name }), 'info');
       }
     });
     if (directoryInput) directoryInput.webkitdirectory = true;
@@ -249,7 +251,7 @@
             }
           }
           if (!currentBundle) {
-            alert('No bundle is available.');
+            alert(m.no_bundle_available());
             return;
           }
           config = {
@@ -451,7 +453,14 @@
           platform() === 'macos' ||
           Capacitor.getPlatform() === 'android';
         notify(
-          `A new version (${latestRelease.tag_name}) is available. ${clickToDownload ? 'Click to download.' : Capacitor.getPlatform() === 'ios' ? 'Please update the app via TestFlight.' : 'Click to go to the GitHub releases page.'}`,
+          m.new_version_available({
+            version: latestRelease.tag_name,
+            guidance: clickToDownload
+              ? m['new_version_guidances.0']()
+              : Capacitor.getPlatform() === 'ios'
+                ? m['new_version_guidances.1']()
+                : m['new_version_guidances.2'](),
+          }),
           'info',
           Capacitor.getPlatform() === 'ios'
             ? undefined
@@ -485,7 +494,7 @@
       console.warn(e);
     }
     if (!success) {
-      notify('Failed to contact GitHub to check for updates.', 'warning');
+      notify(m.version_check_failed(), 'warning');
     }
   };
 
@@ -607,7 +616,7 @@
 
     progress = 0;
     progressSpeed = 0;
-    progressDetail = `Downloading ${filename}`;
+    progressDetail = m.downloading({ filename });
 
     if (IS_TAURI && (url.startsWith('https://') || url.startsWith('http://'))) {
       const filePath = (await tempDir()) + random(1e17, 1e18 - 1);
@@ -725,9 +734,7 @@
     if (!crossOriginIsolated) {
       isRenderingAvailable = false;
       ffmpegEncoders = [];
-      alert(
-        'Rendering is not available in this environment. Please switch to a different OS or enable cross-origin isolation.',
-      );
+      alert(m.rendering_not_available());
       return false;
     }
     setupFFmpeg();
@@ -771,7 +778,7 @@
     songFile ??= audioFiles.find((file) => shareId(file, chartFile));
     if (songFile === undefined) {
       if (!fallback) {
-        if (!silent) alert('No song found for chart ' + chartFile.file.name + '!');
+        if (!silent) alert(m.no_song_found({ name: chartFile.file.name }));
         return;
       }
       songFile = audioFiles[0];
@@ -779,13 +786,13 @@
     illustrationFile ??= imageFiles.find((file) => shareId(file, chartFile));
     if (illustrationFile === undefined) {
       if (!fallback) {
-        if (!silent) alert('No illustration found for chart ' + chartFile.file.name + '!');
+        if (!silent) alert(m.no_illustration_found({ name: chartFile.file.name }));
         return;
       }
       illustrationFile = imageFiles[0];
     }
     if (!metadata && !metadataEntry) {
-      if (!silent) alert('Metadata not found!');
+      if (!silent) alert(m.metadata_not_found());
       return;
     }
     const bundle = {
@@ -1110,7 +1117,7 @@
       return;
     }
     resetProgress();
-    progressDetail = 'Processing files';
+    progressDetail = m.processing_files();
     const now = Date.now();
     await Promise.all(
       files.map(async (file, i) => {
@@ -1163,7 +1170,7 @@
         assets.push({ id, type, file, included: isIncluded(file.name) });
       }),
     );
-    progressDetail = 'Resolving resources';
+    progressDetail = m.resolving_resources();
     const textAssets = assets.filter((asset) => asset.type === 3);
     let bundlesResolved = 0;
     let respacksResolved = 0;
@@ -1285,7 +1292,7 @@
   const declareFinished = () => {
     if (!done) return;
     progress = 1;
-    progressDetail = 'Finished';
+    progressDetail = m.finished();
     timeouts.push(
       setTimeout(() => {
         showProgress = false;
@@ -1437,7 +1444,7 @@
           url,
         });
         webview.once('tauri://created', () => {
-          webview.setTitle('PhiZone Player');
+          webview.setTitle(m.app_title());
           configureWebviewWindow(webview);
         });
         webview.once('tauri://error', (e) => {
@@ -1458,16 +1465,16 @@
 </script>
 
 <svelte:head>
-  <title>PhiZone Player</title>
+  <title>{m.app_title()}</title>
 </svelte:head>
 
 <dialog id="clipboard" class="modal" bind:this={clipboardModal}>
   <div class="modal-box max-w-3xl">
-    <h3 class="text-lg font-bold">Resolve URL?</h3>
+    <h3 class="text-lg font-bold">{m.resolve_url()}</h3>
     <p class="w-full py-4 inline-flex flex-col gap-2 text-center break-words">
-      The following URL was detected in your clipboard:
+      {m['resolve_url_description.0']()}
       <span class="font-semibold">{clipboardUrl?.href}</span>
-      Would you like to resolve it as a ZIP or a plain file, or ignore it instead?
+      {m['resolve_url_description.1']()}
     </p>
     <div class="modal-action">
       <form method="dialog" class="gap-3 flex justify-center">
@@ -1477,7 +1484,7 @@
             resolveClipboardUrl('zip');
           }}
         >
-          Resolve as ZIP
+          {m.resolve_as_zip()}
         </button>
         <button
           class="py-3 px-4 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-100 focus:outline-none focus:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-700 dark:focus:bg-neutral-700 transition"
@@ -1485,7 +1492,7 @@
             resolveClipboardUrl('file');
           }}
         >
-          Resolve as plain file
+          {m.resolve_as_file()}
         </button>
         <button
           class="py-3 px-4 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-100 focus:outline-none focus:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-700 dark:focus:bg-neutral-700 transition"
@@ -1494,7 +1501,7 @@
             clipboardUrl = undefined;
           }}
         >
-          Ignore
+          {m.ignore()}
         </button>
       </form>
     </div>
@@ -1503,16 +1510,16 @@
 
 <div class="max-w-2xl text-center mx-auto">
   <h1 class="block font-bold text-gray-800 text-4xl md:text-5xl lg:text-6xl dark:text-neutral-200">
-    PhiZone
+    {m.app_title().split(' ').slice(0, -1).join(' ')}
     <span class="bg-clip-text bg-gradient-to-tl from-blue-500 to-violet-600 text-transparent">
-      Player
+      {m.app_title().split(' ').slice(-1).join(' ')}
     </span>
   </h1>
 </div>
 
 <div class="max-w-3xl text-center mx-auto">
   <p class="text-xs sm:text-sm md:text-base lg:text-lg text-gray-600 dark:text-neutral-400">
-    Play your favorites anywhere, anytime.
+    {m.app_subtitle()}
   </p>
 </div>
 
@@ -1524,7 +1531,7 @@
       showCollapse = !showCollapse;
     }}
   >
-    Get started
+    {m.get_started()}
     <span class="transition {showCollapse ? '-rotate-180' : 'rotate-0'}">
       <i class="fa-solid fa-angle-down fa-sm"></i>
     </span>
@@ -1541,22 +1548,18 @@
         : '_self'}
       class="py-3 px-4 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-100 focus:outline-none focus:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-700 dark:focus:bg-neutral-700 transition"
     >
-      Get the app
+      {m.download_app()}
       <i class="fa-solid fa-download"></i>
     </a>
     <dialog id="app" class="modal" bind:this={appModal}>
       <div class="modal-box">
-        <h3 class="text-lg font-bold">Use the app?</h3>
+        <h3 class="text-lg font-bold">{m.use_the_app()}</h3>
         <p class="py-4">
-          It looks like some files can be resolved. You might want to proceed with the PhiZone
-          Player app if you have it installed. Otherwise, you can either <a
-            href="{base}/app"
-            target="_blank"
-            class="text-accent hover:underline"
-          >
-            download the app
+          {m['use_the_app_description.0']()}
+          <a href="{base}/app" target="_blank" class="text-accent hover:underline">
+            {m['use_the_app_description.1']()}
           </a>
-          or stay in the browser.
+          {m['use_the_app_description.2']()}
         </p>
         <div class="relative flex items-start">
           <div class="flex items-center h-5 mt-1">
@@ -1571,13 +1574,13 @@
           </div>
           <label for="remember-app-preference" class="ms-3 transition">
             <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
-              Remember my choice
+              {m.remember_choice()}
             </span>
             <span
               id="remember-app-preference-description"
               class="block text-sm text-gray-600 dark:text-neutral-500"
             >
-              If toggled on, this dialog will not be shown again.
+              {m.remember_choice_description()}
             </span>
           </label>
         </div>
@@ -1595,7 +1598,7 @@
                 }
               }}
             >
-              Open in the app
+              {m.open_in_app()}
             </button>
             <button
               class="py-3 px-4 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-100 focus:outline-none focus:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-700 dark:focus:bg-neutral-700 transition"
@@ -1607,7 +1610,7 @@
                 }
               }}
             >
-              Proceed with browser
+              {m.proceed_with_browser()}
             </button>
           </form>
         </div>
@@ -1619,7 +1622,7 @@
       target="_blank"
       class="py-3 px-4 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-100 focus:outline-none focus:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-700 dark:focus:bg-neutral-700 transition"
     >
-      View on GitHub
+      {m.view_on_github()}
       <i class="fa-brands fa-github fa-xl"></i>
     </a>
   {/if}
@@ -1634,14 +1637,17 @@
   class:opacity-0={!showCollapse}
 >
   <label
-    class="absolute top-5 right-5 swap swap-rotate text-center transition opacity-0"
+    class="absolute top-5 left-5 swap swap-rotate text-center transition opacity-0"
     class:opacity-100={done}
     class:pointer-events-none={!done}
   >
     <input type="checkbox" bind:checked={showRespack} />
-    <div class="swap-on">Chart</div>
-    <div class="swap-off">Respack</div>
+    <div class="swap-on">{m.switch_to_chart()}</div>
+    <div class="swap-off">{m.switch_to_respack()}</div>
   </label>
+  <div class="absolute top-4 right-4">
+    <LanguageSwitcher />
+  </div>
   <div
     class="collapse-content flex flex-col gap-4 items-center pt-0 transition-[padding] duration-300"
     class:pt-4={showCollapse}
@@ -1649,7 +1655,7 @@
     <div class="flex flex-col lg:flex-row">
       <label class="form-control w-full max-w-xs">
         <div class="label pt-0">
-          <span class="label-text">Pick an archive (or some files)</span>
+          <span class="label-text">{m.load_files()}</span>
         </div>
         <input
           type="file"
@@ -1671,10 +1677,10 @@
         />
       </label>
       {#if !IS_ANDROID_OR_IOS && Capacitor.getPlatform() === 'web'}
-        <div class="divider mb-1 lg:divider-horizontal">OR</div>
+        <div class="divider mb-1 lg:divider-horizontal">{m.or()}</div>
         <label class="form-control w-full max-w-xs">
           <div class="label pt-0">
-            <span class="label-text">Choose a folder</span>
+            <span class="label-text">{m.load_directory()}</span>
           </div>
           <input
             bind:this={directoryInput}
@@ -1694,7 +1700,7 @@
       <div class="mb-2 flex justify-between items-center">
         <div class="flex gap-3">
           <h3 class="text-sm font-semibold text-gray-800 dark:text-white">
-            {progressDetail ?? 'Loading'}
+            {progressDetail ?? m.processing_files()}
           </h3>
           <p class="text-sm text-gray-500 dark:text-gray-300">
             {#if progressSpeed >= 0}
@@ -1820,18 +1826,20 @@
                 }
               }}
             >
-              <div class="absolute inset-0 flex justify-center items-center gap-2">
+              <div class="absolute inset-0 flex justify-center items-center gap-2 uppercase">
                 <span class="btn btn-xs btn-circle btn-outline btn-active no-animation">
                   <i class="fa-solid fa-plus"></i>
                 </span>
-                <p>NEW</p>
+                <p>{m.new()}</p>
               </div>
             </button>
           </div>
           {#if selectedBundle !== -1 && currentBundle}
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <div>
-                <span class="block text-sm font-medium mb-1 dark:text-white">Title</span>
+                <span class="block text-sm font-medium mb-1 dark:text-white">
+                  {m['metadata.title']()}
+                </span>
                 <div class="relative">
                   <input
                     type="text"
@@ -1841,7 +1849,9 @@
                 </div>
               </div>
               <div>
-                <span class="block text-sm font-medium mb-1 dark:text-white">Composer</span>
+                <span class="block text-sm font-medium mb-1 dark:text-white">
+                  {m['metadata.composer']()}
+                </span>
                 <div class="relative">
                   <input
                     type="text"
@@ -1852,7 +1862,7 @@
               </div>
               <div>
                 <span class="block text-sm font-medium mb-1 dark:text-white">
-                  Illustration designer
+                  {m['metadata.illustrator']()}
                 </span>
                 <div class="relative">
                   <input
@@ -1863,7 +1873,9 @@
                 </div>
               </div>
               <div>
-                <span class="block text-sm font-medium mb-1 dark:text-white">Chart designer</span>
+                <span class="block text-sm font-medium mb-1 dark:text-white">
+                  {m['metadata.charter']()}
+                </span>
                 <div class="relative">
                   <input
                     type="text"
@@ -1873,7 +1885,9 @@
                 </div>
               </div>
               <div>
-                <span class="block text-sm font-medium mb-1 dark:text-white">Level type</span>
+                <span class="block text-sm font-medium mb-1 dark:text-white">
+                  {m['metadata.level_type']()}
+                </span>
                 <div class="relative">
                   <select
                     bind:value={currentBundle.metadata.levelType}
@@ -1888,7 +1902,9 @@
                 </div>
               </div>
               <div>
-                <span class="block text-sm font-medium mb-1 dark:text-white">Level</span>
+                <span class="block text-sm font-medium mb-1 dark:text-white">
+                  {m['metadata.level']()}
+                </span>
                 <div class="relative">
                   <input
                     type="text"
@@ -1909,25 +1925,25 @@
                         scope="col"
                         class="px-3 py-2 w-1/2 sm:w-1/3 md:w-2/5 text-ellipsis overflow-hidden whitespace-nowrap text-start text-xs font-medium text-gray-500 uppercase dark:text-neutral-500"
                       >
-                        Asset Name
+                        {m['asset.name']()}
                       </th>
                       <th
                         scope="col"
                         class="px-3 py-2 w-1/4 md:w-1/5 text-ellipsis overflow-hidden whitespace-nowrap text-start text-xs font-medium text-gray-500 uppercase dark:text-neutral-500"
                       >
-                        Asset Type
+                        {m['asset.type']()}
                       </th>
                       <th
                         scope="col"
                         class="hidden sm:table-cell px-3 py-2 w-1/6 text-ellipsis overflow-hidden whitespace-nowrap text-start text-xs font-medium text-gray-500 uppercase dark:text-neutral-500"
                       >
-                        File Size
+                        {m['asset.size']()}
                       </th>
                       <th
                         scope="col"
                         class="px-3 py-2 text-ellipsis overflow-hidden whitespace-nowrap text-end text-xs font-medium text-gray-500 uppercase dark:text-neutral-500"
                       >
-                        Actions
+                        {m['asset.actions']()}
                       </th>
                     </tr>
                   </thead>
@@ -1949,9 +1965,21 @@
                               bind:value={asset.type}
                               class="form-select py-1 px-2 pe-8 block border-gray-200 rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
                             >
-                              {#each ['Image', 'Audio', 'Video', 'Config', 'Shader', 'Other'] as assetType, i}
+                              {#each Array(6) as _, i}
                                 <option value={i} selected={asset.type === i}>
-                                  {assetType}
+                                  {#if i === 0}
+                                    {m['asset.types.0']()}
+                                  {:else if i === 1}
+                                    {m['asset.types.1']()}
+                                  {:else if i === 2}
+                                    {m['asset.types.2']()}
+                                  {:else if i === 3}
+                                    {m['asset.types.3']()}
+                                  {:else if i === 4}
+                                    {m['asset.types.4']()}
+                                  {:else if i === 5}
+                                    {m['asset.types.5']()}
+                                  {/if}
                                 </option>
                               {/each}
                             </select>
@@ -1971,7 +1999,7 @@
                               asset.included = !asset.included;
                             }}
                           >
-                            {asset.included ? 'Exclude' : 'Include'}
+                            {asset.included ? m['asset.exclude']() : m['asset.include']()}
                           </button>
                           <button
                             type="button"
@@ -1980,7 +2008,7 @@
                               assets = assets.filter((a) => a.id !== asset.id);
                             }}
                           >
-                            Delete
+                            {m.delete()}
                           </button>
                         </td>
                       </tr>
@@ -2023,7 +2051,7 @@
                 peer-[:not(:placeholder-shown)]:-translate-y-1.5
                 peer-[:not(:placeholder-shown)]:text-gray-500 dark:peer-[:not(:placeholder-shown)]:text-neutral-500"
             >
-              Chart
+              {m.chart()}
             </span>
           </div>
           <div class="relative">
@@ -2057,7 +2085,7 @@
                 peer-[:not(:placeholder-shown)]:-translate-y-1.5
                 peer-[:not(:placeholder-shown)]:text-gray-500 dark:peer-[:not(:placeholder-shown)]:text-neutral-500"
             >
-              Song
+              {m.song()}
             </span>
           </div>
           <div class="relative">
@@ -2091,7 +2119,7 @@
                 peer-[:not(:placeholder-shown)]:-translate-y-1.5
                 peer-[:not(:placeholder-shown)]:text-gray-500 dark:peer-[:not(:placeholder-shown)]:text-neutral-500"
             >
-              Illustration
+              {m.illustration()}
             </span>
           </div>
           <div class="grid space-y-3">
@@ -2116,13 +2144,13 @@
               </div>
               <label for="autoplay" class="ms-3">
                 <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
-                  Autoplay
+                  {m.autoplay()}
                 </span>
                 <span
                   id="autoplay-description"
                   class="block text-sm text-gray-600 dark:text-neutral-500"
                 >
-                  Notes are automatically given Perfect judgments.
+                  {m.autoplay_description()}
                 </span>
               </label>
             </div>
@@ -2144,14 +2172,13 @@
                 class:opacity-50={!toggles.autoplay || (isRenderingAvailable && toggles.render)}
               >
                 <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
-                  Adjust offset
+                  {m.adjust_offset()}
                 </span>
                 <span
                   id="adjust-offset-description"
                   class="block text-sm text-gray-600 dark:text-neutral-500"
                 >
-                  Enables realtime chart offset adjustment. The offset set in the preferences is
-                  ignored.
+                  {m.adjust_offset_description()}
                 </span>
               </label>
             </div>
@@ -2173,13 +2200,13 @@
                 class:opacity-50={toggles.autoplay || (isRenderingAvailable && toggles.render)}
               >
                 <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
-                  Practice
+                  {m.practice()}
                 </span>
                 <span
                   id="practice-description"
                   class="block text-sm text-gray-600 dark:text-neutral-500"
                 >
-                  Both inputs and playback controls are enabled.
+                  {m.practice_description()}
                 </span>
               </label>
             </div>
@@ -2192,8 +2219,8 @@
                     ? 'tooltip tooltip-warning'
                     : ''}"
                 data-tip={!isRenderingAvailable && ffmpegEncoders === undefined
-                  ? 'FFmpeg could not be found on your system.'
-                  : 'Some encoders may not support resolutions with odd dimensions.'}
+                  ? m.ffmpeg_not_found()
+                  : m.odd_dimensions_warning()}
               >
                 <div class="relative flex items-start">
                   <div class="flex items-center h-5 mt-1">
@@ -2228,7 +2255,7 @@
                         await setupRendering();
                       }}
                     >
-                      <p>Render</p>
+                      <p>{m.render()}</p>
                       <span class="transition {showMediaCollapse ? '-rotate-180' : 'rotate-0'}">
                         <i class="fa-solid fa-angle-down fa-sm"></i>
                       </span>
@@ -2237,7 +2264,7 @@
                       id="render-description"
                       class="block text-sm text-gray-600 dark:text-neutral-500"
                     >
-                      The canvas will be rendered and saved as a video file.
+                      {m.render_description()}
                     </span>
                   </label>
                 </div>
@@ -2256,7 +2283,7 @@
                     <div class="grid sm:grid-cols-6 md:grid-cols-1 lg:grid-cols-6 gap-3">
                       <div class="sm:col-span-2 md:col-span-1 lg:col-span-2">
                         <span class="block text-left text-sm font-medium mb-1 dark:text-white">
-                          Frame rate
+                          {m.frame_rate()}
                         </span>
                         <div class="relative">
                           <input
@@ -2267,14 +2294,14 @@
                           <div
                             class="absolute inset-y-0 end-0 flex items-center pointer-events-none z-20 pe-4"
                           >
-                            <span class="text-gray-500 dark:text-neutral-500">FPS</span>
+                            <span class="text-gray-500 dark:text-neutral-500">{m.fps()}</span>
                           </div>
                         </div>
                       </div>
                       <div class="sm:col-span-4 md:col-span-1 lg:col-span-4">
                         <div class="flex justify-between items-center">
                           <span class="block text-left text-sm font-medium mb-1 dark:text-white">
-                            Override resolution
+                            {m.override_resolution()}
                           </span>
                           <input
                             type="checkbox"
@@ -2309,7 +2336,7 @@
                       </div>
                       <div class="sm:col-span-3 md:col-span-1 lg:col-span-3">
                         <span class="block text-left text-sm font-medium mb-1 dark:text-white">
-                          Video encoder
+                          {m.video_encoder()}
                         </span>
                         <div class="relative">
                           <select
@@ -2326,7 +2353,7 @@
                       </div>
                       <div class="sm:col-span-3 md:col-span-1 lg:col-span-3">
                         <span class="block text-left text-sm font-medium mb-1 dark:text-white">
-                          Video bitrate
+                          {m.video_bitrate()}
                         </span>
                         <div class="relative">
                           <input
@@ -2337,27 +2364,27 @@
                           <div
                             class="absolute inset-y-0 end-0 flex items-center pointer-events-none z-20 pe-4"
                           >
-                            <span class="text-gray-500 dark:text-neutral-500">kbps</span>
+                            <span class="text-gray-500 dark:text-neutral-500">{m.kbps()}</span>
                           </div>
                         </div>
                       </div>
                       <div class="sm:col-span-2 md:col-span-1 lg:col-span-2">
                         <span class="block text-left text-sm font-medium mb-1 dark:text-white">
-                          Vsync
+                          {m.vsync()}
                         </span>
                         <div class="relative">
                           <select
                             bind:value={mediaOptions.vsync}
                             class="form-select py-3 px-4 pe-8 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
                           >
-                            <option value={true}>On</option>
-                            <option value={false}>Off</option>
+                            <option value={true}>{m.on()}</option>
+                            <option value={false}>{m.off()}</option>
                           </select>
                         </div>
                       </div>
                       <div class="sm:col-span-2 md:col-span-1 lg:col-span-2">
                         <span class="block text-left text-sm font-medium mb-1 dark:text-white">
-                          Results loops
+                          {m.results_loops()}
                         </span>
                         <div class="relative">
                           <input
@@ -2371,7 +2398,7 @@
                       </div>
                       <div class="sm:col-span-2 md:col-span-1 lg:col-span-2">
                         <span class="block text-left text-sm font-medium mb-1 dark:text-white">
-                          Audio bitrate
+                          {m.audio_bitrate()}
                         </span>
                         <div class="relative">
                           <input
@@ -2382,13 +2409,13 @@
                           <div
                             class="absolute inset-y-0 end-0 flex items-center pointer-events-none z-20 pe-4"
                           >
-                            <span class="text-gray-500 dark:text-neutral-500">kbps</span>
+                            <span class="text-gray-500 dark:text-neutral-500">{m.kbps()}</span>
                           </div>
                         </div>
                       </div>
                       <div class="sm:col-span-6 md:col-span-1 lg:col-span-6">
                         <span class="block text-left text-sm font-medium mb-1 dark:text-white">
-                          Export path
+                          {m.export_path()}
                         </span>
                         <div class="flex rounded-lg">
                           <input
@@ -2408,7 +2435,7 @@
                               }
                             }}
                           >
-                            Browse
+                            {m.browse()}
                           </button>
                         </div>
                       </div>
@@ -2435,13 +2462,13 @@
                 class:opacity-50={isRenderingAvailable && toggles.render}
               >
                 <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
-                  Autostart
+                  {m.autostart()}
                 </span>
                 <span
                   id="autostart-description"
                   class="block text-sm text-gray-600 dark:text-neutral-500"
                 >
-                  The player will attempt to start playing automatically.
+                  {m.autostart_description()}
                 </span>
               </label>
             </div>
@@ -2459,22 +2486,20 @@
                 </div>
                 <label for="newtab" class="ms-3">
                   <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
-                    New
                     {#if IS_TAURI}
-                      window
+                      {m.new_window()}
                     {:else}
-                      tab
+                      {m.new_tab()}
                     {/if}
                   </span>
                   <span
                     id="newtab-description"
                     class="block text-sm text-gray-600 dark:text-neutral-500"
                   >
-                    The player will be opened in a new
                     {#if IS_TAURI}
-                      window.
+                      {m.new_window_description()}
                     {:else}
-                      tab.
+                      {m.new_tab_description()}
                     {/if}
                   </span>
                 </label>
@@ -2497,7 +2522,7 @@
                   localStorage.setItem('mediaOptions', JSON.stringify(mediaOptions));
                 }
                 if (!currentBundle) {
-                  alert('No bundle is available.');
+                  alert(m.no_bundle_available());
                   return;
                 }
                 const assetsIncluded = assets.filter((asset) => asset.included);
@@ -2525,7 +2550,7 @@
                 });
               }}
             >
-              Play
+              {m.play()}
               <i class="fa-solid fa-angle-right fa-sm"></i>
             </button>
           </div>
@@ -2552,7 +2577,7 @@
                   class="w-full h-[167px] object-cover"
                 />
               {:else}
-                <p>No thumbnail</p>
+                <p>{m.no_thumbnail()}</p>
               {/if}
             </figure>
             <div class="card-body py-5">
@@ -2572,17 +2597,17 @@
             </div>
             <div class="absolute bottom-5 right-5 flex gap-2">
               <button
-                class="btn btn-sm rounded-full btn-outline btn-success"
+                class="btn btn-sm rounded-full btn-outline btn-success uppercase"
                 class:btn-active={selectedResourcePack === pack.id}
                 onclick={() => {
                   selectedResourcePack = pack.id;
                 }}
               >
-                {selectedResourcePack === pack.id ? 'SELECTED' : 'SELECT'}
+                {selectedResourcePack === pack.id ? m.selected() : m.select()}
               </button>
               <button
                 class="btn btn-sm btn-circle btn-outline btn-success"
-                aria-label="Delete"
+                aria-label={m.delete()}
                 onclick={async () => {
                   await exportRespack(
                     getTypeOfRespack(pack) === 'string'
@@ -2595,7 +2620,7 @@
               </button>
               <button
                 class="btn btn-sm btn-circle btn-outline btn-error"
-                aria-label="Delete"
+                aria-label={m.delete()}
                 onclick={() => {
                   resourcePacks = resourcePacks.filter((b) => b.id !== pack.id);
                   if (selectedResourcePack === pack.id) {

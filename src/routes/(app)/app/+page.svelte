@@ -1,69 +1,64 @@
 <script lang="ts">
-  import { REPO_LINK } from '$lib';
+  import { REPO_LINK, VERSION as FV } from '$lib';
   import Distribution from '$lib/components/Distribution.svelte';
   import { IS_ANDROID_OR_IOS, IS_TAURI } from '$lib/utils';
   import { Capacitor } from '@capacitor/core';
   import { page } from '$app/state';
   import { onMount } from 'svelte';
   import { base } from '$app/paths';
+  import { m } from '$lib/paraglide/messages';
 
   export let data;
 
   let modal: HTMLDialogElement;
 
-  const VERSION = data.latestRelease.tag_name.slice(1);
+  const VERSION = data.latestRelease?.tag_name.slice(1) ?? FV;
 
   const distributions = [
     {
       title: 'Windows',
-      subtitle: 'Architecture: x64',
-      description:
-        'Desktop distribution via Tauri. Provides exclusive features (e.g. streaming mode).',
+      subtitle: m['distributions.architecture']({ arch: 'x64' }),
+      description: m['distributions.desktop_desc'](),
       href: `${REPO_LINK}/releases/download/v${VERSION}/PhiZone.Player_${VERSION}_x64-setup.exe`,
       color: 'blue-500',
       fa: 'windows',
     },
     {
       title: 'macOS',
-      subtitle: 'Available for Apple silicon',
-      description:
-        'Desktop distribution via Tauri. Provides exclusive features (e.g. streaming mode).',
+      subtitle: m['distributions.avail_for']({ arch: 'Apple silicon' }),
+      description: m['distributions.desktop_desc'](),
       href: `${REPO_LINK}/releases/download/v${VERSION}/PhiZone.Player_${VERSION}_aarch64.dmg`,
       color: 'lime-500',
       fa: 'apple',
     },
     {
       title: 'Linux',
-      subtitle: 'Architecture: x64',
-      description:
-        'Desktop distribution via Tauri. Provides exclusive features (e.g. streaming mode).',
+      subtitle: m['distributions.architecture']({ arch: 'x64' }),
+      description: m['distributions.desktop_desc'](),
       href: `${REPO_LINK}/releases/download/v${VERSION}/PhiZone.Player_${VERSION}_amd64.AppImage`,
       color: 'amber-500',
       fa: 'linux',
     },
     {
       title: 'Android',
-      subtitle: 'Architecture: ARM64',
-      description:
-        'Mobile distribution via Capacitor. Incompatibilities and performance issues expected.',
+      subtitle: m['distributions.architecture']({ arch: 'ARM64' }),
+      description: m['distributions.mobile_desc'](),
       href: `${REPO_LINK}/releases/download/v${VERSION}/PhiZone.Player_${VERSION}.apk`,
       color: 'emerald-500',
       fa: 'android',
     },
     {
-      title: 'iOS and iPadOS',
-      subtitle: 'Available via TestFlight',
-      description:
-        'Mobile distribution via Capacitor. Incompatibilities and performance issues expected.',
+      title: 'iOS & iPadOS',
+      subtitle: m['distributions.avail_via']({ method: 'TestFlight' }),
+      description: m['distributions.mobile_desc'](),
       href: 'https://testflight.apple.com/join/6Uba7RmH',
       color: 'violet-500',
       fa: 'app-store',
     },
     {
-      title: 'Other distributions',
-      subtitle: 'Available on GitHub',
-      description:
-        'ARM64 distributions for Linux and Windows, x64 for Intel Macs, IPA, debug builds, etc.',
+      title: m['distributions.other'](),
+      subtitle: m['distributions.avail_on']({ platform: 'GitHub' }),
+      description: m['distributions.other_desc'](),
       href: `${REPO_LINK}/releases`,
       color: 'slate-500',
       fa: 'github',
@@ -82,16 +77,14 @@
 </script>
 
 <svelte:head>
-  <title>App Download | PhiZone Player</title>
+  <title>{m.app_download()} | {m.app_title()}</title>
 </svelte:head>
 
 <dialog id="app" class="modal" bind:this={modal}>
   <div class="modal-box">
-    <h3 class="text-lg font-bold">Redirecting</h3>
+    <h3 class="text-lg font-bold">{m.redirecting()}</h3>
     <p class="pt-4 pb-3">
-      If you're not being redirected to the app, please click the button below. If it still doesn't
-      work, please check if you have the app installed or properly configured in your device
-      settings.
+      {m.redirecting_description()}
     </p>
     <div class="modal-action justify-between">
       <form method="dialog" class="gap-3 w-full flex justify-center">
@@ -103,7 +96,7 @@
             );
           }}
         >
-          Open in the app
+          {m.open_in_app()}
         </button>
       </form>
     </div>
@@ -113,18 +106,18 @@
 <div class="max-w-2xl text-center mx-auto">
   <a
     class="block font-bold text-gray-800 text-4xl md:text-5xl lg:text-6xl dark:text-neutral-200 hover:underline"
-    href={base}
+    href="{base}/"
   >
-    PhiZone
+    {m.app_title().split(' ').slice(0, -1).join(' ')}
     <span class="bg-clip-text bg-gradient-to-tl from-blue-500 to-violet-600 text-transparent">
-      Player
+      {m.app_title().split(' ').slice(-1).join(' ')}
     </span>
   </a>
 </div>
 
 <div class="max-w-3xl text-center mx-auto">
   <p class="text-xs sm:text-sm md:text-base lg:text-lg text-gray-600 dark:text-neutral-400">
-    Ready as an app, comes with more unique features.
+    {m.app_download_subtitle()}
   </p>
 </div>
 

@@ -13,6 +13,7 @@ import { ensafeFilename } from '$lib/utils';
 import moment from 'moment';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { Signal } from '../objects/Signal';
+import { m } from '$lib/paraglide/messages';
 
 export class Renderer {
   private _scene: Game;
@@ -77,11 +78,16 @@ export class Renderer {
         this.setTick(this._frameCount / frameRate);
       }
       this._isRendering = proceed;
-      EventBus.emit('rendering-detail', proceed ? 'Rendering frames' : 'Waiting for FFmpeg');
+      EventBus.emit(
+        'rendering-detail',
+        proceed
+          ? m['rendering_details.rendering_frames']()
+          : m['rendering_details.waiting_for_ffmpeg'](),
+      );
     };
 
     this._isRendering = true;
-    EventBus.emit('rendering-detail', 'Rendering frames');
+    EventBus.emit('rendering-detail', m['rendering_details.rendering_frames']());
 
     const sharedBuffer = new SharedArrayBuffer(canvas.width * canvas.height * 3);
     const sharedView = new Uint8Array(sharedBuffer);
@@ -122,7 +128,7 @@ export class Renderer {
 
     listen('stream-combination-finished', async (event) => {
       EventBus.emit('rendering-finished', event.payload);
-      EventBus.emit('rendering-detail', 'Finished');
+      EventBus.emit('rendering-detail', m['rendering_details.finished']());
       await remove(this._tempDir, { recursive: true });
     });
 
@@ -142,11 +148,11 @@ export class Renderer {
     this._isRendering = false;
     this._isStopped = true;
     this._worker.postMessage({ type: 'stop' });
-    EventBus.emit('rendering-detail', 'Waiting for FFmpeg');
+    EventBus.emit('rendering-detail', m['rendering_details.waiting_for_ffmpeg']());
   }
 
   async proceed(videoFile: string) {
-    EventBus.emit('rendering-detail', 'Preparing audio assets');
+    EventBus.emit('rendering-detail', m['rendering_details.preparing_audio_assets']());
     const sounds = [
       ...(this._scene.preferences.hitSoundVolume > 0
         ? [
@@ -238,7 +244,7 @@ export class Renderer {
 
     const hitsoundsFile = await join(this._tempDir, 'hitsounds.wav');
 
-    EventBus.emit('rendering-detail', 'Mixing audio');
+    EventBus.emit('rendering-detail', m['rendering_details.mixing_audio']());
     await mixAudio(sounds, timestamps, this._length, hitsoundsFile);
 
     listen('audio-mixing-finished', async () => {
@@ -250,7 +256,7 @@ export class Renderer {
   async finalize(videoFile: string, hitsoundsFile: string) {
     const songFile = await join(this._tempDir, 'song.tmp');
 
-    EventBus.emit('rendering-detail', 'Retrieving song');
+    EventBus.emit('rendering-detail', m['rendering_details.retrieving_song']());
     await writeFile(
       songFile,
       new Uint8Array(await (await download(this._scene.songUrl, 'song')).arrayBuffer()),
@@ -263,7 +269,7 @@ export class Renderer {
     await mkdir(renderDestDir, { recursive: true });
     const renderOutput = await join(renderDestDir, `${moment().format('YYYY-MM-DD_HH-mm-ss')}.mp4`);
 
-    EventBus.emit('rendering-detail', 'Combining streams');
+    EventBus.emit('rendering-detail', m['rendering_details.combining_streams']());
     await combineStreams(
       videoFile,
       songFile,

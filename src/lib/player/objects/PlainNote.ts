@@ -1,5 +1,5 @@
 // import { GameObjects } from 'phaser';
-import { SkewImage } from 'phaser3-rex-plugins/plugins/quadimage.js';
+import { SkewImage } from 'phaser3-rex-plugins/plugins/quadimage';
 import {
   JudgmentType,
   type AlphaControl,

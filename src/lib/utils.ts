@@ -21,6 +21,7 @@ import tar from 'tar-stream';
 import { ungzip } from 'pako';
 import { fileTypeFromBlob } from 'file-type';
 import { DEFAULT_RESOURCE_PACK } from './player/constants';
+import { m } from './paraglide/messages';
 
 export const IS_TAURI = '__TAURI_INTERNALS__' in window;
 
@@ -619,7 +620,7 @@ export const alertError = (error?: Error, message?: string) => {
     // else _detail = `${message2}\n    ${stack.split('\n').join('\n    ')}`; //Safari
   }
   if (message) message2 = message;
-  const errMessage = `(Click to copy) [${type}] ${message2.split('\n')[0]}`;
+  const errMessage = `(${m.click_to_copy()}) [${type}] ${message2.split('\n')[0]}`;
   const id = notiflix(errMessage, 'failure');
   document.querySelectorAll('.notiflix-notify')?.forEach(
     (e) =>
@@ -628,7 +629,7 @@ export const alertError = (error?: Error, message?: string) => {
         const text = error?.stack ?? (error ? `${error.name}: ${error.message}` : errMessage);
         if (Capacitor.getPlatform() === 'web') navigator.clipboard.writeText(text);
         else await Clipboard.write({ string: text });
-        Notiflix.Notify.success('Error copied to clipboard', {
+        Notiflix.Notify.success(m.copied(), {
           cssAnimationStyle: 'from-right',
           opacity: 0.9,
           borderRadius: '12px',

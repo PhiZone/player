@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Preferences } from '$lib/types';
+  import { m } from '$lib/paraglide/messages';
 
   interface $$Props {
     preferences: Preferences;
@@ -42,7 +43,7 @@
     modal.showModal();
   }}
 >
-  Edit preferences
+  {m.edit_preferences()}
   <i class="fa-solid fa-user-gear"></i>
 </button>
 <dialog id="preferences" class="modal" bind:this={modal}>
@@ -50,14 +51,14 @@
     <form method="dialog">
       <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
     </form>
-    <h3 class="text-lg font-bold">Preferences</h3>
+    <h3 class="text-lg font-bold">{m.preferences()}</h3>
     <div class="w-full form-control gap-4">
       <div class="flex w-full pt-6">
         <div
           class="tooltip rounded-lg {preferences.perfectJudgment < 45
             ? 'tooltip-right'
             : ''} tooltip-warning leading-[0px] h-[7.5px]"
-          data-tip="Perfect ({preferences.perfectJudgment}ms)"
+          data-tip="{m.perfect()} ({preferences.perfectJudgment}{m.milliseconds()})"
           style:width="{preferences.perfectJudgment / 3.5}%"
         >
           <progress value="1" max="1" class="progress progress-warning"></progress>
@@ -66,7 +67,7 @@
           class="tooltip rounded-lg {preferences.goodJudgment < 40
             ? 'tooltip-right'
             : ''} tooltip-info leading-[0px] h-[7.5px]"
-          data-tip="Good ({preferences.goodJudgment}ms)"
+          data-tip="{m.good()} ({preferences.goodJudgment}{m.milliseconds()})"
           style:width="{(preferences.goodJudgment - preferences.perfectJudgment) / 3.5}%"
         >
           <progress value="1" max="1" class="progress progress-info"></progress>
@@ -75,7 +76,7 @@
           class="tooltip rounded-lg {preferences.goodJudgment < 25
             ? 'tooltip-right'
             : ''} tooltip-error leading-[0px] h-[7.5px]"
-          data-tip="Bad ({badJudgment}ms)"
+          data-tip="{m.bad()} ({badJudgment}{m.milliseconds()})"
           style:width="{(badJudgment - preferences.goodJudgment) / 3.5}%"
         >
           <progress value="1" max="1" class="progress progress-error"></progress>
@@ -84,7 +85,7 @@
           class="tooltip rounded-lg {preferences.goodJudgment > 225
             ? 'tooltip-left'
             : ''} leading-[0px] h-[7.5px]"
-          data-tip="Miss / Incoming"
+          data-tip={m.miss_or_incoming()}
           style:width="{100 - badJudgment / 3.5}%"
         >
           <progress value="0" max="1" class="progress"></progress>
@@ -92,7 +93,9 @@
       </div>
       <div class="form-control">
         <div class="flex items-center gap-2">
-          <span class="w-1/4 text-sm dark:text-neutral-300">Perfect (ms)</span>
+          <span class="w-1/4 text-sm dark:text-neutral-300">
+            {m.perfect()} ({m.milliseconds()})
+          </span>
           <input
             type="range"
             id="perfect_judgment"
@@ -146,7 +149,7 @@
           />
         </div>
         <div class="flex items-center gap-2">
-          <span class="w-1/4 text-sm dark:text-neutral-300">Good (ms)</span>
+          <span class="w-1/4 text-sm dark:text-neutral-300">{m.good()} ({m.milliseconds()})</span>
           <input
             type="range"
             id="good_judgment"
@@ -191,13 +194,13 @@
           />
         </div>
         <div class="flex items-center gap-2 h-[45px]">
-          <span class="w-1/4 text-sm dark:text-neutral-300">Bad (ms)</span>
+          <span class="w-1/4 text-sm dark:text-neutral-300">{m.bad()} ({m.milliseconds()})</span>
           <span class="w-1/4 dark:text-white">{badJudgment}</span>
-          <span class="w-1/4 text-sm dark:text-neutral-300">RKS factor</span>
+          <span class="w-1/4 text-sm dark:text-neutral-300">{m.rks_factor()}</span>
           <span class="w-1/4 dark:text-white">{rksFactor.toFixed(4)}</span>
         </div>
         <div class="flex items-center gap-2 h-[45px]">
-          <span class="w-1/4 text-sm dark:text-neutral-300">Simultaneous note hint</span>
+          <span class="w-1/4 text-sm dark:text-neutral-300">{m.simultaneous_note_hint()}</span>
           <div class="w-1/4">
             <input
               type="checkbox"
@@ -207,7 +210,7 @@
               class="form-checkbox w-6 h-6 shrink-0 rounded-lg mt-0.5 transition border-gray-200 text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
             />
           </div>
-          <span class="w-1/4 text-sm dark:text-neutral-300">FC/AP indicator</span>
+          <span class="w-1/4 text-sm dark:text-neutral-300">{m.fc_ap_indicator()}</span>
           <div class="w-1/4">
             <input
               type="checkbox"
@@ -219,7 +222,7 @@
           </div>
         </div>
         <div class="flex items-center gap-2">
-          <span class="w-1/4 text-sm dark:text-neutral-300">Note size</span>
+          <span class="w-1/4 text-sm dark:text-neutral-300">{m.note_size()}</span>
           <input
             type="range"
             id="note_size"
@@ -249,7 +252,7 @@
           />
         </div>
         <div class="flex items-center gap-2">
-          <span class="w-1/4 text-sm dark:text-neutral-300">Line thickness</span>
+          <span class="w-1/4 text-sm dark:text-neutral-300">{m.line_thickness()}</span>
           <input
             type="range"
             id="line_thickness"
@@ -279,7 +282,9 @@
           />
         </div>
         <div class="flex items-center gap-2">
-          <span class="w-1/4 text-sm dark:text-neutral-300">Background luminance (%)</span>
+          <span class="w-1/4 text-sm dark:text-neutral-300">
+            {m.background_luminance()} ({m.percentage()})
+          </span>
           <input
             type="range"
             id="background_luminance"
@@ -312,7 +317,7 @@
           />
         </div>
         <div class="flex items-center gap-2">
-          <span class="w-1/4 text-sm dark:text-neutral-300">Background blur</span>
+          <span class="w-1/4 text-sm dark:text-neutral-300">{m.background_blur()}</span>
           <input
             type="range"
             id="background_blur"
@@ -342,7 +347,9 @@
           />
         </div>
         <div class="flex items-center gap-2">
-          <span class="w-1/4 text-sm dark:text-neutral-300">Chart offset (ms)</span>
+          <span class="w-1/4 text-sm dark:text-neutral-300">
+            {m.chart_offset()} ({m.milliseconds()})
+          </span>
           <input
             type="range"
             id="chart_offset"
@@ -371,7 +378,9 @@
           />
         </div>
         <div class="flex items-center gap-2">
-          <span class="w-1/4 text-sm dark:text-neutral-300">Hit sound volume (%)</span>
+          <span class="w-1/4 text-sm dark:text-neutral-300">
+            {m.hit_sound_volume()} ({m.percentage()})
+          </span>
           <input
             type="range"
             id="Hit sound volume"
@@ -404,7 +413,9 @@
           />
         </div>
         <div class="flex items-center gap-2">
-          <span class="w-1/4 text-sm dark:text-neutral-300">Music volume (%)</span>
+          <span class="w-1/4 text-sm dark:text-neutral-300">
+            {m.music_volume()} ({m.percentage()})
+          </span>
           <input
             type="range"
             id="music_volume"
@@ -437,7 +448,7 @@
           />
         </div>
         <div class="flex items-center gap-2">
-          <span class="w-1/4 text-sm dark:text-neutral-300">Time scale</span>
+          <span class="w-1/4 text-sm dark:text-neutral-300">{m.time_scale()}</span>
           <input
             type="range"
             id="time_scale"
@@ -471,7 +482,7 @@
         <span
           class="btn no-animation join-item w-1/4 min-w-[64px] font-normal text-sm dark:text-neutral-300"
         >
-          Chart flipping
+          {m.chart_mirroring()}
         </span>
         <select
           id="chart_flipping"
@@ -479,9 +490,15 @@
           bind:value={preferences.chartFlipping}
           class="form-select border-gray-200 rounded-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:focus:ring-neutral-600 join-item w-3/4"
         >
-          {#each ['Off', 'Horizontal', 'Vertical', 'Horizontal and Vertical'] as text, value}
-            <option {value}>
-              {text}
+          {#each Array(4) as _, i}
+            <option value={i}>
+              {i === 0
+                ? m['chart_mirroring_modes.0']()
+                : i === 1
+                  ? m['chart_mirroring_modes.1']()
+                  : i === 2
+                    ? m['chart_mirroring_modes.2']()
+                    : m['chart_mirroring_modes.3']()}
             </option>
           {/each}
         </select>
@@ -490,7 +507,7 @@
         <span
           class="btn no-animation join-item w-1/4 min-w-[64px] font-normal text-sm dark:text-neutral-300"
         >
-          Aspect ratio
+          {m.aspect_ratio()}
         </span>
         <select
           id="aspect_ratio_1"
@@ -503,7 +520,7 @@
               aspectRatio1 > 0 && aspectRatio2 > 0 ? [aspectRatio1, aspectRatio2] : null;
           }}
         >
-          <option value={0}>Auto</option>
+          <option value={0}>{m.auto()}</option>
           {#each Array.from({ length: 30 }, (_, index) => index + 1) as value}
             <option {value}>{value}</option>
           {/each}
@@ -529,7 +546,7 @@
               <option {value}>{value}</option>
             {/each}
           {:else}
-            <option value={0}>Auto</option>
+            <option value={0}>{m.auto()}</option>
           {/if}
         </select>
       </label>

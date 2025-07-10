@@ -1,0 +1,220 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+
+  "name": "English",
+
+  "app_title": "PhiZone Player",
+  "app_subtitle": "Play your favorites anywhere, anytime.",
+  "get_started": "Get started",
+  "download_app": "Download app",
+  "view_on_github": "View on GitHub",
+
+  "app_download": "App Download",
+  "app_download_subtitle": "Ready as an app, comes with more unique features.",
+  "redirecting": "Redirecting",
+  "redirecting_description": "If you're not being redirected to the app, please click the button below. If it still doesn't work, please check if you have the app installed or properly configured in your device settings.",
+  "distributions": {
+    "architecture": "Architecture: {arch}",
+    "avail_for": "Available for {arch}",
+    "avail_via": "Available via {method}",
+    "avail_on": "Available on {platform}",
+    "other": "Other distributions",
+    "desktop_desc": "Desktop distribution via Tauri. Provides exclusive features (e.g. render mode).",
+    "mobile_desc": "Mobile distribution via Capacitor. Incompatibilities and performance issues expected.",
+    "other_desc": "ARM64 distributions for Linux and Windows, x64 for Intel Macs, IPA, debug builds, etc."
+  },
+
+  "resolve_url": "Resolve URL?",
+  "resolve_url_description": {
+    "0": "The following URL was detected in your clipboard:",
+    "1": "Would you like to resolve it as a ZIP or a plain file, or ignore it instead?"
+  },
+  "resolve_as_zip": "Resolve as ZIP",
+  "resolve_as_file": "Resolve as plain file",
+  "ignore": "Ignore",
+
+  "switch_to_chart": "Chart",
+  "switch_to_respack": "Respack",
+
+  "processing_files": "Processing files",
+  "resolving_resources": "Resolving resources",
+  "downloading": "Downloading {filename}",
+  "finished": "Finished",
+
+  "resolution": "Resolution",
+  "frame_rate": "Frame rate",
+  "video_bitrate": "Video bitrate",
+  "audio_bitrate": "Audio bitrate",
+  "video_codec": "Video codec",
+  "loops_to_render": "Loops to render",
+  "export_path": "Export path",
+  "override_resolution": "Override resolution",
+  "vsync": "VSync",
+
+  "autoplay": "Autoplay",
+  "autostart": "Autostart",
+  "practice": "Practice",
+  "adjust_offset": "Adjust offset",
+  "browse": "Browse",
+  "new_window": "New window",
+  "new_tab": "New tab",
+  "proceed_with_browser": "Proceed with browser",
+  "open_in_app": "Open in the app",
+
+  "edit_preferences": "Edit preferences",
+  "preferences": "Preferences",
+  "play_configuration": "Play configuration",
+  "judgment_windows": "Judgment windows",
+  "aspect_ratio": "Aspect ratio",
+  "background_blur": "Background blur",
+  "background_luminance": "Background luminance",
+  "chart_offset": "Chart offset",
+
+  "local_storage": "Local storage",
+
+  "chart": "Chart",
+  "song": "Song",
+  "illustration": "Illustration",
+
+  "autoplay_description": "Notes are automatically given Perfect judgments.",
+  "adjust_offset_description": "Enables realtime chart offset adjustment. The offset set in the preferences is ignored.",
+  "practice_description": "Both inputs and playback controls are enabled.",
+  "render_description": "The canvas will be rendered and saved as a video file.",
+  "autostart_description": "Attempts to start playing automatically after the chart is loaded.",
+  "new_window_description": "The player will open in a new window.",
+  "new_tab_description": "The player will open in a new tab.",
+
+  "render": "Render",
+
+  "ffmpeg_not_found": "FFmpeg could not be found on your system.",
+  "odd_dimensions_warning": "Some encoders may not support resolutions with odd dimensions.",
+
+  "fps": "FPS",
+
+  "no_bundle_available": "No bundle is available.",
+  "no_song_found": "No song found for chart {name}!",
+  "no_illustration_found": "No illustration found for chart {name}!",
+  "metadata_not_found": "Metadata not found!",
+  "rendering_not_available": "Rendering is not available in this environment. Please switch to a different OS or enable cross-origin isolation.",
+
+  "results_loops": "Results loops",
+  "kbps": "kbps",
+  "on": "On",
+  "off": "Off",
+
+  "video_encoder": "Video encoder",
+  "chart_mirroring": "Chart mirroring",
+  "fc_ap_indicator": "FC/AP indicator",
+  "hit_sound_volume": "Hit sound volume",
+  "music_volume": "Music volume",
+  "note_size": "Note size",
+  "line_thickness": "Line thickness",
+  "simultaneous_note_hint": "Simultaneous note hint",
+  "time_scale": "Time scale",
+  "perfect": "Perfect",
+  "good": "Good",
+  "bad": "Bad",
+  "miss_or_incoming": "Miss / Incoming",
+  "rks_factor": "RKS factor",
+
+  "chart_mirroring_modes": {
+    "0": "Off",
+    "1": "Horizontal",
+    "2": "Vertical",
+    "3": "Horizontal and Vertical"
+  },
+
+  "milliseconds": "ms",
+  "percentage": "%",
+  "auto": "Auto",
+
+  "load_files": "Load files",
+  "load_directory": "Load directory",
+  "load_from_url": "Load from URL",
+  "paste_url": "Paste URL",
+
+  "metadata": {
+    "title": "Title",
+    "composer": "Composer",
+    "illustrator": "Illustration designer",
+    "charter": "Chart designer",
+    "level_type": "Level type",
+    "level": "Level"
+  },
+
+  "asset": {
+    "name": "Asset name",
+    "type": "Asset type",
+    "size": "File size",
+    "actions": "Actions",
+    "include": "Include",
+    "exclude": "Exclude",
+    "types": {
+      "0": "Image",
+      "1": "Audio",
+      "2": "Video",
+      "3": "Config",
+      "4": "Shader",
+      "5": "Other"
+    }
+  },
+
+  "play": "Play",
+  "start": "Start",
+  "paused": "Paused",
+  "restart": "Restart",
+  "resume": "Resume",
+
+  "error_metadata_not_found": "Metadata not found!",
+  "error_file_not_found": "Unable to locate {filename} while importing resource pack {packname}.",
+  "error_ffmpeg_not_found": "FFmpeg could not be found on your system. Do you want to install it?",
+  "error_rendering_unavailable": "Video rendering is not available in this environment. Please use a browser that supports SharedArrayBuffer (requires HTTPS or localhost).",
+
+  "or": "OR",
+  "version": "Version",
+  "file_an_issue": "File an issue",
+
+  "select": "Select",
+  "selected": "Selected",
+  "new": "New",
+  "delete": "Delete",
+  "no_thumbnail": "No thumbnail",
+
+  "use_the_app": "Use the app?",
+  "use_the_app_description": {
+    "0": "It looks like some files can be resolved. You might want to proceed with the PhiZone Player app if you have it installed. Otherwise, you can either",
+    "1": "download the app",
+    "2": "or stay in the browser."
+  },
+  "remember_choice": "Remember my choice",
+  "remember_choice_description": "If enabled, this dialog will not be shown again.",
+
+  "rendering": "Rendering",
+  "rendering_details": {
+    "rendering_frames": "Rendering frames",
+    "waiting_for_ffmpeg": "Waiting for FFmpeg",
+    "preparing_audio_assets": "Preparing audio presets",
+    "mixing_audio": "Mixing audio",
+    "retrieving_song": "Retrieving song",
+    "combining_streams": "Combining streams",
+    "finished": "Finished"
+  },
+  "open_file": "Open file",
+  "open_folder": "Open folder",
+  "cancel": "Cancel",
+
+  "click_to_copy": "Click to copy",
+  "copied": "Copied to clipboard",
+  "rendering_saved": "Rendering saved to {path}.",
+  "enabled": "Enabled {name}.",
+  "disabled": "Disabled {name}.",
+  "debug_mode": "debug mode",
+  "performance_metrics": "performance metrics",
+  "new_version_available": "A new version ({version}) is available. {guidance}",
+  "new_version_guidances": {
+    "0": "Click to download.",
+    "1": "Please update the app via TestFlight.",
+    "2": "Click to go to the GitHub releases page."
+  },
+  "version_check_failed": "Failed to contact GitHub to check for updates."
+}

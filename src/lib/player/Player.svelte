@@ -36,6 +36,7 @@
   import StatsJS from 'stats-js';
   import { openPath } from '@tauri-apps/plugin-opener';
   import { sep } from '@tauri-apps/api/path';
+  import { m } from '$lib/paraglide/messages';
 
   export let gameRef: GameReference;
 
@@ -146,7 +147,7 @@
       getCurrentWebviewWindow().setProgressBar({
         status: ProgressBarStatus.None,
       });
-      notify(`Rendering saved to ${output}`, 'success', async () => {
+      notify(m.rendering_saved({ path: output }), 'success', async () => {
         await openPath(output.split(sep()).slice(0, -1).join(sep()));
       });
       wakeLock?.release().then(() => {
@@ -373,7 +374,7 @@
 
 <svelte:head>
   <title>
-    {title && level ? `${title} [${level}] | PhiZone Player` : 'PhiZone Player'}
+    {title && level ? `${title} [${level}] | ${m.app_title()}` : m.app_title()}
   </title>
 </svelte:head>
 
@@ -382,7 +383,7 @@
     <div
       class="p-5 flex flex-col gap-3 justify-center items-center rounded-[32px] backdrop-blur-2xl backdrop-brightness-[60%] hover:backdrop-blur-3xl hover:backdrop-brightness-[35%] trans"
     >
-      <span class="text-7xl font-bold">RENDERING</span>
+      <span class="text-7xl font-bold uppercase">{m.rendering()}</span>
       <div class="flex flex-col gap-1 w-full">
         {#if showProgress}
           <progress class="progress w-full" value={renderingPercent}></progress>
@@ -408,7 +409,7 @@
   </div>
   <div class="absolute bottom-5">
     <div
-      class="p-3 flex flex-col gap-3 justify-center items-center rounded-full backdrop-blur-2xl backdrop-brightness-[60%] hover:backdrop-blur-3xl hover:backdrop-brightness-[35%] trans"
+      class="p-3 flex flex-col gap-3 justify-center items-center rounded-full backdrop-blur-2xl backdrop-brightness-[60%] hover:backdrop-blur-3xl hover:backdrop-brightness-[35%] trans uppercase"
     >
       {#if renderingOutput}
         <div class="flex gap-2 w-96">
@@ -418,7 +419,7 @@
               await openPath(renderingOutput);
             }}
           >
-            OPEN FILE
+            {m.open_file()}
           </button>
           <button
             class="btn btn-outline border-2 btn-info text-xl rounded-full flex-1"
@@ -426,7 +427,7 @@
               await openPath(renderingOutput.split(sep()).slice(0, -1).join(sep()));
             }}
           >
-            OPEN FOLDER
+            {m.open_folder()}
           </button>
         </div>
       {:else}
@@ -436,7 +437,7 @@
             await gameRef.scene?.chartRenderer.cancel();
           }}
         >
-          CANCEL
+          {m.cancel()}
         </button>
       {/if}
     </div>
@@ -511,11 +512,11 @@
         gameRef.scene?.start();
       }}
     >
-      START
+      {m.start()}
     </button>
   {:else if showPause}
     <div class="flex flex-col gap-4 items-center">
-      <h2 class="text-6xl font-bold">PAUSED</h2>
+      <h2 class="text-6xl font-bold uppercase">{m.paused()}</h2>
       <div class="flex gap-2">
         <button class="btn btn-outline border-2 btn-lg btn-circle trans" on:click={exit}>
           {#if !config || config.newTab}
@@ -534,7 +535,7 @@
             gameRef.scene?.restart();
           }}
         >
-          RESTART
+          {m.restart()}
         </button>
         <button
           class="btn btn-outline border-2 btn-lg rounded-full text-2xl w-fit trans"
@@ -557,7 +558,7 @@
             }
           }}
         >
-          RESUME
+          {m.resume()}
         </button>
       </div>
     </div>

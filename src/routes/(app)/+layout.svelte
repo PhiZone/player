@@ -1,6 +1,7 @@
 <script>
   import { base } from '$app/paths';
   import { REPO_LINK, VERSION } from '$lib';
+  import { m } from '$lib/paraglide/messages';
 </script>
 
 <div
@@ -12,7 +13,7 @@
   >
     <slot />
     <div class="flex justify-center items-center gap-x-1 sm:gap-x-3">
-      <span class="text-sm text-gray-600 dark:text-neutral-400">Version</span>
+      <span class="text-sm text-gray-600 dark:text-neutral-400">{m.version()}</span>
       <span class="text-sm font-bold text-gray-900 dark:text-white">
         {VERSION}
       </span>
@@ -32,7 +33,7 @@
         href="{REPO_LINK}/issues/new/choose"
         target="_blank"
       >
-        File an issue
+        {m.file_an_issue()}
         <i class="fa-solid fa-angle-right fa-sm"></i>
       </a>
     </div>

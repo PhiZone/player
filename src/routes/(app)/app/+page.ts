@@ -13,7 +13,7 @@ export const load: PageLoad = async ({ fetch }) => {
       `Request to GitHub API failed with status code ${response.status} (${response.statusText})`,
       await response.text(),
     );
-    throw new Error('Failed to contact GitHub API');
+    return;
   }
   const latestRelease = (await response.json()) as Release;
   return {

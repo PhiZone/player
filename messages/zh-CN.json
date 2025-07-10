@@ -1,0 +1,220 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+
+  "name": "简体中文",
+
+  "app_title": "PhiZone Player",
+  "app_subtitle": "随时随地畅玩您的最爱。",
+  "get_started": "开始使用",
+  "download_app": "下载应用",
+  "view_on_github": "在 GitHub 上查看",
+
+  "app_download": "应用下载",
+  "app_download_subtitle": "作为应用程序提供，具有更多独特功能。",
+  "redirecting": "正在重定向",
+  "redirecting_description": "如果您没有被重定向到应用程序，请点击下面的按钮。如果仍然无法工作，请检查您的设备设置中是否已安装或正确配置了应用程序。",
+  "distributions": {
+    "architecture": "架构：{arch}",
+    "avail_for": "适用于 {arch}",
+    "avail_via": "通过 {method} 可用",
+    "avail_on": "在 {platform} 上可用",
+    "other": "其他分发",
+    "desktop_desc": "通过 Tauri 提供的桌面分发。提供独特功能（例如：渲染模式）。",
+    "mobile_desc": "通过 Capacitor 提供的移动分发。预期存在不兼容和性能问题。",
+    "other_desc": "适用于 Linux 和 Windows 的 ARM64 分发，Intel Macs 的 x64，IPA，调试构建等。"
+  },
+
+  "resolve_url": "解析链接？",
+  "resolve_url_description": {
+    "0": "在您的剪贴板中检测到以下链接：",
+    "1": "您想将其解析为压缩包还是普通文件，或者忽略它？"
+  },
+  "resolve_as_zip": "作为压缩包解析",
+  "resolve_as_file": "作为普通文件解析",
+  "ignore": "忽略",
+
+  "switch_to_chart": "谱面",
+  "switch_to_respack": "资源包",
+
+  "processing_files": "处理文件中",
+  "resolving_resources": "解析资源中",
+  "downloading": "正在下载 {filename}",
+  "finished": "完成",
+
+  "resolution": "分辨率",
+  "frame_rate": "帧率",
+  "video_bitrate": "视频码率",
+  "audio_bitrate": "音频码率",
+  "video_codec": "视频编码",
+  "loops_to_render": "渲染循环次数",
+  "export_path": "导出路径",
+  "override_resolution": "覆盖分辨率",
+  "vsync": "垂直同步",
+
+  "autoplay": "自动播放",
+  "autostart": "自动开始",
+  "practice": "练习模式",
+  "adjust_offset": "调整延迟",
+  "browse": "浏览",
+  "new_window": "新窗口",
+  "new_tab": "新标签页",
+  "proceed_with_browser": "使用浏览器继续",
+  "open_in_app": "在应用中打开",
+
+  "edit_preferences": "编辑偏好设置",
+  "preferences": "偏好设置",
+  "play_configuration": "游玩配置",
+  "judgment_windows": "判定区间",
+  "aspect_ratio": "画面长宽比",
+  "background_blur": "背景模糊",
+  "background_luminance": "背景亮度",
+  "chart_offset": "谱面延迟",
+
+  "local_storage": "本地存储",
+
+  "chart": "谱面",
+  "song": "曲目",
+  "illustration": "曲绘",
+
+  "autoplay_description": "音符将自动获得 Perfect 判定。",
+  "adjust_offset_description": "启用实时谱面偏移调整。偏好设置中的偏移将被忽略。",
+  "practice_description": "启用输入和播放控制。",
+  "render_description": "画布将被渲染并保存为视频文件。",
+  "autostart_description": "在谱面加载完成后尝试自动开始播放。",
+  "new_window_description": "播放器将在新窗口中打开。",
+  "new_tab_description": "播放器将在新标签页中打开。",
+
+  "render": "渲染",
+
+  "ffmpeg_not_found": "系统中找不到 FFmpeg。",
+  "odd_dimensions_warning": "某些编码器可能不支持奇数分辨率。",
+
+  "fps": "FPS",
+
+  "no_bundle_available": "没有可用的谱面包。",
+  "no_song_found": "未找到谱面 {name} 的歌曲！",
+  "no_illustration_found": "未找到谱面 {name} 的曲绘！",
+  "metadata_not_found": "未找到元数据！",
+  "rendering_not_available": "此环境中无法使用渲染功能。请切换到不同的操作系统或启用跨域隔离。",
+
+  "results_loops": "结算循环数",
+  "kbps": "kbps",
+  "on": "开",
+  "off": "关",
+
+  "video_encoder": "视频编码器",
+  "chart_mirroring": "谱面镜像",
+  "fc_ap_indicator": "FC/AP 指示器",
+  "hit_sound_volume": "打击音音量",
+  "music_volume": "音乐音量",
+  "note_size": "音符大小",
+  "line_thickness": "判定线粗细",
+  "simultaneous_note_hint": "多押提示",
+  "time_scale": "时间比例",
+  "perfect": "Perfect",
+  "good": "Good",
+  "bad": "Bad",
+  "miss_or_incoming": "Miss / 未判定",
+  "rks_factor": "RKS 因子",
+
+  "chart_mirroring_modes": {
+    "0": "关",
+    "1": "水平",
+    "2": "竖直",
+    "3": "水平与竖直"
+  },
+
+  "milliseconds": "毫秒",
+  "percentage": "%",
+  "auto": "自动",
+
+  "load_files": "载入文件",
+  "load_directory": "载入文件夹",
+  "load_from_url": "从链接载入",
+  "paste_url": "粘贴链接",
+
+  "metadata": {
+    "title": "标题",
+    "composer": "曲师",
+    "illustrator": "曲绘画师",
+    "charter": "谱师",
+    "level_type": "等级类型",
+    "level": "等级"
+  },
+
+  "asset": {
+    "name": "资源名称",
+    "type": "资源类型",
+    "size": "文件大小",
+    "actions": "操作",
+    "include": "归入",
+    "exclude": "排除",
+    "types": {
+      "0": "图像",
+      "1": "音频",
+      "2": "视频",
+      "3": "配置",
+      "4": "着色器",
+      "5": "其他"
+    }
+  },
+
+  "play": "播放",
+  "start": "开始",
+  "paused": "已暂停",
+  "restart": "重新开始",
+  "resume": "继续播放",
+
+  "error_metadata_not_found": "未找到元数据！",
+  "error_file_not_found": "导入资源包 {packname} 时无法找到 {filename}。",
+  "error_ffmpeg_not_found": "在您的系统上找不到 FFmpeg。您想要安装它吗？",
+  "error_rendering_unavailable": "此环境不支持视频渲染。请使用支持 SharedArrayBuffer 的浏览器（需要 HTTPS 或 localhost）。",
+
+  "or": "或",
+  "version": "版本",
+  "file_an_issue": "提交问题",
+
+  "select": "选择",
+  "selected": "已选择",
+  "new": "新建",
+  "delete": "删除",
+  "no_thumbnail": "无缩略图",
+
+  "use_the_app": "使用应用？",
+  "use_the_app_description": {
+    "0": "检测到一些文件可以被解析。您可能想要继续使用 PhiZone Player 应用程序（如果已安装）。否则，您可以",
+    "1": "下载应用",
+    "2": "或留在浏览器中。"
+  },
+  "remember_choice": "记住我的选择",
+  "remember_choice_description": "如果启用，将不再显示此对话框。",
+
+  "rendering": "渲染中",
+  "rendering_details": {
+    "rendering_frames": "正在渲染帧...",
+    "waiting_for_ffmpeg": "等待 FFmpeg...",
+    "preparing_audio_assets": "准备音频资源...",
+    "mixing_audio": "混合音频...",
+    "retrieving_song": "获取歌曲...",
+    "combining_streams": "合并流...",
+    "finished": "完成"
+  },
+  "open_file": "打开文件",
+  "open_folder": "打开文件夹",
+  "cancel": "取消",
+
+  "click_to_copy": "点击复制",
+  "copied": "已复制到剪贴板",
+  "rendering_saved": "渲染已保存到 {path}。",
+  "enabled": "已启用{name}。",
+  "disabled": "已禁用{name}。",
+  "debug_mode": "调试模式",
+  "performance_metrics": "性能指标",
+  "new_version_available": "有新版本 ({version}) 可用。{guidance}",
+  "new_version_guidances": {
+    "0": "点击下载。",
+    "1": "请通过 TestFlight 更新应用。",
+    "2": "点击前往 GitHub 发布页面。"
+  },
+  "version_check_failed": "联系 GitHub 检查更新失败。"
+}
