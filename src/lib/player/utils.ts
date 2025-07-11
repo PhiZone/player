@@ -35,6 +35,7 @@ import { readFile, remove } from '@tauri-apps/plugin-fs';
 import { clamp, getLines, IS_TAURI, isPec } from '$lib/utils';
 import PhiEditerConverter from '../converters/phiediter';
 import 'context-filter-polyfill';
+import { m } from '$lib/paraglide/messages';
 
 const EASINGS: ((x: number) => number)[] = [
   (x) => x,
@@ -131,10 +132,13 @@ const sanitizeEasingParams = (type: number, x: number, easingLeft: number, easin
 };
 
 export const download = async (url: string, name?: string) => {
+  name ??= 'file';
   EventBus.emit('loading', 0);
   EventBus.emit(
     'loading-detail',
-    url.startsWith('blob:') ? `Loading ${name ?? 'file'}` : `Downloading ${url.split('/').pop()}`,
+    url.startsWith('blob:')
+      ? m.loading({ name })
+      : m.downloading({ name: url.split('/').pop() ?? name }),
   );
   if (IS_TAURI && (url.startsWith('http://') || url.startsWith('https://'))) {
     const filePath = (await tempDir()) + random(1e17, 1e18 - 1);
@@ -428,7 +432,11 @@ export const processEvents = (
     event.endBeat = toBeats(event.endTime);
     if (event.endBeat < event.startBeat) {
       alert(
-        `Event end time is before start time: ${event.startTime} → ${event.endTime} (${source ?? `Layer ${layerIndex}, Line ${lineIndex}`})`,
+        m.warn_event_time_invalid({
+          start: event.startTime,
+          end: event.endTime,
+          source: source ?? `Layer ${layerIndex}, Line ${lineIndex}`,
+        }),
       );
       event.endBeat = event.startBeat;
     }
@@ -917,10 +925,10 @@ export const getAudio = async (url: string): Promise<string> => {
     EventBus.emit('loading', clamp(progress.progress, 0, 1));
   });
   if (!ffmpeg.loaded) {
-    EventBus.emit('loading-detail', 'Loading FFmpeg');
+    EventBus.emit('loading-detail', m.loading({ name: 'FFmpeg' }));
     await loadFFmpeg();
   }
-  EventBus.emit('loading-detail', 'Processing audio');
+  EventBus.emit('loading-detail', m.processing_audio());
   await ffmpeg.writeFile('input', await fetchFile(originalAudio));
   await ffmpeg.exec('-i input -ar 44100 -ac 2 -f wav -y output'.split(' '));
   const data = await ffmpeg.readFile('output');

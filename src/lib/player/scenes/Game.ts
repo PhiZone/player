@@ -42,6 +42,7 @@ import { base } from '$app/paths';
 import { Clock } from '../services/clock';
 import { Renderer } from '../services/renderer';
 import { ResourcePackHandler } from '../handlers/ResourcePackHandler';
+import { m } from '$lib/paraglide/messages';
 
 export class Game extends Scene {
   private _status: GameStatus = GameStatus.LOADING;
@@ -126,7 +127,7 @@ export class Game extends Scene {
     const val = localStorage.getItem('player');
     if (!val) {
       this._status = GameStatus.ERROR;
-      alert('No data is provided.');
+      alert(m.error_no_data_provided());
       return;
     }
     this._data = JSON.parse(val);
@@ -280,7 +281,7 @@ export class Game extends Scene {
       const chart = await loadChart(this._chartUrl);
       if (!chart) {
         this._status = GameStatus.ERROR;
-        alert('Failed to load chart.');
+        alert(m.error_failed_to_load_chart());
         return;
       }
       this._chart = chart;
@@ -289,7 +290,7 @@ export class Game extends Scene {
         this._extra = extra;
         if (!this._extra) {
           this._status = GameStatus.ERROR;
-          alert('Failed to load extra.json.');
+          alert(m.error_failed_to_load({ name: 'extra.json' }));
           return;
         }
         this._extra.effects.forEach((effect) => {
@@ -610,7 +611,7 @@ export class Game extends Scene {
   }
 
   createBackground() {
-    EventBus.emit('loading-detail', 'Drawing background');
+    EventBus.emit('loading-detail', m.drawing_background());
     this._background = new GameObjects.Image(
       this,
       this.sys.canvas.width / 2,
@@ -640,7 +641,7 @@ export class Game extends Scene {
   }
 
   initializeChart() {
-    EventBus.emit('loading-detail', 'Initializing chart');
+    EventBus.emit('loading-detail', m.initializing_chart());
     const chart = this._chart;
     this._offset =
       chart.META.offset + (this._adjustOffset ? 0 : this._data.preferences.chartOffset);
@@ -686,7 +687,7 @@ export class Game extends Scene {
   }
 
   preprocess() {
-    EventBus.emit('loading-detail', 'Preprocessing chart');
+    EventBus.emit('loading-detail', m.preprocessing_chart());
     const notes = this._lines
       .map((line) => line.notes)
       .flat()
@@ -708,7 +709,7 @@ export class Game extends Scene {
   }
 
   initializeHandlers() {
-    EventBus.emit('loading-detail', 'Initializing handlers');
+    EventBus.emit('loading-detail', m.initializing_handlers());
     if (!this._render) {
       this._pointerHandler = new PointerHandler(this);
       this._keyboardHandler = new KeyboardHandler(this);
@@ -724,12 +725,12 @@ export class Game extends Scene {
   }
 
   setupUI() {
-    EventBus.emit('loading-detail', 'Setting up UI');
+    EventBus.emit('loading-detail', m.setting_up_ui());
     this._gameUI = new GameUI(this);
   }
 
   createHitEffectsAnimation() {
-    EventBus.emit('loading-detail', 'Initializing hit effects');
+    EventBus.emit('loading-detail', m.initializing_hit_effects());
     this.anims.create({
       key: 'hit-effects',
       frames: 'hit-effects',
@@ -755,20 +756,20 @@ export class Game extends Scene {
   initializeShaders() {
     if (!this._extra) return;
 
-    EventBus.emit('loading-detail', 'Initializing shaders');
+    EventBus.emit('loading-detail', m.initializing_shaders());
     const missing: string[] = [];
     this._shaders = this._extra.effects.map((effect, i) => {
       const asset = this._shaderAssets.find((asset) => asset.key === effect.shader);
       if (!asset) {
         if (!missing.includes(effect.shader)) {
           missing.push(effect.shader);
-          alert(`Unable to locate external shader ${effect.shader.slice(6)}`);
+          alert(m.error_shader_not_found({ name: effect.shader.slice(6) }));
         }
         return undefined;
       }
       const key = `sh-${effect.shader.slice(6)}-${i}`;
       if (!('pipelines' in this.renderer)) {
-        alert('Shader effects are not supported in this environment.');
+        alert(m.error_shader_unavailable());
         return undefined;
       }
       this.renderer.pipelines.addPostPipeline(key, ShaderPipeline);
@@ -808,7 +809,7 @@ export class Game extends Scene {
   async initializeVideos() {
     if (!this._extra?.videos || this._extra.videos.length === 0) return;
 
-    EventBus.emit('loading-detail', 'Initializing videos');
+    EventBus.emit('loading-detail', m.initializing_videos());
 
     const signal = new Signal(this._extra.videos.length);
     const callback = (errorMsg?: string, exception?: DOMException | string) => {

@@ -612,11 +612,11 @@
   };
 
   const download = async (url: string) => {
-    const filename = url.split('/').pop() ?? url.split('\\').pop() ?? url;
+    const name = url.split('/').pop() ?? url.split('\\').pop() ?? url;
 
     progress = 0;
     progressSpeed = 0;
-    progressDetail = m.downloading({ filename });
+    progressDetail = m.downloading({ name });
 
     if (IS_TAURI && (url.startsWith('https://') || url.startsWith('http://'))) {
       const filePath = (await tempDir()) + random(1e17, 1e18 - 1);
@@ -628,7 +628,7 @@
       const data = await readFile(filePath);
       await remove(filePath);
       progressSpeed = -1;
-      return new File([data], filename);
+      return new File([data], name);
     } else {
       const response = await fetch(url);
       const contentLength = response.headers.get('content-length');
@@ -685,7 +685,7 @@
       if (!zipEntry.dir) {
         const content = await zipEntry.async('blob', (metadata) => {
           progress = clamp(metadata.percent / 100, 0, 1);
-          progressDetail = `Extracting ${fileName}`;
+          progressDetail = m.extracting({ name: fileName });
         });
         const file = new File([content], fileName);
         files.push(file);
@@ -750,12 +750,12 @@
       ) {
         resetProgress();
         const tgz = await download(link);
-        progressDetail = 'Extracting files';
+        progressDetail = m.extracting_files();
         const files = await extractTgz(tgz);
         // console.log(files);
         const executable = files.filter((file) => file.name.includes('ffmpeg'))[0];
         const path = await join(await invoke('get_current_dir'), executable.name);
-        progressDetail = 'Setting up FFmpeg';
+        progressDetail = m.setting_up({ name: 'FFmpeg' });
         await writeFile(path, new Uint8Array(await executable.arrayBuffer()));
         await setFFmpegPath(path);
         ffmpegEncoders = await getEncoders();
@@ -849,11 +849,11 @@
       progress = clamp(p.progress, 0, 1);
     });
     if (!ffmpeg.loaded) {
-      progressDetail = 'Loading FFmpeg';
+      progressDetail = m.loading({ name: 'FFmpeg' });
       await loadFFmpeg();
     }
     try {
-      progressDetail = `Converting ${audio.name}`;
+      progressDetail = m.converting({ name: audio.name });
       await ffmpeg.writeFile('input', await fetchFile(audio));
       await ffmpeg.exec('-i input -ar 44100 -ac 2 -f wav -y output'.split(' '));
       const data = await ffmpeg.readFile('output');
@@ -886,7 +886,10 @@
       if (!panicOnNotFound) {
         return undefined;
       }
-      const message = `Unable to locate ${str} while importing resource pack ${metadata.name}.`;
+      const message = m.error_respack_incomplete({
+        filename: str,
+        packname: metadata.name,
+      });
       alert(message);
       throw new Error(message);
     };
@@ -1006,7 +1009,10 @@
         filesLocated.push(file);
         return file.file;
       }
-      const message = `Unable to locate ${str} while converting Phira resource pack ${metadata.name}.`;
+      const message = m.error_respack_incomplete_phira({
+        filename: str,
+        packname: metadata.name,
+      });
       throw new Error(message);
     };
     const results = [
@@ -1762,7 +1768,7 @@
                       <span class="btn btn-xs btn-circle btn-success no-animation">
                         <i class="fa-solid fa-check"></i>
                       </span>
-                      <p class="text-success">SELECTED</p>
+                      <p class="text-success uppercase">{m.selected()}</p>
                     </div>
                   </button>
                   {#if chartBundles.length > 1}

@@ -3,6 +3,7 @@ import { Game } from '../scenes/Game';
 import { type AnimatedVariable, type VariableEvent, type Video as VideoType } from '$lib/types';
 import { getTimeSec, getEventValue, processEvents, toBeats } from '../utils';
 import { Signal } from './Signal';
+import { m } from '$lib/paraglide/messages';
 
 export class Video extends GameObjects.Container {
   private _scene: Game;
@@ -39,14 +40,14 @@ export class Video extends GameObjects.Container {
       this._data.endTimeSec = this._data.startTimeSec + this._video.getDuration();
     });
     this._video.on('unsupported', (_: never, e: DOMException | string) => {
-      callback('Unsupported format for video ' + data.path, e);
+      callback(m.error_video_unsupported({ name: data.path }), e);
     });
     // this._video.on('unlocked', (_: never, e: never) => {
     //   console.log('Unlocked', e);
     // });
     this._video.on('error', (_: never, e: DOMException | string) => {
       if (e.toString().startsWith('AbortError')) return;
-      callback('An error occurred whilst loading video ' + data.path, e);
+      callback(m.error_failed_to_load_video({ name: data.path }), e);
     });
     // this._video.on('timeout', () => {
     //   console.log('Timed out');

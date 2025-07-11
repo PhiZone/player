@@ -222,7 +222,7 @@ export class Renderer {
               sound = note.hitsound;
               customHitsoundCount++;
             } else {
-              alert(`Missing hit sound asset: ${note.hitsound}`);
+              alert(m.error_hitsound_missing({ name: note.hitsound }));
             }
           }
           timestamps.push({

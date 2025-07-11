@@ -11,6 +11,7 @@ import {
 } from '../utils';
 import type { ShaderNode } from './ShaderNode';
 import { Node, ROOT } from './Node';
+import { m } from '$lib/paraglide/messages';
 
 const DEFAULT_VALUE_REGEX = /uniform\s+(\w+)\s+(\w+);\s+\/\/\s+%([^%]+)%/g;
 
@@ -88,7 +89,7 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
       this.bootFX();
     } catch (e) {
       console.error(e);
-      alert(`An error occurred whilst loading Shader ${this._data.shader}.`);
+      alert(m.error_failed_to_load_shader({ name: this._data.shader }));
     }
   }
 
@@ -100,7 +101,12 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
           this.setUniform(key, value, 0);
         } else if (typeof value === 'string') {
           if (!this._scene.textures.exists(value)) {
-            alert(`Texture ${value} required by Shader ${this._data.shader} does not exist.`);
+            alert(
+              m.error_shader_texture_missing({
+                name: value,
+                shader: this._data.shader,
+              }),
+            );
             return;
           }
           const texture = this._scene.textures.get(`asset-${value}`).source[0].glTexture;
