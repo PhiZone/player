@@ -84,7 +84,7 @@
   "new_window_description": "播放器将在新窗口中打开。",
   "new_tab_description": "播放器将在新标签页中打开。",
 
-  "render": "渲染",
+  "render": "渲染模式",
 
   "ffmpeg_not_found": "系统中找不到 FFmpeg。",
   "odd_dimensions_warning": "某些编码器可能不支持奇数分辨率。",

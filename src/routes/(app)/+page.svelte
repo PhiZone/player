@@ -2424,7 +2424,7 @@
                             class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm text-sm focus:z-10 rounded-s-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
                           />
                           <button
-                            class="py-3 px-4 inline-flex justify-center items-center gap-x-2 text-center text-sm font-medium shadow-sm rounded-e-lg transition border border-gray-200 text-gray-500 hover:border-blue-500 hover:text-blue-500 focus:outline-none focus:border-blue-500 focus:text-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:border-neutral-700 dark:text-neutral-400 dark:hover:text-blue-500 dark:hover:border-blue-500 dark:focus:text-blue-500 dark:focus:border-blue-500"
+                            class="py-3 px-4 inline-flex justify-center items-center text-nowrap gap-x-2 text-center text-sm font-medium shadow-sm rounded-e-lg transition border border-gray-200 text-gray-500 hover:border-blue-500 hover:text-blue-500 focus:outline-none focus:border-blue-500 focus:text-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:border-neutral-700 dark:text-neutral-400 dark:hover:text-blue-500 dark:hover:border-blue-500 dark:focus:text-blue-500 dark:focus:border-blue-500"
                             onclick={async () => {
                               const path = await open({
                                 directory: true,

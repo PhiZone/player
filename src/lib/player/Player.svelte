@@ -381,7 +381,7 @@
 {#if render}
   <div class="absolute inset-0 flex justify-center items-center">
     <div
-      class="p-5 flex flex-col gap-3 justify-center items-center rounded-[32px] backdrop-blur-2xl backdrop-brightness-[60%] hover:backdrop-blur-3xl hover:backdrop-brightness-[35%] trans"
+      class="p-5 min-w-80 flex flex-col gap-3 justify-center items-center rounded-[32px] backdrop-blur-2xl backdrop-brightness-[60%] hover:backdrop-blur-3xl hover:backdrop-brightness-[35%] trans"
     >
       <span class="text-7xl font-bold uppercase">{m.rendering()}</span>
       <div class="flex flex-col gap-1 w-full">
