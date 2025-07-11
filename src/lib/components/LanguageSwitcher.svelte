@@ -35,13 +35,11 @@
     }}
   />
   {#if open}
-    <ul
-      class="dropdown-content menu bg-base-200/50 dark:bg-base-200 rounded-box z-1 w-40 p-2 shadow-lg"
-    >
+    <ul class="dropdown-content menu bg-base-300/80 rounded-box z-1 w-40 p-2 shadow-lg">
       {#each locales as locale (locale)}
         <li>
           <button
-            class="justify-between"
+            class="justify-between btn btn-sm btn-ghost"
             class:active={getLocale() === locale}
             onclick={() => {
               setLocale(locale);
