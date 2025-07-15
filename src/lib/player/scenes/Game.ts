@@ -142,9 +142,7 @@ export class Game extends Scene {
     this.load.on('fileprogress', (e: { key: string; url: string }) => {
       EventBus.emit(
         'loading-detail',
-        e.url.startsWith('blob:')
-          ? `Loading ${e.key ?? 'file'}`
-          : `Loading ${e.url.split('/').pop()}`,
+        m.loading({ name: (e.url.startsWith('blob:') ? e.url.split('/').pop() : e.key) ?? 'file' }),
       );
     });
 
