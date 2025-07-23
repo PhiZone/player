@@ -2,9 +2,10 @@ use base64::{engine::general_purpose::STANDARD, Engine as _};
 use hound::{SampleFormat, WavSpec};
 use rodio::Decoder;
 use std::io::{BufWriter, Cursor, Write};
-use std::process::Command;
 use std::{collections::HashMap, process::Stdio};
 use tauri::{AppHandle, Emitter};
+
+use crate::cmd_hidden;
 
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct Sound {
@@ -137,7 +138,7 @@ pub fn mix_audio(
                 }
             }
 
-            let mut proc = Command::new("ffmpeg")
+            let mut proc = cmd_hidden("ffmpeg")
                 .args(
                     format!("-y -f f32le -ar 44100 -ac 2 -i - -c:a pcm_f32le -f wav")
                         .split_whitespace(),
@@ -150,10 +151,10 @@ pub fn mix_audio(
             let input = proc.stdin.as_mut().unwrap();
             let mut writer = BufWriter::new(input);
             for sample in combined_samples.into_iter() {
-                let _ = writer.write_all(&sample.to_le_bytes());
+                writer.write_all(&sample.to_le_bytes()).map_err(|e| e.to_string())?;
             }
             drop(writer);
-            let _ = proc.wait();
+            proc.wait().map_err(|e| e.to_string())?;
 
             Ok(())
         };

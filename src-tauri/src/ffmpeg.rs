@@ -4,11 +4,13 @@ use std::fs;
 use std::io::Write;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
-use std::process::{ChildStdin, Command};
+use std::process::ChildStdin;
 use std::sync::{LazyLock, Mutex};
 use tauri::{AppHandle, Emitter};
 use tokio::net::TcpListener;
 use tokio_tungstenite::accept_async;
+
+use crate::cmd_hidden;
 
 static FFMPEG_CMD: LazyLock<Mutex<String>> = LazyLock::new(|| Mutex::new("ffmpeg".to_string()));
 static FFMPEG_STDIN: LazyLock<Mutex<Option<ChildStdin>>> = LazyLock::new(|| Mutex::new(None));
@@ -23,7 +25,7 @@ pub struct Encoder {
 
 pub fn set_ffmpeg_path(path: &str) -> Result<(), String> {
     // First check if the default ffmpeg works
-    let default_result = Command::new("ffmpeg").arg("-version").output();
+    let default_result = cmd_hidden("ffmpeg").arg("-version").output();
 
     // If default works and we're not forcing a new path, keep using default
     if default_result.is_ok() {
@@ -45,7 +47,7 @@ pub fn set_ffmpeg_path(path: &str) -> Result<(), String> {
     }
 
     // Test the provided path
-    let result = Command::new(path)
+    let result = cmd_hidden(path)
         .arg("-version")
         .output()
         .map_err(|e| format!("Failed to execute FFmpeg at path '{}': {}", path, e))?;
@@ -64,7 +66,7 @@ pub fn set_ffmpeg_path(path: &str) -> Result<(), String> {
 }
 
 pub fn get_encoders() -> Result<Vec<Encoder>, String> {
-    let output = Command::new(&*FFMPEG_CMD.lock().unwrap())
+    let output = cmd_hidden(&*FFMPEG_CMD.lock().unwrap())
         .arg("-encoders")
         .output()
         .map_err(|e| e.to_string())?;
@@ -124,7 +126,7 @@ pub fn convert_audio(app: AppHandle, input: String, output: String) -> Result<()
     std::thread::spawn({
         let app = app.clone();
         move || {
-            let _ = Command::new(&*FFMPEG_CMD.lock().unwrap())
+            let _ = cmd_hidden(&*FFMPEG_CMD.lock().unwrap())
                 .args(
                     format!("-i {} -ar 44100 -c:a pcm_f32le -y {}", input, output)
                         .split_whitespace(),
@@ -155,7 +157,7 @@ pub fn combine_streams(
                 "[1:a]adelay=1000|1000,volume={}[a2];[2:a][a2]amix=inputs=2:normalize=0,alimiter=limit=1.0:level=false:attack=0.1:release=1[a]",
                 music_volume
             );
-            let _ = Command::new(&*FFMPEG_CMD.lock().unwrap())
+            let _ = cmd_hidden(&*FFMPEG_CMD.lock().unwrap())
                 .args(
                     format!(
                         "-y -i {} -i {} -i {} -filter_complex {}",
@@ -188,7 +190,7 @@ pub async fn setup_video(
     codec: String,
     bitrate: String,
 ) -> Result<(), String> {
-    let process = Command::new(&*FFMPEG_CMD.lock().unwrap())
+    let process = cmd_hidden(&*FFMPEG_CMD.lock().unwrap())
         .args(format!(
             "-probesize 50M -f rawvideo -pix_fmt rgb24 -s {} -r {} -thread_queue_size 1024 -i pipe:0 -c:v {} -b:v {} -vf vflip -pix_fmt yuv420p -y {}",
             resolution, framerate.to_string(), codec, bitrate, output

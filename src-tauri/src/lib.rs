@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::process::Command;
 use std::sync::{LazyLock, Mutex};
 use tauri::Manager;
 use tauri::{AppHandle, Emitter};
@@ -91,6 +92,19 @@ fn parse_files_opened<T: Iterator<Item = String>>(files: &mut Vec<PathBuf>, args
         }
     }
     println!("files opened ({:?}): {:?}", files.len(), files);
+}
+
+pub fn cmd_hidden(program: impl AsRef<std::ffi::OsStr>) -> Command {
+    let cmd = Command::new(program);
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        let mut cmd = cmd;
+        cmd.creation_flags(0x08000000);
+        cmd
+    }
+    #[cfg(not(target_os = "windows"))]
+    cmd
 }
 
 #[tauri::command]
