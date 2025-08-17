@@ -125,9 +125,9 @@ const EASING_DERIVATIVE_ENDS = EASINGS.map((func) => [
 const sanitizeEasingParams = (type: number, x: number, easingLeft: number, easingRight: number) => {
   return {
     type: type > 0 && type <= EASINGS.length ? type : 1,
-    x: clamp(x, 0, 1),
-    easingLeft: clamp(easingLeft, 0, 1),
-    easingRight: clamp(easingRight, 0, 1),
+    x: !x ? 0 : clamp(x, 0, 1),
+    easingLeft: !easingLeft || easingLeft >= easingRight ? 0 : clamp(easingLeft, 0, 1),
+    easingRight: !easingRight || easingLeft >= easingRight ? 1 : clamp(easingRight, 0, 1),
   };
 };
 
