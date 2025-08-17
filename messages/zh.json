@@ -223,7 +223,7 @@
     "waiting_for_ffmpeg": "等待 FFmpeg",
     "preparing_audio_assets": "准备音频资源",
     "mixing_audio": "混合音频",
-    "retrieving_song": "获取歌曲",
+    "retrieving_song": "获取曲目音频",
     "combining_streams": "合并媒体流",
     "finished": "完成"
   },
