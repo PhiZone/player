@@ -205,7 +205,7 @@ jobs:
           xcodebuild -workspace ios/App/App.xcworkspace -scheme App \
           -archivePath $RUNNER_TEMP/App.xcarchive \
           -destination generic/platform=iOS \
-          -sdk iphoneos17.0 \
+          -sdk iphoneos \
           clean archive
 
       - name: Assemble IPA
