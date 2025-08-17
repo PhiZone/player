@@ -241,7 +241,7 @@ pub async fn setup_video(
                     };
                     let total_digits = total_frames.to_string().len();
                     print!(
-                        "\rRendering: {:6.2}% ({:width$}/{}) ...",
+                        "\rRendering: {:6.2}% ({:width$}/{})...",
                         progress_percent,
                         frames_received,
                         total_frames,
