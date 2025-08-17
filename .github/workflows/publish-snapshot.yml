@@ -71,6 +71,9 @@ jobs:
           cd ios/App
           pod install
 
+      - name: Download iOS SDK
+        run: xcodebuild -downloadPlatform iOS
+
       - name: Create build
         run: pnpm build
         env:
