@@ -200,12 +200,14 @@ jobs:
 
           echo -n "$ASC_API_KEY_BASE64" | base64 --decode -o $ASC_API_KEY_PATH
 
+      - name: Check available iOS SDKs
+        run: xcodebuild -showsdks
+
       - name: Build project
         run: |
           xcodebuild -workspace ios/App/App.xcworkspace -scheme App \
           -archivePath $RUNNER_TEMP/App.xcarchive \
-          -destination generic/platform=iOS \
-          -sdk iphoneos17.0 \
+          -destination "generic/platform=iOS" \
           clean archive
 
       - name: Assemble IPA
