@@ -319,7 +319,10 @@
       });
       const handler = async (path: string) => {
         const data = await readFile(path);
-        return new File([data], path.split('/').pop() ?? path.split('\\').pop() ?? path);
+        return new File(
+          [Uint8Array.from(data)],
+          path.split('/').pop() ?? path.split('\\').pop() ?? path,
+        );
       };
       listen('files-opened', async (event) => {
         const filePaths = event.payload as string[];
@@ -628,7 +631,7 @@
       const data = await readFile(filePath);
       await remove(filePath);
       progressSpeed = -1;
-      return new File([data], name);
+      return new File([Uint8Array.from(data)], name);
     } else {
       const response = await fetch(url);
       const contentLength = response.headers.get('content-length');
@@ -639,7 +642,7 @@
       const totalSize = parseInt(contentLength ?? '-1');
       let loadedSize = 0;
       const reader = response.body.getReader();
-      const chunks: Uint8Array[] = [];
+      const chunks: BlobPart[] = [];
 
       const speedWindow: { loadedSize: number; time: number }[] = [];
       const windowSize = 8;
@@ -648,7 +651,7 @@
         const { done, value } = await reader.read();
         if (done) break;
         if (value) {
-          chunks.push(value);
+          chunks.push(Uint8Array.from(value));
           loadedSize += value.length;
           progress = clamp(loadedSize / totalSize, 0, 1);
 
