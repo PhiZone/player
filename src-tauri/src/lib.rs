@@ -159,6 +159,13 @@ fn parse_cli_args<T: Iterator<Item = String>>(args_map: &mut HashMap<String, Str
         }
     }
 
+    // Sort the map by keys alphabetically
+    let mut sorted: Vec<_> = args_map.drain().collect();
+    sorted.sort_by(|a, b| a.0.cmp(&b.0));
+    for (k, v) in sorted {
+        args_map.insert(k, v);
+    }
+
     println!("CLI args parsed ({:?}): {:?}", args_map.len(), args_map);
 }
 
