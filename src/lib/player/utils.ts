@@ -147,7 +147,7 @@ export const download = async (url: string, name?: string) => {
     });
     const data = await readFile(filePath);
     await remove(filePath);
-    return new Blob([data]);
+    return new Blob([Uint8Array.from(data)]);
   } else {
     const response = await fetch(url);
     const contentLength = response.headers.get('content-length');
@@ -158,13 +158,13 @@ export const download = async (url: string, name?: string) => {
     const totalSize = parseInt(contentLength ?? '-1');
     let loadedSize = 0;
     const reader = response.body.getReader();
-    const chunks: Uint8Array[] = [];
+    const chunks: BlobPart[] = [];
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       if (value) {
-        chunks.push(value);
+        chunks.push(Uint8Array.from(value));
         loadedSize += value.length;
         EventBus.emit('loading', clamp(loadedSize / totalSize, 0, 1));
       }
@@ -1029,7 +1029,8 @@ const convertGifToSpritesheet = (gifArrayBuffer: ArrayBuffer) => {
     }
 
     // Create ImageData from the frame patch
-    const patchImageData = new ImageData(frame.patch, frame.dims.width, frame.dims.height);
+    const patchData = new Uint8ClampedArray(frame.patch);
+    const patchImageData = new ImageData(patchData, frame.dims.width, frame.dims.height);
 
     // Apply transparent pixels
     if (transparentIndex !== null) {
@@ -1057,7 +1058,12 @@ const convertGifToSpritesheet = (gifArrayBuffer: ArrayBuffer) => {
     patchCanvas.height = frame.dims.height;
 
     const patchCtx = patchCanvas.getContext('2d')!;
-    patchCtx.putImageData(new ImageData(frame.patch, frame.dims.width, frame.dims.height), 0, 0);
+    const patchDataForCanvas = new Uint8ClampedArray(frame.patch);
+    patchCtx.putImageData(
+      new ImageData(patchDataForCanvas, frame.dims.width, frame.dims.height),
+      0,
+      0,
+    );
 
     // Draw onto the intermediate canvas
     intermediateCtx.drawImage(
