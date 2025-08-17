@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::{LazyLock, Mutex};
@@ -9,6 +10,8 @@ mod audio;
 mod ffmpeg;
 
 static FILES_OPENED: LazyLock<Mutex<Vec<PathBuf>>> = LazyLock::new(|| Mutex::new(vec![]));
+static CLI_ARGS: LazyLock<Mutex<HashMap<String, String>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -44,6 +47,9 @@ pub fn run() {
 
                 // handle associated files
                 parse_files_opened(&mut FILES_OPENED.lock().unwrap(), std::env::args());
+
+                // parse CLI arguments
+                parse_cli_args(&mut CLI_ARGS.lock().unwrap(), std::env::args());
             }
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -56,6 +62,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             get_files_opened,
+            get_cli_args,
             get_current_dir,
             set_ffmpeg_path,
             get_ffmpeg_encoders,
@@ -94,6 +101,67 @@ fn parse_files_opened<T: Iterator<Item = String>>(files: &mut Vec<PathBuf>, args
     println!("files opened ({:?}): {:?}", files.len(), files);
 }
 
+fn parse_cli_args<T: Iterator<Item = String>>(args_map: &mut HashMap<String, String>, args: T) {
+    let args_vec: Vec<String> = args.collect();
+    let mut i = 1; // skip the program name
+
+    while i < args_vec.len() {
+        let arg = &args_vec[i];
+
+        // Handle long flags (--key=value or --key value)
+        if arg.starts_with("--") {
+            let key = arg.trim_start_matches("--");
+
+            // Check if it's in the format --key=value
+            if let Some(eq_pos) = key.find('=') {
+                let (k, v) = key.split_at(eq_pos);
+                let value = &v[1..]; // skip the '=' character
+                args_map.insert(k.to_string(), value.to_string());
+                i += 1;
+            } else {
+                // Check if the next argument is the value
+                if i + 1 < args_vec.len() && !args_vec[i + 1].starts_with('-') {
+                    args_map.insert(key.to_string(), args_vec[i + 1].clone());
+                    i += 2;
+                } else {
+                    // It's a boolean flag
+                    args_map.insert(key.to_string(), "true".to_string());
+                    i += 1;
+                }
+            }
+        }
+        // Handle short flags (-k value or -k=value)
+        else if arg.starts_with('-') && arg.len() > 1 {
+            let key = arg.trim_start_matches('-');
+
+            // Check if it's in the format -k=value
+            if let Some(eq_pos) = key.find('=') {
+                let (k, v) = key.split_at(eq_pos);
+                let value = &v[1..]; // skip the '=' character
+                args_map.insert(k.to_string(), value.to_string());
+                i += 1;
+            } else {
+                // Check if the next argument is the value
+                if i + 1 < args_vec.len() && !args_vec[i + 1].starts_with('-') {
+                    args_map.insert(key.to_string(), args_vec[i + 1].clone());
+                    i += 2;
+                } else {
+                    // It's a boolean flag
+                    args_map.insert(key.to_string(), "true".to_string());
+                    i += 1;
+                }
+            }
+        }
+        // Handle positional arguments
+        else {
+            args_map.insert(format!("arg{}", i - 1), arg.clone());
+            i += 1;
+        }
+    }
+
+    println!("CLI args parsed: {:?}", args_map);
+}
+
 pub fn cmd_hidden(program: impl AsRef<std::ffi::OsStr>) -> Command {
     let cmd = Command::new(program);
     #[cfg(target_os = "windows")]
@@ -116,6 +184,11 @@ fn get_files_opened() -> Vec<String> {
         .into_iter()
         .map(|f| f.to_string_lossy().into_owned())
         .collect()
+}
+
+#[tauri::command]
+fn get_cli_args() -> HashMap<String, String> {
+    CLI_ARGS.lock().unwrap().clone()
 }
 
 #[tauri::command]

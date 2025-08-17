@@ -214,6 +214,8 @@
   let clipboardUrl: URL | undefined;
   let lastResolvedClipboardUrl: URL | undefined;
 
+  let scheduledStart = false;
+
   const unlistens: UnlistenFn[] = [];
 
   onMount(async () => {
@@ -240,39 +242,18 @@
       if (!message || !message.type) return;
       if (message.type === 'play') {
         let config: Config;
+        const { preferences: pref, mediaOptions: rec, ...rest } = message.payload;
+        if (pref) preferences = pref;
+        if (rec) mediaOptions = rec;
+        for (const key in rest) {
+          if (rest[key as keyof typeof rest] !== undefined) {
+            toggles[key as keyof typeof toggles] = rest[key as keyof typeof rest] as never;
+          }
+        }
         if ('resources' in message.payload) {
           config = message.payload;
         } else {
-          const assetsIncluded = assets.filter((asset) => asset.included);
-          const { preferences: pref, mediaOptions: rec, ...rest } = message.payload;
-          for (const key in rest) {
-            if (rest[key as keyof typeof rest] !== undefined) {
-              toggles[key as keyof typeof toggles] = rest[key as keyof typeof rest] as never;
-            }
-          }
-          if (!currentBundle) {
-            alert(m.no_bundle_available());
-            return;
-          }
-          config = {
-            resources: {
-              song: getUrl(audioFiles.find((file) => file.id === currentBundle!.song)?.file) ?? '',
-              chart:
-                getUrl(chartFiles.find((file) => file.id === currentBundle!.chart)?.file) ?? '',
-              illustration:
-                imageFiles.find((file) => file.id === currentBundle!.illustration)?.url ?? '',
-              assetNames: assetsIncluded.map((asset) => asset.file.name),
-              assetTypes: assetsIncluded.map((asset) => asset.type),
-              assets: assetsIncluded.map((asset) => getUrl(asset.file) ?? ''),
-            },
-            metadata: currentBundle.metadata,
-            preferences: pref ?? preferences,
-            mediaOptions: rec ?? mediaOptions,
-            resourcePack: ensureRespackSerializable(
-              resourcePacks.find((pack) => pack.id === selectedResourcePack)!,
-            ),
-            ...toggles,
-          };
+          config = handleConfig();
         }
         await handleParams(config);
       } else if (
@@ -324,15 +305,15 @@
           path.split('/').pop() ?? path.split('\\').pop() ?? path,
         );
       };
-      listen('files-opened', async (event) => {
-        const filePaths = event.payload as string[];
+      listen('files-opened', async (event: { payload: string[] }) => {
+        const filePaths = event.payload;
         await handleFilePaths(filePaths, handler);
       });
       if (isFirstLoad) {
         if (crossOriginIsolated) ffmpegEncoders = await getEncoders();
-        const result = await invoke('get_files_opened');
+        const result: string[] = await invoke('get_files_opened');
         if (result) {
-          await handleFilePaths(result as string[], handler);
+          await handleFilePaths(result, handler);
         }
       }
       unlistens.push(
@@ -367,6 +348,10 @@
         name: 'ready',
       },
     });
+
+    if (scheduledStart) {
+      await start(handleConfig());
+    }
   });
 
   onDestroy(() => {
@@ -398,9 +383,18 @@
     }
 
     let pref, tgs, mopts;
-    pref = localStorage.getItem('preferences');
-    tgs = localStorage.getItem('toggles');
-    mopts = localStorage.getItem('mediaOptions');
+
+    if (IS_TAURI) {
+      const args: Record<string, string> = await invoke('get_cli_args');
+      if (args['preferences']) pref = args['preferences'];
+      if (args['toggles']) tgs = args['toggles'];
+      if (args['mediaOptions']) mopts = args['mediaOptions'];
+      scheduledStart = args['start'] === 'true' || args['play'] === 'true';
+    }
+
+    pref ??= localStorage.getItem('preferences');
+    tgs ??= localStorage.getItem('toggles');
+    mopts ??= localStorage.getItem('mediaOptions');
 
     if (pref) {
       pref = JSON.parse(pref);
@@ -499,6 +493,31 @@
     if (!success) {
       notify(m.version_check_failed(), 'warning');
     }
+  };
+
+  const handleConfig = () => {
+    const assetsIncluded = assets.filter((asset) => asset.included);
+    if (!currentBundle) {
+      alert(m.no_bundle_available());
+      throw new Error(m.no_bundle_available());
+    }
+    return {
+      resources: {
+        song: getUrl(audioFiles.find((file) => file.id === currentBundle!.song)?.file) ?? '',
+        chart: getUrl(chartFiles.find((file) => file.id === currentBundle!.chart)?.file) ?? '',
+        illustration: imageFiles.find((file) => file.id === currentBundle!.illustration)?.url ?? '',
+        assetNames: assetsIncluded.map((asset) => asset.file.name),
+        assetTypes: assetsIncluded.map((asset) => asset.type),
+        assets: assetsIncluded.map((asset) => getUrl(asset.file) ?? ''),
+      },
+      metadata: currentBundle.metadata,
+      preferences,
+      mediaOptions,
+      resourcePack: ensureRespackSerializable(
+        resourcePacks.find((pack) => pack.id === selectedResourcePack)!,
+      ),
+      ...toggles,
+    };
   };
 
   const handleRedirect = async (url: string) => {
@@ -755,7 +774,6 @@
         const tgz = await download(link);
         progressDetail = m.extracting_files();
         const files = await extractTgz(tgz);
-        // console.log(files);
         const executable = files.filter((file) => file.name.includes('ffmpeg'))[0];
         const path = await join(await invoke('get_current_dir'), executable.name);
         progressDetail = m.setting_up({ name: 'FFmpeg' });
@@ -2530,33 +2548,7 @@
                   }
                   localStorage.setItem('mediaOptions', JSON.stringify(mediaOptions));
                 }
-                if (!currentBundle) {
-                  alert(m.no_bundle_available());
-                  return;
-                }
-                const assetsIncluded = assets.filter((asset) => asset.included);
-                start({
-                  resources: {
-                    song:
-                      getUrl(audioFiles.find((file) => file.id === currentBundle!.song)?.file) ??
-                      '',
-                    chart:
-                      getUrl(chartFiles.find((file) => file.id === currentBundle!.chart)?.file) ??
-                      '',
-                    illustration:
-                      imageFiles.find((file) => file.id === currentBundle!.illustration)?.url ?? '',
-                    assetNames: assetsIncluded.map((asset) => asset.file.name),
-                    assetTypes: assetsIncluded.map((asset) => asset.type),
-                    assets: assetsIncluded.map((asset) => getUrl(asset.file) ?? ''),
-                  },
-                  metadata: currentBundle.metadata,
-                  preferences,
-                  mediaOptions,
-                  resourcePack: ensureRespackSerializable(
-                    resourcePacks.find((pack) => pack.id === selectedResourcePack)!,
-                  ),
-                  ...toggles,
-                });
+                start(handleConfig());
               }}
             >
               {m.play()}
