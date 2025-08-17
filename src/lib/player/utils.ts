@@ -158,7 +158,7 @@ export const download = async (url: string, name?: string) => {
     const totalSize = parseInt(contentLength ?? '-1');
     let loadedSize = 0;
     const reader = response.body.getReader();
-    const chunks: BlobPart[] = [];
+    const chunks: Uint8Array<ArrayBuffer>[] = [];
 
     while (true) {
       const { done, value } = await reader.read();

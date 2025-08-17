@@ -661,7 +661,7 @@
       const totalSize = parseInt(contentLength ?? '-1');
       let loadedSize = 0;
       const reader = response.body.getReader();
-      const chunks: BlobPart[] = [];
+      const chunks: Uint8Array<ArrayBuffer>[] = [];
 
       const speedWindow: { loadedSize: number; time: number }[] = [];
       const windowSize = 8;
