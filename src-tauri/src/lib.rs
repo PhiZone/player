@@ -159,7 +159,7 @@ fn parse_cli_args<T: Iterator<Item = String>>(args_map: &mut HashMap<String, Str
         }
     }
 
-    println!("CLI args parsed: {:?}", args_map);
+    println!("CLI args parsed ({:?}): {:?}", args_map.len(), args_map);
 }
 
 pub fn cmd_hidden(program: impl AsRef<std::ffi::OsStr>) -> Command {
@@ -218,10 +218,11 @@ async fn setup_video(
     output: String,
     resolution: String,
     frame_rate: u32,
+    duration: f64,
     codec: String,
     bitrate: String,
 ) -> Result<(), String> {
-    ffmpeg::setup_video(output, resolution, frame_rate, codec, bitrate).await
+    ffmpeg::setup_video(output, resolution, frame_rate, duration, codec, bitrate).await
 }
 
 #[tauri::command]

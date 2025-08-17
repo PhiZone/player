@@ -58,6 +58,7 @@ export class Renderer {
       videoFile,
       [width, height],
       frameRate,
+      this._length,
       this._options.videoCodec,
       this._options.videoBitrate,
     );

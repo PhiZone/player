@@ -63,6 +63,7 @@ export const setupVideo = async (
   output: string,
   resolution: [number, number],
   frameRate: number,
+  duration: number,
   codec: string,
   bitrate: number,
 ) => {
@@ -72,6 +73,7 @@ export const setupVideo = async (
     output,
     resolution: `${resolution[0]}x${resolution[1]}`,
     frameRate,
+    duration,
     codec,
     bitrate: `${bitrate}k`,
   });

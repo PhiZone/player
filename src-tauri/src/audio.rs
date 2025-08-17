@@ -35,6 +35,8 @@ pub fn mix_audio(
 ) -> Result<(), String> {
     std::thread::spawn(move || {
         let run = || {
+            print!("Mixing audio...");
+
             // Decoding sounds
             let mut decoded_sound_map: HashMap<String, Vec<f32>> = HashMap::new();
 
@@ -151,7 +153,9 @@ pub fn mix_audio(
             let input = proc.stdin.as_mut().unwrap();
             let mut writer = BufWriter::new(input);
             for sample in combined_samples.into_iter() {
-                writer.write_all(&sample.to_le_bytes()).map_err(|e| e.to_string())?;
+                writer
+                    .write_all(&sample.to_le_bytes())
+                    .map_err(|e| e.to_string())?;
             }
             drop(writer);
             proc.wait().map_err(|e| e.to_string())?;
@@ -159,6 +163,7 @@ pub fn mix_audio(
             Ok(())
         };
         app.emit("audio-mixing-finished", run()).unwrap();
+        println!(" finished.");
     });
 
     Ok(())

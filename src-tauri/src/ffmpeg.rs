@@ -126,6 +126,7 @@ pub fn convert_audio(app: AppHandle, input: String, output: String) -> Result<()
     std::thread::spawn({
         let app = app.clone();
         move || {
+            print!("Converting audio...");
             let _ = cmd_hidden(&*FFMPEG_CMD.lock().unwrap())
                 .args(
                     format!("-i {} -ar 44100 -c:a pcm_f32le -y {}", input, output)
@@ -135,6 +136,7 @@ pub fn convert_audio(app: AppHandle, input: String, output: String) -> Result<()
                 .map_err(|e| e.to_string());
 
             app.emit("audio-conversion-finished", ()).unwrap();
+            println!(" finished.");
         }
     });
 
@@ -153,6 +155,7 @@ pub fn combine_streams(
     std::thread::spawn({
         let app = app.clone();
         move || {
+            print!("Combining streams...");
             let filter_complex = format!(
                 "[1:a]adelay=1000|1000,volume={}[a2];[2:a][a2]amix=inputs=2:normalize=0,alimiter=limit=1.0:level=false:attack=0.1:release=1[a]",
                 music_volume
@@ -177,6 +180,7 @@ pub fn combine_streams(
                 .map_err(|e| e.to_string());
 
             app.emit("stream-combination-finished", &output).unwrap();
+            println!(" finished.");
         }
     });
 
@@ -187,6 +191,7 @@ pub async fn setup_video(
     output: String,
     resolution: String,
     framerate: u32,
+    duration: f64,
     codec: String,
     bitrate: String,
 ) -> Result<(), String> {
@@ -207,6 +212,7 @@ pub async fn setup_video(
         .map_err(|e| e.to_string())?;
 
     let mut frames_received = 0;
+    let total_frames = (duration * framerate as f64).ceil() as u64;
 
     tokio::spawn(async move {
         while let Ok((stream, _)) = listener.accept().await {
@@ -227,22 +233,42 @@ pub async fn setup_video(
                 if message.is_binary() {
                     frames_received += 1;
                     let data = message.into_data();
+
+                    let progress_percent = if total_frames > 0 {
+                        (frames_received as f64 / total_frames as f64) * 100.0
+                    } else {
+                        0.0
+                    };
+                    let total_digits = total_frames.to_string().len();
+                    print!(
+                        "\rRendering: {:6.2}% ({:width$}/{}) ...",
+                        progress_percent,
+                        frames_received,
+                        total_frames,
+                        width = total_digits
+                    );
+                    std::io::stdout().flush().unwrap();
+
                     if let Some(stdin) = &mut *FFMPEG_STDIN.lock().unwrap() {
                         if let Err(e) = stdin.write_all(&data) {
+                            println!();
                             eprintln!("Error writing to FFmpeg: {}", e);
                             break;
                         }
                         if let Err(e) = stdin.flush() {
+                            println!();
                             eprintln!("Error flushing FFmpeg: {}", e);
                             break;
                         }
                     } else {
+                        println!();
                         eprintln!("FFmpeg stdin not available");
                         break;
                     }
                 } else if message.is_text() {
                     let text = message.to_text().unwrap();
                     if text == "finish" {
+                        println!(" finished.");
                         write.send("finished".into()).await.unwrap();
                         finish_video().unwrap();
                         return;
