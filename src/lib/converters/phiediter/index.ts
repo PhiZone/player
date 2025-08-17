@@ -66,6 +66,7 @@ const PhiEditer = (chartRaw: string, meta: Omit<RpeMeta, 'offset'>): RpeJson => 
           // Will be parsed later
           size: 0,
           speed: 0,
+          judgeSize: 0,
         });
         break;
       }
@@ -88,6 +89,7 @@ const PhiEditer = (chartRaw: string, meta: Omit<RpeMeta, 'offset'>): RpeJson => 
           // Will be parsed later
           size: 0,
           speed: 0,
+          judgeSize: 0,
         });
         break;
       }
@@ -99,6 +101,7 @@ const PhiEditer = (chartRaw: string, meta: Omit<RpeMeta, 'offset'>): RpeJson => 
       case '&': {
         // Note scale
         noteList[noteList.length - 1].size = parseFloat(commandArr[1]);
+        noteList[noteList.length - 1].judgeSize = parseFloat(commandArr[1]);
         break;
       }
 
@@ -113,6 +116,9 @@ const PhiEditer = (chartRaw: string, meta: Omit<RpeMeta, 'offset'>): RpeJson => 
           start: parseFloat(commandArr[3]) * (9 / 14),
           end: parseFloat(commandArr[3]) * (9 / 14),
           linkgroup: 0,
+          easingType: 1,
+          easingLeft: 0,
+          easingRight: 1,
         });
         break;
       }
