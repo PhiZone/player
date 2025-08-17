@@ -200,45 +200,15 @@ jobs:
 
           echo -n "$ASC_API_KEY_BASE64" | base64 --decode -o $ASC_API_KEY_PATH
 
-      - name: Setup Xcode and install iOS platform
-        run: |
-          echo "=== Xcode version ==="
-          xcodebuild -version
-          
-          echo "=== Running Xcode first launch setup ==="
-          sudo xcodebuild -runFirstLaunch
-          
-          echo "=== Accept Xcode license ==="
-          sudo xcodebuild -license accept
-          
-          echo "=== Verify platforms after setup ==="
-          ls -la "/Applications/Xcode.app/Contents/Developer/Platforms/"
-          
-          echo "=== Check iOS SDK specifically ==="
-          ls -la "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/" || echo "iOS SDK directory not found"
-          
-          echo "=== Final SDK check ==="
-          xcodebuild -showsdks
+      - name: Check available iOS SDKs
+        run: xcodebuild -showsdks
 
       - name: Build project
         run: |
-          echo "=== Building iOS project ==="
-          # Try to find the actual iOS SDK path
-          IOS_SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path 2>/dev/null || echo "")
-          if [ -n "$IOS_SDK_PATH" ] && [ -d "$IOS_SDK_PATH" ]; then
-            echo "Found iOS SDK at: $IOS_SDK_PATH"
-            xcodebuild -workspace ios/App/App.xcworkspace -scheme App \
-            -archivePath $RUNNER_TEMP/App.xcarchive \
-            -destination "generic/platform=iOS" \
-            -sdk iphoneos \
-            clean archive
-          else
-            echo "iOS SDK not found, trying without explicit SDK..."
-            xcodebuild -workspace ios/App/App.xcworkspace -scheme App \
-            -archivePath $RUNNER_TEMP/App.xcarchive \
-            -destination "generic/platform=iOS" \
-            clean archive
-          fi
+          xcodebuild -workspace ios/App/App.xcworkspace -scheme App \
+          -archivePath $RUNNER_TEMP/App.xcarchive \
+          -destination "generic/platform=iOS" \
+          clean archive
 
       - name: Assemble IPA
         env:
