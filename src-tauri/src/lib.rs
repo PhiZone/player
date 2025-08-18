@@ -44,13 +44,14 @@ pub fn run() {
                 // register deep links
                 use tauri_plugin_deep_link::DeepLinkExt;
                 app.deep_link().register_all()?;
-
-                // handle associated files
-                parse_files_opened(&mut FILES_OPENED.lock().unwrap(), std::env::args());
-
-                // parse CLI arguments
-                parse_cli_args(&mut CLI_ARGS.lock().unwrap(), std::env::args());
             }
+
+            // handle associated files
+            parse_files_opened(&mut FILES_OPENED.lock().unwrap(), std::env::args());
+
+            // parse CLI arguments
+            parse_cli_args(&mut CLI_ARGS.lock().unwrap(), std::env::args());
+
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
