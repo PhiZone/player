@@ -383,23 +383,27 @@ jobs:
           BINARY=""
           DEST=""
 
-          if [[ "${{ matrix.platform }}" == "ubuntu-*" ]]; then
-            PLATFORM="linux-${{ endsWith(matrix.platform, '-arm') && 'arm64' || 'x86_64' }}"
+          if [[ "${{ startsWith(matrix.platform, 'ubuntu-') }}" == "true" ]]; then
+            if [[ "${{ endsWith(matrix.platform, '-arm') }}" == "true" ]]; then
+              PLATFORM="linux-arm64"
+            else
+              PLATFORM="linux-x86_64"
+            fi
             BINARY="src-tauri/target/release/phizone-player"
             DEST="PhiZone.Player-${VERSION}-${PLATFORM}"
-          elif [[ "${{ matrix.platform }}" == "windows-*" && "${{ matrix.args }}" == "" ]]; then
+          elif [[ "${{ startsWith(matrix.platform, 'windows-') }}" == "true" && "${{ matrix.args }}" == "" ]]; then
             PLATFORM="windows-x86_64"
             BINARY="src-tauri/target/release/phizone-player.exe"
             DEST="PhiZone.Player-${VERSION}-${PLATFORM}.exe"
-          elif [[ "${{ matrix.platform }}" == "windows-*" && "${{ matrix.args }}" == "--target aarch64-pc-windows-msvc" ]]; then
+          elif [[ "${{ startsWith(matrix.platform, 'windows-') }}" == "true" && "${{ matrix.args }}" == "--target aarch64-pc-windows-msvc" ]]; then
             PLATFORM="windows-arm64"
             BINARY="src-tauri/target/aarch64-pc-windows-msvc/release/phizone-player.exe"
             DEST="PhiZone.Player-${VERSION}-${PLATFORM}.exe"
-          elif [[ "${{ matrix.platform }}" == "macos-*" && "${{ matrix.args }}" == "--target aarch64-apple-darwin" ]]; then
+          elif [[ "${{ startsWith(matrix.platform, 'macos-') }}" == "true" && "${{ matrix.args }}" == "--target aarch64-apple-darwin" ]]; then
             PLATFORM="macos-arm64"
             BINARY="src-tauri/target/aarch64-apple-darwin/release/phizone-player"
             DEST="PhiZone.Player-${VERSION}-${PLATFORM}"
-          elif [[ "${{ matrix.platform }}" == "macos-*" && "${{ matrix.args }}" == "--target x86_64-apple-darwin" ]]; then
+          elif [[ "${{ startsWith(matrix.platform, 'macos-') }}" == "true" && "${{ matrix.args }}" == "--target x86_64-apple-darwin" ]]; then
             PLATFORM="macos-x86_64"
             BINARY="src-tauri/target/x86_64-apple-darwin/release/phizone-player"
             DEST="PhiZone.Player-${VERSION}-${PLATFORM}"
