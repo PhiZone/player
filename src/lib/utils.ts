@@ -627,7 +627,7 @@ export const alertError = (error?: Error, message?: string) => {
   const errMessage = `(${m.click_to_copy()}) [${type}] ${message2.split('\n')[0]}`;
   if (IS_TAURI)
     invoke('console_log', {
-      message: errMessage,
+      message: `[${type}] ${message2.split('\n')[0]}`,
       severity: 'error',
     });
   const id = notiflix(errMessage, 'failure');
