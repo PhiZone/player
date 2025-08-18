@@ -23,8 +23,11 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
-            let mut files: Vec<PathBuf> = Vec::new();
-            parse_files_opened(&mut files, args.iter().map(|s| s.to_string()));
+            // Parse arguments to extract files
+            let mut temp_args_map = HashMap::new();
+            parse_args(&mut temp_args_map, args.iter().map(|s| s.to_string()));
+            let files = extract_files_from_args(&temp_args_map);
+
             let window = app.get_webview_window("main").expect("no main window");
             window
                 .emit(
@@ -46,11 +49,12 @@ pub fn run() {
                 app.deep_link().register_all()?;
             }
 
-            // handle associated files
-            parse_files_opened(&mut FILES_OPENED.lock().unwrap(), std::env::args());
-
-            // parse CLI arguments
+            // parse CLI arguments first
             parse_args(&mut CLI_ARGS.lock().unwrap(), std::env::args());
+
+            // extract files from parsed arguments
+            let files = extract_files_from_args(&CLI_ARGS.lock().unwrap());
+            *FILES_OPENED.lock().unwrap() = files;
 
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -78,29 +82,43 @@ pub fn run() {
         .expect("error while running tauri application");
 }
 
-fn parse_files_opened<T: Iterator<Item = String>>(files: &mut Vec<PathBuf>, args: T) {
-    // seek for files in the command line arguments
-    for maybe_file in args.skip(1) {
-        // skip flags like -f or --flag
-        if maybe_file.starts_with('-') {
-            continue;
-        }
+fn extract_files_from_args(args_map: &HashMap<String, String>) -> Vec<PathBuf> {
+    let mut files: Vec<PathBuf> = Vec::new();
 
-        let mut success = false;
-        // handle `file://` path urls and skip other urls
-        if let Ok(url) = Url::parse(&maybe_file) {
-            if !url.cannot_be_a_base() {
-                if let Ok(path) = url.to_file_path() {
-                    files.push(path);
-                    success = true;
-                }
+    // Extract positional arguments (stored as arg0, arg1, etc.) which are file paths
+    let mut arg_indices: Vec<usize> = Vec::new();
+    for key in args_map.keys() {
+        if key.starts_with("arg") {
+            if let Ok(index) = key[3..].parse::<usize>() {
+                arg_indices.push(index);
             }
         }
-        if !success {
-            files.push(PathBuf::from(maybe_file))
+    }
+
+    // Sort indices to process arguments in order
+    arg_indices.sort();
+
+    for index in arg_indices {
+        let key = format!("arg{}", index);
+        if let Some(maybe_file) = args_map.get(&key) {
+            let mut success = false;
+            // handle `file://` path urls and skip other urls
+            if let Ok(url) = Url::parse(maybe_file) {
+                if !url.cannot_be_a_base() {
+                    if let Ok(path) = url.to_file_path() {
+                        files.push(path);
+                        success = true;
+                    }
+                }
+            }
+            if !success {
+                files.push(PathBuf::from(maybe_file))
+            }
         }
     }
+
     println!("Files opened ({:?}): {:?}", files.len(), files);
+    files
 }
 
 fn parse_args<T: Iterator<Item = String>>(args_map: &mut HashMap<String, String>, args: T) {
