@@ -71,12 +71,6 @@ jobs:
           cd ios/App
           pod install
 
-      - name: Clean Xcode caches and derived data
-        run: |
-          rm -rf ~/Library/Caches/com.apple.dt.Xcode
-          rm -rf ~/Library/Developer/Xcode/DerivedData
-          xcrun simctl delete all
-
       - name: Download iOS SDK
         run: xcodebuild -downloadPlatform iOS
 
@@ -184,6 +178,13 @@ jobs:
           security delete-keychain $RUNNER_TEMP/app-signing.keychain-db
           rm ~/Library/MobileDevice/Provisioning\ Profiles/app.mobileprovision
           rm ~/Library/MobileDevice/Provisioning\ Profiles/share-extension.mobileprovision
+
+      - name: Clean Xcode caches and derived data
+        if: ${{ always() }}
+        run: |
+          rm -rf ~/Library/Caches/com.apple.dt.Xcode
+          rm -rf ~/Library/Developer/Xcode/DerivedData
+          xcrun simctl delete all
 
   publish-capacitor-android:
     name: Build for Android
