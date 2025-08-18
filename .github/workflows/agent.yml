@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       id:
-        description: 'Unique identifier for the run'
+        description: 'Run ID'
         required: true
       files:
         description: 'Input files'
@@ -22,7 +22,7 @@ on:
         required: false
         default: '{"frameRate":60,"overrideResolution":[1620,1080],"resultsLoopsToRender":1,"videoCodec":"libx264","videoBitrate":6000,"audioBitrate":320,"vsync":true,"exportPath":""}'
       useSnapshot:
-        description: 'Use latest prerelease (snapshot) instead of stable release'
+        description: 'Use latest snapshot'
         required: false
         type: boolean
         default: false
