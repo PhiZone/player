@@ -537,7 +537,7 @@ export const extractTgz = async (blob: Blob): Promise<File[]> => {
     const files: File[] = [];
 
     extract.on('entry', (header, stream, next) => {
-      const chunks: Uint8Array[] = [];
+      const chunks: Uint8Array<ArrayBuffer>[] = [];
 
       stream.on('data', (chunk) => chunks.push(new Uint8Array(chunk)));
       stream.on('end', () => {
