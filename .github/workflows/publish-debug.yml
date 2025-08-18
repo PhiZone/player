@@ -160,7 +160,11 @@ jobs:
           pod install
 
       - name: Download iOS SDK
-        run: xcodebuild -downloadPlatform iOS
+        run: |
+          rm -rf ~/Library/Caches/com.apple.dt.Xcode
+          rm -rf ~/Library/Developer/Xcode/DerivedData
+          xcrun simctl delete all
+          xcodebuild -downloadPlatform iOS
 
       - name: Create build
         run: pnpm build
