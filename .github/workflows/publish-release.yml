@@ -364,23 +364,23 @@ jobs:
           BINARY=""
           DEST=""
 
-          if [[ "${{ startsWith(matrix.platform, 'ubuntu-') }}" ]]; then
+          if [[ "${{ matrix.platform }}" == "ubuntu-*" ]]; then
             PLATFORM="linux-${{ endsWith(matrix.platform, '-arm') && 'arm64' || 'x86_64' }}"
             BINARY="src-tauri/target/release/phizone-player"
             DEST="PhiZone.Player-${VERSION}-${PLATFORM}"
-          elif [[ "${{ startsWith(matrix.platform, 'windows-') }}" && "${{ matrix.args }}" == "" ]]; then
+          elif [[ "${{ matrix.platform }}" == "windows-*" && "${{ matrix.args }}" == "" ]]; then
             PLATFORM="windows-x86_64"
             BINARY="src-tauri/target/release/phizone-player.exe"
             DEST="PhiZone.Player-${VERSION}-${PLATFORM}.exe"
-          elif [[ "${{ startsWith(matrix.platform, 'windows-') }}" && "${{ matrix.args }}" == "--target aarch64-pc-windows-msvc" ]]; then
+          elif [[ "${{ matrix.platform }}" == "windows-*" && "${{ matrix.args }}" == "--target aarch64-pc-windows-msvc" ]]; then
             PLATFORM="windows-arm64"
             BINARY="src-tauri/target/aarch64-pc-windows-msvc/release/phizone-player.exe"
             DEST="PhiZone.Player-${VERSION}-${PLATFORM}.exe"
-          elif [[ "${{ startsWith(matrix.platform, 'macos-') }}" && "${{ matrix.args }}" == "--target aarch64-apple-darwin" ]]; then
+          elif [[ "${{ matrix.platform }}" == "macos-*" && "${{ matrix.args }}" == "--target aarch64-apple-darwin" ]]; then
             PLATFORM="macos-arm64"
             BINARY="src-tauri/target/aarch64-apple-darwin/release/phizone-player"
             DEST="PhiZone.Player-${VERSION}-${PLATFORM}"
-          elif [[ "${{ startsWith(matrix.platform, 'macos-') }}" && "${{ matrix.args }}" == "--target x86_64-apple-darwin" ]]; then
+          elif [[ "${{ matrix.platform }}" == "macos-*" && "${{ matrix.args }}" == "--target x86_64-apple-darwin" ]]; then
             PLATFORM="macos-x86_64"
             BINARY="src-tauri/target/x86_64-apple-darwin/release/phizone-player"
             DEST="PhiZone.Player-${VERSION}-${PLATFORM}"
