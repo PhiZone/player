@@ -1,0 +1,153 @@
+name: Agent
+run-name: Run PhiZone Player (${{ github.event.inputs.id }})
+on:
+  workflow_dispatch:
+    inputs:
+      id:
+        description: 'Unique identifier for the run'
+        required: true
+      files:
+        description: 'Input files'
+        required: true
+      toggles:
+        description: 'Toggles'
+        required: false
+        default: '{"autostart":true,"autoplay":true,"practice":false,"adjustOffset":false,"render":true,"newTab":true,"inApp":0}'
+      preferences:
+        description: 'Player preferences'
+        required: false
+        default: '{"aspectRatio":null,"backgroundBlur":1,"backgroundLuminance":0.5,"chartFlipping":0,"chartOffset":0,"fcApIndicator":true,"goodJudgment":160,"hitSoundVolume":0.75,"lineThickness":1,"musicVolume":1,"noteSize":1,"perfectJudgment":80,"simultaneousNoteHint":true,"timeScale":1}'
+      mediaOptions:
+        description: 'Renderer media options'
+        required: false
+        default: '{"frameRate":60,"overrideResolution":[1620,1080],"resultsLoopsToRender":1,"videoCodec":"libx264","videoBitrate":6000,"audioBitrate":320,"vsync":true,"exportPath":""}'
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  agent:
+    runs-on: windows-latest
+    steps:
+      - name: Obtain latest release tag
+        id: get_release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: release } = await github.rest.repos.getLatestRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+            const tag = release.tag_name;
+            const version = tag.replace(/^v/, '');
+            core.setOutput('tag', tag);
+            core.setOutput('version', version);
+
+      - name: Obtain player executable download URL
+        id: get_url
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const version = core.getInput('version', { required: true }) || process.env.VERSION || '${{ steps.get_release.outputs.version }}';
+            const assetName = `PhiZone.Player-${version}-windows-x86_64.exe`;
+            const { data: release } = await github.rest.repos.getLatestRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+            const asset = release.assets.find(a => a.name === assetName);
+            if (!asset) throw new Error(`Asset ${assetName} not found`);
+            core.setOutput('asset_url', asset.browser_download_url);
+
+      - name: Download player executable
+        run: |
+          curl -L "${{ steps.get_url.outputs.asset_url }}" -o player.exe
+
+      - name: Setup FFmpeg
+        uses: FedericoCarboni/setup-ffmpeg@v3
+        with:
+          ffmpeg-version: release
+          architecture: ''
+
+      - name: List FFmpeg encoders
+        run: |
+          ffmpeg -encoders
+
+      - name: Create outputs directory
+        run: |
+          mkdir -p ~/outputs
+
+      - name: Prepare media options
+        id: prepare_options
+        run: |
+          set -e
+          outputs_path=$(realpath ~/outputs)
+          echo "outputs_path=$outputs_path" >> $GITHUB_OUTPUT
+
+          mediaOptions="${{ github.event.inputs.mediaOptions }}"
+          if [ -n "$mediaOptions" ]; then
+            # Parse JSON, override exportPath, and serialize back
+            mediaOptions=$(echo "$mediaOptions" | jq --arg path "$outputs_path" '.exportPath = $path')
+            echo "mediaOptions=$mediaOptions" >> $GITHUB_OUTPUT
+          else
+            echo "mediaOptions=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run player with workflow inputs
+        run: |
+          set -e
+          files="${{ github.event.inputs.files }}"
+          toggles="${{ github.event.inputs.toggles }}"
+          preferences="${{ github.event.inputs.preferences }}"
+          mediaOptions="${{ steps.prepare_options.outputs.mediaOptions }}"
+
+          args=""
+          if [ -n "$toggles" ]; then
+           args="$args --toggles \"$toggles\""
+          fi
+          if [ -n "$preferences" ]; then
+            args="$args --preferences \"$preferences\""
+          fi
+          if [ -n "$mediaOptions" ]; then
+            args="$args --mediaOptions \"$mediaOptions\""
+          fi
+
+          # Split files into array and build positional arguments
+          file_args=""
+          for file in $files; do
+            file_args="$file_args \"$file\""
+          done
+
+          eval ./player.exe $file_args $args --automate
+
+      - name: Find output artifacts
+        id: find_artifact
+        run: |
+          set -e
+          outputs_path="${{ steps.prepare_options.outputs.outputs_path }}"
+
+          # Find the generated folder in outputs directory
+          if [ -d "$outputs_path" ]; then
+            # Get the first (and presumably only) subdirectory in outputs
+            artifact_folder=$(find "$outputs_path" -mindepth 1 -maxdepth 1 -type d | head -n 1)
+
+            if [ -n "$artifact_folder" ]; then
+              folder_name=$(basename "$artifact_folder")
+              echo "Found artifact folder: $folder_name"
+              echo "folder_name=$folder_name" >> $GITHUB_OUTPUT
+              echo "folder_path=$artifact_folder" >> $GITHUB_OUTPUT
+            else
+              echo "No artifact folder found in $outputs_path"
+              exit 1
+            fi
+          else
+            echo "Outputs directory does not exist"
+            exit 1
+          fi
+
+      - name: Upload output artifacts
+        if: steps.find_artifact.outputs.folder_name != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.find_artifact.outputs.folder_name }}
+          path: ${{ steps.find_artifact.outputs.folder_path }}
