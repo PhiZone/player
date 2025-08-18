@@ -397,12 +397,12 @@ jobs:
 
       - name: Generate artifact info
         id: info
-        run: echo "NAME=tauri-${{ matrix.platform }}-$(echo ${{ matrix.args || '--target x86_64' }} | sed 's/.* //')-${{ needs.metadata.outputs.version-name }}" >> $GITHUB_OUTPUT
+        run: echo "name=tauri-${{ matrix.platform }}-$(echo ${{ matrix.args || '--target x86_64' }} | sed 's/.* //')-${{ needs.metadata.outputs.version-name }}" >> $GITHUB_OUTPUT
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.info.outputs.NAME }}
+          name: ${{ steps.info.outputs.name }}
           path: ~/artifacts/tauri/*
 
       - name: Clean up artifacts
