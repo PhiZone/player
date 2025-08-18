@@ -96,8 +96,8 @@ jobs:
 
           mediaOptions='${{ github.event.inputs.mediaOptions }}'
           if [ -n "$mediaOptions" ]; then
-            # Parse JSON, override exportPath, and serialize back
-            mediaOptions=$(echo "$mediaOptions" | jq --arg path "$outputs_path" '.exportPath = $path')
+            # Parse JSON, override exportPath, and serialize back (compact output)
+            mediaOptions=$(echo "$mediaOptions" | jq -c --arg path "$outputs_path" '.exportPath = $path')
             echo "mediaOptions=$mediaOptions" >> $GITHUB_OUTPUT
           else
             echo "mediaOptions=" >> $GITHUB_OUTPUT
