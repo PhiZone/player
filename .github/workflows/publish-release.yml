@@ -354,3 +354,42 @@ jobs:
           releaseBody: 'See the assets for downloads.'
           releaseDraft: true
           args: ${{ matrix.args }}
+
+      - name: Upload built binary to GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+        run: |
+          VERSION=${{ needs.metadata.outputs.version }}
+          PLATFORM=""
+          BINARY=""
+          DEST=""
+
+          if [[ "${{ startsWith(matrix.platform, 'ubuntu-') }}" ]]; then
+            PLATFORM="linux-${{ endsWith(matrix.platform, '-arm') && 'arm64' || 'x86_64' }}"
+            BINARY="src-tauri/target/release/phizone-player"
+            DEST="PhiZonePlayer-${VERSION}-${PLATFORM}"
+          elif [[ "${{ startsWith(matrix.platform, 'windows-') }}" && "${{ matrix.args }}" == "" ]]; then
+            PLATFORM="windows-x86_64"
+            BINARY="src-tauri/target/release/phizone-player.exe"
+            DEST="PhiZonePlayer-${VERSION}-${PLATFORM}.exe"
+          elif [[ "${{ startsWith(matrix.platform, 'windows-') }}" && "${{ matrix.args }}" == "--target aarch64-pc-windows-msvc" ]]; then
+            PLATFORM="windows-arm64"
+            BINARY="src-tauri/target/aarch64-pc-windows-msvc/release/phizone-player.exe"
+            DEST="PhiZonePlayer-${VERSION}-${PLATFORM}.exe"
+          elif [[ "${{ startsWith(matrix.platform, 'macos-') }}" && "${{ matrix.args }}" == "--target aarch64-apple-darwin" ]]; then
+            PLATFORM="macos-arm64"
+            BINARY="src-tauri/target/aarch64-apple-darwin/release/phizone-player"
+            DEST="PhiZonePlayer-${VERSION}-${PLATFORM}"
+          elif [[ "${{ startsWith(matrix.platform, 'macos-') }}" && "${{ matrix.args }}" == "--target x86_64-apple-darwin" ]]; then
+            PLATFORM="macos-x86_64"
+            BINARY="src-tauri/target/x86_64-apple-darwin/release/phizone-player"
+            DEST="PhiZonePlayer-${VERSION}-${PLATFORM}"
+          fi
+
+          if [[ -f "$BINARY" ]]; then
+            cp "$BINARY" "$DEST"
+            gh release upload "v${VERSION}" "$DEST" --repo "$GITHUB_REPOSITORY"
+          else
+            echo "Binary not found for $PLATFORM at $BINARY"
+            exit 1
+          fi
