@@ -139,22 +139,26 @@ jobs:
             echo "Processing file: $file"
             
             if [[ "$file" =~ ^https?:// ]]; then
-              # It's a URL, download it
-              filename=$(basename "$file")
-              # Handle URL encoding and special characters in filename
-              filename=$(echo "$filename" | sed 's/%20/ /g' | sed 's/%21/!/g' | sed 's/%E2%98%85/★/g')
+              # It's a URL, download it with UUID filename
               
-              # If filename is empty or problematic, use a generic name
-              if [ -z "$filename" ] || [[ "$filename" == *"?"* ]]; then
-                extension="${file##*.}"
-                if [[ "$extension" == "$file" ]]; then
-                  extension="zip"  # default extension
-                fi
-                filename="file_${file_counter}.${extension}"
+              # Extract extension from URL (remove query parameters first)
+              clean_url="${file%%\?*}"
+              extension=""
+              
+              # Try to get extension from the clean URL
+              if [[ "$clean_url" =~ \.[a-zA-Z0-9]+$ ]]; then
+                extension="${clean_url##*.}"
+              else
+                # Default to zip if no extension found
+                extension="zip"
               fi
               
+              # Generate UUID for filename (using timestamp + random for uniqueness)
+              uuid=$(date +%s%N | sha256sum | head -c 8)
+              filename="${uuid}.${extension}"
+              
               local_path="$downloads_path/$filename"
-              echo "Downloading $file to $local_path"
+              echo "Downloading $file to $local_path (UUID: $uuid)"
               
               if curl -L -f -o "$local_path" "$file"; then
                 echo "Successfully downloaded: $filename"
