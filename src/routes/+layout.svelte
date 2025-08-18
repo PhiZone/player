@@ -2,7 +2,7 @@
   import { setFullscreen, alertError, IS_TAURI } from '$lib/utils';
   import '@fortawesome/fontawesome-free/css/all.min.css';
   import '../app.css';
-    import { invoke } from '@tauri-apps/api/core';
+  import { invoke } from '@tauri-apps/api/core';
 
   setFullscreen();
   addEventListener('error', (e) => alertError(e.error, e.message));
@@ -13,7 +13,7 @@
     if (IS_TAURI) {
       invoke('console_log', {
         message: String(args.join(' ')),
-        severity: 'debug'
+        severity: 'debug',
       });
     }
     debugFunc(...args);
@@ -24,7 +24,7 @@
     if (IS_TAURI) {
       invoke('console_log', {
         message: String(args.join(' ')),
-        severity: 'info'
+        severity: 'info',
       });
     }
     logFunc(...args);
@@ -35,7 +35,7 @@
     if (IS_TAURI) {
       invoke('console_log', {
         message: String(args.join(' ')),
-        severity: 'warn'
+        severity: 'warn',
       });
     }
     warnFunc(...args);
@@ -46,7 +46,7 @@
     if (IS_TAURI) {
       invoke('console_log', {
         message: String(args.join(' ')),
-        severity: 'error'
+        severity: 'error',
       });
     }
     errorFunc(...args);
