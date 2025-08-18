@@ -94,7 +94,7 @@ jobs:
           outputs_path=$(realpath ~/outputs)
           echo "outputs_path=$outputs_path" >> $GITHUB_OUTPUT
 
-          mediaOptions='${{ github.event.inputs.mediaOptions }}'
+          mediaOptions="${{ github.event.inputs.mediaOptions }}"
           if [ -n "$mediaOptions" ]; then
             # Parse JSON, override exportPath, and serialize back
             mediaOptions=$(echo "$mediaOptions" | jq --arg path "$outputs_path" '.exportPath = $path')
