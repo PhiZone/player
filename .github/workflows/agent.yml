@@ -94,22 +94,22 @@ jobs:
           outputs_path=$(realpath ~/outputs)
           echo "outputs_path=$outputs_path" >> $GITHUB_OUTPUT
 
-          mediaOptions='${{ github.event.inputs.mediaOptions }}'
+          mediaOptions="${${{ github.event.inputs.mediaOptions }}//\"/\\\"}"
           if [ -n "$mediaOptions" ]; then
             # Parse JSON, override exportPath, and serialize back
             mediaOptions=$(echo "$mediaOptions" | jq --arg path "$outputs_path" '.exportPath = $path')
-            echo 'mediaOptions=$mediaOptions' >> $GITHUB_OUTPUT
+            echo "mediaOptions=$mediaOptions" >> $GITHUB_OUTPUT
           else
-            echo 'mediaOptions=' >> $GITHUB_OUTPUT
+            echo "mediaOptions=" >> $GITHUB_OUTPUT
           fi
 
       - name: Run player with workflow inputs
         run: |
           set -e
-          files_input="${{ github.event.inputs.files }}"
-          toggles="${{ github.event.inputs.toggles }}"
-          preferences="${{ github.event.inputs.preferences }}"
-          mediaOptions="${{ steps.prepare_options.outputs.mediaOptions }}"
+          files_input="${${{ github.event.inputs.files }}//\"/\\\"}"
+          toggles="${${{ github.event.inputs.toggles }}//\"/\\\"}"
+          preferences="${${{ github.event.inputs.preferences }}//\"/\\\"}"
+          mediaOptions="${${{ steps.prepare_options.outputs.mediaOptions }}//\"/\\\"}"
 
           args=""
           if [ -n "$toggles" ]; then
@@ -141,6 +141,7 @@ jobs:
             file_args="$file_args \"$file\""
           done
 
+          echo "Running player with args: $file_args $args --automate"
           eval ./player.exe $file_args $args --automate
 
       - name: Find output artifacts
