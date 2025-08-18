@@ -122,6 +122,10 @@ jobs:
 
           # Read lines into array (safe for spaces in names)
           mapfile -t files_array <<< "$files_raw"
+          # Remove trailing '\r' from each element
+          for i in "${!files_array[@]}"; do
+            files_array[$i]="${files_array[$i]%$'\r'}"
+          done
 
           # Build the command with proper argument handling
           cmd_args=()
