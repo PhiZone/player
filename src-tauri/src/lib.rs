@@ -50,7 +50,7 @@ pub fn run() {
             parse_files_opened(&mut FILES_OPENED.lock().unwrap(), std::env::args());
 
             // parse CLI arguments
-            parse_cli_args(&mut CLI_ARGS.lock().unwrap(), std::env::args());
+            parse_args(&mut CLI_ARGS.lock().unwrap(), std::env::args());
 
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -63,7 +63,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             get_files_opened,
-            get_cli_args,
+            get_args,
             get_current_dir,
             set_ffmpeg_path,
             get_ffmpeg_encoders,
@@ -100,10 +100,10 @@ fn parse_files_opened<T: Iterator<Item = String>>(files: &mut Vec<PathBuf>, args
             files.push(PathBuf::from(maybe_file))
         }
     }
-    println!("files opened ({:?}): {:?}", files.len(), files);
+    println!("Files opened ({:?}): {:?}", files.len(), files);
 }
 
-fn parse_cli_args<T: Iterator<Item = String>>(args_map: &mut HashMap<String, String>, args: T) {
+fn parse_args<T: Iterator<Item = String>>(args_map: &mut HashMap<String, String>, args: T) {
     let args_vec: Vec<String> = args.collect();
     let mut i = 1; // skip the program name
 
@@ -168,7 +168,7 @@ fn parse_cli_args<T: Iterator<Item = String>>(args_map: &mut HashMap<String, Str
         args_map.insert(k, v);
     }
 
-    println!("CLI args parsed ({:?}): {:?}", args_map.len(), args_map);
+    println!("Args parsed ({:?}): {:?}", args_map.len(), args_map);
 }
 
 pub fn cmd_hidden(program: impl AsRef<std::ffi::OsStr>) -> Command {
@@ -196,7 +196,7 @@ fn get_files_opened() -> Vec<String> {
 }
 
 #[tauri::command]
-fn get_cli_args() -> HashMap<String, String> {
+fn get_args() -> HashMap<String, String> {
     CLI_ARGS.lock().unwrap().clone()
 }
 

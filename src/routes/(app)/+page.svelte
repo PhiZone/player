@@ -385,7 +385,7 @@
     let pref, tgs, mopts;
 
     if (IS_TAURI) {
-      const args: Record<string, string> = await invoke('get_cli_args');
+      const args: Record<string, string> = await invoke('get_args');
       if (args['preferences']) pref = args['preferences'];
       if (args['toggles']) tgs = args['toggles'];
       if (args['mediaOptions']) mopts = args['mediaOptions'];
