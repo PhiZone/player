@@ -1,5 +1,5 @@
 name: Agent
-run-name: Run PhiZone Player (${{ github.event.inputs.id }})
+run-name: Run PhiZone Player [${{ github.event.inputs.id }}]
 on:
   workflow_dispatch:
     inputs:
