@@ -457,6 +457,8 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
   const newTab = ['1', 'true'].some((v) => v == p.get('newTab'));
   const inApp = parseInt(p.get('inApp') ?? '0');
 
+  const automate = ['1', 'true'].some((v) => v == p.get('automate'));
+
   let resourcePack = DEFAULT_RESOURCE_PACK as ResourcePack<string>;
   const respackParam = p.get('resourcePack');
   if (respackParam) {
@@ -525,6 +527,7 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
     autostart,
     newTab,
     inApp,
+    automate,
   };
 };
 

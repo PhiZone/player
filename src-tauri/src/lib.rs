@@ -71,7 +71,8 @@ pub fn run() {
             setup_video,
             finish_video,
             combine_streams,
-            mix_audio
+            mix_audio,
+            close
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -268,4 +269,12 @@ fn mix_audio(
     output: String,
 ) -> Result<(), String> {
     audio::mix_audio(app, sounds, timestamps, length, output)
+}
+
+#[tauri::command]
+fn close(app: AppHandle) -> Result<(), String> {
+    for window in app.webview_windows().values() {
+        let _ = window.close();
+    }
+    Ok(())
 }

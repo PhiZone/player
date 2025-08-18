@@ -13,6 +13,7 @@ export interface Config {
   autostart: boolean;
   newTab: boolean;
   inApp: number;
+  automate: boolean;
 }
 
 export interface Resources {

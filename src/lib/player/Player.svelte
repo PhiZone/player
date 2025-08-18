@@ -37,11 +37,10 @@
   import { openPath } from '@tauri-apps/plugin-opener';
   import { sep } from '@tauri-apps/api/path';
   import { m } from '$lib/paraglide/messages';
+  import { invoke } from '@tauri-apps/api/core';
 
   export let gameRef: GameReference;
-
   export let config: Config | null = null;
-
   export let currentActiveScene: (scene: GameScene) => void | undefined = () => {};
 
   config ??= getParams();
@@ -153,6 +152,7 @@
       wakeLock?.release().then(() => {
         wakeLock = null;
       });
+      if (config.automate) invoke('close');
     });
 
     EventBus.on('rendering-detail', (p: string) => {

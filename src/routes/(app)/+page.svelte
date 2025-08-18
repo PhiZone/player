@@ -214,7 +214,7 @@
   let clipboardUrl: URL | undefined;
   let lastResolvedClipboardUrl: URL | undefined;
 
-  let scheduledStart = false;
+  let automate = false;
 
   const unlistens: UnlistenFn[] = [];
 
@@ -349,7 +349,7 @@
       },
     });
 
-    if (scheduledStart) {
+    if (automate) {
       await start(handleConfig());
     }
   });
@@ -389,7 +389,7 @@
       if (args['preferences']) pref = args['preferences'];
       if (args['toggles']) tgs = args['toggles'];
       if (args['mediaOptions']) mopts = args['mediaOptions'];
-      scheduledStart = args['start'] === 'true' || args['play'] === 'true';
+      automate = args['automate'] === 'true';
     }
 
     pref ??= localStorage.getItem('preferences');
@@ -517,6 +517,7 @@
         resourcePacks.find((pack) => pack.id === selectedResourcePack)!,
       ),
       ...toggles,
+      automate,
     };
   };
 
@@ -1463,7 +1464,7 @@
 
     if (IS_TAURI) {
       if (toggles.render) {
-        await setupRendering();
+        setupRendering();
       }
       monitor = await currentMonitor();
       if (Capacitor.getPlatform() === 'web' && toggles.newTab) {
