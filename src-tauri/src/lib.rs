@@ -76,6 +76,7 @@ pub fn run() {
             finish_video,
             combine_streams,
             mix_audio,
+            console_log,
             close
         ])
         .run(tauri::generate_context!())
@@ -280,6 +281,38 @@ fn mix_audio(
     output: String,
 ) -> Result<(), String> {
     audio::mix_audio(app, sounds, timestamps, length, output)
+}
+
+#[tauri::command]
+fn console_log(message: String, severity: String) -> Result<(), String> {
+    match severity.to_lowercase().as_str() {
+        "error" => {
+            eprintln!("[ERROR] {}", message);
+            log::error!("{}", message);
+        }
+        "warn" | "warning" => {
+            println!("[WARN] {}", message);
+            log::warn!("{}", message);
+        }
+        "info" => {
+            println!("[INFO] {}", message);
+            log::info!("{}", message);
+        }
+        "debug" => {
+            println!("[DEBUG] {}", message);
+            log::debug!("{}", message);
+        }
+        "trace" => {
+            println!("[TRACE] {}", message);
+            log::trace!("{}", message);
+        }
+        _ => {
+            // Default to log level for unknown severity
+            println!("[LOG] {}", message);
+            log::info!("{}", message);
+        }
+    }
+    Ok(())
 }
 
 #[tauri::command]

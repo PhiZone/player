@@ -22,6 +22,7 @@ import { ungzip } from 'pako';
 import { fileTypeFromBlob } from 'file-type';
 import { DEFAULT_RESOURCE_PACK } from './player/constants';
 import { m } from './paraglide/messages';
+import { invoke } from '@tauri-apps/api/core';
 
 export const IS_TAURI = '__TAURI_INTERNALS__' in window;
 
@@ -624,6 +625,11 @@ export const alertError = (error?: Error, message?: string) => {
   }
   if (message) message2 = message;
   const errMessage = `(${m.click_to_copy()}) [${type}] ${message2.split('\n')[0]}`;
+  if (IS_TAURI)
+    invoke('console_log', {
+      message: errMessage,
+      severity: 'error',
+    });
   const id = notiflix(errMessage, 'failure');
   document.querySelectorAll('.notiflix-notify')?.forEach(
     (e) =>
