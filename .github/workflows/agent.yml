@@ -98,9 +98,9 @@ jobs:
           if [ -n "$mediaOptions" ]; then
             # Parse JSON, override exportPath, and serialize back
             mediaOptions=$(echo "$mediaOptions" | jq --arg path "$outputs_path" '.exportPath = $path')
-            echo 'mediaOptions=$mediaOptions' >> $GITHUB_OUTPUT
+            echo "mediaOptions=$mediaOptions" >> $GITHUB_OUTPUT
           else
-            echo 'mediaOptions=' >> $GITHUB_OUTPUT
+            echo "mediaOptions=" >> $GITHUB_OUTPUT
           fi
 
       - name: Run player with workflow inputs
@@ -111,19 +111,19 @@ jobs:
           preferences='${{ github.event.inputs.preferences }}'
           mediaOptions='${{ steps.prepare_options.outputs.mediaOptions }}'
 
-          args=''
+          args=""
           if [ -n "$toggles" ]; then
-           args='$args --toggles $toggles'
+           args="$args --toggles $toggles"
           fi
           if [ -n "$preferences" ]; then
-            args='$args --preferences $preferences'
+            args="$args --preferences $preferences"
           fi
           if [ -n "$mediaOptions" ]; then
-            args='$args --mediaOptions $mediaOptions'
+            args="$args --mediaOptions $mediaOptions"
           fi
 
           # Accept either a JSON array (e.g. ["a","b"]) or a newline-separated list.
-          files_raw=''
+          files_raw=""
           if printf '%s' "$files_input" | jq -e . >/dev/null 2>&1; then
             # It's valid JSON: extract array elements joined by newlines
             files_raw=$(echo "$files_input" | jq -r '.[]')
@@ -132,16 +132,16 @@ jobs:
           fi
 
           # Read lines into array (safe for spaces in names)
-          mapfile -t files_array <<< '$files_raw'
+          mapfile -t files_array <<< "$files_raw"
 
           # Build quoted positional arguments
-          file_args=''
+          file_args=""
           for file in "${files_array[@]}"; do
             [ -z "$file" ] && continue
-            file_args='$file_args $file'
+            file_args="$file_args $file"
           done
 
-          echo 'Running player with args: $file_args $args --automate'
+          echo "Running player with args: $file_args $args --automate"
           eval ./player.exe $file_args $args --automate
 
       - name: Find output artifacts
