@@ -467,24 +467,15 @@ jobs:
           done
 
           # Handle debug binaries for each platform
-          # Windows x64
           if [[ -f "src-tauri/debug/phizone-player.exe" ]]; then
             mv src-tauri/debug/phizone-player.exe ~/artifacts/tauri/PhiZone.Player_${{ needs.metadata.outputs.version-name }}_windows-x86_64.exe
-          fi
-          # Windows ARM
-          if [[ -f "src-tauri/target/aarch64-pc-windows-msvc/debug/phizone-player.exe" ]]; then
+          elif [[ -f "src-tauri/target/aarch64-pc-windows-msvc/debug/phizone-player.exe" ]]; then
             mv src-tauri/target/aarch64-pc-windows-msvc/debug/phizone-player.exe ~/artifacts/tauri/PhiZone.Player_${{ needs.metadata.outputs.version-name }}_windows-arm64.exe
-          fi
-          # Ubuntu x64 & ARM64
-          if [[ -f "src-tauri/target/debug/phizone-player" ]]; then
+          elif [[ -f "src-tauri/target/debug/phizone-player" ]]; then
             mv src-tauri/target/debug/phizone-player ~/artifacts/tauri/PhiZone.Player_${{ needs.metadata.outputs.version-name }}_linux-${{ endsWith(matrix.platform, '-arm') && 'arm64' || 'x86_64' }}
-          fi
-          # macOS ARM64
-          if [[ -f "src-tauri/target/aarch64-apple-darwin/debug/phizone-player" ]]; then
+          elif [[ -f "src-tauri/target/aarch64-apple-darwin/debug/phizone-player" ]]; then
             mv src-tauri/target/aarch64-apple-darwin/debug/phizone-player ~/artifacts/tauri/PhiZone.Player_${{ needs.metadata.outputs.version-name }}_macos-arm64
-          fi
-          # macOS x64
-          if [[ -f "src-tauri/target/x86_64-apple-darwin/debug/phizone-player" ]]; then
+          elif [[ -f "src-tauri/target/x86_64-apple-darwin/debug/phizone-player" ]]; then
             mv src-tauri/target/x86_64-apple-darwin/debug/phizone-player ~/artifacts/tauri/PhiZone.Player_${{ needs.metadata.outputs.version-name }}_macos-x86_64
           fi
 
