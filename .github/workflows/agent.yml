@@ -85,13 +85,13 @@ jobs:
 
       - name: Create outputs directory
         run: |
-          mkdir -p ~/outputs
+          mkdir -p ./outputs
 
       - name: Prepare media options
         id: prepare_options
         run: |
           set -e
-          outputs_path=$(realpath ~/outputs)
+          outputs_path=$(realpath ./outputs)
           echo "outputs_path=$outputs_path" >> $GITHUB_OUTPUT
 
           mediaOptions='${{ github.event.inputs.mediaOptions }}'
@@ -103,13 +103,15 @@ jobs:
             echo "mediaOptions=" >> $GITHUB_OUTPUT
           fi
 
-      - name: Run player with workflow inputs
+      - name: Download and prepare input files
+        id: prepare_files
         run: |
           set -e
           files_input='${{ github.event.inputs.files }}'
-          toggles='${{ github.event.inputs.toggles }}'
-          preferences='${{ github.event.inputs.preferences }}'
-          mediaOptions='${{ steps.prepare_options.outputs.mediaOptions }}'
+
+          # Create downloads directory
+          mkdir -p ./downloads
+          downloads_path=$(realpath ./downloads)
 
           # Accept either a JSON array (e.g. ["a","b"]) or a newline-separated list.
           files_raw=""
@@ -126,6 +128,69 @@ jobs:
           for i in "${!files_array[@]}"; do
             files_array[$i]="${files_array[$i]%$'\r'}"
           done
+
+          # Download files and collect local paths
+          local_files=()
+          file_counter=1
+
+          for file in "${files_array[@]}"; do
+            [ -z "$file" ] && continue
+            
+            echo "Processing file: $file"
+            
+            if [[ "$file" =~ ^https?:// ]]; then
+              # It's a URL, download it
+              filename=$(basename "$file")
+              # Handle URL encoding and special characters in filename
+              filename=$(echo "$filename" | sed 's/%20/ /g' | sed 's/%21/!/g' | sed 's/%E2%98%85/★/g')
+              
+              # If filename is empty or problematic, use a generic name
+              if [ -z "$filename" ] || [[ "$filename" == *"?"* ]]; then
+                extension="${file##*.}"
+                if [[ "$extension" == "$file" ]]; then
+                  extension="zip"  # default extension
+                fi
+                filename="file_${file_counter}.${extension}"
+              fi
+              
+              local_path="$downloads_path/$filename"
+              echo "Downloading $file to $local_path"
+              
+              if curl -L -f -o "$local_path" "$file"; then
+                echo "Successfully downloaded: $filename"
+                local_files+=("$local_path")
+              else
+                echo "Failed to download: $file"
+                exit 1
+              fi
+            else
+              # It's already a local path
+              echo "Using local file: $file"
+              local_files+=("$file")
+            fi
+            
+            ((file_counter++))
+          done
+
+          # Convert array to newline-separated string for output
+          printf '%s\n' "${local_files[@]}" > ./files.txt
+          echo "local_files_path=$(realpath ./files.txt)" >> $GITHUB_OUTPUT
+
+          echo "Prepared ${#local_files[@]} local files:"
+          for file in "${local_files[@]}"; do
+            echo "  - $file"
+          done
+
+      - name: Run PhiZone Player
+        run: |
+          set -e
+          toggles='${{ github.event.inputs.toggles }}'
+          preferences='${{ github.event.inputs.preferences }}'
+          mediaOptions='${{ steps.prepare_options.outputs.mediaOptions }}'
+          local_files_path='${{ steps.prepare_files.outputs.local_files_path }}'
+
+          # Read local file paths from the prepared list
+          mapfile -t files_array < "$local_files_path"
 
           # Build the command with proper argument handling
           cmd_args=()
@@ -149,7 +214,7 @@ jobs:
 
           cmd_args+=("--automate")
 
-          echo "Running player with ${#cmd_args[@]} arguments"
+          echo "Running PhiZone Player..."
           echo "Files: ${files_array[*]}"
           echo "Toggles: $toggles"
           echo "Preferences: $preferences"
