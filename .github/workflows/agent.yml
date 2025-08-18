@@ -111,17 +111,6 @@ jobs:
           preferences='${{ github.event.inputs.preferences }}'
           mediaOptions='${{ steps.prepare_options.outputs.mediaOptions }}'
 
-          args=""
-          if [ -n "$toggles" ]; then
-           args="$args --toggles $toggles"
-          fi
-          if [ -n "$preferences" ]; then
-            args="$args --preferences $preferences"
-          fi
-          if [ -n "$mediaOptions" ]; then
-            args="$args --mediaOptions $mediaOptions"
-          fi
-
           # Accept either a JSON array (e.g. ["a","b"]) or a newline-separated list.
           files_raw=""
           if printf '%s' "$files_input" | jq -e . >/dev/null 2>&1; then
@@ -134,15 +123,36 @@ jobs:
           # Read lines into array (safe for spaces in names)
           mapfile -t files_array <<< "$files_raw"
 
-          # Build quoted positional arguments
-          file_args=""
+          # Build the command with proper argument handling
+          cmd_args=()
+
+          # Add file arguments
           for file in "${files_array[@]}"; do
             [ -z "$file" ] && continue
-            file_args="$file_args $file"
+            cmd_args+=("$file")
           done
 
-          echo "Running player with args: $file_args $args --automate"
-          eval ./player.exe $file_args $args --automate
+          # Add optional arguments with proper quoting
+          if [ -n "$toggles" ]; then
+            cmd_args+=("--toggles" "$toggles")
+          fi
+          if [ -n "$preferences" ]; then
+            cmd_args+=("--preferences" "$preferences")
+          fi
+          if [ -n "$mediaOptions" ]; then
+            cmd_args+=("--mediaOptions" "$mediaOptions")
+          fi
+
+          cmd_args+=("--automate")
+
+          echo "Running player with ${#cmd_args[@]} arguments"
+          echo "Files: ${files_array[*]}"
+          echo "Toggles: $toggles"
+          echo "Preferences: $preferences"
+          echo "Media Options: $mediaOptions"
+
+          # Execute with proper argument passing
+          ./player.exe "${cmd_args[@]}"
 
       - name: Find output artifacts
         id: find_artifact
