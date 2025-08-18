@@ -382,7 +382,7 @@ jobs:
           done
 
           # Add built binary to renamed_paths
-          VERSION="${{ needs.metadata.outputs.version }}"
+          VERSION="${{ needs.metadata.outputs.version-name }}"
           PLATFORM=""
           BINARY=""
           DEST=""
