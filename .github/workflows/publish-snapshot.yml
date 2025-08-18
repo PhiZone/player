@@ -71,6 +71,12 @@ jobs:
           cd ios/App
           pod install
 
+      - name: Clean Xcode caches and derived data
+        run: |
+          rm -rf ~/Library/Caches/com.apple.dt.Xcode
+          rm -rf ~/Library/Developer/Xcode/DerivedData
+          xcrun simctl delete all
+
       - name: Download iOS SDK
         run: xcodebuild -downloadPlatform iOS
 
