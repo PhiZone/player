@@ -230,7 +230,7 @@ jobs:
               mem_occupied_bytes=$((mem_total - mem_free_bytes))
               mem_total_gb=$(echo "scale=2; $mem_total/1024/1024/1024" | bc)
               mem_occupied_gb=$(echo "scale=2; $mem_occupied_bytes/1024/1024/1024" | bc)
-              mem_percent=$(echo "scale=1; ($mem_occupied_bytes/$mem_total)*100" | bc)
+              mem_percent=$(echo "scale=1; ($mem_occupied_bytes*100)/$mem_total" | bc)
               echo -e "\nMemory: ${mem_occupied_gb} GiB / ${mem_total_gb} GiB (${mem_percent}%)"
               sleep 60
             done
