@@ -9,4 +9,5 @@ node_modules
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vercel
+.leancloud
 build.sh

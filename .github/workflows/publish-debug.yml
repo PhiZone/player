@@ -107,6 +107,14 @@ jobs:
           version: ${{ needs.metadata.outputs.version-name }}
           sourcemaps: './build'
 
+      - name: Deploy to LeanCloud
+        run: |
+          wget ${{ vars.LC_CLI_DOWNLOAD }} -O /tmp/${{ vars.LC_EXE }}
+          chmod +x /tmp/${{ vars.LC_EXE }}
+          /tmp/${{ vars.LC_EXE }} login ${{ secrets.LC_LOGIN }}
+          /tmp/${{ vars.LC_EXE }} switch ${{ secrets.LC_SWITCH }}
+          /tmp/${{ vars.LC_EXE }} deploy --prod
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
