@@ -76,10 +76,7 @@ jobs:
           chmod +x player
 
       - name: Setup FFmpeg
-        uses: FedericoCarboni/setup-ffmpeg@v3
-        with:
-          ffmpeg-version: release
-          architecture: ''
+        uses: AnimMouse/setup-ffmpeg@v1
 
       - name: Prepare media options
         id: prepare_options
