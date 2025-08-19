@@ -86,10 +86,7 @@ jobs:
           set -e
           mkdir -p ./outputs
           outputs_path=$(realpath ./outputs)
-          outputs_path_win=$(cygpath -w "$outputs_path" 2>/dev/null || echo "$outputs_path")
           echo "outputs_path=$outputs_path" >> $GITHUB_OUTPUT
-          echo "outputs_path_win=$outputs_path_win" >> $GITHUB_OUTPUT
-          echo "Outputs path: $outputs_path_win"
 
           mediaOptions='${{ github.event.inputs.mediaOptions }}'
           if [ -n "$mediaOptions" ]; then
@@ -270,13 +267,13 @@ jobs:
             exit 1
           fi
 
-          echo "outputs_path=${{ steps.prepare_options.outputs.outputs_path_win }}" >> $GITHUB_OUTPUT
+          echo "outputs_path=$(cygpath -w "$outputs_path" 2>/dev/null || echo "$outputs_path")" >> $GITHUB_OUTPUT
 
       - name: Upload output artifacts
         if: steps.prepare_artifact.outputs.folder_name != ''
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.prepare_artifact.outputs.folder_name }}
+          name: artifact-${{ github.event.inputs.id }}
           path: ${{ steps.prepare_artifact.outputs.outputs_path }}
 
       - name: Post-execution cleanup
