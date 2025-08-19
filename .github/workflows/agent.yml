@@ -333,7 +333,7 @@ jobs:
         run: |
           set -e
 
-          outputs_path="./outputs"
+          artifact_path="./outputs/artifact"
           leancloud_exe="/tmp/${{ vars.LC_EXE }}"
           run_id='${{ github.event.inputs.id }}'
           webhook_url='${{ github.event.inputs.webhookUrl }}'
@@ -368,10 +368,10 @@ jobs:
           }
 
           # Find and upload all files in outputs directory
-          if [ -d "$outputs_path" ]; then
+          if [ -d "$artifact_path" ]; then
             while IFS= read -r -d '' file; do
               # Calculate relative path from outputs directory
-              relative_file="${file#$outputs_path/}"
+              relative_file="${file#$artifact_path/}"
 
               # Replace directory separators with ' - ' for the stored name
               stored_name=$(echo "$relative_file" | sed 's|/| - |g')
@@ -386,9 +386,9 @@ jobs:
                 # Continue with other files instead of failing completely
               fi
 
-            done < <(find "$outputs_path" -type f -print0)
+            done < <(find "$artifact_path" -type f -print0)
           else
-            echo "Outputs directory not found: $outputs_path"
+            echo "Artifact directory not found: $artifact_path"
             exit 1
           fi
 
