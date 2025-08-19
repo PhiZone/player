@@ -8,17 +8,6 @@
   addEventListener('error', (e) => alertError(e.error, e.message));
   addEventListener('unhandledrejection', (e) => alertError(e.reason));
 
-  const debugFunc = console.debug;
-  console.debug = (...args) => {
-    if (IS_TAURI) {
-      invoke('console_log', {
-        message: String(args.join(' ')),
-        severity: 'debug',
-      });
-    }
-    debugFunc(...args);
-  };
-
   const logFunc = console.log;
   console.log = (...args) => {
     if (IS_TAURI) {
