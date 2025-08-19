@@ -221,6 +221,7 @@ jobs:
           # Set additional environment variables for SharedArrayBuffer support
           export WEBKIT_DISABLE_COMPOSITING_MODE=1
           export WEBKIT_DISABLE_ACCELERATED_COMPOSITING=1
+          export __XPC_JSC_useSharedArrayBuffer=1
 
           # Read local file paths from the prepared list
           files_array=()
