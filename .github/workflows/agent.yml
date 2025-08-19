@@ -392,24 +392,23 @@ jobs:
             exit 1
           fi
 
-          # Build JSON payload
-          json_files="["
-          for i in "${!file_names[@]}"; do
-            if [ $i -gt 0 ]; then
-              json_files+=","
-            fi
-            # Escape quotes in file names and URLs
-            escaped_name=$(echo "${file_names[$i]}" | sed 's/"/\\"/g')
-            escaped_url=$(echo "${file_urls[$i]}" | sed 's/"/\\"/g')
-            json_files+="{\"name\":\"$escaped_name\",\"url\":\"$escaped_url\"}"
-          done
-          json_files+="]"
-
-          json_payload="{\"id\":\"$run_id\",\"files\":$json_files}"
-
-          # Send POST request to webhook
+          # Send webhook notification
           if [ -n "$webhook_url" ] && [ ${#file_names[@]} -gt 0 ]; then
             echo "Sending webhook notification to $webhook_url"
+
+            json_files="["
+            for i in "${!file_names[@]}"; do
+              if [ $i -gt 0 ]; then
+                json_files+=","
+              fi
+              # Escape quotes in file names and URLs
+              escaped_name=$(echo "${file_names[$i]}" | sed 's/"/\\"/g')
+              escaped_url=$(echo "${file_urls[$i]}" | sed 's/"/\\"/g')
+              json_files+="{\"name\":\"$escaped_name\",\"url\":\"$escaped_url\"}"
+            done
+            json_files+="]"
+
+            json_payload="{\"id\":\"$run_id\",\"files\":$json_files}"
             echo "Payload: $json_payload"
 
             response=$(curl -s -w "\nHTTP_STATUS:%{http_code}" \
