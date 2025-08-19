@@ -374,7 +374,7 @@ jobs:
               relative_file="${file#$artifact_path/}"
 
               # Replace directory separators with ' - ' for the stored name
-              stored_name=$(echo "$relative_file" | sed 's|/| - |g')
+              stored_name="[${{ github.event.inputs.id }}] $(echo "$relative_file" | sed 's|/| @ |g')"
 
               echo "Processing: $stored_name"
 
