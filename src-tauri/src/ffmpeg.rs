@@ -213,9 +213,11 @@ pub async fn setup_video(
 
     let mut frames_received = 0;
     let total_frames = (duration * framerate as f64).ceil() as u64;
+    println!("[TAURI] FFmpeg setup complete");
 
     tokio::spawn(async move {
         while let Ok((stream, _)) = listener.accept().await {
+            println!("[TAURI] WebSocket connection established");
             let ws_stream = match accept_async(stream).await {
                 Ok(s) => s,
                 Err(e) => {

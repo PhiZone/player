@@ -23,11 +23,13 @@ class FrameSender {
     this._ws.binaryType = 'arraybuffer';
     this._ws.onopen = () => {
       this._wsState = WebSocketState.OPEN;
+      console.log('[FrameSender] WebSocket connection established');
     };
     this._ws.onmessage = (event: { data: string }) => {
       if (event.data === 'finished') {
         this.dispatch(false, true);
         this._ws.close();
+        console.log('[FrameSender] WebSocket connection closed');
         return;
       }
       try {
@@ -44,11 +46,13 @@ class FrameSender {
 
       if (type === 'init') {
         this._sharedView = new Uint8Array(buffer);
+        console.log('[FrameSender] Shared view initialized');
         return;
       }
 
       if (type === 'stop') {
         this._frameQueue.push(false);
+        console.log('[FrameSender] Received stop signal');
         this.sendFrame();
         return;
       }
@@ -64,9 +68,11 @@ class FrameSender {
     const frame = new Uint8Array(new ArrayBuffer(this._sharedView.length));
     frame.set(this._sharedView);
     this._frameQueue.push(frame);
-    if (this._wsState !== WebSocketState.PAUSED) {
+    if (this._wsState === WebSocketState.OPEN) {
       this.dispatch(true);
       this.sendFrame();
+    } else {
+      console.log(`[FrameSender] New frame queued: ${this._renderedFrameCount}`);
     }
   }
 
@@ -118,6 +124,9 @@ class FrameSender {
       proceed,
       finished,
     });
+    console.log(
+      `[FrameSender] Command dispatched: proceed=${proceed}, finished=${finished}, rendered=${this._renderedFrameCount}, processed=${this._processedFrameCount}, sent=${this._sentFrameCount}`,
+    );
   }
 }
 
