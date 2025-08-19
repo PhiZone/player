@@ -235,6 +235,8 @@ jobs:
             if [ -n "$artifact_folder" ]; then
               folder_name=$(basename "$artifact_folder")
               echo "Found artifact folder: $folder_name"
+                echo "Contents of $artifact_folder:"
+                ls -lh "$artifact_folder"
               echo "folder_name=$folder_name" >> $GITHUB_OUTPUT
               echo "folder_path=$artifact_folder" >> $GITHUB_OUTPUT
             else
@@ -251,4 +253,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.find_artifact.outputs.folder_name }}
-          path: ${{ steps.find_artifact.outputs.folder_path }}
+          path: ${{ steps.prepare_options.outputs.outputs_path }}
