@@ -126,7 +126,7 @@ pub fn convert_audio(app: AppHandle, input: String, output: String) -> Result<()
     std::thread::spawn({
         let app = app.clone();
         move || {
-            print!("Converting audio...");
+            print!("[TAURI] Converting audio...");
             let _ = cmd_hidden(&*FFMPEG_CMD.lock().unwrap())
                 .args(
                     format!("-i {} -ar 44100 -c:a pcm_f32le -y {}", input, output)
@@ -155,7 +155,7 @@ pub fn combine_streams(
     std::thread::spawn({
         let app = app.clone();
         move || {
-            print!("Combining streams...");
+            print!("[TAURI] Combining streams...");
             let filter_complex = format!(
                 "[1:a]adelay=1000|1000,volume={}[a2];[2:a][a2]amix=inputs=2:normalize=0,alimiter=limit=1.0:level=false:attack=0.1:release=1[a]",
                 music_volume
@@ -219,7 +219,7 @@ pub async fn setup_video(
             let ws_stream = match accept_async(stream).await {
                 Ok(s) => s,
                 Err(e) => {
-                    eprintln!("WebSocket handshake failed: {}", e);
+                    eprintln!("[TAURI] WebSocket handshake failed: {}", e);
                     continue;
                 }
             };
@@ -241,7 +241,7 @@ pub async fn setup_video(
                     };
                     let total_digits = total_frames.to_string().len();
                     print!(
-                        "\rRendering: {:6.2}% ({:width$}/{})...",
+                        "\r[TAURI] Rendering: {:6.2}% ({:width$}/{}) ... ",
                         progress_percent,
                         frames_received,
                         total_frames,
@@ -252,23 +252,23 @@ pub async fn setup_video(
                     if let Some(stdin) = &mut *FFMPEG_STDIN.lock().unwrap() {
                         if let Err(e) = stdin.write_all(&data) {
                             println!();
-                            eprintln!("Error writing to FFmpeg: {}", e);
+                            eprintln!("[TAURI] Error writing to FFmpeg: {}", e);
                             break;
                         }
                         if let Err(e) = stdin.flush() {
                             println!();
-                            eprintln!("Error flushing FFmpeg: {}", e);
+                            eprintln!("[TAURI] Error flushing FFmpeg: {}", e);
                             break;
                         }
                     } else {
                         println!();
-                        eprintln!("FFmpeg stdin not available");
+                        eprintln!("[TAURI] FFmpeg stdin not available");
                         break;
                     }
                 } else if message.is_text() {
                     let text = message.to_text().unwrap();
                     if text == "finish" {
-                        println!(" finished.");
+                        println!("finished.");
                         write.send("finished".into()).await.unwrap();
                         finish_video().unwrap();
                         return;
@@ -280,7 +280,7 @@ pub async fn setup_video(
                     }
                 }
             }
-            println!("Connection closed due to inactivity or end of stream");
+            println!("[TAURI] Connection closed due to inactivity or end of stream");
             finish_video().unwrap();
             return;
         }

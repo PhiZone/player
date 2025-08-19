@@ -118,7 +118,7 @@ fn extract_files_from_args(args_map: &HashMap<String, String>) -> Vec<PathBuf> {
         }
     }
 
-    println!("Files opened ({:?}): {:?}", files.len(), files);
+    println!("[TAURI] Files opened ({:?}): {:?}", files.len(), files);
     files
 }
 
@@ -180,7 +180,7 @@ fn parse_args<T: Iterator<Item = String>>(args_map: &mut HashMap<String, String>
         }
     }
 
-    println!("Args parsed ({:?}): {:?}", args_map.len(), args_map);
+    println!("[TAURI] Args parsed ({:?}): {:?}", args_map.len(), args_map);
 }
 
 pub fn cmd_hidden(program: impl AsRef<std::ffi::OsStr>) -> Command {

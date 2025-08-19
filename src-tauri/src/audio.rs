@@ -35,7 +35,7 @@ pub fn mix_audio(
 ) -> Result<(), String> {
     std::thread::spawn(move || {
         let run = || {
-            print!("Mixing audio...");
+            print!("[TAURI] Mixing audio...");
 
             // Decoding sounds
             let mut decoded_sound_map: HashMap<String, Vec<f32>> = HashMap::new();
