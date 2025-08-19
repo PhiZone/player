@@ -13,7 +13,6 @@ import { AndroidFullScreen } from '@awesome-cordova-plugins/android-full-screen'
 import { Capacitor } from '@capacitor/core';
 import { Clipboard } from '@capacitor/clipboard';
 import Notiflix from 'notiflix';
-import 'context-filter-polyfill';
 import mime from 'mime/lite';
 import JSZip from 'jszip';
 import * as YAML from 'yaml';
