@@ -177,7 +177,7 @@ jobs:
             echo "  - $file"
           done
 
-      - name: Execute player with real-time monitoring
+      - name: Run player executable
         env:
           REPORT_INTERVAL: '25'
           __XPC_JSC_useSharedArrayBuffer: '1'
@@ -221,11 +221,18 @@ jobs:
           # Start monitoring in background
           (
             while true; do
-              # Memory usage (extract Memory lines from systeminfo)
-              mem_info=$(systeminfo | grep "Memory:" 2>/dev/null || echo "Memory info unavailable")
+              # Memory usage (macOS: vm_stat and sysctl)
+              mem_total=$(sysctl -n hw.memsize)
+              mem_free=$(vm_stat | awk '/Pages free/ {print $3}' | tr -d '.')
+              mem_inactive=$(vm_stat | awk '/Pages inactive/ {print $3}' | tr -d '.')
+              page_size=$(vm_stat | head -1 | awk '{print $8}')
+              mem_free_bytes=$(( (mem_free + mem_inactive) * page_size ))
+              mem_occupied_bytes=$((mem_total - mem_free_bytes))
+              mem_total_gb=$(echo "scale=2; $mem_total/1024/1024/1024" | bc)
+              mem_occupied_gb=$(echo "scale=2; $mem_occupied_bytes/1024/1024/1024" | bc)
+              mem_percent=$(echo "scale=1; ($mem_occupied_bytes/$mem_total)*100" | bc)
               echo ""
-              echo "=== $(date '+%H:%M:%S') Memory Status ==="
-              echo "$mem_info"
+              echo "Memory: ${mem_occupied_gb} GiB / ${mem_total_gb} GiB (${mem_percent}%)"
               echo ""
               sleep 60
             done
