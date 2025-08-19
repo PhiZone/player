@@ -22,7 +22,7 @@ on:
         required: false
         default: '{"frameRate":60,"overrideResolution":[1620,1080],"resultsLoopsToRender":1,"videoCodec":"libx264","videoBitrate":6000,"audioBitrate":320,"vsync":true,"exportPath":""}'
       webhookUrl:
-        description: 'Webhook URL for upload notification'
+        description: 'Webhook URL'
         required: false
       timezone:
         description: 'Timezone'
