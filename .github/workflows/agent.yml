@@ -115,7 +115,7 @@ jobs:
           fi
 
           # Read lines into array (safe for spaces in names)
-          mapfile -t files_array <<< "$files_raw"
+          IFS=$'\n' read -r -d '' -a files_array < <(printf '%s\0' "$files_raw")
           # Remove trailing '\r' from each element
           for i in "${!files_array[@]}"; do
             files_array[$i]="${files_array[$i]%$'\r'}"
@@ -188,7 +188,10 @@ jobs:
           mediaOptions='${{ steps.prepare_options.outputs.mediaOptions }}'
 
           # Read local file paths from the prepared list
-          mapfile -t files_array < "$local_files_path"
+          files_array=()
+          while IFS= read -r line || [ -n "$line" ]; do
+            files_array+=("$line")
+          done < "$local_files_path"
 
           # Build the command with proper argument handling
           cmd_args=()
