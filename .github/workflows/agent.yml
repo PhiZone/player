@@ -235,10 +235,14 @@ jobs:
             if [ -n "$artifact_folder" ]; then
               folder_name=$(basename "$artifact_folder")
               echo "Found artifact folder: $folder_name"
-                echo "Contents of $artifact_folder:"
-                ls -lh "$artifact_folder"
-              echo "folder_name=$folder_name" >> $GITHUB_OUTPUT
-              echo "folder_path=$artifact_folder" >> $GITHUB_OUTPUT
+              echo "Contents of $artifact_folder:"
+              ls -lh "$artifact_folder"
+
+              # Rename the artifact folder to 'artifact'
+              mv "$artifact_folder" "$outputs_path/artifact"
+              echo "Renamed $artifact_folder to $outputs_path/artifact"
+              echo "folder_name=artifact" >> $GITHUB_OUTPUT
+              echo "folder_path=$outputs_path/artifact" >> $GITHUB_OUTPUT
             else
               echo "No artifact folder found in $outputs_path"
               exit 1
@@ -253,4 +257,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.find_artifact.outputs.folder_name }}
-          path: ${{ steps.prepare_options.outputs.outputs_path }}
+          path: ${{ steps.find_artifact.outputs.folder_path }}
