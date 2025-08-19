@@ -80,6 +80,76 @@ jobs:
           ffmpeg-version: release
           architecture: ''
 
+      - name: Clean up previous run artifacts
+        run: |
+          set -e
+          echo "Cleaning up previous run artifacts..."
+
+          # Clean up common Tauri app data locations on Windows
+          if [ -d "$APPDATA" ]; then
+            echo "Cleaning $APPDATA..."
+            rm -rf "$APPDATA/cn.phizone.player" 2>/dev/null || true
+          fi
+
+          if [ -d "$LOCALAPPDATA" ]; then
+            echo "Cleaning $LOCALAPPDATA..."
+            rm -rf "$LOCALAPPDATA/cn.phizone.player" 2>/dev/null || true
+          fi
+
+          # Clean up browser/webview cache and data
+          if [ -d "$LOCALAPPDATA/Microsoft/Edge" ]; then
+            echo "Cleaning Edge WebView2 cache..."
+            rm -rf "$LOCALAPPDATA/Microsoft/Edge/User Data/Default/Cache" 2>/dev/null || true
+            rm -rf "$LOCALAPPDATA/Microsoft/Edge/User Data/Default/Code Cache" 2>/dev/null || true
+            rm -rf "$LOCALAPPDATA/Microsoft/Edge/User Data/Default/GPUCache" 2>/dev/null || true
+            rm -rf "$LOCALAPPDATA/Microsoft/Edge/User Data/Default/Service Worker" 2>/dev/null || true
+          fi
+
+          # Clean up WebView2 data directories
+          if [ -d "$LOCALAPPDATA/Microsoft/EdgeWebView" ]; then
+            echo "Cleaning EdgeWebView data..."
+            find "$LOCALAPPDATA/Microsoft/EdgeWebView" -name "Cache*" -type d -exec rm -rf {} + 2>/dev/null || true
+            find "$LOCALAPPDATA/Microsoft/EdgeWebView" -name "Code Cache*" -type d -exec rm -rf {} + 2>/dev/null || true
+          fi
+
+          # Clean up temporary directories
+          echo "Cleaning temporary directories..."
+          rm -rf ./downloads 2>/dev/null || true
+          rm -rf ./outputs 2>/dev/null || true
+          rm -rf ./files.txt 2>/dev/null || true
+
+          # Clean up Windows temp directory (runner user specific)
+          if [ -d "$TEMP" ]; then
+            echo "Cleaning Windows temp directory..."
+            find "$TEMP" -name "*phizone*" -exec rm -rf {} + 2>/dev/null || true
+            find "$TEMP" -name "*player*" -exec rm -rf {} + 2>/dev/null || true
+          fi
+
+          # Attempt to clear standby memory (Windows only)
+          if command -v rammap.exe >/dev/null 2>&1; then
+            echo "Running RamMap to empty standby list..."
+            rammap.exe -E || true
+          elif [ -f "/c/Windows/System32/RamMap.exe" ]; then
+            "/c/Windows/System32/RamMap.exe" -E || true
+          else
+            echo "RamMap not found; skipping standby memory cleanup."
+          fi
+
+          # Try to reduce page file usage by terminating unused processes (example: WebView2, Edge)
+          taskkill //F //IM msedgewebview2.exe 2>/dev/null || true
+          taskkill //F //IM msedge.exe 2>/dev/null || true
+          taskkill //F //IM WebView2.exe 2>/dev/null || true
+
+          # Show memory usage
+          echo "Current memory usage:"
+          systeminfo | findstr /C:"Total Physical Memory" /C:"Available Physical Memory" || true
+
+          # Show disk space
+          echo "Current disk space:"
+          df -h . || true
+
+          echo "Cleanup completed."
+
       - name: Prepare media options
         id: prepare_options
         run: |
@@ -258,3 +328,48 @@ jobs:
         with:
           name: ${{ steps.find_artifact.outputs.folder_name }}
           path: ${{ steps.find_artifact.outputs.folder_path }}
+
+      - name: Post-execution cleanup
+        if: always()
+        run: |
+          set -e
+          echo "Starting post-execution cleanup..."
+
+          # Clean up downloaded files
+          echo "Cleaning downloaded files..."
+          rm -rf ./downloads 2>/dev/null || true
+
+          # Clean up generated outputs
+          echo "Cleaning local output files..."
+          rm -rf ./outputs 2>/dev/null || true
+          rm -rf ./files.txt 2>/dev/null || true
+
+          # Clean up player executable
+          rm -f ./player.exe 2>/dev/null || true
+
+          # Force cleanup of Tauri app data again (in case it was created during execution)
+          if [ -d "$APPDATA" ]; then
+            rm -rf "$APPDATA/cn.phizone.player" 2>/dev/null || true
+          fi
+
+          if [ -d "$LOCALAPPDATA" ]; then
+            rm -rf "$LOCALAPPDATA/cn.phizone.player" 2>/dev/null || true
+          fi
+
+          # Clean up any WebView2 processes and cache that might be lingering
+          echo "Cleaning WebView2 cache post-execution..."
+          if [ -d "$LOCALAPPDATA/Microsoft/Edge" ]; then
+            rm -rf "$LOCALAPPDATA/Microsoft/Edge/User Data/Default/Cache" 2>/dev/null || true
+            rm -rf "$LOCALAPPDATA/Microsoft/Edge/User Data/Default/Code Cache" 2>/dev/null || true
+            rm -rf "$LOCALAPPDATA/Microsoft/Edge/User Data/Default/GPUCache" 2>/dev/null || true
+            rm -rf "$LOCALAPPDATA/Microsoft/Edge/User Data/Default/Service Worker" 2>/dev/null || true
+            rm -rf "$LOCALAPPDATA/Microsoft/Edge/User Data/Default/IndexedDB" 2>/dev/null || true
+            rm -rf "$LOCALAPPDATA/Microsoft/Edge/User Data/Default/Local Storage" 2>/dev/null || true
+            rm -rf "$LOCALAPPDATA/Microsoft/Edge/User Data/Default/Session Storage" 2>/dev/null || true
+          fi
+
+          # Show final disk space
+          echo "Disk space after cleanup:"
+          df -h . || true
+
+          echo "Post-execution cleanup completed."
