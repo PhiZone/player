@@ -135,7 +135,6 @@ export class Renderer {
       await remove(this._tempDir, { recursive: true });
     });
 
-    this._scene.game.loop.stop();
     this.setTick(0);
   }
 

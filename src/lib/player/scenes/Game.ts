@@ -335,6 +335,7 @@ export class Game extends Scene {
         this.createBackground();
         this.createAudio();
         await this.initializeVideos();
+        this.sortObjects();
         if (this._render) {
           this.startRendering();
         } else if (this._autostart) {
@@ -396,7 +397,6 @@ export class Game extends Scene {
 
   start() {
     if (this._status === GameStatus.ERROR) return;
-    this._objects.sort((a, b) => a.depth - b.depth);
     this.in();
     if (!this._render)
       this._timeout = setTimeout(() => {
@@ -466,7 +466,7 @@ export class Game extends Scene {
     this.resetShadersAndVideos();
     this.initializeShaders();
     await this.initializeVideos();
-    this._objects.sort((a, b) => a.depth - b.depth);
+    this.sortObjects();
     this.in();
     if (!this._render)
       this._timeout = setTimeout(() => {
@@ -501,6 +501,10 @@ export class Game extends Scene {
       this._resultsMusic,
       this._data.mediaOptions.resultsLoopsToRender,
     );
+  }
+
+  sortObjects() {
+    this._objects.sort((a, b) => a.depth - b.depth);
   }
 
   setSeek(value: number) {
@@ -717,6 +721,7 @@ export class Game extends Scene {
   }
 
   async startRendering() {
+    this.game.loop.stop();
     this._renderer = new Renderer(this, this._data.mediaOptions, this._resultsMusic);
     await this._renderer.setup();
     this.start();
