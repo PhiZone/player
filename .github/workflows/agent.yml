@@ -221,8 +221,10 @@ jobs:
             while true; do
               # Memory usage (extract Memory lines from systeminfo)
               mem_info=$(systeminfo | grep "Memory:" 2>/dev/null || echo "Memory info unavailable")
+              echo ""
               echo "=== $(date '+%H:%M:%S') Memory Status ==="
               echo "$mem_info"
+              echo ""
               sleep 60
             done
           ) &
