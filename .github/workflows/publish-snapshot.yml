@@ -35,10 +35,77 @@ jobs:
       current-week: ${{ steps.current-week.outputs.CURRENT_WEEK }}${{ github.event.inputs.iteration || 'a' }}
       version-name: ${{ steps.version.outputs.VERSION }}_${{ steps.current-week.outputs.CURRENT_WEEK }}${{ github.event.inputs.iteration || 'a' }}
 
+  publish-capacitor-android:
+    name: Build for Android
+    runs-on: ubuntu-22.04
+    needs: metadata
+    permissions:
+      contents: write
+    steps:
+      - name: Confirm build version and datetime
+        run: |
+          echo "Version: ${{ needs.metadata.outputs.version }}"
+          echo "Build datetime: ${{ needs.metadata.outputs.current-week }}"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '21'
+
+      - name: Install dependencies
+        run: pnpm i
+
+      - name: Create build
+        run: pnpm build
+        env:
+          PUBLIC_SENTRY_DSN: ${{ vars.PUBLIC_SENTRY_DSN }}
+
+      - name: Generate icons and splash screen
+        run: if [ -d "./resources" ]; then pnpm i -D @capacitor/assets && pnpm capacitor-assets generate --android; fi
+
+      - name: Build app bundle
+        run: cd android && chmod +x ./gradlew && ./gradlew bundle && ./gradlew assembleRelease
+
+      - uses: kevin-david/zipalign-sign-android-release@v2
+        name: Sign APK
+        id: sign-apk
+        with:
+          releaseDirectory: android/app/build/outputs/apk/release/
+          signingKeyBase64: ${{ secrets.RELEASE_KEYSTORE }}
+          keyStorePassword: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          zipAlign: true
+
+      - name: Rename builds
+        run: |
+          mv android/app/build/outputs/bundle/release/app-release.aab android/app/build/outputs/bundle/release/PhiZone.Player_${{ needs.metadata.outputs.version-name }}.aab
+          mv ${{ steps.sign-apk.outputs.signedReleaseFile }} android/app/build/outputs/apk/release/PhiZone.Player_${{ needs.metadata.outputs.version-name }}.apk
+
+      - name: Publish release
+        run: |
+          gh release create "v${{ needs.metadata.outputs.version-name }}" \
+          --title "v${{ needs.metadata.outputs.version }} ${{ needs.metadata.outputs.current-week }}" \
+          --notes "Automated snapshot release. See the assets for downloads." --prerelease \
+          android/app/build/outputs/bundle/release/PhiZone.Player_${{ needs.metadata.outputs.version-name }}.aab \
+          android/app/build/outputs/apk/release/PhiZone.Player_${{ needs.metadata.outputs.version-name }}.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+
   publish-capacitor-ios:
     name: Build for iOS
     runs-on: macos-15
-    needs: metadata
+    needs: [metadata, publish-capacitor-android]
     permissions:
       contents: write
     steps:
@@ -151,9 +218,7 @@ jobs:
 
       - name: Publish release
         run: |
-          gh release create "v${{ needs.metadata.outputs.version-name }}" \
-          --title "v${{ needs.metadata.outputs.version }} ${{ needs.metadata.outputs.current-week }}" \
-          --notes "Automated snapshot release. See the assets for downloads." --prerelease \
+          gh release upload "v${{ needs.metadata.outputs.version-name }}" \
           $RUNNER_TEMP/build/PhiZone.Player_${{ needs.metadata.outputs.version-name }}.ipa
         env:
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
@@ -190,74 +255,9 @@ jobs:
           rm -rf ~/Library/Developer/Xcode/DerivedData
           xcrun simctl delete all
 
-  publish-capacitor-android:
-    name: Build for Android
-    runs-on: ubuntu-22.04
-    needs: [metadata, publish-capacitor-ios]
-    permissions:
-      contents: write
-    steps:
-      - name: Confirm build version and datetime
-        run: |
-          echo "Version: ${{ needs.metadata.outputs.version }}"
-          echo "Build datetime: ${{ needs.metadata.outputs.current-week }}"
-
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '21'
-
-      - name: Install dependencies
-        run: pnpm i
-
-      - name: Create build
-        run: pnpm build
-        env:
-          PUBLIC_SENTRY_DSN: ${{ vars.PUBLIC_SENTRY_DSN }}
-
-      - name: Generate icons and splash screen
-        run: if [ -d "./resources" ]; then pnpm i -D @capacitor/assets && pnpm capacitor-assets generate --android; fi
-
-      - name: Build app bundle
-        run: cd android && chmod +x ./gradlew && ./gradlew bundle && ./gradlew assembleRelease
-
-      - uses: kevin-david/zipalign-sign-android-release@v2
-        name: Sign APK
-        id: sign-apk
-        with:
-          releaseDirectory: android/app/build/outputs/apk/release/
-          signingKeyBase64: ${{ secrets.RELEASE_KEYSTORE }}
-          keyStorePassword: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
-          zipAlign: true
-
-      - name: Rename builds
-        run: |
-          mv android/app/build/outputs/bundle/release/app-release.aab android/app/build/outputs/bundle/release/PhiZone.Player_${{ needs.metadata.outputs.version-name }}.aab
-          mv ${{ steps.sign-apk.outputs.signedReleaseFile }} android/app/build/outputs/apk/release/PhiZone.Player_${{ needs.metadata.outputs.version-name }}.apk
-
-      - name: Publish release
-        run: |
-          gh release upload "v${{ needs.metadata.outputs.version-name }}" \
-          android/app/build/outputs/bundle/release/PhiZone.Player_${{ needs.metadata.outputs.version-name }}.aab \
-          android/app/build/outputs/apk/release/PhiZone.Player_${{ needs.metadata.outputs.version-name }}.apk
-        env:
-          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
-
   publish-tauri:
     name: Build with Tauri
-    needs: [metadata, publish-capacitor-ios]
+    needs: [metadata, publish-capacitor-android]
     permissions:
       contents: write
     strategy:
