@@ -284,8 +284,14 @@ pub async fn setup_video(
                     let text = message.to_text().unwrap();
                     if text == "finish" {
                         println!("finished.");
-                        write.send("finished".into()).await.unwrap();
-                        finish_video().unwrap();
+                        match finish_video() {
+                            Ok(_) => {
+                                write.send("finished".into()).await.unwrap();
+                            }
+                            Err(e) => {
+                                eprintln!("[TAURI] Error finishing video: {}", e);
+                            }
+                        }
                         return;
                     } else if text == "pause" {
                         write
@@ -296,7 +302,10 @@ pub async fn setup_video(
                 }
             }
             println!("[TAURI] Connection closed due to inactivity or end of stream");
-            finish_video().unwrap();
+            // Finish video encoding when connection closes
+            if let Err(e) = finish_video() {
+                eprintln!("[TAURI] Error finishing video on connection close: {}", e);
+            }
             return;
         }
     });
