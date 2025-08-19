@@ -86,7 +86,10 @@ jobs:
           set -e
           mkdir -p ./outputs
           outputs_path=$(realpath ./outputs)
+          outputs_path_win=$(cygpath -w "$outputs_path" 2>/dev/null || echo "$outputs_path")
           echo "outputs_path=$outputs_path" >> $GITHUB_OUTPUT
+          echo "outputs_path_win=$outputs_path_win" >> $GITHUB_OUTPUT
+          echo "Outputs path: $outputs_path_win"
 
           mediaOptions='${{ github.event.inputs.mediaOptions }}'
           if [ -n "$mediaOptions" ]; then
@@ -241,8 +244,8 @@ jobs:
 
           exit $player_exit_code
 
-      - name: Find output artifacts
-        id: find_artifact
+      - name: Prepare output artifacts
+        id: prepare_artifact
         run: |
           set -e
           outputs_path="${{ steps.prepare_options.outputs.outputs_path }}"
@@ -255,10 +258,9 @@ jobs:
             if [ -n "$artifact_folder" ]; then
               folder_name=$(basename "$artifact_folder")
               echo "Found artifact folder: $folder_name"
-                echo "Contents of $artifact_folder:"
-                ls -lh "$artifact_folder"
+              echo "Contents of $artifact_folder:"
+              ls -lh "$artifact_folder"
               echo "folder_name=$folder_name" >> $GITHUB_OUTPUT
-              echo "folder_path=$artifact_folder" >> $GITHUB_OUTPUT
             else
               echo "No artifact folder found in $outputs_path"
               exit 1
@@ -268,12 +270,14 @@ jobs:
             exit 1
           fi
 
+          echo "outputs_path=${{ steps.prepare_options.outputs.outputs_path_win }}" >> $GITHUB_OUTPUT
+
       - name: Upload output artifacts
-        if: steps.find_artifact.outputs.folder_name != ''
+        if: steps.prepare_artifact.outputs.folder_name != ''
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.find_artifact.outputs.folder_name }}
-          path: ${{ steps.find_artifact.outputs.folder_path }}/**
+          name: ${{ steps.prepare_artifact.outputs.folder_name }}
+          path: ${{ steps.prepare_artifact.outputs.outputs_path }}
 
       - name: Post-execution cleanup
         if: always()
