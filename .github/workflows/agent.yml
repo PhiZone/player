@@ -180,6 +180,8 @@ jobs:
           done
 
       - name: Execute player with real-time monitoring
+        env:
+          REPORT_INTERVAL: '25'
         run: |
           set -e
           local_files_path='${{ steps.prepare_files.outputs.local_files_path }}'

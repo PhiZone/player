@@ -15,6 +15,13 @@ use crate::cmd_hidden;
 static FFMPEG_CMD: LazyLock<Mutex<String>> = LazyLock::new(|| Mutex::new("ffmpeg".to_string()));
 static FFMPEG_STDIN: LazyLock<Mutex<Option<ChildStdin>>> = LazyLock::new(|| Mutex::new(None));
 
+fn get_report_interval() -> u32 {
+    match std::env::var("REPORT_INTERVAL") {
+        Ok(val) => val.parse::<u32>().unwrap_or(1).max(1),
+        Err(_) => 1,
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Encoder {
     name: String,
@@ -213,11 +220,11 @@ pub async fn setup_video(
 
     let mut frames_received = 0;
     let total_frames = (duration * framerate as f64).ceil() as u64;
+    let report_interval = get_report_interval();
     println!("[TAURI] FFmpeg setup complete");
 
     tokio::spawn(async move {
         while let Ok((stream, _)) = listener.accept().await {
-            println!("[TAURI] WebSocket connection established");
             let ws_stream = match accept_async(stream).await {
                 Ok(s) => s,
                 Err(e) => {
@@ -225,6 +232,7 @@ pub async fn setup_video(
                     continue;
                 }
             };
+            println!("[TAURI] WebSocket connection established");
             let (mut write, mut read) = ws_stream.split();
 
             while let Some(Ok(message)) =
@@ -236,20 +244,22 @@ pub async fn setup_video(
                     frames_received += 1;
                     let data = message.into_data();
 
-                    let progress_percent = if total_frames > 0 {
-                        (frames_received as f64 / total_frames as f64) * 100.0
-                    } else {
-                        0.0
-                    };
-                    let total_digits = total_frames.to_string().len();
-                    print!(
-                        "\r[TAURI] Rendering: {:6.2}% ({:width$}/{}) ... ",
-                        progress_percent,
-                        frames_received,
-                        total_frames,
-                        width = total_digits
-                    );
-                    std::io::stdout().flush().unwrap();
+                    if frames_received % report_interval as u64 == 0 {
+                        let progress_percent = if total_frames > 0 {
+                            (frames_received as f64 / total_frames as f64) * 100.0
+                        } else {
+                            0.0
+                        };
+                        let total_digits = total_frames.to_string().len();
+                        print!(
+                            "\r[TAURI] Rendering: {:6.2}% ({:width$}/{}) ... ",
+                            progress_percent,
+                            frames_received,
+                            total_frames,
+                            width = total_digits
+                        );
+                        std::io::stdout().flush().unwrap();
+                    }
 
                     if let Some(stdin) = &mut *FFMPEG_STDIN.lock().unwrap() {
                         if let Err(e) = stdin.write_all(&data) {
