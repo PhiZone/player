@@ -4,7 +4,7 @@ use std::fs;
 use std::io::Write;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
-use std::process::ChildStdin;
+use std::process::{Child, ChildStdin};
 use std::sync::{LazyLock, Mutex};
 use tauri::{AppHandle, Emitter};
 use tokio::net::TcpListener;
@@ -14,6 +14,7 @@ use crate::cmd_hidden;
 
 static FFMPEG_CMD: LazyLock<Mutex<String>> = LazyLock::new(|| Mutex::new("ffmpeg".to_string()));
 static FFMPEG_STDIN: LazyLock<Mutex<Option<ChildStdin>>> = LazyLock::new(|| Mutex::new(None));
+static FFMPEG_PROCESS: LazyLock<Mutex<Option<Child>>> = LazyLock::new(|| Mutex::new(None));
 
 fn get_report_interval() -> u32 {
     match std::env::var("REPORT_INTERVAL") {
@@ -202,9 +203,9 @@ pub async fn setup_video(
     codec: String,
     bitrate: String,
 ) -> Result<(), String> {
-    let process = cmd_hidden(&*FFMPEG_CMD.lock().unwrap())
+    let mut process = cmd_hidden(&*FFMPEG_CMD.lock().unwrap())
         .args(format!(
-            "-probesize 50M -f rawvideo -pix_fmt rgb24 -s {} -r {} -thread_queue_size 1024 -i pipe:0 -c:v {} -b:v {} -vf vflip -pix_fmt yuv420p -y {}",
+            "-probesize 50M -f rawvideo -pix_fmt rgb24 -s {} -r {} -thread_queue_size 1024 -i pipe:0 -c:v {} -b:v {} -vf vflip -pix_fmt yuv420p -movflags +faststart -y {}",
             resolution, framerate.to_string(), codec, bitrate, output
         )
         .split_whitespace())
@@ -212,7 +213,9 @@ pub async fn setup_video(
         .spawn()
         .map_err(|e| e.to_string())?;
 
-    *FFMPEG_STDIN.lock().unwrap() = process.stdin;
+    let stdin = process.stdin.take();
+    *FFMPEG_STDIN.lock().unwrap() = stdin;
+    *FFMPEG_PROCESS.lock().unwrap() = Some(process);
 
     let listener = TcpListener::bind("127.0.0.1:63401")
         .await
@@ -302,9 +305,34 @@ pub async fn setup_video(
 }
 
 pub fn finish_video() -> Result<(), String> {
-    let mut guard = FFMPEG_STDIN.lock().unwrap();
-    if let Some(stdin) = guard.take() {
+    // Close stdin first to signal end of input
+    let mut stdin_guard = FFMPEG_STDIN.lock().unwrap();
+    if let Some(stdin) = stdin_guard.take() {
         drop(stdin);
+        println!("[TAURI] FFmpeg stdin closed");
     }
+    drop(stdin_guard);
+
+    // Wait for the FFmpeg process to complete
+    let mut process_guard = FFMPEG_PROCESS.lock().unwrap();
+    if let Some(mut process) = process_guard.take() {
+        match process.wait() {
+            Ok(status) => {
+                if status.success() {
+                    println!("[TAURI] FFmpeg process completed successfully");
+                } else {
+                    eprintln!("[TAURI] FFmpeg process failed with status: {}", status);
+                    return Err(format!("FFmpeg process failed with status: {}", status));
+                }
+            }
+            Err(e) => {
+                eprintln!("[TAURI] Error waiting for FFmpeg process: {}", e);
+                return Err(format!("Error waiting for FFmpeg process: {}", e));
+            }
+        }
+    } else {
+        println!("[TAURI] No FFmpeg process to wait for");
+    }
+
     Ok(())
 }
