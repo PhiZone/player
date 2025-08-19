@@ -20,6 +20,7 @@ class FrameSender {
 
   constructor() {
     this._ws = new WebSocket(WEBSOCKET_URL);
+    console.log('[FrameSender] Initializing WebSocket connection');
     this._ws.binaryType = 'arraybuffer';
     this._ws.onopen = () => {
       this._wsState = WebSocketState.OPEN;

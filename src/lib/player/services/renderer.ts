@@ -41,7 +41,6 @@ export class Renderer {
     this._resultsLoopDuration = beatLength * resultsMusic.beats;
     this._resultsDuration = this._resultsLoopsToRender * this._resultsLoopDuration;
     this._length = scene.song.duration + 2 + this._resultsDuration;
-    this._worker = new Worker();
   }
 
   async setup() {
@@ -62,6 +61,8 @@ export class Renderer {
       this._options.videoCodec,
       this._options.videoBitrate,
     );
+
+    this._worker = new Worker();
 
     this._worker.onmessage = async (event: {
       data: {
