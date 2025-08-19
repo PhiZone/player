@@ -21,6 +21,9 @@ on:
         description: 'Renderer media options'
         required: false
         default: '{"frameRate":60,"overrideResolution":[1620,1080],"resultsLoopsToRender":1,"videoCodec":"libx264","videoBitrate":6000,"audioBitrate":320,"vsync":true,"exportPath":""}'
+      webhookUrl:
+        description: 'Webhook URL for upload notification'
+        required: false
       timezone:
         description: 'Timezone'
         required: false
@@ -36,7 +39,7 @@ defaults:
     shell: bash
 
 jobs:
-  agent:
+  execute:
     name: Run PhiZone Player
     runs-on: macos-latest
     steps:
@@ -261,37 +264,10 @@ jobs:
 
           exit $player_exit_code
 
-      - name: Prepare output artifacts
-        id: prepare_artifact
-        run: |
-          set -e
-          outputs_path="${{ steps.prepare_options.outputs.outputs_path }}"
-
-          # Find the generated folder in outputs directory
-          if [ -d "$outputs_path" ]; then
-            # Get the first (and presumably only) subdirectory in outputs
-            artifact_folder=$(find "$outputs_path" -mindepth 1 -maxdepth 1 -type d | head -n 1)
-
-            if [ -n "$artifact_folder" ]; then
-              folder_name=$(basename "$artifact_folder")
-              echo "Found artifact folder: $folder_name"
-              echo "Contents of $artifact_folder:"
-              ls -lh "$artifact_folder"
-              echo "folder_name=$folder_name" >> $GITHUB_OUTPUT
-            else
-              echo "No artifact folder found in $outputs_path"
-              exit 1
-            fi
-          else
-            echo "Outputs directory does not exist"
-            exit 1
-          fi
-
-      - name: Upload output artifacts
-        if: steps.prepare_artifact.outputs.folder_name != ''
+      - name: Upload output artifact
         uses: actions/upload-artifact@v4
         with:
-          name: artifact-${{ github.event.inputs.id }}
+          name: artifact
           path: ${{ steps.prepare_options.outputs.outputs_path }}
 
       - name: Post-execution cleanup
@@ -334,3 +310,120 @@ jobs:
           fi
 
           echo "Post-execution cleanup completed."
+
+  upload:
+    name: Upload artifact
+    runs-on: ubuntu-latest
+    needs: execute
+    steps:
+      - name: Prepare LeanCloud CLI
+        run: |
+          wget ${{ vars.LC_CLI_DOWNLOAD }} -O /tmp/${{ vars.LC_EXE }}
+          chmod +x /tmp/${{ vars.LC_EXE }}
+          /tmp/${{ vars.LC_EXE }} login ${{ secrets.LC_LOGIN }}
+          /tmp/${{ vars.LC_EXE }} switch ${{ secrets.LC_SWITCH }}
+
+      - name: Download output artifact
+        uses: actions/download-artifact@v4
+        with:
+          path: ./outputs
+
+      - name: Upload files to LeanCloud and notify webhook
+        if: github.event.inputs.webhookUrl != ''
+        run: |
+          set -e
+
+          outputs_path="./outputs"
+          leancloud_exe="/tmp/${{ vars.LC_EXE }}"
+          run_id='${{ github.event.inputs.id }}'
+          webhook_url='${{ github.event.inputs.webhookUrl }}'
+
+          # Initialize arrays for file names and URLs
+          file_names=()
+          file_urls=()
+
+          # Function to upload a single file and extract URL
+          upload_file() {
+            local file_path="$1"
+            local relative_path="$2"
+
+            echo "Uploading file: $file_path"
+
+            # Execute upload command and capture output
+            upload_output=$("$leancloud_exe" file upload "$file_path" 2>&1)
+            echo "$upload_output"
+
+            # Extract URL from output using grep and sed
+            upload_url=$(echo "$upload_output" | grep -o 'URL: https://[^[:space:]]*' | sed 's/URL: //')
+
+            if [ -n "$upload_url" ]; then
+              echo "Successfully extracted URL: $upload_url"
+              file_names+=("$relative_path")
+              file_urls+=("$upload_url")
+              return 0
+            else
+              echo "Failed to extract URL from upload output"
+              return 1
+            fi
+          }
+
+          # Find and upload all files in outputs directory
+          if [ -d "$outputs_path" ]; then
+            while IFS= read -r -d '' file; do
+              # Calculate relative path from outputs directory
+              relative_file="${file#$outputs_path/}"
+
+              # Replace directory separators with ' - ' for the stored name
+              stored_name=$(echo "$relative_file" | sed 's|/| - |g')
+
+              echo "Processing: $stored_name"
+
+              # Upload the file
+              if upload_file "$file" "$stored_name"; then
+                echo "File uploaded successfully"
+              else
+                echo "Failed to upload file: $file"
+                # Continue with other files instead of failing completely
+              fi
+
+            done < <(find "$outputs_path" -type f -print0)
+          else
+            echo "Outputs directory not found: $outputs_path"
+            exit 1
+          fi
+
+          # Build JSON payload
+          json_files="["
+          for i in "${!file_names[@]}"; do
+            if [ $i -gt 0 ]; then
+              json_files+=","
+            fi
+            # Escape quotes in file names and URLs
+            escaped_name=$(echo "${file_names[$i]}" | sed 's/"/\\"/g')
+            escaped_url=$(echo "${file_urls[$i]}" | sed 's/"/\\"/g')
+            json_files+="{\"name\":\"$escaped_name\",\"url\":\"$escaped_url\"}"
+          done
+          json_files+="]"
+
+          json_payload="{\"id\":\"$run_id\",\"files\":$json_files}"
+
+          # Send POST request to webhook
+          if [ -n "$webhook_url" ] && [ ${#file_names[@]} -gt 0 ]; then
+            echo "Sending webhook notification to $webhook_url"
+            echo "Payload: $json_payload"
+
+            response=$(curl -s -w "\nHTTP_STATUS:%{http_code}" \
+              -X POST \
+              -H "Content-Type: application/json" \
+              -d "$json_payload" \
+              "$webhook_url")
+
+            http_status=$(echo "$response" | grep "HTTP_STATUS:" | cut -d: -f2)
+            response_body=$(echo "$response" | sed '/HTTP_STATUS:/d')
+
+            echo "Webhook response ($http_status): $response_body"
+          else
+            echo "Skipping webhook notification (no URL provided or no files uploaded)"
+          fi
+
+          echo "Total files uploaded: ${#file_names[@]}"
