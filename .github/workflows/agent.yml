@@ -130,14 +130,6 @@ jobs:
           taskkill //F //IM msedge.exe 2>/dev/null || true
           taskkill //F //IM WebView2.exe 2>/dev/null || true
 
-          # Show system information
-          echo "System info:"
-          systeminfo || true
-
-          # Show disk space
-          echo "Current disk space:"
-          df -h . || true
-
           echo "Cleanup completed."
 
       - name: Prepare media options
@@ -239,13 +231,19 @@ jobs:
             echo "  - $file"
           done
 
-      - name: Run Player executable
+      - name: Display system memory information
+        run: |
+          echo "=== System Memory Information ==="
+          systeminfo | grep "Memory:" || echo "Memory info not available"
+          echo ""
+
+      - name: Execute player with real-time monitoring
         run: |
           set -e
+          local_files_path='${{ steps.prepare_files.outputs.local_files_path }}'
           toggles='${{ github.event.inputs.toggles }}'
           preferences='${{ github.event.inputs.preferences }}'
           mediaOptions='${{ steps.prepare_options.outputs.mediaOptions }}'
-          local_files_path='${{ steps.prepare_files.outputs.local_files_path }}'
 
           # Read local file paths from the prepared list
           mapfile -t files_array < "$local_files_path"
@@ -272,14 +270,42 @@ jobs:
 
           cmd_args+=("--automate")
 
-          echo "Running PhiZone Player..."
-          echo "Files: ${files_array[*]}"
-          echo "Toggles: $toggles"
-          echo "Preferences: $preferences"
-          echo "Media Options: $mediaOptions"
+          echo "Starting player execution with real-time monitoring..."
 
-          # Execute with proper argument passing
+          # Start monitoring in background
+          (
+            while true; do
+              echo "=== $(date '+%H:%M:%S') Memory & Disk Status ==="
+              
+              # Memory usage (extract Memory lines from systeminfo)
+              systeminfo | grep "Memory:" 2>/dev/null || echo "Memory info unavailable"
+              
+              # Disk space for current drive
+              echo "Disk Space:"
+              df -h . 2>/dev/null || echo "Disk info unavailable"
+              
+              echo "---"
+              sleep 1
+            done
+          ) &
+          monitor_pid=$!
+
+          # Execute player
+          echo "Executing: ./player.exe ${cmd_args[*]}"
           ./player.exe "${cmd_args[@]}"
+          player_exit_code=$?
+
+          # Stop monitoring
+          kill $monitor_pid 2>/dev/null || true
+          wait $monitor_pid 2>/dev/null || true
+
+          echo "Player execution completed with exit code: $player_exit_code"
+
+          # Final memory status
+          echo "=== Final Memory Status ==="
+          systeminfo | grep "Memory:" || echo "Memory info not available"
+
+          exit $player_exit_code
 
       - name: Find output artifacts
         id: find_artifact
