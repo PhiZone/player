@@ -217,16 +217,11 @@ jobs:
           # Start monitoring in background
           (
             while true; do
-              echo "=== $(date '+%H:%M:%S') Memory & Disk Status ==="
-              
               # Memory usage (extract Memory lines from systeminfo)
-              systeminfo | grep "Memory:" 2>/dev/null || echo "Memory info unavailable"
-              
-              # Disk space for current drive
-              echo "Disk Space:"
-              df -h . 2>/dev/null || echo "Disk info unavailable"
-
-              sleep 30
+              mem_info=$(systeminfo | grep "Memory:" 2>/dev/null || echo "Memory info unavailable")
+              echo "=== $(date '+%H:%M:%S') Memory Status ==="
+              echo "$mem_info"
+              sleep 60
             done
           ) &
           monitor_pid=$!
