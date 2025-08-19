@@ -152,7 +152,7 @@ jobs:
               filename="${uuid}.${extension}"
               
               local_path="$downloads_path/$filename"
-              echo "Downloading $file to $local_path (UUID: $uuid)"
+              echo "Downloading $file to $local_path"
               
               if curl -L -f -o "$local_path" "$file"; then
                 echo "Successfully downloaded: $filename"
