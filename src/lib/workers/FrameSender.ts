@@ -121,12 +121,6 @@ class FrameSender {
     self.postMessage({
       proceed,
       finished,
-      frames: {
-        rendered: this._renderedFrameCount,
-        processed: this._processedFrameCount,
-        sent: this._sentFrameCount,
-      },
-      wsState: this._wsState,
     });
   }
 }

@@ -15,12 +15,6 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { Signal } from '../objects/Signal';
 import { m } from '$lib/paraglide/messages';
 
-enum WebSocketState {
-  OPEN = 1,
-  PAUSED = 2,
-  CLOSED = 3,
-}
-
 export class Renderer {
   private _scene: Game;
   private _options: MediaOptions;
@@ -75,18 +69,9 @@ export class Renderer {
       data: {
         proceed: boolean;
         finished: boolean;
-        frames: {
-          rendered: number;
-          processed: number;
-          sent: number;
-        };
-        wsState: WebSocketState;
       };
     }) => {
-      const { proceed, finished, frames, wsState } = event.data;
-      console.log(
-        `[Renderer] Received command from FrameSender: proceed=${proceed}, finished=${finished}; rendered=${frames.rendered}, processed=${frames.processed}, sent=${frames.sent}, websocket=${wsState}`,
-      );
+      const { proceed, finished } = event.data;
       if (finished) {
         EventBus.emit('video-rendering-finished');
         await this.proceed(videoFile);
@@ -171,6 +156,7 @@ export class Renderer {
 
   async proceed(videoFile: string) {
     EventBus.emit('rendering-detail', m['rendering_details.preparing_audio_assets']());
+    console.log('[Renderer] Preparing audio assets');
     const sounds = [
       ...(this._scene.preferences.hitSoundVolume > 0
         ? [
@@ -286,6 +272,7 @@ export class Renderer {
     );
     await mkdir(renderDestDir, { recursive: true });
     const renderOutput = await join(renderDestDir, `${moment().format('YYYY-MM-DD_HH-mm-ss')}.mp4`);
+    console.log('[Renderer] Saving video to', renderOutput);
 
     EventBus.emit('rendering-detail', m['rendering_details.combining_streams']());
     await combineStreams(
