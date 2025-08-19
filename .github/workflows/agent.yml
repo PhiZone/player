@@ -125,24 +125,14 @@ jobs:
             find "$TEMP" -name "*player*" -exec rm -rf {} + 2>/dev/null || true
           fi
 
-          # Attempt to clear standby memory (Windows only)
-          if command -v rammap.exe >/dev/null 2>&1; then
-            echo "Running RamMap to empty standby list..."
-            rammap.exe -E || true
-          elif [ -f "/c/Windows/System32/RamMap.exe" ]; then
-            "/c/Windows/System32/RamMap.exe" -E || true
-          else
-            echo "RamMap not found; skipping standby memory cleanup."
-          fi
-
           # Try to reduce page file usage by terminating unused processes (example: WebView2, Edge)
           taskkill //F //IM msedgewebview2.exe 2>/dev/null || true
           taskkill //F //IM msedge.exe 2>/dev/null || true
           taskkill //F //IM WebView2.exe 2>/dev/null || true
 
-          # Show memory usage
-          echo "Current memory usage:"
-          systeminfo | findstr /C:"Total Physical Memory" /C:"Available Physical Memory" || true
+          # Show system information
+          echo "System info:"
+          systeminfo || true
 
           # Show disk space
           echo "Current disk space:"
