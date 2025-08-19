@@ -34,7 +34,7 @@ defaults:
 jobs:
   agent:
     name: Run PhiZone Player
-    runs-on: windows-latest
+    runs-on: windows-2025
     steps:
       - name: Obtain Player executable download URL
         id: get_url
