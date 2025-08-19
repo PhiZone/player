@@ -34,7 +34,7 @@ defaults:
 jobs:
   agent:
     name: Run PhiZone Player
-    runs-on: windows-2025
+    runs-on: macos-latest
     steps:
       - name: Obtain Player executable download URL
         id: get_url
@@ -64,7 +64,7 @@ jobs:
 
             const tag = release.tag_name;
             const version = tag.replace(/^v/, '');
-            const assetName = `PhiZone.Player-${version}-windows-x86_64.exe`;
+            const assetName = `PhiZone.Player-${version}-macos-arm64`;
 
             const asset = release.assets.find(a => a.name === assetName);
             if (!asset) throw new Error(`Asset ${assetName} not found`);
@@ -72,7 +72,8 @@ jobs:
 
       - name: Download Player executable
         run: |
-          curl -L "${{ steps.get_url.outputs.asset_url }}" -o player.exe
+          curl -L "${{ steps.get_url.outputs.asset_url }}" -o player
+          chmod +x player
 
       - name: Setup FFmpeg
         uses: FedericoCarboni/setup-ffmpeg@v3
@@ -231,8 +232,8 @@ jobs:
           monitor_pid=$!
 
           # Execute player
-          echo "Executing: ./player.exe ${cmd_args[*]}"
-          ./player.exe "${cmd_args[@]}"
+          echo "Executing: ./player ${cmd_args[*]}"
+          ./player "${cmd_args[@]}"
           player_exit_code=$?
 
           # Stop monitoring
@@ -269,14 +270,12 @@ jobs:
             exit 1
           fi
 
-          echo "outputs_path=$(cygpath -w "$outputs_path" 2>/dev/null || echo "$outputs_path")" >> $GITHUB_OUTPUT
-
       - name: Upload output artifacts
         if: steps.prepare_artifact.outputs.folder_name != ''
         uses: actions/upload-artifact@v4
         with:
           name: artifact-${{ github.event.inputs.id }}
-          path: ${{ steps.prepare_artifact.outputs.outputs_path }}
+          path: ${{ steps.prepare_options.outputs.outputs_path }}
 
       - name: Post-execution cleanup
         if: always()
@@ -294,7 +293,7 @@ jobs:
           rm -rf ./files.txt 2>/dev/null || true
 
           # Clean up player executable
-          rm -f ./player.exe 2>/dev/null || true
+          rm -f ./player 2>/dev/null || true
 
           # Clean up Tauri app data
           if [ -d "$APPDATA" ]; then
