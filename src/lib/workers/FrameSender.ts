@@ -20,7 +20,6 @@ class FrameSender {
 
   constructor() {
     this._ws = new WebSocket(WEBSOCKET_URL);
-    console.log('[FrameSender] Initializing WebSocket connection');
     this._ws.binaryType = 'arraybuffer';
     this._ws.onopen = () => {
       this._wsState = WebSocketState.OPEN;
@@ -69,11 +68,9 @@ class FrameSender {
     const frame = new Uint8Array(new ArrayBuffer(this._sharedView.length));
     frame.set(this._sharedView);
     this._frameQueue.push(frame);
-    if (this._wsState === WebSocketState.OPEN) {
+    if (this._wsState !== WebSocketState.PAUSED) {
       this.dispatch(true);
       this.sendFrame();
-    } else {
-      console.log(`[FrameSender] New frame queued: ${this._renderedFrameCount}`);
     }
   }
 
@@ -124,10 +121,13 @@ class FrameSender {
     self.postMessage({
       proceed,
       finished,
+      frames: {
+        rendered: this._renderedFrameCount,
+        processed: this._processedFrameCount,
+        sent: this._sentFrameCount,
+      },
+      wsState: this._wsState,
     });
-    console.log(
-      `[FrameSender] Command dispatched: proceed=${proceed}, finished=${finished}, rendered=${this._renderedFrameCount}, processed=${this._processedFrameCount}, sent=${this._sentFrameCount}`,
-    );
   }
 }
 

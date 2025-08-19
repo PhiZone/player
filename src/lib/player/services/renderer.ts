@@ -15,6 +15,12 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { Signal } from '../objects/Signal';
 import { m } from '$lib/paraglide/messages';
 
+enum WebSocketState {
+  OPEN = 1,
+  PAUSED = 2,
+  CLOSED = 3,
+}
+
 export class Renderer {
   private _scene: Game;
   private _options: MediaOptions;
@@ -62,15 +68,25 @@ export class Renderer {
       this._options.videoBitrate,
     );
 
+    console.log('[Renderer] Setting up FrameSender');
     this._worker = new Worker();
 
     this._worker.onmessage = async (event: {
       data: {
         proceed: boolean;
         finished: boolean;
+        frames: {
+          rendered: number;
+          processed: number;
+          sent: number;
+        };
+        wsState: WebSocketState;
       };
     }) => {
-      const { proceed, finished } = event.data;
+      const { proceed, finished, frames, wsState } = event.data;
+      console.log(
+        `[Renderer] Received command from FrameSender: proceed=${proceed}, finished=${finished}; rendered=${frames.rendered}, processed=${frames.processed}, sent=${frames.sent}, websocket=${wsState}`,
+      );
       if (finished) {
         EventBus.emit('video-rendering-finished');
         await this.proceed(videoFile);
