@@ -177,15 +177,50 @@ jobs:
             echo "  - $file"
           done
 
+      - name: macOS specific setup for SharedArrayBuffer
+        if: runner.os == 'macOS'
+        run: |
+          echo "Configuring macOS environment for SharedArrayBuffer support..."
+          
+          # Try to enable necessary WebKit features
+          defaults write NSGlobalDomain WebKitDeveloperExtras -bool true
+          defaults write NSGlobalDomain WebKitJavaEnabled -bool false
+          defaults write NSGlobalDomain WebKitJavaScriptEnabled -bool true
+          
+          # Set environment variables that might help with WebView configuration
+          echo "WEBKIT_DISABLE_COMPOSITING_MODE=1" >> $GITHUB_ENV
+          echo "WEBKIT_DISABLE_ACCELERATED_COMPOSITING=1" >> $GITHUB_ENV
+          echo "WEBVIEW_HEADERS=Cross-Origin-Embedder-Policy:require-corp;Cross-Origin-Opener-Policy:same-origin" >> $GITHUB_ENV
+          
+          # Additional macOS WebView settings
+          echo "NSAppTransportSecurity=false" >> $GITHUB_ENV
+          echo "WKWebViewDisableMetalWebContent=1" >> $GITHUB_ENV
+          
+          echo "macOS configuration completed"
+
       - name: Execute player with real-time monitoring
         env:
           REPORT_INTERVAL: '25'
+          # SharedArrayBuffer support for macOS
+          WEBKIT_DISABLE_COMPOSITING_MODE: '1'
+          WEBKIT_DISABLE_ACCELERATED_COMPOSITING: '1'
+          # Cross-origin isolation headers (required for SharedArrayBuffer)
+          TAURI_WEBVIEW_HEADERS: 'Cross-Origin-Embedder-Policy:require-corp;Cross-Origin-Opener-Policy:same-origin'
+          # Alternative: disable SharedArrayBuffer requirement if app supports it
+          DISABLE_SHARED_ARRAY_BUFFER: '0'
         run: |
           set -e
           local_files_path='${{ steps.prepare_files.outputs.local_files_path }}'
           toggles='${{ github.event.inputs.toggles }}'
           preferences='${{ github.event.inputs.preferences }}'
           mediaOptions='${{ steps.prepare_options.outputs.mediaOptions }}'
+
+          # macOS specific setup for SharedArrayBuffer
+          echo "Setting up macOS environment for Tauri webview..."
+          
+          # Set additional environment variables for SharedArrayBuffer support
+          export WEBKIT_DISABLE_COMPOSITING_MODE=1
+          export WEBKIT_DISABLE_ACCELERATED_COMPOSITING=1
 
           # Read local file paths from the prepared list
           files_array=()
