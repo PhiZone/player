@@ -260,6 +260,7 @@ export class Renderer {
   async finalize(videoFile: string, hitsoundsFile: string) {
     const songFile = await join(this._tempDir, 'song.tmp');
 
+    console.log('[Renderer] Retrieving song audio');
     EventBus.emit('rendering-detail', m['rendering_details.retrieving_song']());
     await writeFile(
       songFile,
