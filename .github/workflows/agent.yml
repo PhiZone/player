@@ -180,13 +180,13 @@ jobs:
       - name: Execute player with real-time monitoring
         env:
           REPORT_INTERVAL: '25'
+          __XPC_JSC_useSharedArrayBuffer: '1'
         run: |
           set -e
           local_files_path='${{ steps.prepare_files.outputs.local_files_path }}'
           toggles='${{ github.event.inputs.toggles }}'
           preferences='${{ github.event.inputs.preferences }}'
           mediaOptions='${{ steps.prepare_options.outputs.mediaOptions }}'
-          export __XPC_JSC_useSharedArrayBuffer=1
 
           # Read local file paths from the prepared list
           files_array=()
