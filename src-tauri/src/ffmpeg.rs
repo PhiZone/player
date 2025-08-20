@@ -132,12 +132,9 @@ pub fn get_encoders() -> Result<Vec<Encoder>, String> {
 }
 
 pub fn convert_audio(app: AppHandle, input: String, output: String) -> Result<(), String> {
-    send_webhook_notification("converting_audio", 0.0);
-    
     std::thread::spawn({
         let app = app.clone();
         move || {
-            print!("[TAURI] Converting audio...");
             let result = cmd_hidden(&*FFMPEG_CMD.lock().unwrap())
                 .args(
                     format!("-i {} -ar 44100 -c:a pcm_f32le -y {}", input, output)
@@ -149,7 +146,6 @@ pub fn convert_audio(app: AppHandle, input: String, output: String) -> Result<()
             match result {
                 Ok(_) => {
                     app.emit("audio-conversion-finished", ()).unwrap();
-                    println!(" finished.");
                 }
                 Err(e) => {
                     eprintln!("[TAURI] Audio conversion failed: {}", e);
@@ -171,7 +167,7 @@ pub fn combine_streams(
     output: String,
 ) -> Result<(), String> {
     send_webhook_notification("combining_streams", 0.0);
-    
+
     std::thread::spawn({
         let app = app.clone();
         move || {
