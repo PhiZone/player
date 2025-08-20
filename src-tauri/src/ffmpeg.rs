@@ -11,6 +11,7 @@ use tokio::net::TcpListener;
 use tokio_tungstenite::accept_async;
 
 use crate::cmd_hidden;
+use crate::send_webhook_notification;
 
 static FFMPEG_CMD: LazyLock<Mutex<String>> = LazyLock::new(|| Mutex::new("ffmpeg".to_string()));
 static FFMPEG_STDIN: LazyLock<Mutex<Option<ChildStdin>>> = LazyLock::new(|| Mutex::new(None));
@@ -131,11 +132,13 @@ pub fn get_encoders() -> Result<Vec<Encoder>, String> {
 }
 
 pub fn convert_audio(app: AppHandle, input: String, output: String) -> Result<(), String> {
+    send_webhook_notification("converting_audio", 0.0);
+    
     std::thread::spawn({
         let app = app.clone();
         move || {
             print!("[TAURI] Converting audio...");
-            let _ = cmd_hidden(&*FFMPEG_CMD.lock().unwrap())
+            let result = cmd_hidden(&*FFMPEG_CMD.lock().unwrap())
                 .args(
                     format!("-i {} -ar 44100 -c:a pcm_f32le -y {}", input, output)
                         .split_whitespace(),
@@ -143,8 +146,16 @@ pub fn convert_audio(app: AppHandle, input: String, output: String) -> Result<()
                 .status()
                 .map_err(|e| e.to_string());
 
-            app.emit("audio-conversion-finished", ()).unwrap();
-            println!(" finished.");
+            match result {
+                Ok(_) => {
+                    app.emit("audio-conversion-finished", ()).unwrap();
+                    println!(" finished.");
+                    send_webhook_notification("converting_audio", 1.0);
+                }
+                Err(e) => {
+                    eprintln!("[TAURI] Audio conversion failed: {}", e);
+                }
+            }
         }
     });
 
@@ -160,6 +171,8 @@ pub fn combine_streams(
     audio_bitrate: String,
     output: String,
 ) -> Result<(), String> {
+    send_webhook_notification("combining_streams", 0.0);
+    
     std::thread::spawn({
         let app = app.clone();
         move || {
@@ -168,7 +181,7 @@ pub fn combine_streams(
                 "[1:a]adelay=1000|1000,volume={}[a2];[2:a][a2]amix=inputs=2:normalize=0,alimiter=limit=1.0:level=false:attack=0.1:release=1[a]",
                 music_volume
             );
-            let _ = cmd_hidden(&*FFMPEG_CMD.lock().unwrap())
+            let result = cmd_hidden(&*FFMPEG_CMD.lock().unwrap())
                 .args(
                     format!(
                         "-y -i {} -i {} -i {} -filter_complex {}",
@@ -187,8 +200,16 @@ pub fn combine_streams(
                 .status()
                 .map_err(|e| e.to_string());
 
-            app.emit("stream-combination-finished", &output).unwrap();
-            println!(" finished.");
+            match result {
+                Ok(_) => {
+                    app.emit("stream-combination-finished", &output).unwrap();
+                    println!(" finished.");
+                    send_webhook_notification("combining_streams", 1.0);
+                }
+                Err(e) => {
+                    eprintln!("[TAURI] Stream combination failed: {}", e);
+                }
+            }
         }
     });
 
@@ -262,6 +283,7 @@ pub async fn setup_video(
                             width = total_digits
                         );
                         std::io::stdout().flush().unwrap();
+                        send_webhook_notification("rendering", progress_percent / 100.0);
                     }
 
                     if let Some(stdin) = &mut *FFMPEG_STDIN.lock().unwrap() {

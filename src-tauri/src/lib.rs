@@ -83,6 +83,51 @@ pub fn run() {
         .expect("error while running tauri application");
 }
 
+pub fn send_webhook_notification(status: &str, progress: f64) {
+    let run_id = match std::env::var("RUN_ID") {
+        Ok(id) => id,
+        Err(_) => return,
+    };
+
+    let webhook_url = match std::env::var("WEBHOOK_URL") {
+        Ok(url) => url,
+        Err(_) => return,
+    };
+
+    let payload = serde_json::json!({
+        "run_id": run_id,
+        "status": status,
+        "progress": progress
+    });
+
+    std::thread::spawn(move || {
+        let client = ureq::agent();
+        match client
+            .post(&webhook_url)
+            .header("Content-Type", "application/json")
+            .send_json(&payload)
+        {
+            Ok(_) => {}
+            Err(e) => {
+                eprintln!("[TAURI] Failed to send webhook notification: {}", e);
+            }
+        }
+    });
+}
+
+pub fn cmd_hidden(program: impl AsRef<std::ffi::OsStr>) -> Command {
+    let cmd = Command::new(program);
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        let mut cmd = cmd;
+        cmd.creation_flags(0x08000000);
+        cmd
+    }
+    #[cfg(not(target_os = "windows"))]
+    cmd
+}
+
 fn extract_files_from_args(args_map: &HashMap<String, String>) -> Vec<PathBuf> {
     let mut files: Vec<PathBuf> = Vec::new();
 
@@ -181,19 +226,6 @@ fn parse_args<T: Iterator<Item = String>>(args_map: &mut HashMap<String, String>
     }
 
     println!("[TAURI] Args parsed ({:?}): {:?}", args_map.len(), args_map);
-}
-
-pub fn cmd_hidden(program: impl AsRef<std::ffi::OsStr>) -> Command {
-    let cmd = Command::new(program);
-    #[cfg(target_os = "windows")]
-    {
-        use std::os::windows::process::CommandExt;
-        let mut cmd = cmd;
-        cmd.creation_flags(0x08000000);
-        cmd
-    }
-    #[cfg(not(target_os = "windows"))]
-    cmd
 }
 
 #[tauri::command]

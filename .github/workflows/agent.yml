@@ -209,16 +209,17 @@ jobs:
         env:
           REPORT_INTERVAL: '25'
           __XPC_JSC_useSharedArrayBuffer: '1'
+          RUN_ID: ${{ github.event.inputs.id }}
+          WEBHOOK_URL: ${{ github.event.inputs.webhookUrl }}
         run: |
           set -e
           local_files_path='${{ steps.prepare_files.outputs.local_files_path }}'
           toggles='${{ github.event.inputs.toggles }}'
           preferences='${{ github.event.inputs.preferences }}'
           mediaOptions='${{ steps.prepare_options.outputs.mediaOptions }}'
+
           webhook_url='${{ github.event.inputs.webhookUrl }}'
           run_id='${{ github.event.inputs.id }}'
-
-          # Notify webhook that rendering is starting
           if [ -n "$webhook_url" ]; then
             curl -X POST -H "Content-Type: application/json" -d "{
               \"run_id\": \"$run_id\",
@@ -257,58 +258,6 @@ jobs:
 
           echo "Starting player execution..."
 
-          # Create temporary log file for capturing output
-          log_file=$(mktemp /tmp/player.XXXXXX)
-          echo "Created log file: $log_file"
-
-          # Start progress monitoring in background (only if webhook URL is provided)
-          progress_monitor_pid=""
-          if [ -n "$webhook_url" ]; then
-            (
-              echo "Starting progress monitor..."
-              last_reported_progress=""
-              
-              while [ -f "$log_file" ]; do
-                if [ -f "$log_file" ]; then
-                  # Look for the most recent progress line in the log file
-                  # Pattern handles: [TAURI] Rendering: + (1+ spaces) + percentage + % + (1+ spaces) + ( + (0+ spaces) + current/total + )
-                  progress_line=$(grep -o '\[TAURI\] Rendering: \+[0-9.]\+% \+([ ]*[0-9]\+/[0-9]\+)' "$log_file" 2>/dev/null | tail -1 || true)
-                  
-                  if [ -n "$progress_line" ]; then
-                    # Extract progress percentage (handles multiple spaces after "Rendering:")
-                    progress_percent=$(echo "$progress_line" | sed -n 's/.*Rendering: \+\([0-9.]\+\)%.*/\1/p')
-                    # Extract current/total numbers (handles spaces before the numbers in parentheses)
-                    progress_numbers=$(echo "$progress_line" | sed -n 's#.*([ ]*\([0-9]\+/[0-9]\+\)).*#\1#p')
-                    
-                    if [ -n "$progress_percent" ] && [ -n "$progress_numbers" ]; then
-                      # Convert percentage to decimal (0.0 to 1.0)
-                      progress_decimal=$(echo "scale=4; $progress_percent / 100" | bc -l 2>/dev/null || echo "0")
-                      
-                      # Only report if progress has changed
-                      if [ "$progress_decimal" != "$last_reported_progress" ]; then
-                        echo "Progress detected: $progress_percent% ($progress_numbers) -> $progress_decimal"
-                        
-                        # Send progress update to webhook
-                        curl -X POST -H "Content-Type: application/json" -d "{
-                          \"run_id\": \"$run_id\",
-                          \"status\": \"rendering\",
-                          \"progress\": $progress_decimal,
-                          \"details\": \"$progress_numbers\"
-                        }" "$webhook_url" 2>/dev/null || echo "Failed to send progress update"
-                        
-                        last_reported_progress="$progress_decimal"
-                      fi
-                    fi
-                  fi
-                fi
-                sleep 2
-              done
-              echo "Progress monitor stopped."
-            ) &
-            progress_monitor_pid=$!
-            echo "Progress monitor started with PID: $progress_monitor_pid"
-          fi
-
           # Start memory monitoring in background
           (
             while true; do
@@ -328,25 +277,32 @@ jobs:
           ) &
           memory_monitor_pid=$!
 
-          # Execute player with output redirection to both console and log file
+          # Execute player
           echo "Executing: ./player ${cmd_args[*]}"
-          ./player "${cmd_args[@]}" 2>&1 | tee "$log_file"
-          player_exit_code=${PIPESTATUS[0]}
+          ./player "${cmd_args[@]}"
+          player_exit_code=$?
 
           # Stop monitoring processes
-          if [ -n "$progress_monitor_pid" ]; then
-            kill $progress_monitor_pid 2>/dev/null || true
-            wait $progress_monitor_pid 2>/dev/null || true
-          fi
           kill $memory_monitor_pid 2>/dev/null || true
           wait $memory_monitor_pid 2>/dev/null || true
-
-          # Clean up log file
-          rm -f "$log_file" 2>/dev/null || true
 
           echo "Player execution completed with exit code: $player_exit_code"
 
           exit $player_exit_code
+
+      - name: Notify webhook about artifact upload
+        if: ${{ github.event.inputs.webhookUrl }}
+        run: |
+          set -e
+
+          run_id='${{ github.event.inputs.id }}'
+          webhook_url='${{ github.event.inputs.webhookUrl }}'
+
+          curl -X POST -H "Content-Type: application/json" -d "{
+            \"run_id\": \"$run_id\",
+            \"status\": \"uploading\",
+            \"progress\": 0
+          }" "$webhook_url" 2>/dev/null || echo "Failed to send upload notification"
 
       - name: Upload output artifact
         id: upload
@@ -370,6 +326,20 @@ jobs:
             \"progress\": 1,
             \"artifact_id\": \"$artifact_id\"
           }" "$webhook_url" 2>/dev/null || echo "Failed to send completion notification"
+
+      - name: Notify webhook about job failure
+        if: ${{ github.event.inputs.webhookUrl && failure() }}
+        run: |
+          set -e
+
+          run_id='${{ github.event.inputs.id }}'
+          webhook_url='${{ github.event.inputs.webhookUrl }}'
+
+          curl -X POST -H "Content-Type: application/json" -d "{
+            \"run_id\": \"$run_id\",
+            \"status\": \"failed\",
+            \"progress\": 1
+          }" "$webhook_url" 2>/dev/null || echo "Failed to send failure notification"
 
       - name: Post-execution cleanup
         if: always()
