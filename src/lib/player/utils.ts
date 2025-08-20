@@ -35,6 +35,7 @@ import { readFile, remove } from '@tauri-apps/plugin-fs';
 import { clamp, getLines, IS_TAURI, isPec } from '$lib/utils';
 import PhiEditerConverter from '../converters/phiediter';
 import { m } from '$lib/paraglide/messages';
+import 'context-filter-polyfill';
 
 const EASINGS: ((x: number) => number)[] = [
   (x) => x,

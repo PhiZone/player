@@ -103,6 +103,7 @@
     "@tauri-apps/plugin-upload": "~2",
     "apng-js": "^1.1.4",
     "bezier-easing": "^2.1.0",
+    "context-filter-polyfill": "^0.3.23",
     "cordova-plugin-fullscreen": "^1.3.0",
     "file-type": "^20.0.0",
     "gifuct-js": "^2.1.2",
