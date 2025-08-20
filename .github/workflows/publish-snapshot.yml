@@ -332,6 +332,7 @@ jobs:
           security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
           security find-identity -v -p codesigning build.keychain
+          security set-keychain-settings -t 3600 -u build.keychain
 
           echo -n "$ASC_API_KEY_BASE64" | base64 --decode -o $ASC_API_KEY_PATH
 
