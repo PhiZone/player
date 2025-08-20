@@ -129,6 +129,16 @@ jobs:
           set -e
           files_input='${{ github.event.inputs.files }}'
 
+          webhook_url='${{ github.event.inputs.webhookUrl }}'
+          run_id='${{ github.event.inputs.id }}'
+          if [ -n "$webhook_url" ]; then
+            curl -X POST -H "Content-Type: application/json" -d "{
+              \"run_id\": \"$run_id\",
+              \"status\": \"downloading_assets\",
+              \"progress\": 0
+            }" "$webhook_url" 2>/dev/null || echo "Failed to send download notification"
+          fi
+
           # Create downloads directory
           mkdir -p ./downloads
           downloads_path=$(realpath ./downloads)
@@ -300,7 +310,7 @@ jobs:
 
           curl -X POST -H "Content-Type: application/json" -d "{
             \"run_id\": \"$run_id\",
-            \"status\": \"uploading\",
+            \"status\": \"uploading_artifact\",
             \"progress\": 0
           }" "$webhook_url" 2>/dev/null || echo "Failed to send upload notification"
 
