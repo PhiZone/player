@@ -328,8 +328,7 @@ jobs:
         with:
           path: ./outputs
 
-      - name: Upload files to LeanCloud and notify webhook
-        if: github.event.inputs.webhookUrl != ''
+      - name: Upload files and notify webhook
         run: |
           set -e
 
