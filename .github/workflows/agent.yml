@@ -341,50 +341,39 @@ jobs:
           file_names=()
           file_urls=()
 
-          # Function to upload a single file and extract URL
-          upload_file() {
-            local file_path="$1"
-            local relative_path="$2"
-
-            echo "Uploading file: $file_path"
-
-            # Execute upload command and capture output
-            upload_output=$("$leancloud_exe" file upload "$file_path" 2>&1)
-            echo "$upload_output"
-
-            # Extract URL from output using grep and sed
-            upload_url=$(echo "$upload_output" | grep -o 'URL: https://[^[:space:]]*' | sed 's/URL: //')
-
-            if [ -n "$upload_url" ]; then
-              echo "Successfully extracted URL: $upload_url"
-              file_names+=("$relative_path")
-              file_urls+=("$upload_url")
-              return 0
-            else
-              echo "Failed to extract URL from upload output"
-              return 1
-            fi
-          }
-
           # Find and upload all files in outputs directory
           if [ -d "$artifact_path" ]; then
             while IFS= read -r -d '' file; do
-              # Calculate relative path from outputs directory
               relative_file="${file#$artifact_path/}"
-
-              # Replace directory separators with ' - ' for the stored name
               stored_name="[${{ github.event.inputs.id }}] $(echo "$relative_file" | sed 's|/| @ |g')"
 
-              echo "Processing: $stored_name"
+              echo "Uploading: $stored_name"
 
-              # Upload the file
-              if upload_file "$file" "$stored_name"; then
-                echo "File uploaded successfully"
+              # Use a named pipe to capture output and log in real time
+              pipe=$(mktemp -u)
+              mkfifo "$pipe"
+              upload_output=""
+              # Read from the pipe in the background and append to variable
+              { while IFS= read -r line; do
+                echo "$line"
+                upload_output+="$line"$'\n'
+              done < "$pipe"; } &
+              reader_pid=$!
+              # Run the command, redirecting both stdout and stderr to the pipe
+              "$leancloud_exe" file upload "$file" > "$pipe" 2>&1
+              # Wait for reader to finish
+              wait $reader_pid
+              rm "$pipe"
+
+              upload_url=$(echo "$upload_output" | grep -o 'URL: https://[^[:space:]]*' | sed 's/URL: //')
+
+              if [ -n "$upload_url" ]; then
+                echo "File \"$stored_name\" uploaded to $upload_url"
+                file_names+=("$stored_name")
+                file_urls+=("$upload_url")
               else
-                echo "Failed to upload file: $file"
-                # Continue with other files instead of failing completely
+                echo "Failed to extract URL from upload output"
               fi
-
             done < <(find "$artifact_path" -type f -print0)
           else
             echo "Artifact directory not found: $artifact_path"
