@@ -39,7 +39,7 @@ defaults:
     shell: bash
 
 jobs:
-  execute:
+  agent:
     name: Run PhiZone Player
     runs-on: macos-latest
     steps:
@@ -49,6 +49,20 @@ jobs:
           timezoneLinux: ${{ github.event.inputs.timezone }}
           timezoneMacos: ${{ github.event.inputs.timezone }}
           timezoneWindows: ${{ github.event.inputs.timezone }}
+
+      - name: Notify webhook about job initialization
+        if: ${{ github.event.inputs.webhookUrl }}
+        run: |
+          set -e
+
+          run_id='${{ github.event.inputs.id }}'
+          webhook_url='${{ github.event.inputs.webhookUrl }}'
+
+          curl -X POST -H "Content-Type: application/json" -d "{
+            \"run_id\": \"$run_id\",
+            \"status\": \"initializing\",
+            \"progress\": 0
+          }" "$webhook_url" 2>/dev/null || echo "Failed to send initialization notification"
 
       - name: Obtain Player executable download URL
         id: get_url
@@ -201,6 +215,17 @@ jobs:
           toggles='${{ github.event.inputs.toggles }}'
           preferences='${{ github.event.inputs.preferences }}'
           mediaOptions='${{ steps.prepare_options.outputs.mediaOptions }}'
+          webhook_url='${{ github.event.inputs.webhookUrl }}'
+          run_id='${{ github.event.inputs.id }}'
+
+          # Notify webhook that rendering is starting
+          if [ -n "$webhook_url" ]; then
+            curl -X POST -H "Content-Type: application/json" -d "{
+              \"run_id\": \"$run_id\",
+              \"status\": \"starting\",
+              \"progress\": 0
+            }" "$webhook_url" 2>/dev/null || echo "Failed to send start notification"
+          fi
 
           # Read local file paths from the prepared list
           files_array=()
@@ -232,7 +257,59 @@ jobs:
 
           echo "Starting player execution..."
 
-          # Start monitoring in background
+          # Create temporary log file for capturing output
+          log_file=$(mktemp /tmp/player.XXXXXX)
+          echo "Created log file: $log_file"
+
+          # Start progress monitoring in background (only if webhook URL is provided)
+          progress_monitor_pid=""
+          if [ -n "$webhook_url" ]; then
+            (
+              echo "Starting progress monitor..."
+              last_reported_progress=""
+              
+              while [ -f "$log_file" ]; do
+                if [ -f "$log_file" ]; then
+                  # Look for the most recent progress line in the log file
+                  # Pattern handles: [TAURI] Rendering: + (1+ spaces) + percentage + % + (1+ spaces) + ( + (0+ spaces) + current/total + )
+                  progress_line=$(grep -o '\[TAURI\] Rendering: \+[0-9.]\+% \+([ ]*[0-9]\+/[0-9]\+)' "$log_file" 2>/dev/null | tail -1 || true)
+                  
+                  if [ -n "$progress_line" ]; then
+                    # Extract progress percentage (handles multiple spaces after "Rendering:")
+                    progress_percent=$(echo "$progress_line" | sed -n 's/.*Rendering: \+\([0-9.]\+\)%.*/\1/p')
+                    # Extract current/total numbers (handles spaces before the numbers in parentheses)
+                    progress_numbers=$(echo "$progress_line" | sed -n 's/.*([ ]*\([0-9]\+/[0-9]\+\)).*/\1/p')
+                    
+                    if [ -n "$progress_percent" ] && [ -n "$progress_numbers" ]; then
+                      # Convert percentage to decimal (0.0 to 1.0)
+                      progress_decimal=$(echo "scale=4; $progress_percent / 100" | bc -l 2>/dev/null || echo "0")
+                      
+                      # Only report if progress has changed
+                      if [ "$progress_decimal" != "$last_reported_progress" ]; then
+                        echo "Progress detected: $progress_percent% ($progress_numbers) -> $progress_decimal"
+                        
+                        # Send progress update to webhook
+                        curl -X POST -H "Content-Type: application/json" -d "{
+                          \"run_id\": \"$run_id\",
+                          \"status\": \"rendering\",
+                          \"progress\": $progress_decimal,
+                          \"details\": \"$progress_numbers\"
+                        }" "$webhook_url" 2>/dev/null || echo "Failed to send progress update"
+                        
+                        last_reported_progress="$progress_decimal"
+                      fi
+                    fi
+                  fi
+                fi
+                sleep 2
+              done
+              echo "Progress monitor stopped."
+            ) &
+            progress_monitor_pid=$!
+            echo "Progress monitor started with PID: $progress_monitor_pid"
+          fi
+
+          # Start memory monitoring in background
           (
             while true; do
               # Memory usage (macOS: vm_stat and sysctl)
@@ -249,26 +326,50 @@ jobs:
               sleep 60
             done
           ) &
-          monitor_pid=$!
+          memory_monitor_pid=$!
 
-          # Execute player
+          # Execute player with output redirection to both console and log file
           echo "Executing: ./player ${cmd_args[*]}"
-          ./player "${cmd_args[@]}"
-          player_exit_code=$?
+          ./player "${cmd_args[@]}" 2>&1 | tee "$log_file"
+          player_exit_code=${PIPESTATUS[0]}
 
-          # Stop monitoring
-          kill $monitor_pid 2>/dev/null || true
-          wait $monitor_pid 2>/dev/null || true
+          # Stop monitoring processes
+          if [ -n "$progress_monitor_pid" ]; then
+            kill $progress_monitor_pid 2>/dev/null || true
+            wait $progress_monitor_pid 2>/dev/null || true
+          fi
+          kill $memory_monitor_pid 2>/dev/null || true
+          wait $memory_monitor_pid 2>/dev/null || true
+
+          # Clean up log file
+          rm -f "$log_file" 2>/dev/null || true
 
           echo "Player execution completed with exit code: $player_exit_code"
 
           exit $player_exit_code
 
       - name: Upload output artifact
+        id: upload
         uses: actions/upload-artifact@v4
         with:
           name: artifact
           path: ${{ steps.prepare_options.outputs.outputs_path }}
+
+      - name: Notify webhook about job completion
+        if: ${{ github.event.inputs.webhookUrl }}
+        run: |
+          set -e
+
+          run_id='${{ github.event.inputs.id }}'
+          artifact_id='${{ steps.upload.outputs.artifact-id }}'
+          webhook_url='${{ github.event.inputs.webhookUrl }}'
+
+          curl -X POST -H "Content-Type: application/json" -d "{
+            \"run_id\": \"$run_id\",
+            \"status\": \"completed\",
+            \"progress\": 1,
+            \"artifact_id\": \"$artifact_id\"
+          }" "$webhook_url" 2>/dev/null || echo "Failed to send completion notification"
 
       - name: Post-execution cleanup
         if: always()
@@ -310,114 +411,3 @@ jobs:
           fi
 
           echo "Post-execution cleanup completed."
-
-  upload:
-    name: Upload artifact
-    runs-on: ubuntu-latest
-    needs: execute
-    steps:
-      - name: Prepare LeanCloud CLI
-        run: |
-          wget ${{ vars.LC_CLI_DOWNLOAD }} -O /tmp/${{ vars.LC_EXE }}
-          chmod +x /tmp/${{ vars.LC_EXE }}
-          /tmp/${{ vars.LC_EXE }} login ${{ secrets.LC_LOGIN }}
-          /tmp/${{ vars.LC_EXE }} switch ${{ secrets.LC_SWITCH }}
-
-      - name: Download output artifact
-        uses: actions/download-artifact@v4
-        with:
-          path: ./outputs
-
-      - name: Upload files and notify webhook
-        run: |
-          set -e
-
-          artifact_path="./outputs/artifact"
-          leancloud_exe="/tmp/${{ vars.LC_EXE }}"
-          run_id='${{ github.event.inputs.id }}'
-          webhook_url='${{ github.event.inputs.webhookUrl }}'
-
-          # Initialize arrays for file names and URLs
-          file_names=()
-          file_urls=()
-
-          # Find and upload all files in outputs directory
-          if [ -d "$artifact_path" ]; then
-            while IFS= read -r -d '' file; do
-              relative_file="${file#$artifact_path/}"
-              stored_name="[${{ github.event.inputs.id }}] $(echo "$relative_file" | sed 's|/| @ |g')"
-
-              echo "Uploading: $stored_name"
-
-              # Run upload command and capture all output to a temporary file
-              temp_log=$(mktemp)
-              
-              # Start tailing the log file in the background for real-time display
-              tail -f "$temp_log" &
-              tail_pid=$!
-              
-              set +e  # Don't exit on error, we'll handle it manually
-              "$leancloud_exe" file upload "$file" > "$temp_log" 2>&1
-              upload_exit_code=$?
-              set -e
-
-              # Stop the tail process
-              kill $tail_pid 2>/dev/null || true
-              wait $tail_pid 2>/dev/null || true
-
-              # Extract URL from the output
-              upload_url=$(grep -o 'URL: https://[^[:space:]]*' "$temp_log" | tail -1 | sed 's/URL: //')
-
-              # Clean up temp file
-              rm "$temp_log"
-
-              if [ $upload_exit_code -eq 0 ] && [ -n "$upload_url" ]; then
-                echo "File \"$stored_name\" uploaded to $upload_url"
-                file_names+=("$stored_name")
-                file_urls+=("$upload_url")
-              else
-                echo "Failed to upload file or extract URL (exit code: $upload_exit_code)"
-                if [ -z "$upload_url" ]; then
-                  echo "No URL found in upload output"
-                fi
-              fi
-            done < <(find "$artifact_path" -type f -print0)
-          else
-            echo "Artifact directory not found: $artifact_path"
-            exit 1
-          fi
-
-          # Send webhook notification
-          if [ -n "$webhook_url" ] && [ ${#file_names[@]} -gt 0 ]; then
-            echo "Sending webhook notification to $webhook_url"
-
-            json_files="["
-            for i in "${!file_names[@]}"; do
-              if [ $i -gt 0 ]; then
-                json_files+=","
-              fi
-              # Escape quotes in file names and URLs
-              escaped_name=$(echo "${file_names[$i]}" | sed 's/"/\\"/g')
-              escaped_url=$(echo "${file_urls[$i]}" | sed 's/"/\\"/g')
-              json_files+="{\"name\":\"$escaped_name\",\"url\":\"$escaped_url\"}"
-            done
-            json_files+="]"
-
-            json_payload="{\"id\":\"$run_id\",\"files\":$json_files}"
-            echo "Payload: $json_payload"
-
-            response=$(curl -s -w "\nHTTP_STATUS:%{http_code}" \
-              -X POST \
-              -H "Content-Type: application/json" \
-              -d "$json_payload" \
-              "$webhook_url")
-
-            http_status=$(echo "$response" | grep "HTTP_STATUS:" | cut -d: -f2)
-            response_body=$(echo "$response" | sed '/HTTP_STATUS:/d')
-
-            echo "Webhook response ($http_status): $response_body"
-          else
-            echo "Skipping webhook notification (no URL provided or no files uploaded)"
-          fi
-
-          echo "Total files uploaded: ${#file_names[@]}"
