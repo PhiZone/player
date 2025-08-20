@@ -53,7 +53,7 @@ jobs:
       version-name: ${{ steps.version.outputs.VERSION }}_${{ steps.current-datetime.outputs.CURRENT_DATETIME }}
 
   publish-web:
-    name: Publish to Sentry and GitHub Pages
+    name: Publish to Sentry, GitHub Pages and LeanCloud
     runs-on: ubuntu-22.04
     if: github.event_name == 'push'
     needs: metadata
@@ -107,14 +107,6 @@ jobs:
           version: ${{ needs.metadata.outputs.version-name }}
           sourcemaps: './build'
 
-      - name: Deploy to LeanCloud
-        run: |
-          wget ${{ vars.LC_CLI_DOWNLOAD }} -O /tmp/${{ vars.LC_EXE }}
-          chmod +x /tmp/${{ vars.LC_EXE }}
-          /tmp/${{ vars.LC_EXE }} login ${{ secrets.LC_LOGIN }}
-          /tmp/${{ vars.LC_EXE }} switch ${{ secrets.LC_SWITCH }}
-          /tmp/${{ vars.LC_EXE }} deploy --prod
-
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
@@ -126,6 +118,14 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Deploy to LeanCloud
+        run: |
+          wget ${{ vars.LC_CLI_DOWNLOAD }} -O /tmp/${{ vars.LC_EXE }}
+          chmod +x /tmp/${{ vars.LC_EXE }}
+          /tmp/${{ vars.LC_EXE }} login ${{ secrets.LC_LOGIN }}
+          /tmp/${{ vars.LC_EXE }} switch ${{ secrets.LC_SWITCH }}
+          /tmp/${{ vars.LC_EXE }} deploy --prod
 
   publish-capacitor-ios:
     name: Build for iOS
