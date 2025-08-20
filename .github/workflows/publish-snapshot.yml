@@ -8,7 +8,7 @@ on:
       iteration:
         description: The iteration of the snapshot
         required: true
-        default: 'b'
+        default: 'a'
 
 defaults:
   run:
