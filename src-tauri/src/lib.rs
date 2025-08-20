@@ -9,9 +9,18 @@ use url::Url;
 mod audio;
 mod ffmpeg;
 
-static FILES_OPENED: LazyLock<Mutex<Vec<PathBuf>>> = LazyLock::new(|| Mutex::new(vec![]));
 static CLI_ARGS: LazyLock<Mutex<HashMap<String, String>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
+
+static FILES_OPENED: LazyLock<Mutex<Vec<PathBuf>>> = LazyLock::new(|| Mutex::new(vec![]));
+
+static WEBHOOK_CONFIG: LazyLock<Option<(String, String)>> = LazyLock::new(|| {
+    let run_id = std::env::var("RUN_ID").ok().filter(|s| !s.is_empty())?;
+    let webhook_url = std::env::var("WEBHOOK_URL")
+        .ok()
+        .filter(|s| !s.is_empty())?;
+    Some((run_id, webhook_url))
+});
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -84,14 +93,9 @@ pub fn run() {
 }
 
 pub fn send_webhook_notification(status: &str, progress: f64) {
-    let run_id = match std::env::var("RUN_ID") {
-        Ok(id) => id,
-        Err(_) => return,
-    };
-
-    let webhook_url = match std::env::var("WEBHOOK_URL") {
-        Ok(url) => url,
-        Err(_) => return,
+    let (run_id, webhook_url) = match WEBHOOK_CONFIG.as_ref() {
+        Some((run_id, webhook_url)) => (run_id.clone(), webhook_url.clone()),
+        None => return, // No webhook configuration available
     };
 
     let payload = serde_json::json!({
