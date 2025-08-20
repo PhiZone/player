@@ -218,7 +218,7 @@ jobs:
             echo "  - $file"
           done
 
-      - name: Run player executable
+      - name: Run Player executable
         env:
           REPORT_INTERVAL: '50'
           __XPC_JSC_useSharedArrayBuffer: '1'
@@ -269,8 +269,6 @@ jobs:
 
           cmd_args+=("--automate")
 
-          echo "Starting player execution..."
-
           # Start memory monitoring in background
           (
             while true; do
@@ -290,7 +288,7 @@ jobs:
           ) &
           memory_monitor_pid=$!
 
-          # Execute player
+          # Execute Player
           echo "Executing: ./player ${cmd_args[*]}"
           ./player "${cmd_args[@]}"
           player_exit_code=$?
@@ -369,7 +367,7 @@ jobs:
           rm -rf ./outputs 2>/dev/null || true
           rm -rf ./files.txt 2>/dev/null || true
 
-          # Clean up player executable
+          # Clean up Player executable
           rm -f ./player 2>/dev/null || true
 
           # Clean up Tauri app data
