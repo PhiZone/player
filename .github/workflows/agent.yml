@@ -73,14 +73,17 @@ jobs:
 
             let release;
             if (useSnapshot) {
-              // Get latest prerelease
+              // Get latest prerelease with macOS ARM64 executable asset
               const { data: releases } = await github.rest.repos.listReleases({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 per_page: 100
               });
-              release = releases.find(r => r.prerelease);
-              if (!release) throw new Error('No prerelease found');
+              release = releases.find(r =>
+                r.prerelease &&
+                r.assets.some(a => a.name.endsWith('-macos-arm64'))
+              );
+              if (!release) throw new Error('No prerelease with macOS ARM64 executable asset found');
             } else {
               // Get latest stable release
               const { data: latestRelease } = await github.rest.repos.getLatestRelease({
