@@ -35,7 +35,6 @@ import { readFile, remove } from '@tauri-apps/plugin-fs';
 import { clamp, getLines, IS_TAURI, isPec } from '$lib/utils';
 import PhiEditerConverter from '../converters/phiediter';
 import { m } from '$lib/paraglide/messages';
-import 'context-filter-polyfill';
 
 const EASINGS: ((x: number) => number)[] = [
   (x) => x,
@@ -341,11 +340,13 @@ export const processIllustration = (
     img.crossOrigin = 'anonymous';
     img.src = imageUrl;
 
-    img.onload = () => {
+    img.onload = async () => {
       const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
+      let cropped = '';
+      let background = '';
 
-      if (ctx) {
+      const cropCtx = canvas.getContext('2d');
+      if (cropCtx) {
         let cropWidth = img.width;
         let cropHeight = img.height;
         let cropX = 0;
@@ -359,38 +360,28 @@ export const processIllustration = (
           cropY = (img.height - cropHeight) / 2;
         }
 
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx.filter = `blur(${blurAmount}px)`;
-        ctx.drawImage(img, 0, 0);
-        ctx.fillStyle = `rgba(0, 0, 0, ${1 - luminance})`;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        const background = canvas.toDataURL();
-
         canvas.width = cropWidth;
         canvas.height = cropHeight;
-        ctx.filter = 'none';
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         const radius = (RESULTS_ILLUSTRATION_CORNER_RADIUS * canvas.height) / 200;
-        ctx.beginPath();
-        ctx.moveTo(radius, 0);
-        ctx.lineTo(canvas.width - radius, 0);
-        ctx.quadraticCurveTo(canvas.width, 0, canvas.width, radius);
-        ctx.lineTo(canvas.width, canvas.height - radius);
-        ctx.quadraticCurveTo(canvas.width, canvas.height, canvas.width - radius, canvas.height);
-        ctx.lineTo(radius, canvas.height);
-        ctx.quadraticCurveTo(0, canvas.height, 0, canvas.height - radius);
-        ctx.lineTo(0, radius);
-        ctx.quadraticCurveTo(0, 0, radius, 0);
-        ctx.closePath();
-        ctx.clip();
+        cropCtx.beginPath();
+        cropCtx.moveTo(radius, 0);
+        cropCtx.lineTo(canvas.width - radius, 0);
+        cropCtx.quadraticCurveTo(canvas.width, 0, canvas.width, radius);
+        cropCtx.lineTo(canvas.width, canvas.height - radius);
+        cropCtx.quadraticCurveTo(canvas.width, canvas.height, canvas.width - radius, canvas.height);
+        cropCtx.lineTo(radius, canvas.height);
+        cropCtx.quadraticCurveTo(0, canvas.height, 0, canvas.height - radius);
+        cropCtx.lineTo(0, radius);
+        cropCtx.quadraticCurveTo(0, 0, radius, 0);
+        cropCtx.closePath();
+        cropCtx.clip();
 
-        ctx.drawImage(img, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+        cropCtx.drawImage(img, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
 
         const dimZoneHeight = cropHeight * 0.5;
         const dimnessPercent = 0.95;
-        const gradient = ctx.createLinearGradient(
+        const gradient = cropCtx.createLinearGradient(
           0,
           canvas.height - dimZoneHeight,
           0,
@@ -399,15 +390,30 @@ export const processIllustration = (
         gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
         gradient.addColorStop(1, `rgba(0, 0, 0, ${dimnessPercent})`);
 
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, canvas.height - dimZoneHeight, canvas.width, dimZoneHeight);
+        cropCtx.fillStyle = gradient;
+        cropCtx.fillRect(0, canvas.height - dimZoneHeight, canvas.width, dimZoneHeight);
 
-        const cropped = canvas.toDataURL();
-
-        resolve({ background, cropped });
-      } else {
-        reject('Failed to get canvas context');
+        cropped = canvas.toDataURL();
       }
+
+      await import('context-filter-polyfill');
+      const bgCtx = canvas.getContext('2d');
+      if (bgCtx) {
+        canvas.width = img.width;
+        canvas.height = img.height;
+
+        bgCtx.filter = `blur(${blurAmount}px)`;
+        bgCtx.drawImage(img, 0, 0);
+        bgCtx.fillStyle = `rgba(0, 0, 0, ${1 - luminance})`;
+        bgCtx.fillRect(0, 0, canvas.width, canvas.height);
+
+        background = canvas.toDataURL();
+      }
+
+      if (!background || !cropped) {
+        reject('Failed to process illustration');
+      }
+      resolve({ background, cropped });
     };
 
     img.onerror = () => {
