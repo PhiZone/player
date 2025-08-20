@@ -349,30 +349,37 @@ jobs:
 
               echo "Uploading: $stored_name"
 
-              # Use a named pipe to capture output and log in real time
-              pipe=$(mktemp -u)
-              mkfifo "$pipe"
-              upload_output=""
-              # Read from the pipe in the background and append to variable
-              { while IFS= read -r line; do
-                echo "$line"
-                upload_output+="$line"$'\n'
-              done < "$pipe"; } &
-              reader_pid=$!
-              # Run the command, redirecting both stdout and stderr to the pipe
-              "$leancloud_exe" file upload "$file" > "$pipe" 2>&1
-              # Wait for reader to finish
-              wait $reader_pid
-              rm "$pipe"
+              # Run upload command and capture all output to a temporary file
+              temp_log=$(mktemp)
+              
+              # Start tailing the log file in the background for real-time display
+              tail -f "$temp_log" &
+              tail_pid=$!
+              
+              set +e  # Don't exit on error, we'll handle it manually
+              "$leancloud_exe" file upload "$file" > "$temp_log" 2>&1
+              upload_exit_code=$?
+              set -e
 
-              upload_url=$(echo "$upload_output" | grep -o 'URL: https://[^[:space:]]*' | sed 's/URL: //')
+              # Stop the tail process
+              kill $tail_pid 2>/dev/null || true
+              wait $tail_pid 2>/dev/null || true
 
-              if [ -n "$upload_url" ]; then
+              # Extract URL from the output
+              upload_url=$(grep -o 'URL: https://[^[:space:]]*' "$temp_log" | tail -1 | sed 's/URL: //')
+
+              # Clean up temp file
+              rm "$temp_log"
+
+              if [ $upload_exit_code -eq 0 ] && [ -n "$upload_url" ]; then
                 echo "File \"$stored_name\" uploaded to $upload_url"
                 file_names+=("$stored_name")
                 file_urls+=("$upload_url")
               else
-                echo "Failed to extract URL from upload output"
+                echo "Failed to upload file or extract URL (exit code: $upload_exit_code)"
+                if [ -z "$upload_url" ]; then
+                  echo "No URL found in upload output"
+                fi
               fi
             done < <(find "$artifact_path" -type f -print0)
           else
