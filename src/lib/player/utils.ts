@@ -34,7 +34,6 @@ import { download as tauriDownload } from '@tauri-apps/plugin-upload';
 import { readFile, remove } from '@tauri-apps/plugin-fs';
 import { clamp, getLines, IS_TAURI, isPec } from '$lib/utils';
 import PhiEditerConverter from '../converters/phiediter';
-import 'context-filter-polyfill';
 import { m } from '$lib/paraglide/messages';
 
 const EASINGS: ((x: number) => number)[] = [
@@ -384,8 +383,8 @@ export const processIllustration = (
         ctx.lineTo(0, radius);
         ctx.quadraticCurveTo(0, 0, radius, 0);
         ctx.closePath();
-
         ctx.clip();
+
         ctx.drawImage(img, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
 
         const dimZoneHeight = cropHeight * 0.5;
