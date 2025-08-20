@@ -35,7 +35,7 @@ pub fn mix_audio(
     output: String,
 ) -> Result<(), String> {
     send_webhook_notification("mixing_audio", 0.0);
-    
+
     std::thread::spawn(move || {
         let mix_result = (|| -> Result<(), String> {
             print!("[TAURI] Mixing audio...");
@@ -44,19 +44,20 @@ pub fn mix_audio(
             let mut decoded_sound_map: HashMap<String, Vec<f32>> = HashMap::new();
 
             for sound in sounds {
-                let sound_data = if sound.data.starts_with("data:") || sound.data.contains(";base64,") {
-                    let base64_data = sound.data.split(",").last().unwrap_or(&sound.data);
-                    STANDARD.decode(base64_data).map_err(|e| {
-                        format!("Error decoding base64 sound data for {}: {}", sound.key, e)
-                    })?
-                } else {
-                    std::fs::read(&sound.data).map_err(|e| {
-                        format!(
-                            "Error reading sound file {} for {}: {}",
-                            sound.data, sound.key, e
-                        )
-                    })?
-                };
+                let sound_data =
+                    if sound.data.starts_with("data:") || sound.data.contains(";base64,") {
+                        let base64_data = sound.data.split(",").last().unwrap_or(&sound.data);
+                        STANDARD.decode(base64_data).map_err(|e| {
+                            format!("Error decoding base64 sound data for {}: {}", sound.key, e)
+                        })?
+                    } else {
+                        std::fs::read(&sound.data).map_err(|e| {
+                            format!(
+                                "Error reading sound file {} for {}: {}",
+                                sound.data, sound.key, e
+                            )
+                        })?
+                    };
 
                 let cursor = Cursor::new(sound_data);
                 let source = Decoder::new(cursor)
@@ -76,7 +77,8 @@ pub fn mix_audio(
             };
 
             // Initialize a vector to store combined audio samples
-            let mut combined_samples = vec![0.0f32; (length * spec.sample_rate as f64) as usize * 2];
+            let mut combined_samples =
+                vec![0.0f32; (length * spec.sample_rate as f64) as usize * 2];
 
             // Process each timestamp to mix audio
 
@@ -91,7 +93,8 @@ pub fn mix_audio(
                     }
                 };
 
-                let position_begin = (timestamp.time * spec.sample_rate as f64).round() as usize * 2;
+                let position_begin =
+                    (timestamp.time * spec.sample_rate as f64).round() as usize * 2;
 
                 // Handle playback rate
                 if timestamp.rate == 1.0 {
@@ -166,14 +169,9 @@ pub fn mix_audio(
                 Err("FFmpeg process failed".to_string())
             }
         })();
-        
-        match mix_result {
-            Ok(_) => {
-                send_webhook_notification("mixing_audio", 1.0);
-            }
-            Err(e) => {
-                eprintln!("[TAURI] Audio mixing failed: {}", e);
-            }
+
+        if let Err(e) = mix_result {
+            eprintln!("[TAURI] Audio mixing failed: {}", e);
         }
     });
 

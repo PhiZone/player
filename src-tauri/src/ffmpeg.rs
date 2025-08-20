@@ -150,7 +150,6 @@ pub fn convert_audio(app: AppHandle, input: String, output: String) -> Result<()
                 Ok(_) => {
                     app.emit("audio-conversion-finished", ()).unwrap();
                     println!(" finished.");
-                    send_webhook_notification("converting_audio", 1.0);
                 }
                 Err(e) => {
                     eprintln!("[TAURI] Audio conversion failed: {}", e);
@@ -204,7 +203,6 @@ pub fn combine_streams(
                 Ok(_) => {
                     app.emit("stream-combination-finished", &output).unwrap();
                     println!(" finished.");
-                    send_webhook_notification("combining_streams", 1.0);
                 }
                 Err(e) => {
                     eprintln!("[TAURI] Stream combination failed: {}", e);

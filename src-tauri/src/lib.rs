@@ -102,15 +102,13 @@ pub fn send_webhook_notification(status: &str, progress: f64) {
 
     std::thread::spawn(move || {
         let client = ureq::agent();
-        match client
+        let result = client
             .post(&webhook_url)
             .header("Content-Type", "application/json")
-            .send_json(&payload)
-        {
-            Ok(_) => {}
-            Err(e) => {
-                eprintln!("[TAURI] Failed to send webhook notification: {}", e);
-            }
+            .send_json(&payload);
+
+        if let Err(e) = result {
+            eprintln!("[TAURI] Failed to send webhook notification: {}", e);
         }
     });
 }
