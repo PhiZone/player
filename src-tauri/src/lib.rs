@@ -92,17 +92,24 @@ pub fn run() {
         .expect("error while running tauri application");
 }
 
-pub fn send_webhook_notification(status: &str, progress: f64) {
+pub fn send_webhook_notification(status: &str, progress: f64, eta_seconds: Option<f64>) {
     let (run_id, webhook_url) = match WEBHOOK_CONFIG.as_ref() {
         Some((run_id, webhook_url)) => (run_id.clone(), webhook_url.clone()),
         None => return, // No webhook configuration available
     };
 
-    let payload = serde_json::json!({
+    let mut payload = serde_json::json!({
         "run_id": run_id,
         "status": status,
         "progress": progress
     });
+
+    // Add ETA if provided
+    if let Some(eta) = eta_seconds {
+        payload["eta"] = serde_json::Value::Number(
+            serde_json::Number::from_f64(eta).unwrap_or_else(|| serde_json::Number::from(0)),
+        );
+    }
 
     std::thread::spawn(move || {
         let client = ureq::agent();

@@ -34,8 +34,8 @@ pub fn mix_audio(
     length: f64,
     output: String,
 ) -> Result<(), String> {
-    send_webhook_notification("mixing_audio", 0.0);
-
+    send_webhook_notification("mixing_audio", 0.0, None);
+    
     std::thread::spawn(move || {
         let mix_result = (|| -> Result<(), String> {
             print!("[TAURI] Mixing audio...");

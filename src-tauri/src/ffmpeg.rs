@@ -166,8 +166,8 @@ pub fn combine_streams(
     audio_bitrate: String,
     output: String,
 ) -> Result<(), String> {
-    send_webhook_notification("combining_streams", 0.0);
-
+    send_webhook_notification("combining_streams", 0.0, None);
+    
     std::thread::spawn({
         let app = app.clone();
         move || {
@@ -242,6 +242,8 @@ pub async fn setup_video(
     println!("[TAURI] FFmpeg setup complete");
 
     tokio::spawn(async move {
+        let mut start_time: Option<std::time::Instant> = None;
+        
         while let Ok((stream, _)) = listener.accept().await {
             let ws_stream = match accept_async(stream).await {
                 Ok(s) => s,
@@ -262,22 +264,59 @@ pub async fn setup_video(
                     frames_received += 1;
                     let data = message.into_data();
 
+                    // Start timer when we receive the first frame
+                    if start_time.is_none() {
+                        start_time = Some(std::time::Instant::now());
+                    }
+
                     if frames_received % report_interval as u64 == 0 {
                         let progress_percent = if total_frames > 0 {
                             (frames_received as f64 / total_frames as f64) * 100.0
                         } else {
                             0.0
                         };
+                        
+                        // Calculate ETA
+                        let eta_seconds = if let Some(start) = start_time {
+                            let elapsed = start.elapsed().as_secs_f64();
+                            let progress_ratio = frames_received as f64 / total_frames as f64;
+                            
+                            if progress_ratio > 0.0 && frames_received >= report_interval as u64 {
+                                // ETA = (elapsed_time / progress_ratio) - elapsed_time
+                                let total_estimated_time = elapsed / progress_ratio;
+                                let remaining_time = total_estimated_time - elapsed;
+                                Some(remaining_time.max(0.0)) // Ensure non-negative
+                            } else {
+                                None // Not enough data for reliable estimate
+                            }
+                        } else {
+                            None
+                        };
+                        
                         let total_digits = total_frames.to_string().len();
-                        print!(
-                            "\r[TAURI] Rendering: {:6.2}% ({:width$}/{}) ... ",
-                            progress_percent,
-                            frames_received,
-                            total_frames,
-                            width = total_digits
-                        );
+                        if let Some(eta) = eta_seconds {
+                            let eta_mins = (eta / 60.0) as u32;
+                            let eta_secs = (eta % 60.0) as u32;
+                            print!(
+                                "\r[TAURI] Rendering: {:6.2}% ({:width$}/{}) ETA: {:02}:{:02} ... ",
+                                progress_percent,
+                                frames_received,
+                                total_frames,
+                                eta_mins,
+                                eta_secs,
+                                width = total_digits
+                            );
+                        } else {
+                            print!(
+                                "\r[TAURI] Rendering: {:6.2}% ({:width$}/{}) ... ",
+                                progress_percent,
+                                frames_received,
+                                total_frames,
+                                width = total_digits
+                            );
+                        }
                         std::io::stdout().flush().unwrap();
-                        send_webhook_notification("rendering", progress_percent / 100.0);
+                        send_webhook_notification("rendering", progress_percent / 100.0, eta_seconds);
                     }
 
                     if let Some(stdin) = &mut *FFMPEG_STDIN.lock().unwrap() {
