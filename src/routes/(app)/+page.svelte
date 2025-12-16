@@ -213,14 +213,16 @@
 
   let clipboardUrl: URL | undefined;
   let lastResolvedClipboardUrl: URL | undefined;
+  let ignoredUrls: string[] = [];
 
-  let automate = false;
+  const checkParam = (key: string, values: string[]) =>
+    values.some((v) => v === page.url.searchParams.get(key));
+
+  let automate = checkParam('automate', ['1', 'true']);
 
   const unlistens: UnlistenFn[] = [];
 
   onMount(async () => {
-    const checkParam = (key: string, values: string[]) =>
-      values.some((v) => v === page.url.searchParams.get(key));
     [
       { key: 'debug', name: m.debug_mode() },
       { key: 'performance', name: m.performance_metrics() },
@@ -424,7 +426,7 @@
       Capacitor.getPlatform() === 'web' &&
       (page.url.searchParams.has('file') || page.url.searchParams.has('zip'))
     ) {
-      if (toggles.inApp === 0) {
+      if (toggles.inApp === 0 && !automate) {
         appModal.showModal();
       } else if (toggles.inApp === 1) {
         window.open(`${IS_ANDROID_OR_IOS ? `${base}/app` : 'phizone-player://'}${page.url.search}`);
@@ -557,6 +559,9 @@
       const url = new URL(text);
       if (url.protocol === 'http:' || url.protocol === 'https:') {
         if (lastResolvedClipboardUrl && lastResolvedClipboardUrl.href === url.href) {
+          return;
+        }
+        if (ignoredUrls.includes(url.href)) {
           return;
         }
         clipboardUrl = url;
@@ -1484,7 +1489,7 @@
       }
     }
 
-    if (Capacitor.getPlatform() === 'web' && toggles.newTab) {
+    if (Capacitor.getPlatform() === 'web' && toggles.newTab && !automate) {
       window.open(url);
     } else {
       goto(url);
@@ -1526,6 +1531,7 @@
           class="py-3 px-4 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-100 focus:outline-none focus:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-700 dark:focus:bg-neutral-700 transition"
           onclick={async () => {
             clipboardModal.close();
+            ignoredUrls.push(clipboardUrl!.href);
             clipboardUrl = undefined;
           }}
         >
