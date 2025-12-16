@@ -103,10 +103,10 @@ export const DEFAULT_RESOURCE_PACK = {
   hitEffects: {
     spriteSheet: `${base}/game/HitEffects.png`,
     frameWidth: 375,
-    frameHeight: 375,
-    frameRate: 120,
+    frameHeight: 378,
+    frameRate: 128,
     particle: {
-      count: 4,
+      count: 5,
       style: 'circle',
     },
   },
