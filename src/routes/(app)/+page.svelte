@@ -168,7 +168,7 @@
   };
   let toggles = {
     autostart: false,
-    autoplay: false,
+    autoplay: true,
     practice: false,
     adjustOffset: false,
     render: false,
