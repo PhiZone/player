@@ -15,6 +15,46 @@ import { m } from '$lib/paraglide/messages';
 
 const DEFAULT_VALUE_REGEX = /uniform\s+(\w+)\s+(\w+);\s+\/\/\s+%([^%]+)%/g;
 
+function transformForLoops(src: string, max = 1024): string {
+  const replaceCore = (
+    _match: string,
+    type: string,
+    varName: string,
+    init: string,
+    cond: string,
+    iter: string,
+  ) => {
+    const idx = `_${varName}_iter`;
+    const limit = type === 'int' ? `${max}` : `${max}.0`;
+    const it = iter.trim();
+    let step: string | null = null;
+    if (/\+\+/.test(it)) step = type === 'int' ? '1' : '1.0';
+    else if (/--/.test(it)) step = type === 'int' ? '-1' : '-1.0';
+    else {
+      const plusEq = new RegExp(`^${varName}\\s*\\+=\\s*(.+)$`);
+      const minusEq = new RegExp(`^${varName}\\s*-=` + '\\s*(.+)$');
+      const p = it.match(plusEq);
+      const m = it.match(minusEq);
+      if (p) step = p[1].trim();
+      if (m) step = `-(${m[1].trim()})`;
+      if (step && type === 'float' && !/[.|eE]/.test(step)) step = `${step}.0`;
+    }
+    if (!step) step = type === 'int' ? '1' : '1.0';
+    const assign = `${type} ${varName} = (${init.trim()}) + (${step}) * ${idx};`;
+    const check = `if (!(${cond.trim()})) break;`;
+    return `for (${type} ${idx} = ${type === 'int' ? '0' : '0.0'}; ${idx} < ${limit}; ${idx}++) { ${assign} ${check} `;
+  };
+
+  const re =
+    /for\s*\(\s*(int|float)\s+([A-Za-z_]\w*)\s*=\s*([^;]+?)\s*;\s*([^;]+?)\s*;\s*([^)]+?)\)\s*(?:\{\s*|(?:(?!\{)\s*([^;]+;)))/g;
+  src = src.replace(re, (m, type, name, init, cond, iter, stmt) => {
+    const head = replaceCore(m, type, name, init, cond, iter);
+    return stmt ? head + `${stmt} }` : head;
+  });
+
+  return src;
+}
+
 export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
   private _scene: Game;
   private _data: ShaderEffect;
@@ -35,6 +75,7 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
     postPipelineData.fragShader = postPipelineData.fragShader
       .replaceAll('uv', 'outTexCoord')
       .replaceAll('screenTexture', 'uMainSampler');
+    postPipelineData.fragShader = transformForLoops(postPipelineData.fragShader);
     super({ game, fragShader: postPipelineData.fragShader });
     this._scene = postPipelineData.scene;
     this._data = postPipelineData.data;
