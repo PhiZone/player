@@ -90,6 +90,172 @@ const EASINGS: ((x: number) => number)[] = [
   (x) => (x < 0.5 ? (1 - EASINGS[25](1 - 2 * x)) / 2 : (1 + EASINGS[25](2 * x - 1)) / 2),
 ];
 
+const EASING_INTEGRALS: ((x: number) => number)[] = [
+  (x) => (x * x) / 2,
+  (x) => (2 / Math.PI) * (1 - Math.cos((x * Math.PI) / 2)),
+  (x) => x - (2 / Math.PI) * Math.sin((x * Math.PI) / 2),
+  (x) => x * x - (x * x * x) / 3,
+  (x) => (x * x * x) / 3,
+  (x) => x / 2 - Math.sin(Math.PI * x) / (2 * Math.PI),
+  (x) => (x < 0.5 ? (2 / 3) * Math.pow(x, 3) : 2 * x * x - (2 / 3) * Math.pow(x, 3) - x + 1 / 6),
+  (x) => (3 / 2) * x * x - x * x * x + Math.pow(x, 4) / 4,
+  (x) => Math.pow(x, 4) / 4,
+  (x) => 2 * x * x - 2 * Math.pow(x, 3) + Math.pow(x, 4) - Math.pow(x, 5) / 5,
+  (x) => Math.pow(x, 5) / 5,
+  (x) =>
+    x < 0.5 ? Math.pow(x, 4) : -3 * x + 6 * x * x - 4 * Math.pow(x, 3) + Math.pow(x, 4) + 0.5,
+  (x) =>
+    x < 0.5
+      ? (8 / 5) * Math.pow(x, 5)
+      : -7 * x +
+        16 * x * x -
+        16 * Math.pow(x, 3) +
+        8 * Math.pow(x, 4) -
+        (8 / 5) * Math.pow(x, 5) +
+        11 / 10,
+  (x) =>
+    (5 / 2) * x * x -
+    (10 / 3) * Math.pow(x, 3) +
+    (5 / 2) * Math.pow(x, 4) -
+    Math.pow(x, 5) +
+    Math.pow(x, 6) / 6,
+  (x) => Math.pow(x, 6) / 6,
+  (x) => x - (1 - Math.pow(2, -10 * x)) / (10 * Math.LN2),
+  (x) => (Math.pow(2, 10 * x - 10) - Math.pow(2, -10)) / (10 * Math.LN2),
+  (x) =>
+    0.5 * ((x - 1) * Math.sqrt(Math.max(0, 1 - Math.pow(x - 1, 2))) + Math.asin(x - 1)) +
+    Math.PI / 4,
+  (x) =>
+    x - 0.5 * (x * Math.sqrt(Math.max(0, 1 - x * x)) + Math.asin(Math.max(-1, Math.min(1, x)))),
+  (x) => {
+    const a = 2.70158;
+    const b = 1.70158;
+    return (
+      (1 - a + b) * x +
+      ((3 * a - 2 * b) / 2) * x * x +
+      ((-3 * a + b) / 3) * Math.pow(x, 3) +
+      (a / 4) * Math.pow(x, 4)
+    );
+  },
+  (x) => (2.70158 / 4) * Math.pow(x, 4) - (1.70158 / 3) * Math.pow(x, 3),
+  (x) =>
+    x < 0.5
+      ? 0.5 * x -
+        0.25 * x * Math.sqrt(Math.max(0, 1 - 4 * x * x)) -
+        0.125 * Math.asin(Math.max(-1, Math.min(1, 2 * x)))
+      : 0.5 * x -
+        0.25 * (1 - x) * Math.sqrt(Math.max(0, 1 - 4 * (1 - x) * (1 - x))) -
+        0.125 * Math.asin(Math.max(-1, Math.min(1, 2 * (1 - x)))),
+  (x) => {
+    const s = 2.59491;
+    x = clamp(x, 0, 1);
+    if (x <= 0.5) return (s + 1) * Math.pow(x, 4) - (2 * s * Math.pow(x, 3)) / 3;
+    const Ihalf = (s + 1) * Math.pow(0.5, 4) - (2 * s * Math.pow(0.5, 3)) / 3;
+    const F = (t: number) =>
+      (s + 1) * Math.pow(t, 4) -
+      ((10 * s + 12) / 3) * Math.pow(t, 3) +
+      ((8 * s + 12) / 2) * t * t -
+      (2 * s + 3) * t;
+    return Ihalf + (F(x) - F(0.5));
+  },
+  // 23
+  (x) => {
+    x = clamp(x, 0, 1);
+    const K = 10 * Math.LN2;
+    const A = ((2 * Math.PI) / 3) * 10;
+    const B = -0.75 * ((2 * Math.PI) / 3);
+    const H = (t: number) =>
+      (Math.exp(-K * t) * (-K * Math.sin(A * t + B) - A * Math.cos(A * t + B))) / (A * A + K * K);
+    return x + (H(x) - H(0));
+  },
+  (x) => {
+    x = clamp(x, 0, 1);
+    const K = 10 * Math.LN2;
+    const A = ((2 * Math.PI) / 3) * 10;
+    const B = -10.75 * ((2 * Math.PI) / 3);
+    const C = Math.pow(2, -10);
+    const G = (t: number) =>
+      (-C * Math.exp(K * t) * (K * Math.sin(A * t + B) - A * Math.cos(A * t + B))) /
+      (A * A + K * K);
+    return G(x) - G(0);
+  },
+  (x) => {
+    x = clamp(x, 0, 1);
+    const A = 7.5625;
+    const b1 = 1 / 2.75;
+    const b2 = 2 / 2.75;
+    const b3 = 2.5 / 2.75;
+    const c1 = 1.5 / 2.75;
+    const c2 = 2.25 / 2.75;
+    const c3 = 2.625 / 2.75;
+    const I_b1 = (A * Math.pow(b1, 3)) / 3;
+    const I_b2 = I_b1 + (A / 3) * (Math.pow(b2 - c1, 3) - Math.pow(b1 - c1, 3)) + 0.75 * (b2 - b1);
+    const I_b3 =
+      I_b2 + (A / 3) * (Math.pow(b3 - c2, 3) - Math.pow(b2 - c2, 3)) + 0.9375 * (b3 - b2);
+    if (x < b1) return (A * Math.pow(x, 3)) / 3;
+    if (x < b2)
+      return I_b1 + (A / 3) * (Math.pow(x - c1, 3) - Math.pow(b1 - c1, 3)) + 0.75 * (x - b1);
+    if (x < b3)
+      return I_b2 + (A / 3) * (Math.pow(x - c2, 3) - Math.pow(b2 - c2, 3)) + 0.9375 * (x - b2);
+    return I_b3 + (A / 3) * (Math.pow(x - c3, 3) - Math.pow(b3 - c3, 3)) + 0.984375 * (x - b3);
+  },
+  (x) => {
+    x = clamp(x, 0, 1);
+    const A = 7.5625;
+    const b1 = 1 / 2.75;
+    const b2 = 2 / 2.75;
+    const b3 = 2.5 / 2.75;
+    const c1 = 1.5 / 2.75;
+    const c2 = 2.25 / 2.75;
+    const c3 = 2.625 / 2.75;
+    const outIntegral = (u: number) => {
+      u = clamp(u, 0, 1);
+      const I_b1 = (A * Math.pow(b1, 3)) / 3;
+      const I_b2 =
+        I_b1 + (A / 3) * (Math.pow(b2 - c1, 3) - Math.pow(b1 - c1, 3)) + 0.75 * (b2 - b1);
+      const I_b3 =
+        I_b2 + (A / 3) * (Math.pow(b3 - c2, 3) - Math.pow(b2 - c2, 3)) + 0.9375 * (b3 - b2);
+      if (u < b1) return (A * Math.pow(u, 3)) / 3;
+      if (u < b2)
+        return I_b1 + (A / 3) * (Math.pow(u - c1, 3) - Math.pow(b1 - c1, 3)) + 0.75 * (u - b1);
+      if (u < b3)
+        return I_b2 + (A / 3) * (Math.pow(u - c2, 3) - Math.pow(b2 - c2, 3)) + 0.9375 * (u - b2);
+      return I_b3 + (A / 3) * (Math.pow(u - c3, 3) - Math.pow(b3 - c3, 3)) + 0.984375 * (u - b3);
+    };
+    const I1 = outIntegral(1);
+    return x - (I1 - outIntegral(1 - x));
+  },
+  (x) => {
+    x = clamp(x, 0, 1);
+    const A = 7.5625;
+    const b1 = 1 / 2.75;
+    const b2 = 2 / 2.75;
+    const b3 = 2.5 / 2.75;
+    const c1 = 1.5 / 2.75;
+    const c2 = 2.25 / 2.75;
+    const c3 = 2.625 / 2.75;
+    const outIntegral = (u: number) => {
+      u = clamp(u, 0, 1);
+      const I_b1 = (A * Math.pow(b1, 3)) / 3;
+      const I_b2 =
+        I_b1 + (A / 3) * (Math.pow(b2 - c1, 3) - Math.pow(b1 - c1, 3)) + 0.75 * (b2 - b1);
+      const I_b3 =
+        I_b2 + (A / 3) * (Math.pow(b3 - c2, 3) - Math.pow(b2 - c2, 3)) + 0.9375 * (b3 - b2);
+      if (u < b1) return (A * Math.pow(u, 3)) / 3;
+      if (u < b2)
+        return I_b1 + (A / 3) * (Math.pow(u - c1, 3) - Math.pow(b1 - c1, 3)) + 0.75 * (u - b1);
+      if (u < b3)
+        return I_b2 + (A / 3) * (Math.pow(u - c2, 3) - Math.pow(b2 - c2, 3)) + 0.9375 * (u - b2);
+      return I_b3 + (A / 3) * (Math.pow(u - c3, 3) - Math.pow(b3 - c3, 3)) + 0.984375 * (u - b3);
+    };
+    const I1 = outIntegral(1);
+    if (x <= 0.5) {
+      return x / 2 + (I1 - outIntegral(1 - 2 * x)) / 4;
+    }
+    return x / 2 + (I1 + outIntegral(2 * x - 1)) / 4;
+  },
+];
+
 const calculateEasingValue = (
   func: (x: number) => number,
   x: number,
@@ -120,6 +286,35 @@ const EASING_DERIVATIVE_ENDS = EASINGS.map((func) => [
   calculateDerivativeValue(func, 0),
   calculateDerivativeValue(func, 1),
 ]);
+
+const calculateEasingIntegral = (
+  type: number,
+  x: number,
+  easingLeft = 0,
+  easingRight = 1,
+): number => {
+  if (easingLeft === easingRight) {
+    const val = EASINGS[type](easingLeft);
+    return val * x;
+  }
+  const t = easingLeft + (easingRight - easingLeft) * x;
+  const integralTotal = EASING_INTEGRALS[type](t);
+  const integralLeft = EASING_INTEGRALS[type](easingLeft);
+  const easingLeftVal = EASINGS[type](easingLeft);
+  const easingRightVal = EASINGS[type](easingRight);
+  const scale = 1 / (easingRightVal - easingLeftVal);
+  return scale * (integralTotal - integralLeft - easingLeftVal * (t - easingLeft));
+};
+
+const getEasingEndpoint = (
+  type: number,
+  x: number, // 0 或 1
+  easingLeft = 0,
+  easingRight = 1,
+): number => {
+  const t = easingLeft + (easingRight - easingLeft) * x;
+  return EASINGS[type](t);
+};
 
 const sanitizeEasingParams = (type: number, x: number, easingLeft: number, easingRight: number) => {
   return {
@@ -673,6 +868,18 @@ export const integrate = (
   return k * calculateEasingValue(EASINGS[p.type - 1], p.x, p.easingLeft, p.easingRight) + b * p.x;
 };
 
+export const integrate2 = (
+  type: number,
+  x: number,
+  k: number,
+  c: number,
+  easingLeft = 0,
+  easingRight = 1,
+): number => {
+  const integral = calculateEasingIntegral(type, x, easingLeft, easingRight);
+  return k * integral + c * x;
+};
+
 export const getIntegral = (
   event: SpeedEvent | undefined,
   bpmList: Bpm[],
@@ -697,6 +904,29 @@ export const getIntegral = (
     );
   }
   return ((event.start + (getEventValue(beat, event) as number)) * progressedSec) / 2;
+};
+
+export const getIntegral2 = (
+  event: SpeedEvent | undefined,
+  bpmList: Bpm[],
+  beat: number | undefined = undefined,
+): number => {
+  if (!event) return 0;
+  if (beat === undefined || beat >= event.endBeat) beat = event.endBeat;
+  const lengthSec = getTimeSec(bpmList, event.endBeat) - getTimeSec(bpmList, event.startBeat);
+  if (!('easingType' in event) || event.easingType <= 1) {
+    return ((event.start + (getEventValue(beat, event) as number)) * lengthSec) / 2;
+  }
+  const lengthBeat = event.endBeat - event.startBeat;
+  const easingLeft = 'easingLeft' in event ? event.easingLeft : 0;
+  const easingRight = 'easingRight' in event ? event.easingRight : 1;
+  const e0 = getEasingEndpoint(event.easingType, 0, easingLeft, easingRight);
+  const e1 = getEasingEndpoint(event.easingType, 1, easingLeft, easingRight);
+  const k = (event.end - event.start) / (e1 - e0);
+  const c = event.start - k * e0;
+  const x = (beat - event.startBeat) / (event.endBeat - event.startBeat);
+  const progress = integrate2(event.easingType, x, k, c, easingLeft, easingRight);
+  return (progress * lengthSec) / lengthBeat;
 };
 
 export const getJudgmentPosition = (input: PointerTap | PointerDrag, line: Line) => {
