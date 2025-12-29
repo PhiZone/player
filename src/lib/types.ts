@@ -110,6 +110,7 @@ export interface JudgeLine {
   eventLayers: (EventLayer | null)[];
   extended?: Extended;
   father: number;
+  rotateWithFather?: boolean;
   isCover: number;
   isGif?: boolean;
   notes?: Note[];
