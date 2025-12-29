@@ -223,6 +223,16 @@
   let overrideTitle: string | undefined;
   let overrideLevel: string | undefined;
 
+  const applyMetadataOverrides = (bundle: ChartBundle) => {
+    if (overrideTitle !== undefined) {
+      bundle.metadata.title = overrideTitle;
+    }
+    if (overrideLevel !== undefined) {
+      bundle.metadata.level = overrideLevel;
+      bundle.metadata.levelType = inferLevelType(overrideLevel);
+    }
+  };
+
   const unlistens: UnlistenFn[] = [];
 
   onMount(async () => {
@@ -1307,13 +1317,7 @@
     }
     if (chartBundles.length > 0 && selectedBundle === -1) {
       currentBundle = chartBundles[0];
-      if (overrideTitle !== undefined) {
-        currentBundle.metadata.title = overrideTitle;
-      }
-      if (overrideLevel !== undefined) {
-        currentBundle.metadata.level = overrideLevel;
-        currentBundle.metadata.levelType = inferLevelType(overrideLevel);
-      }
+      applyMetadataOverrides(currentBundle);
       selectedBundle = currentBundle.id;
       selectedSong = currentBundle.song;
       selectedChart = currentBundle.chart;
@@ -1794,13 +1798,7 @@
                     class="transition hover:brightness-75"
                     onclick={() => {
                       currentBundle = bundle;
-                      if (overrideTitle !== undefined) {
-                        currentBundle.metadata.title = overrideTitle;
-                      }
-                      if (overrideLevel !== undefined) {
-                        currentBundle.metadata.level = overrideLevel;
-                        currentBundle.metadata.levelType = inferLevelType(overrideLevel);
-                      }
+                      applyMetadataOverrides(currentBundle);
                       selectedBundle = bundle.id;
                       selectedChart = bundle.chart;
                       selectedSong = bundle.song;
@@ -1829,15 +1827,9 @@
                       aria-label="Delete"
                       onclick={() => {
                         chartBundles = chartBundles.filter((b) => b.id !== bundle.id);
-                        if (selectedBundle === bundle.id) {
+                        if (selectedBundle === bundle.id && chartBundles.length > 0) {
                           currentBundle = chartBundles[0];
-                          if (overrideTitle !== undefined) {
-                            currentBundle.metadata.title = overrideTitle;
-                          }
-                          if (overrideLevel !== undefined) {
-                            currentBundle.metadata.level = overrideLevel;
-                            currentBundle.metadata.levelType = inferLevelType(overrideLevel);
-                          }
+                          applyMetadataOverrides(currentBundle);
                           selectedBundle = chartBundles[0].id;
                           selectedChart = chartBundles[0].chart;
                           selectedSong = chartBundles[0].song;
