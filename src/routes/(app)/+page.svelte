@@ -220,6 +220,19 @@
 
   let automate = checkParam('automate', ['1', 'true']);
 
+  let overrideTitle: string | undefined;
+  let overrideLevel: string | undefined;
+
+  const applyMetadataOverrides = (bundle: ChartBundle) => {
+    if (overrideTitle !== undefined) {
+      bundle.metadata.title = overrideTitle;
+    }
+    if (overrideLevel !== undefined) {
+      bundle.metadata.level = overrideLevel;
+      bundle.metadata.levelType = inferLevelType(overrideLevel);
+    }
+  };
+
   const unlistens: UnlistenFn[] = [];
 
   onMount(async () => {
@@ -392,6 +405,8 @@
       if (args['toggles']) tgs = args['toggles'];
       if (args['mediaOptions']) mopts = args['mediaOptions'];
       automate = args['automate'] === 'true';
+      if (args['title']) overrideTitle = args['title'];
+      if (args['level']) overrideLevel = args['level'];
     }
 
     pref ??= localStorage.getItem('preferences');
@@ -829,15 +844,20 @@
       illustration: illustrationFile.id,
       metadata: metadataEntry
         ? {
-            title: metadataEntry.name,
+            title: overrideTitle ?? metadataEntry.name,
             composer: metadataEntry.composer,
             charter: metadataEntry.charter,
             illustrator: metadataEntry.illustration ?? null,
-            level: metadataEntry.level,
-            levelType: inferLevelType(metadataEntry.level),
+            level: overrideLevel ?? metadataEntry.level,
+            levelType: inferLevelType(overrideLevel ?? metadataEntry.level),
             difficulty: null,
           }
-        : metadata!,
+        : {
+            ...metadata!,
+            title: overrideTitle ?? metadata!.title,
+            level: overrideLevel ?? metadata!.level,
+            levelType: overrideLevel ? inferLevelType(overrideLevel) : metadata!.levelType,
+          },
     };
     chartBundles.push(bundle);
     chartBundles = chartBundles;
@@ -1297,6 +1317,7 @@
     }
     if (chartBundles.length > 0 && selectedBundle === -1) {
       currentBundle = chartBundles[0];
+      applyMetadataOverrides(currentBundle);
       selectedBundle = currentBundle.id;
       selectedSong = currentBundle.song;
       selectedChart = currentBundle.chart;
@@ -1777,6 +1798,7 @@
                     class="transition hover:brightness-75"
                     onclick={() => {
                       currentBundle = bundle;
+                      applyMetadataOverrides(currentBundle);
                       selectedBundle = bundle.id;
                       selectedChart = bundle.chart;
                       selectedSong = bundle.song;
@@ -1805,8 +1827,9 @@
                       aria-label="Delete"
                       onclick={() => {
                         chartBundles = chartBundles.filter((b) => b.id !== bundle.id);
-                        if (selectedBundle === bundle.id) {
+                        if (selectedBundle === bundle.id && chartBundles.length > 0) {
                           currentBundle = chartBundles[0];
+                          applyMetadataOverrides(currentBundle);
                           selectedBundle = chartBundles[0].id;
                           selectedChart = chartBundles[0].chart;
                           selectedSong = chartBundles[0].song;
@@ -1878,6 +1901,7 @@
                   <input
                     type="text"
                     bind:value={currentBundle.metadata.title}
+                    disabled={overrideTitle !== undefined}
                     class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
                   />
                 </div>
@@ -1943,6 +1967,7 @@
                   <input
                     type="text"
                     bind:value={currentBundle.metadata.level}
+                    disabled={overrideLevel !== undefined}
                     class="form-input py-3 px-4 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
                   />
                 </div>
