@@ -16,14 +16,56 @@ import { m } from '$lib/paraglide/messages';
 const DEFAULT_VALUE_REGEX = /uniform\s+(\w+)\s+(\w+);\s+\/\/\s+%([^%]+)%/g;
 
 function transformForLoops(src: string, max = 1024): string {
-  const replaceCore = (
-    _match: string,
-    type: string,
-    varName: string,
-    init: string,
-    cond: string,
-    iter: string,
-  ) => {
+  const findMatchingBrace = (code: string, openIdx: number): number => {
+    let depth = 0;
+    let i = openIdx;
+    while (i < code.length) {
+      const ch = code[i];
+      // line comments
+      if (ch === '/' && code[i + 1] === '/') {
+        i += 2;
+        while (i < code.length && code[i] !== '\n') i++;
+        continue;
+      }
+      // block comments
+      if (ch === '/' && code[i + 1] === '*') {
+        i += 2;
+        while (i < code.length && !(code[i] === '*' && code[i + 1] === '/')) i++;
+        i += 2;
+        continue;
+      }
+      // strings
+      if (ch === '"' || ch === "'" || ch === '`') {
+        const quote = ch;
+        i++;
+        while (i < code.length) {
+          if (code[i] === '\\') {
+            i += 2; // skip escaped char
+            continue;
+          }
+          if (code[i] === quote) {
+            i++;
+            break;
+          }
+          i++;
+        }
+        continue;
+      }
+      if (ch === '{') {
+        depth++;
+      } else if (ch === '}') {
+        depth--;
+        if (depth === 0) return i;
+      }
+      i++;
+    }
+    return -1;
+  };
+
+  const headerRe =
+    /for\s*\(\s*(int|float)\s+([A-Za-z_]\w*)\s*=\s*([^;]+?)\s*;\s*([^;]+?)\s*;\s*([^)]+?)\s*\)/y; // sticky
+
+  const makeHead = (type: string, varName: string, init: string, cond: string, iter: string) => {
     const idx = `_${varName}_iter`;
     const limit = type === 'int' ? `${max}` : `${max}.0`;
     const it = iter.trim();
@@ -42,17 +84,62 @@ function transformForLoops(src: string, max = 1024): string {
     if (!step) step = type === 'int' ? '1' : '1.0';
     const assign = `${type} ${varName} = (${init.trim()}) + (${step}) * ${idx};`;
     const check = `if (!(${cond.trim()})) break;`;
-    return `for (${type} ${idx} = ${type === 'int' ? '0' : '0.0'}; ${idx} < ${limit}; ${idx}++) { ${assign} ${check} `;
+    return {
+      head: `for (${type} ${idx} = ${type === 'int' ? '0' : '0.0'}; ${idx} < ${limit}; ${idx}++) { ${assign} ${check} `,
+      idx,
+      step,
+    };
   };
 
-  const re =
-    /for\s*\(\s*(int|float)\s+([A-Za-z_]\w*)\s*=\s*([^;]+?)\s*;\s*([^;]+?)\s*;\s*([^)]+?)\)\s*(?:\{\s*|(?:(?!\{)\s*([^;]+;)))/g;
-  src = src.replace(re, (m, type, name, init, cond, iter, stmt) => {
-    const head = replaceCore(m, type, name, init, cond, iter);
-    return stmt ? head + `${stmt} }` : head;
-  });
+  const replaceIndexInZone = (zone: string, varName: string, expr: string): string => {
+    const bracketRe = new RegExp(`\\[\\s*${varName}\\s*\\]`, 'g');
+    return zone.replace(bracketRe, `[${expr}]`);
+  };
 
-  return src;
+  let i = 0;
+  let out = '';
+  while (i < src.length) {
+    // Skip until a potential 'for ('
+    if (src[i] !== 'f') {
+      out += src[i++];
+      continue;
+    }
+    headerRe.lastIndex = i;
+    const m = headerRe.exec(src);
+    if (!m) {
+      out += src[i++];
+      continue;
+    }
+    const [_, type, varName, init, cond, iter] = m;
+    // Append content before the loop
+    out += src.slice(i, m.index);
+    // After header, determine if next non-space is '{' or single statement
+    let j = headerRe.lastIndex;
+    while (j < src.length && /\s/.test(src[j])) j++;
+    const { head, idx, step } = makeHead(type, varName, init, cond, iter);
+    const indexExpr = `(${init.trim()}) + (${step}) * ${idx}`;
+    if (src[j] === '{') {
+      const bodyStart = j + 1;
+      const bodyEnd = findMatchingBrace(src, j);
+      const body = bodyEnd >= 0 ? src.slice(bodyStart, bodyEnd) : src.slice(bodyStart);
+      // First transform nested loops inside body
+      const nestedTransformed = transformForLoops(body, max);
+      // Then replace indexing occurrences for the current varName
+      const replacedBody = replaceIndexInZone(nestedTransformed, varName, indexExpr);
+      out += head + replacedBody + ' }';
+      i = bodyEnd >= 0 ? bodyEnd + 1 : src.length;
+    } else {
+      // Single statement; capture until ';'
+      const stmtStart = j;
+      let stmtEnd = stmtStart;
+      while (stmtEnd < src.length && src[stmtEnd] !== ';') stmtEnd++;
+      const stmt = src.slice(stmtStart, stmtEnd + 1);
+      const replacedStmt = replaceIndexInZone(stmt, varName, indexExpr);
+      out += head + replacedStmt + ' }';
+      i = stmtEnd + 1;
+    }
+  }
+  return out;
 }
 
 export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
@@ -129,8 +216,10 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
     try {
       this.bootFX();
     } catch (e) {
-      console.error(e);
-      alert(m.error_failed_to_load_shader({ name: this._data.shader }));
+      console.error(
+        e + '\n\nAt ' + postPipelineData.data.shader + ':\n\n' + postPipelineData.fragShader,
+      );
+      //alert(m.error_failed_to_load_shader({ name: this._data.shader }));
     }
   }
 
