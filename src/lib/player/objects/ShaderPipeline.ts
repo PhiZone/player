@@ -305,7 +305,7 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
       );
     }
     try {
-      this.set1f('time', time / 1000);
+      this.set1f('time', time);
       this.set2f('screenSize', this.renderer.width, this.renderer.height);
       this._animators.forEach((animator) => animator.update(beat));
     } catch (e) {
