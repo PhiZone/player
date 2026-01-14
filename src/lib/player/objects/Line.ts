@@ -11,6 +11,7 @@ import { LongNote } from './LongNote';
 import { PlainNote } from './PlainNote';
 import {
   getIntegral,
+  getIntegral2,
   getLineColor,
   getTimeSec,
   getEventValue,
@@ -418,9 +419,10 @@ export class Line {
         cur[layerIndex] = 0;
         this._lastHeight = 0;
       }
+      const integral = this._scene.chart.META.RPEVersion >= 170 ? getIntegral2 : getIntegral;
       while (cur[layerIndex] < events.length - 1 && beat > events[cur[layerIndex] + 1].startBeat) {
         this._lastHeight +=
-          getIntegral(events[cur[layerIndex]], this._scene.bpmList) +
+          integral(events[cur[layerIndex]], this._scene.bpmList) +
           events[cur[layerIndex]].end *
             (getTimeSec(this._scene.bpmList, events[cur[layerIndex] + 1].startBeat) -
               getTimeSec(this._scene.bpmList, events[cur[layerIndex]].endBeat));
@@ -428,10 +430,10 @@ export class Line {
       }
       let height = this._lastHeight;
       if (beat <= events[cur[layerIndex]].endBeat) {
-        height += getIntegral(events[cur[layerIndex]], this._scene.bpmList, beat);
+        height += integral(events[cur[layerIndex]], this._scene.bpmList, beat);
       } else {
         height +=
-          getIntegral(events[cur[layerIndex]], this._scene.bpmList) +
+          integral(events[cur[layerIndex]], this._scene.bpmList) +
           events[cur[layerIndex]].end *
             (getTimeSec(this._scene.bpmList, beat) -
               getTimeSec(this._scene.bpmList, events[cur[layerIndex]].endBeat));
