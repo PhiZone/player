@@ -293,27 +293,14 @@ const calculateEasingIntegral = (
   easingLeft = 0,
   easingRight = 1,
 ): number => {
-  if (easingLeft === easingRight) {
-    const val = EASINGS[type](easingLeft);
-    return val * x;
-  }
-  const t = easingLeft + (easingRight - easingLeft) * x;
-  const integralTotal = EASING_INTEGRALS[type](t);
-  const integralLeft = EASING_INTEGRALS[type](easingLeft);
-  const easingLeftVal = EASINGS[type](easingLeft);
-  const easingRightVal = EASINGS[type](easingRight);
-  const scale = 1 / (easingRightVal - easingLeftVal);
-  return scale * (integralTotal - integralLeft - easingLeftVal * (t - easingLeft));
-};
+  const scaledX = easingLeft + (easingRight - easingLeft) * x;
 
-const getEasingEndpoint = (
-  type: number,
-  x: number, // 0 或 1
-  easingLeft = 0,
-  easingRight = 1,
-): number => {
-  const t = easingLeft + (easingRight - easingLeft) * x;
-  return EASINGS[type](t);
+  if (type < 1 || type > EASING_INTEGRALS.length) {
+    return (scaledX * scaledX) / 2;
+  }
+  const func = EASING_INTEGRALS[type - 1];
+  // ∫[left to scaledX] f(t) dt = F(scaledX) - F(left)
+  return func(scaledX) - func(easingLeft);
 };
 
 const sanitizeEasingParams = (type: number, x: number, easingLeft: number, easingRight: number) => {
@@ -917,16 +904,13 @@ export const getIntegral2 = (
   if (!('easingType' in event) || event.easingType <= 1) {
     return ((event.start + (getEventValue(beat, event) as number)) * lengthSec) / 2;
   }
-  const lengthBeat = event.endBeat - event.startBeat;
   const easingLeft = 'easingLeft' in event ? event.easingLeft : 0;
   const easingRight = 'easingRight' in event ? event.easingRight : 1;
-  const e0 = getEasingEndpoint(event.easingType, 0, easingLeft, easingRight);
-  const e1 = getEasingEndpoint(event.easingType, 1, easingLeft, easingRight);
-  const k = (event.end - event.start) / (e1 - e0);
-  const c = event.start - k * e0;
   const x = (beat - event.startBeat) / (event.endBeat - event.startBeat);
-  const progress = integrate2(event.easingType, x, k, c, easingLeft, easingRight);
-  return (progress * lengthSec) / lengthBeat;
+  const easingIntegral = calculateEasingIntegral(event.easingType, x, easingLeft, easingRight);
+  const scaledIntegral =
+    event.start * x + ((event.end - event.start) * easingIntegral) / (easingRight - easingLeft);
+  return scaledIntegral * lengthSec;
 };
 
 export const getJudgmentPosition = (input: PointerTap | PointerDrag, line: Line) => {
