@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 @font-face {
   font-family: 'Outfit';
   src: url('/fonts/Outfit/Outfit.ttf') format('truetype');
@@ -9,10 +13,6 @@
   src: url('/fonts/NotoSansSC/NotoSansSC.ttf') format('truetype');
   font-display: swap;
 }
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 
 * {
   font-family: 'Outfit', 'Noto Sans SC', sans-serif;

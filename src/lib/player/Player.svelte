@@ -102,12 +102,25 @@
   let performanceEnabled = showPerformance();
   let performanceStats: StatsJS | undefined;
 
+  const handleContextMenu = (e: PointerEvent) => {
+    e.preventDefault();
+  };
+
+  const handleWheel = (e: WheelEvent) => {
+    if (e.ctrlKey) {
+      e.preventDefault();
+    }
+  };
+
   onMount(async () => {
     if (!config) return;
     gameRef.game = await start('player', config);
     timeout = setTimeout(() => {
       stillLoading = true;
     }, 10000);
+
+    addEventListener('contextmenu', handleContextMenu, { passive: false });
+    addEventListener('wheel', handleWheel, { passive: false });
 
     EventBus.on('loading', (p: number) => {
       loadingProgress = p;
@@ -292,6 +305,8 @@
   onDestroy(async () => {
     gameRef.scene?.destroy();
     gameRef.game?.destroy(true);
+    removeEventListener('contextmenu', handleContextMenu);
+    removeEventListener('wheel', handleWheel);
     if (performanceStats) {
       gameRef.scene?.events.off('preupdate', performanceStats.begin);
       gameRef.scene?.events.off('render', performanceStats.end);
@@ -819,6 +834,9 @@
 <div id="player" class="w-full h-full"></div>
 
 <style lang="postcss">
+  :global(canvas) {
+    @apply touch-none;
+  }
   .trans {
     transition-timing-function: cubic-bezier(0.165, 0.84, 0.44, 1);
     @apply transition duration-300;

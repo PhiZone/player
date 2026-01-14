@@ -44,6 +44,7 @@ export class Line {
   private _yModifier: 1 | -1 = 1;
   private _rotationModifier: 1 | -1 = 1;
   private _rotationOffset: 0 | 180 = 0;
+  private _rotateWithParent: boolean = false;
 
   private _curX = [];
   private _curY = [];
@@ -108,6 +109,7 @@ export class Line {
         : new GameObjects.Image(scene, 0, 0, this.getLineTexture(`asset-${lineData.Texture}`));
 
     this._hasAttach = !!this._data.attachUI;
+    this._rotateWithParent = this._data.rotateWithFather ?? false;
     this._line.setScale(
       this._scene.p(1) * (this._scaleX ?? 1),
       (this._hasCustomTexture
@@ -246,8 +248,7 @@ export class Line {
     else if (!this._hasCustomTexture && (!this._hasAttach || this._data.appearanceOnAttach === 2))
       this._line.setTint(getLineColor(this._scene));
     const { x, y } = this.getPosition();
-    const rotation =
-      (this._rotationModifier * this._rotation + this._rotationOffset) * (Math.PI / 180);
+    const rotation = this.getRotation();
     this._line.setPosition(x, y);
     this._line.setRotation(rotation);
     this._line.setAlpha(this._opacity / 255);
@@ -362,6 +363,15 @@ export class Line {
     x += halfScreenWidth;
     y += halfScreenHeight;
     return { x, y };
+  }
+
+  getRotation() {
+    let rotation = this._rotationModifier * this._rotation + this._rotationOffset;
+    rotation *= Math.PI / 180;
+    if (this._parent !== null && this._rotateWithParent) {
+      rotation += this._parent.rotation;
+    }
+    return rotation;
   }
 
   createContainer(depth: number) {
