@@ -870,15 +870,19 @@ export const integrate2 = (
 export const getIntegral = (
   event: SpeedEvent | undefined,
   bpmList: Bpm[],
+  integrateEasings: boolean,
   beat: number | undefined = undefined,
 ): number => {
   if (!event) return 0;
   if (beat === undefined || beat >= event.endBeat) beat = event.endBeat;
   const startSec = getTimeSec(bpmList, event.startBeat);
   const progressedSec = getTimeSec(bpmList, beat) - startSec;
-  if ('easingType' in event && event.easingType > 1) {
-    const easingLeft = 'easingLeft' in event ? event.easingLeft : 0;
-    const easingRight = 'easingRight' in event ? event.easingRight : 1;
+  if (!('easingType' in event) || event.easingType <= 1) {
+    return ((event.start + (getEventValue(beat, event) as number)) * progressedSec) / 2;
+  }
+  const easingLeft = 'easingLeft' in event ? event.easingLeft : 0;
+  const easingRight = 'easingRight' in event ? event.easingRight : 1;
+  if (!integrateEasings) {
     const df0 = derivative(event.easingType, 0, easingLeft, easingRight);
     const df1 = derivative(event.easingType, 1, easingLeft, easingRight);
     const k = (event.end - event.start) / (df1 - df0);
@@ -889,28 +893,14 @@ export const getIntegral = (
       (integrate(event.easingType, x, k, b, easingLeft, easingRight) * lengthSec) /
       (event.endBeat - event.startBeat)
     );
+  } else {
+    const x = (beat - event.startBeat) / (event.endBeat - event.startBeat);
+    const easingIntegral = calculateEasingIntegral(event.easingType, x, easingLeft, easingRight);
+    const scaledIntegral =
+      event.start * x + ((event.end - event.start) * easingIntegral) / (easingRight - easingLeft);
+    const lengthSec = getTimeSec(bpmList, event.endBeat) - startSec;
+    return scaledIntegral * lengthSec;
   }
-  return ((event.start + (getEventValue(beat, event) as number)) * progressedSec) / 2;
-};
-
-export const getIntegral2 = (
-  event: SpeedEvent | undefined,
-  bpmList: Bpm[],
-  beat: number | undefined = undefined,
-): number => {
-  if (!event) return 0;
-  if (beat === undefined || beat >= event.endBeat) beat = event.endBeat;
-  const lengthSec = getTimeSec(bpmList, event.endBeat) - getTimeSec(bpmList, event.startBeat);
-  if (!('easingType' in event) || event.easingType <= 1) {
-    return ((event.start + (getEventValue(beat, event) as number)) * lengthSec) / 2;
-  }
-  const easingLeft = 'easingLeft' in event ? event.easingLeft : 0;
-  const easingRight = 'easingRight' in event ? event.easingRight : 1;
-  const x = (beat - event.startBeat) / (event.endBeat - event.startBeat);
-  const easingIntegral = calculateEasingIntegral(event.easingType, x, easingLeft, easingRight);
-  const scaledIntegral =
-    event.start * x + ((event.end - event.start) * easingIntegral) / (easingRight - easingLeft);
-  return scaledIntegral * lengthSec;
 };
 
 export const getJudgmentPosition = (input: PointerTap | PointerDrag, line: Line) => {
