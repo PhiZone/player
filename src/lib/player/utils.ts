@@ -293,14 +293,17 @@ const calculateEasingIntegral = (
   easingLeft = 0,
   easingRight = 1,
 ): number => {
-  const scaledX = easingLeft + (easingRight - easingLeft) * x;
-
-  if (type < 1 || type > EASING_INTEGRALS.length) {
-    return (scaledX * scaledX) / 2;
-  }
-  const func = EASING_INTEGRALS[type - 1];
-  // ∫[left to scaledX] f(t) dt = F(scaledX) - F(left)
-  return func(scaledX) - func(easingLeft);
+  const p = sanitizeEasingParams(type, x, easingLeft, easingRight);
+  const l = p.easingLeft;
+  const r = p.easingRight;
+  const scaledX = l + (r - l) * p.x;
+  const easingFunc = EASINGS[p.type - 1];
+  const integralFunc = EASING_INTEGRALS[p.type - 1];
+  const denom = easingFunc(r) - easingFunc(l);
+  if (!Number.isFinite(denom) || Math.abs(denom) < 1e-15) return (p.x * p.x) / 2;
+  return (
+    (integralFunc(scaledX) - integralFunc(l) - easingFunc(l) * (scaledX - l)) / ((r - l) * denom)
+  );
 };
 
 const sanitizeEasingParams = (type: number, x: number, easingLeft: number, easingRight: number) => {
@@ -855,18 +858,6 @@ export const integrate = (
   return k * calculateEasingValue(EASINGS[p.type - 1], p.x, p.easingLeft, p.easingRight) + b * p.x;
 };
 
-export const integrate2 = (
-  type: number,
-  x: number,
-  k: number,
-  c: number,
-  easingLeft = 0,
-  easingRight = 1,
-): number => {
-  const integral = calculateEasingIntegral(type, x, easingLeft, easingRight);
-  return k * integral + c * x;
-};
-
 export const getIntegral = (
   event: SpeedEvent | undefined,
   bpmList: Bpm[],
@@ -895,11 +886,9 @@ export const getIntegral = (
     );
   } else {
     const x = (beat - event.startBeat) / (event.endBeat - event.startBeat);
-    const easingIntegral = calculateEasingIntegral(event.easingType, x, easingLeft, easingRight);
-    const scaledIntegral =
-      event.start * x + ((event.end - event.start) * easingIntegral) / (easingRight - easingLeft);
+    const integral = calculateEasingIntegral(event.easingType, x, easingLeft, easingRight);
     const lengthSec = getTimeSec(bpmList, event.endBeat) - startSec;
-    return scaledIntegral * lengthSec;
+    return event.start * progressedSec + (event.end - event.start) * integral * lengthSec;
   }
 };
 
