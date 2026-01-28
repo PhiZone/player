@@ -354,6 +354,10 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
     }
     return value;
   }
+
+  get scene() {
+    return this._scene;
+  }
 }
 
 class VariableAnimator {
@@ -399,7 +403,7 @@ class VariableAnimator {
       while (this._cur < this._events.length - 1 && beat > this._events[this._cur + 1].startBeat) {
         this._cur++;
       }
-      return getEventValue(beat, this._events[this._cur]);
+      return getEventValue(this._events[this._cur], beat, this._shader.scene.bpmList);
     } else {
       return undefined;
     }
