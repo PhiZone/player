@@ -831,13 +831,24 @@ export const calculateValue = (
 // };
 
 export const getEventValue = (
-  beat: number,
   event: Event | SpeedEvent | ColorEvent | TextEvent | GifEvent | VariableEvent,
+  beat: number,
+  bpmList: Bpm[],
+) => {
+  const startSec = getTimeSec(bpmList, event.startBeat);
+  const progressedSec = getTimeSec(bpmList, beat) - startSec;
+  const lengthSec = getTimeSec(bpmList, event.endBeat) - startSec;
+  return _getEventValue(event, progressedSec / lengthSec);
+};
+
+const _getEventValue = (
+  event: Event | SpeedEvent | ColorEvent | TextEvent | GifEvent | VariableEvent,
+  x: number,
 ) => {
   const progress = easing(
     'easingType' in event ? event.easingType : 0,
     'bezier' in event && event.bezier === 1 ? event.bezierPoints : undefined,
-    (beat - event.startBeat) / (event.endBeat - event.startBeat),
+    x,
     'easingLeft' in event ? event.easingLeft : 0,
     'easingRight' in event ? event.easingRight : 1,
   );
@@ -868,8 +879,10 @@ export const getIntegral = (
   if (beat === undefined || beat >= event.endBeat) beat = event.endBeat;
   const startSec = getTimeSec(bpmList, event.startBeat);
   const progressedSec = getTimeSec(bpmList, beat) - startSec;
+  const lengthSec = getTimeSec(bpmList, event.endBeat) - startSec;
+  const x = progressedSec / lengthSec;
   if (!('easingType' in event) || event.easingType <= 1) {
-    return ((event.start + (getEventValue(beat, event) as number)) * progressedSec) / 2;
+    return ((event.start + (_getEventValue(event, x) as number)) * progressedSec) / 2;
   }
   const easingLeft = 'easingLeft' in event ? event.easingLeft : 0;
   const easingRight = 'easingRight' in event ? event.easingRight : 1;
@@ -878,14 +891,11 @@ export const getIntegral = (
     const df1 = derivative(event.easingType, 1, easingLeft, easingRight);
     const k = (event.end - event.start) / (df1 - df0);
     const b = event.start - k * df0;
-    const lengthSec = getTimeSec(bpmList, event.endBeat) - startSec;
-    const x = progressedSec / lengthSec;
     return (
       (integrate(event.easingType, x, k, b, easingLeft, easingRight) * lengthSec) /
       (event.endBeat - event.startBeat)
     );
   } else {
-    const x = (beat - event.startBeat) / (event.endBeat - event.startBeat);
     const integral = calculateEasingIntegral(event.easingType, x, easingLeft, easingRight);
     const lengthSec = getTimeSec(bpmList, event.endBeat) - startSec;
     return event.start * progressedSec + (event.end - event.start) * integral * lengthSec;

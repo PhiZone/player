@@ -329,7 +329,9 @@ const PhiEditer = (chartRaw: string, meta: Omit<RpeMeta, 'offset'>): RpeJson => 
           if (note.startBeat < event.startBeat) continue;
           if (note.startBeat > event.endBeat) break;
 
-          const currentValue = getEventValue(note.startBeat, event) as number | undefined;
+          const currentValue = getEventValue(event, note.startBeat, result.BPMList) as
+            | number
+            | undefined;
           if (!currentValue || currentValue >= -100) break;
 
           const visibleBeat = -(currentValue + 100) / 10;

@@ -1,6 +1,6 @@
 import { GameObjects } from 'phaser';
 import { Game } from '../scenes/Game';
-import { type AnimatedVariable, type VariableEvent, type Video as VideoType } from '$lib/types';
+import type { AnimatedVariable, Bpm, VariableEvent, Video as VideoType } from '$lib/types';
 import { getTimeSec, getEventValue, processEvents, toBeats } from '../utils';
 import { Signal } from './Signal';
 import { m } from '$lib/paraglide/messages';
@@ -29,10 +29,10 @@ export class Video extends GameObjects.Container {
     this._data = data;
     this._video = new GameObjects.Video(scene, 0, 0, `asset-${data.path}`);
     if (Array.isArray(data.alpha)) {
-      this._alphaAnimator = new VariableAnimator(data.alpha, data.path);
+      this._alphaAnimator = new VariableAnimator(data.alpha, this._scene.bpmList, data.path);
     }
     if (Array.isArray(data.dim)) {
-      this._dimAnimator = new VariableAnimator(data.dim, data.path);
+      this._dimAnimator = new VariableAnimator(data.dim, this._scene.bpmList, data.path);
     }
     this._video.play();
     this._video.on('metadata', () => {
@@ -220,6 +220,10 @@ export class Video extends GameObjects.Container {
     this._mask?.setRotation(rotation);
   }
 
+  getScene() {
+    return this._scene;
+  }
+
   private get scaleMode() {
     switch (this._data.scale) {
       case 'inside':
@@ -234,10 +238,12 @@ export class Video extends GameObjects.Container {
 
 class VariableAnimator {
   private _events: VariableEvent[];
+  private _bpmList: Bpm[];
   private _cur: number = 0;
 
-  constructor(events: AnimatedVariable, videoName: string) {
+  constructor(events: AnimatedVariable, bpmList: Bpm[], videoName: string) {
     this._events = events;
+    this._bpmList = bpmList;
     processEvents(this._events, undefined, undefined, `Video ${videoName}`);
   }
 
@@ -249,7 +255,7 @@ class VariableAnimator {
       while (this._cur < this._events.length - 1 && beat > this._events[this._cur + 1].startBeat) {
         this._cur++;
       }
-      return getEventValue(beat, this._events[this._cur]);
+      return getEventValue(this._events[this._cur], beat, this._bpmList);
     } else {
       return undefined;
     }

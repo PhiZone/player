@@ -483,7 +483,7 @@ export class Line {
       ) {
         return undefined;
       }
-      return getEventValue(beat, events[cur[layerIndex]]);
+      return getEventValue(events[cur[layerIndex]], beat, this._scene.bpmList);
     } else {
       return undefined;
     }
