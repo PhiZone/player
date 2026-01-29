@@ -111,6 +111,7 @@ export interface JudgeLine {
   extended?: Extended;
   father: number;
   rotateWithFather?: boolean;
+  integrateSpeedEasings?: boolean;
   isCover: number;
   isGif?: boolean;
   notes?: Note[];
