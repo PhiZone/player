@@ -249,6 +249,8 @@ jobs:
           signingKeyBase64: ${{ secrets.RELEASE_KEYSTORE }}
           keyStorePassword: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
           zipAlign: true
+        env:
+          BUILD_TOOLS_VERSION: "36.0.0"
 
       - name: Move and rename builds
         run: |
