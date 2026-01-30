@@ -114,9 +114,9 @@ export class Line {
       this._data.integrateSpeedEasings ?? this._scene.chart.META.RPEVersion >= 170;
     this._line.setScale(
       this._scene.p(1) * (this._scaleX ?? 1),
-      (this._hasCustomTexture
-        ? this._scene.p(1)
-        : this._scene.o(1.35) * this._scene.preferences.lineThickness) * (this._scaleY ?? 1),
+      this._hasCustomTexture
+        ? this._scene.p(1) * (this._scaleY ?? 1)
+        : this._scene.o(1) * this._scene.preferences.lineThickness * (this._scaleY ?? 1.35),
     ); // previously 1.0125 (according to the official definition that a line is 3 times as wide as the screen)
     this._line.setDepth(lineData.zIndex !== undefined ? lineData.zIndex : 2 + precedence);
     this._line.setVisible(!this._hasAttach || !!lineData.appearanceOnAttach || this._hasText);
@@ -232,9 +232,9 @@ export class Line {
   updateParams() {
     this._line.setScale(
       this._scene.p(1) * (this._scaleX ?? 1),
-      (this._hasCustomTexture
-        ? this._scene.p(1)
-        : this._scene.o(1.35) * this._scene.preferences.lineThickness) * (this._scaleY ?? 1),
+      this._hasCustomTexture
+        ? this._scene.p(1) * (this._scaleY ?? 1)
+        : this._scene.o(1) * this._scene.preferences.lineThickness * (this._scaleY ?? 1.35),
     );
     if (this._hasText) (this._line as GameObjects.Text).setText(this._text ?? '');
     if (this._hasAnimatedTexture) {
