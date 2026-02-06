@@ -51,7 +51,7 @@ export class Line {
   private _curRot = [];
   private _curAlpha = [];
   private _curSpeed = [];
-  private _lastHeight = 0;
+  private _lastHeight = [];
 
   private _curColor = [];
   private _curGif = [];
@@ -422,24 +422,24 @@ export class Line {
     layerIndex: number,
     events: SpeedEvent[] | null | undefined,
     cur: number[],
+    lastHeight: number[],
   ) {
-    while (cur.length < layerIndex + 1) {
-      cur.push(0);
-    }
+    while (cur.length < layerIndex + 1) cur.push(0);
+    while (lastHeight.length < layerIndex + 1) lastHeight.push(0);
     if (events && events.length > 0) {
       if (cur[layerIndex] > 0 && beat <= events[cur[layerIndex]].startBeat) {
         cur[layerIndex] = 0;
-        this._lastHeight = 0;
+        lastHeight[layerIndex] = 0;
       }
       while (cur[layerIndex] < events.length - 1 && beat > events[cur[layerIndex] + 1].startBeat) {
-        this._lastHeight +=
+        lastHeight[layerIndex] +=
           getIntegral(events[cur[layerIndex]], this._scene.bpmList, this._integrateSpeedEasings) +
           events[cur[layerIndex]].end *
             (getTimeSec(this._scene.bpmList, events[cur[layerIndex] + 1].startBeat) -
               getTimeSec(this._scene.bpmList, events[cur[layerIndex]].endBeat));
         cur[layerIndex]++;
       }
-      let height = this._lastHeight;
+      let height = lastHeight[layerIndex];
       if (beat <= events[cur[layerIndex]].endBeat) {
         height += getIntegral(
           events[cur[layerIndex]],
@@ -512,7 +512,13 @@ export class Line {
       rotation: this.handleEvent(beat, layerIndex, layer.rotateEvents, this._curRot) as
         | number
         | undefined,
-      height: this.handleSpeed(beat, layerIndex, layer.speedEvents, this._curSpeed),
+      height: this.handleSpeed(
+        beat,
+        layerIndex,
+        layer.speedEvents,
+        this._curSpeed,
+        this._lastHeight,
+      ),
     };
   }
 
@@ -577,8 +583,8 @@ export class Line {
 
   calculateHeight(beat: number) {
     return this._data.eventLayers.reduce(
-      (acc, _, i) =>
-        acc + this.handleSpeed(beat, i, this._data.eventLayers[i]?.speedEvents, this._curSpeed),
+      (acc, layer, i) =>
+        acc + this.handleSpeed(beat, i, layer?.speedEvents, this._curSpeed, this._lastHeight),
       0,
     );
   }
