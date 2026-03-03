@@ -239,7 +239,7 @@ export class PlainNote extends SkewImage {
       next[this._controlIndex[type].type as keyof (typeof control)[number]],
       next.x === current.x
         ? 0
-        : easing(current.easing, undefined, (x - current.x) / (next.x - current.x)),
+        : 1 - easing(current.easing, undefined, (next.x - x) / (next.x - current.x)),
     ) as number;
   }
 
