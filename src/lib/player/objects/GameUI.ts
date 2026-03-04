@@ -20,10 +20,10 @@ export class GameUI {
 
   private _positions: number[][] = [
     [-650, 435],
-    [0, 435],
-    [0, 435],
-    [650, 435],
-    [650, 435],
+    [0, 440],
+    [0, 440],
+    [650, 425],
+    [650, 430],
     [-650, -435],
     [650, -435],
     [0, -435],
@@ -31,14 +31,14 @@ export class GameUI {
   private _offsets: number[][] = [
     [0, 5],
     [0, 0],
-    [0, 60],
+    [0, 53],
     [0, 0],
-    [0, 50],
+    [0, 38],
     [0, 0],
     [0, 0],
     [0, 0],
   ];
-  private _fontSizes: number[] = [0, 60, 20, 50, 25, 32, 32, 18];
+  private _fontSizes: number[] = [0, 55, 18, 40, 19, 32, 32, 18];
   private _targets: (Button | UIComponent | ProgressBar)[];
   private _upperTargets: (Button | UIComponent | ProgressBar)[];
   private _lowerTargets: UIComponent[];
@@ -47,12 +47,17 @@ export class GameUI {
   constructor(scene: Game) {
     this._scene = scene;
     const stats = scene.statistics.stats;
+    const showAccuracy = !scene.render;
+
+    if (showAccuracy) {
+      this._positions[3][1] = this._positions[4][1];
+    }
 
     this._pause = this.createButton(
       scene.w(this._positions[0][0]),
       scene.h(this._positions[0][1]),
-      this._scene.p(this._offsets[0][0]),
-      this._scene.p(this._offsets[0][1]),
+      scene.p(this._offsets[0][0]),
+      scene.p(this._offsets[0][1]),
       0,
       0,
       8,
@@ -82,8 +87,8 @@ export class GameUI {
       'combo',
       scene.w(this._positions[1][0]),
       scene.h(this._positions[1][1]),
-      this._scene.p(this._offsets[1][0]),
-      this._scene.p(this._offsets[1][1]),
+      scene.p(this._offsets[1][0]),
+      scene.p(this._offsets[1][1]),
       0.5,
       0,
       9,
@@ -96,8 +101,8 @@ export class GameUI {
       'combotext',
       scene.w(this._positions[2][0]),
       scene.h(this._positions[2][1]),
-      this._scene.p(this._offsets[2][0]),
-      this._scene.p(this._offsets[2][1]),
+      scene.p(this._offsets[2][0]),
+      scene.p(this._offsets[2][1]),
       0.5,
       0,
       10,
@@ -109,8 +114,8 @@ export class GameUI {
       'score',
       scene.w(this._positions[3][0]),
       scene.h(this._positions[3][1]),
-      this._scene.p(this._offsets[3][0]),
-      this._scene.p(this._offsets[3][1]),
+      scene.p(this._offsets[3][0]),
+      scene.p(this._offsets[3][1]),
       1,
       0,
       11,
@@ -119,13 +124,13 @@ export class GameUI {
       scene.respack.bitmapFonts[0].name,
     );
 
-    if (!this._scene.render) {
+    if (showAccuracy) {
       this._accuracy = this.createComponent(
         'accuracy',
         scene.w(this._positions[4][0]),
         scene.h(this._positions[4][1]),
-        this._scene.p(this._offsets[4][0]),
-        this._scene.p(this._offsets[4][1]),
+        scene.p(this._offsets[4][0]),
+        scene.p(this._offsets[4][1]),
         1,
         0,
         12,
@@ -143,8 +148,8 @@ export class GameUI {
       'title',
       scene.w(this._positions[5][0]),
       scene.h(this._positions[5][1]),
-      this._scene.p(this._offsets[5][0]),
-      this._scene.p(this._offsets[5][1]),
+      scene.p(this._offsets[5][0]),
+      scene.p(this._offsets[5][1]),
       0,
       1,
       14,
@@ -156,8 +161,8 @@ export class GameUI {
       'level',
       scene.w(this._positions[6][0]),
       scene.h(this._positions[6][1]),
-      this._scene.p(this._offsets[6][0]),
-      this._scene.p(this._offsets[6][1]),
+      scene.p(this._offsets[6][0]),
+      scene.p(this._offsets[6][1]),
       1,
       1,
       15,
@@ -172,8 +177,8 @@ export class GameUI {
         'debug',
         scene.w(this._positions[7][0]),
         scene.h(this._positions[7][1]),
-        this._scene.p(this._offsets[7][0]),
-        this._scene.p(this._offsets[7][1]),
+        scene.p(this._offsets[7][0]),
+        scene.p(this._offsets[7][1]),
         0.5,
         1,
         Infinity,
@@ -235,7 +240,7 @@ export class GameUI {
         this._scene.h(this._positions[i][1]),
       );
       if ('resize' in obj) {
-        obj.resize(this._scene.p(0.36));
+        obj.resize(this._scene.p(0.32));
       } else {
         obj.text.setFontSize(this._scene.p(this._fontSizes[i]));
         obj.text.setPosition(
@@ -247,6 +252,7 @@ export class GameUI {
 
     this._progressBar.bar.setScale(
       this._scene.p(1350) / this._progressBar.bar.texture.getSourceImage().width,
+      this._scene.p(1080) / this._progressBar.bar.texture.getSourceImage().width,
     );
     this._progressBar.bar.setX(
       this._scene.p(
