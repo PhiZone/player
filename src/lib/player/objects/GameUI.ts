@@ -11,7 +11,7 @@ export class GameUI {
   private _combo: UIComponent;
   private _comboText: UIComponent;
   private _score: UIComponent;
-  private _accuracy: UIComponent;
+  private _accuracy?: UIComponent;
   private _songTitle: UIComponent;
   private _level: UIComponent;
   private _progressBar: ProgressBar;
@@ -119,23 +119,25 @@ export class GameUI {
       scene.respack.bitmapFonts[0].name,
     );
 
-    this._accuracy = this.createComponent(
-      'accuracy',
-      scene.w(this._positions[4][0]),
-      scene.h(this._positions[4][1]),
-      this._scene.p(this._offsets[4][0]),
-      this._scene.p(this._offsets[4][1]),
-      1,
-      0,
-      12,
-      `${stats.displayStdDev.toFixed(3)} ms · ${stats.accuracy.toLocaleString(undefined, {
-        style: 'percent',
-        minimumFractionDigits: 2,
-      })}`,
-      scene.p(this._fontSizes[4]),
-      scene.respack.bitmapFonts[0].name,
-    );
-    this._accuracy.text.setAlpha(0.7);
+    if (!this._scene.render) {
+      this._accuracy = this.createComponent(
+        'accuracy',
+        scene.w(this._positions[4][0]),
+        scene.h(this._positions[4][1]),
+        this._scene.p(this._offsets[4][0]),
+        this._scene.p(this._offsets[4][1]),
+        1,
+        0,
+        12,
+        `${stats.displayStdDev.toFixed(3)} ms · ${stats.accuracy.toLocaleString(undefined, {
+          style: 'percent',
+          minimumFractionDigits: 2,
+        })}`,
+        scene.p(this._fontSizes[4]),
+        scene.respack.bitmapFonts[0].name,
+      );
+      this._accuracy.text.setAlpha(0.7);
+    }
 
     this._songTitle = this.createComponent(
       'title',
@@ -188,7 +190,7 @@ export class GameUI {
       this._score,
       this._accuracy,
       this._progressBar,
-    ];
+    ].filter((o): o is Button | UIComponent | ProgressBar => !!o);
     this._lowerTargets = this._debug
       ? [this._songTitle, this._level, this._debug]
       : [this._songTitle, this._level];
@@ -202,7 +204,7 @@ export class GameUI {
     this._comboText.setVisible(this._visible && this._scene.statistics.combo >= 3);
     this._combo.setText(this._scene.statistics.combo.toString());
     this._score.setText(pad(Math.round(this._scene.statistics.displayScore), 7));
-    this._accuracy.setText(
+    this._accuracy?.setText(
       `${this._scene.statistics.displayStdDev.toFixed(3)} ms · ${this._scene.statistics.accuracy.toLocaleString(
         undefined,
         {
