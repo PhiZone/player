@@ -423,7 +423,7 @@ We deeply appreciate those who generously granted us permission to use their wor
 A list of web deployments is as follows:
 
 - [player.phi.zone](https://player.phi.zone/) - Cloudflare Pages
-- [player.phizone.cn](https://player.phizone.cn/) - LeanCloud (TapTap)
+- [player.phizone.cn](https://player.phizone.cn/) - EdgeOne Pages
 - [phizone.github.io/player](https://phizone.github.io/player/) - GitHub Pages
 - [www.phi.zone/player](https://www.phi.zone/player/) - Cloudflare Pages
 
