@@ -22,6 +22,9 @@ const start = async (parent: string, sceneConfig: Config) => {
     },
     antialias: true,
     backgroundColor: '#000000',
+    loader: {
+      crossOrigin: 'anonymous',
+    },
     scene: [MainGame],
     input: {
       activePointers: 10,
