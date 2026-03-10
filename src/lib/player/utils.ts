@@ -554,38 +554,46 @@ export const scaleImage = (imageUrl: string, maxDimension: number): Promise<stri
 /**
  * Scales down all images in the config that exceed the mobile max dimension.
  * This includes the illustration, static image assets, note skins, grades,
- * and the hit effects spritesheet.
+ * and the hit effects spritesheet. Old blob URLs are revoked when replaced
+ * by scaled versions to prevent memory leaks.
  */
 export const scaleConfigImages = async (config: Config): Promise<void> => {
   const maxDim = MOBILE_MAX_IMAGE_DIMENSION;
 
-  config.resources.illustration = await scaleImage(config.resources.illustration, maxDim);
+  const scaleAndRevoke = async (url: string) => {
+    const scaled = await scaleImage(url, maxDim);
+    if (scaled !== url && url.startsWith('blob:')) {
+      URL.revokeObjectURL(url);
+    }
+    return scaled;
+  };
+
+  config.resources.illustration = await scaleAndRevoke(config.resources.illustration);
 
   config.resources.assets = await Promise.all(
     config.resources.assets.map((asset, i) => {
       if (config.resources.assetTypes[i] !== 0) return Promise.resolve(asset);
       const name = config.resources.assetNames[i].toLowerCase();
       if (name.endsWith('.gif') || name.endsWith('.apng')) return Promise.resolve(asset);
-      return scaleImage(asset, maxDim);
+      return scaleAndRevoke(asset);
     }),
   );
 
   await Promise.all(
     config.resourcePack.noteSkins.map(async (skin) => {
-      skin.file = await scaleImage(skin.file, maxDim);
+      skin.file = await scaleAndRevoke(skin.file);
     }),
   );
 
   await Promise.all(
     config.resourcePack.ending.grades.map(async (grade) => {
-      grade.file = await scaleImage(grade.file, maxDim);
+      grade.file = await scaleAndRevoke(grade.file);
     }),
   );
 
   if (config.resourcePack.hitEffects) {
-    config.resourcePack.hitEffects.spriteSheet = await scaleImage(
+    config.resourcePack.hitEffects.spriteSheet = await scaleAndRevoke(
       config.resourcePack.hitEffects.spriteSheet,
-      maxDim,
     );
   }
 };

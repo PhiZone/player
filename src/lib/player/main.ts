@@ -32,11 +32,10 @@ const start = async (parent: string, sceneConfig: Config) => {
     },
   };
 
-  localStorage.setItem('player', JSON.stringify(sceneConfig));
   if (Capacitor.getPlatform() !== 'web') {
     await scaleConfigImages(sceneConfig);
-    localStorage.setItem('player', JSON.stringify(sceneConfig));
   }
+  localStorage.setItem('player', JSON.stringify(sceneConfig));
   if (
     Capacitor.getPlatform() !== 'web' ||
     sceneConfig.preferences.aspectRatio !== null ||
