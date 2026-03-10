@@ -5,6 +5,7 @@ import { fit, IS_TAURI } from '$lib/utils';
 import { Capacitor } from '@capacitor/core';
 import { currentMonitor, getCurrentWindow } from '@tauri-apps/api/window';
 import { EventBus } from './EventBus';
+import { scaleConfigImages } from './utils';
 
 const start = async (parent: string, sceneConfig: Config) => {
   const parentElement = document.getElementById(parent)!;
@@ -32,6 +33,10 @@ const start = async (parent: string, sceneConfig: Config) => {
   };
 
   localStorage.setItem('player', JSON.stringify(sceneConfig));
+  if (Capacitor.getPlatform() !== 'web') {
+    await scaleConfigImages(sceneConfig);
+    localStorage.setItem('player', JSON.stringify(sceneConfig));
+  }
   if (
     Capacitor.getPlatform() !== 'web' ||
     sceneConfig.preferences.aspectRatio !== null ||

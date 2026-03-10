@@ -2,6 +2,7 @@ import { fetchFile } from '@ffmpeg/util';
 import {
   type Event,
   type ColorEvent,
+  type Config,
   type GifEvent,
   type SpeedEvent,
   type TextEvent,
@@ -21,7 +22,7 @@ import {
 import { EventBus } from './EventBus';
 import { getFFmpeg, loadFFmpeg } from './services/ffmpeg';
 import type { Game } from './scenes/Game';
-import { RESULTS_ILLUSTRATION_CORNER_RADIUS } from './constants';
+import { MOBILE_MAX_IMAGE_DIMENSION, RESULTS_ILLUSTRATION_CORNER_RADIUS } from './constants';
 import { parseGIF, decompressFrames, type ParsedFrame } from 'gifuct-js';
 import { dot, gcd, random } from 'mathjs';
 import { fileTypeFromBlob } from 'file-type';
@@ -512,6 +513,80 @@ export const loadChart = async (url: string, name: string = 'chart'): Promise<Rp
       });
     }
     return null;
+  }
+};
+
+/**
+ * Scales down an image if its dimensions exceed the specified max dimension.
+ * Returns a new blob URL for the scaled image, or the original URL if no scaling is needed.
+ */
+export const scaleImage = (imageUrl: string, maxDimension: number): Promise<string> =>
+  new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      if (img.width <= maxDimension && img.height <= maxDimension) {
+        resolve(imageUrl);
+        return;
+      }
+      const scale = maxDimension / Math.max(img.width, img.height);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(imageUrl);
+        return;
+      }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((blob) => {
+        if (blob) {
+          resolve(URL.createObjectURL(blob));
+        } else {
+          resolve(imageUrl);
+        }
+      });
+    };
+    img.onerror = () => resolve(imageUrl);
+    img.src = imageUrl;
+  });
+
+/**
+ * Scales down all images in the config that exceed the mobile max dimension.
+ * This includes the illustration, static image assets, note skins, grades,
+ * and the hit effects spritesheet.
+ */
+export const scaleConfigImages = async (config: Config): Promise<void> => {
+  const maxDim = MOBILE_MAX_IMAGE_DIMENSION;
+
+  config.resources.illustration = await scaleImage(config.resources.illustration, maxDim);
+
+  config.resources.assets = await Promise.all(
+    config.resources.assets.map((asset, i) => {
+      if (config.resources.assetTypes[i] !== 0) return Promise.resolve(asset);
+      const name = config.resources.assetNames[i].toLowerCase();
+      if (name.endsWith('.gif') || name.endsWith('.apng')) return Promise.resolve(asset);
+      return scaleImage(asset, maxDim);
+    }),
+  );
+
+  await Promise.all(
+    config.resourcePack.noteSkins.map(async (skin) => {
+      skin.file = await scaleImage(skin.file, maxDim);
+    }),
+  );
+
+  await Promise.all(
+    config.resourcePack.ending.grades.map(async (grade) => {
+      grade.file = await scaleImage(grade.file, maxDim);
+    }),
+  );
+
+  if (config.resourcePack.hitEffects) {
+    config.resourcePack.hitEffects.spriteSheet = await scaleImage(
+      config.resourcePack.hitEffects.spriteSheet,
+      maxDim,
+    );
   }
 };
 
