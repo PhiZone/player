@@ -64,6 +64,13 @@ export const RESULTS_ILLUSTRATION_CORNER_RADIUS = 12;
 */
 export const KEYBOARD_INPUT_REGEX = /^[0-9a-z`\-=[\]\\;',./ ]$/;
 
+/*
+    The maximum dimension (width or height) of images on mobile platforms. Images exceeding
+    this limit will be scaled down proportionally before being handed to Phaser, to prevent
+    issues with high-resolution/large images on devices with limited resources.
+*/
+export const MOBILE_MAX_IMAGE_DIMENSION = 2048;
+
 export const DEFAULT_RESOURCE_PACK_ID = '__default__';
 
 /*
