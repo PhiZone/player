@@ -814,7 +814,12 @@ export const easing = (
     : undefined;
   const p = sanitizeEasingParams(type, x, easingLeft, easingRight);
   const func = bezierFunc ?? EASINGS[p.type - 1];
-  return calculateEasingValue(func, p.x, p.easingLeft, p.easingRight);
+  return calculateEasingValue(
+    func,
+    p.x,
+    useBezier ? 0 : p.easingLeft,
+    useBezier ? 1 : p.easingRight,
+  );
 };
 
 export const derivative = (
