@@ -210,7 +210,7 @@ export class Renderer {
 
     let customHitsoundCount = 0;
 
-    if (this._scene.preferences.hitSoundVolume > 0) {
+    if (this._scene.autoplay && this._scene.preferences.hitSoundVolume > 0) {
       for (const line of this._scene.chart.judgeLineList) {
         if (!line.notes) continue;
         for (const note of line.notes.filter((note) => !note.isFake)) {
