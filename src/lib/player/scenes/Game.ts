@@ -250,15 +250,9 @@ export class Game extends Scene {
             ? 'woff2'
             : nameLower.endsWith('.woff')
               ? 'woff'
-              : nameLower.endsWith('.ttf')
-                ? 'truetype'
-                : undefined;
-        if (fontType) {
-          this.load.font(key, asset, fontType);
-        } else {
-          console.log('Not supported:', name);
-        }
-      } else console.log('Not supported:', name);
+              : 'truetype';
+        this.load.font(key, asset, fontType);
+      } else if (assetTypes[i] !== 6) console.log('Not supported:', name);
     });
   }
 
