@@ -314,7 +314,7 @@ export class Line {
         }
         case 'score': {
           this._scene.gameUI.score.updateAttach(params);
-          this._scene.gameUI.accuracy.updateAttach(params);
+          this._scene.gameUI.accuracy?.updateAttach(params);
           return;
         }
         case 'bar': {
