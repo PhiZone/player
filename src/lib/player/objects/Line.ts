@@ -560,10 +560,7 @@ export class Line {
     const text = this.handleEvent(beat, layerIndex, extended.textEvents, this._curText) as
       | string
       | undefined;
-    const font =
-      text !== undefined && extended.textEvents
-        ? extended.textEvents[this._curText[layerIndex]]?.font
-        : undefined;
+    const font = extended.textEvents?.[this._curText[layerIndex]]?.font;
 
     return {
       color: this.handleEvent(beat, layerIndex, extended.colorEvents, this._curColor) as

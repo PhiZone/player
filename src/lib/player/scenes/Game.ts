@@ -244,13 +244,17 @@ export class Game extends Scene {
         });
       else if (assetTypes[i] === 5) {
         const nameLower = name.toLowerCase();
-        if (
-          nameLower.endsWith('.ttf') ||
-          nameLower.endsWith('.otf') ||
-          nameLower.endsWith('.woff') ||
-          nameLower.endsWith('.woff2')
-        ) {
-          this.load.font(key, asset, nameLower.endsWith('.otf') ? 'opentype' : 'truetype');
+        const fontType = nameLower.endsWith('.otf')
+          ? 'opentype'
+          : nameLower.endsWith('.woff2')
+            ? 'woff2'
+            : nameLower.endsWith('.woff')
+              ? 'woff'
+              : nameLower.endsWith('.ttf')
+                ? 'truetype'
+                : undefined;
+        if (fontType) {
+          this.load.font(key, asset, fontType);
         } else {
           console.log('Not supported:', name);
         }
