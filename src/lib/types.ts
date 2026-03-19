@@ -190,6 +190,7 @@ export interface TextEvent {
   end: string;
   endTime: [number, number, number];
   endBeat: number;
+  font?: string;
   linkgroup: number;
   start: string;
   startTime: [number, number, number];
