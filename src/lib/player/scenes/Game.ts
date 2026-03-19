@@ -242,7 +242,19 @@ export class Game extends Scene {
           key,
           url: asset,
         });
-      else console.log('Not supported:', name); // TODO
+      else if (assetTypes[i] === 5) {
+        const nameLower = name.toLowerCase();
+        if (
+          nameLower.endsWith('.ttf') ||
+          nameLower.endsWith('.otf') ||
+          nameLower.endsWith('.woff') ||
+          nameLower.endsWith('.woff2')
+        ) {
+          this.load.font(key, asset, nameLower.endsWith('.otf') ? 'opentype' : 'truetype');
+        } else {
+          console.log('Not supported:', name);
+        }
+      } else console.log('Not supported:', name);
     });
   }
 
