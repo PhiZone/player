@@ -70,6 +70,7 @@ export class Line {
   private _scaleX: number | undefined = undefined;
   private _scaleY: number | undefined = undefined;
   private _text: string | undefined = undefined;
+  private _textScale: number;
   private _font: string | undefined = undefined;
   private _appliedFont: string | undefined = undefined;
   private _height: number = 0;
@@ -97,10 +98,11 @@ export class Line {
     this._hasAnimatedTexture =
       ['.gif', '.apng'].some((e) => lineData.Texture.toLowerCase().endsWith(e)) &&
       this._scene.textures.exists(`asset-${lineData.Texture}`);
+    this._textScale = this._scene.p(50);
     this._line = this._hasText
       ? new GameObjects.Text(scene, 0, 0, this._text ?? '', {
           fontFamily: scene.respack.fonts[0].name,
-          fontSize: 50,
+          fontSize: this._textScale,
           color: '#ffffff',
           align: 'left',
         }).setOrigin(0.5)
@@ -115,9 +117,11 @@ export class Line {
     this._integrateSpeedEasings =
       this._data.integrateSpeedEasings ?? this._scene.chart.META.RPEVersion >= 170;
     this._line.setScale(
-      this._scene.p(1) * (this._scaleX ?? 1),
+      (this._hasText ? this._scene.p(50) / this._textScale : this._scene.p(1)) *
+        (this._scaleX ?? 1),
       this._hasCustomTexture
-        ? this._scene.p(1) * (this._scaleY ?? 1)
+        ? (this._hasText ? this._scene.p(50) / this._textScale : this._scene.p(1)) *
+            (this._scaleY ?? 1)
         : this._scene.o(1) * this._scene.preferences.lineThickness * (this._scaleY ?? 1.35),
     ); // previously 1.0125 (according to the official definition that a line is 3 times as wide as the screen)
     this._line.setDepth(lineData.zIndex !== undefined ? lineData.zIndex : 2 + precedence);
@@ -233,9 +237,11 @@ export class Line {
 
   updateParams() {
     this._line.setScale(
-      this._scene.p(1) * (this._scaleX ?? 1),
+      (this._hasText ? this._scene.p(50) / this._textScale : this._scene.p(1)) *
+        (this._scaleX ?? 1),
       this._hasCustomTexture
-        ? this._scene.p(1) * (this._scaleY ?? 1)
+        ? (this._hasText ? this._scene.p(50) / this._textScale : this._scene.p(1)) *
+            (this._scaleY ?? 1)
         : this._scene.o(1) * this._scene.preferences.lineThickness * (this._scaleY ?? 1.35),
     );
     if (this._hasText) {
