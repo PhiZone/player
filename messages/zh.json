@@ -32,6 +32,7 @@
   "resolve_as_zip": "作为压缩包解析",
   "resolve_as_file": "作为普通文件解析",
   "read_clipboard": "读取剪贴板",
+  "clipboard_no_url": "剪贴板中未找到链接。",
 
   "switch_to_chart": "谱面",
   "switch_to_respack": "资源包",

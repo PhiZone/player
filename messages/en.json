@@ -32,6 +32,7 @@
   "resolve_as_zip": "Resolve as ZIP",
   "resolve_as_file": "Resolve as plain file",
   "read_clipboard": "Read clipboard",
+  "clipboard_no_url": "No URL found in clipboard.",
 
   "switch_to_chart": "Chart",
   "switch_to_respack": "Respack",

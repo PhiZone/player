@@ -540,6 +540,69 @@
     lastResolvedClipboardUrl = clipboardUrl;
   };
 
+  const ZIP_EXTENSIONS = ['pez', 'zip'];
+  const PLAIN_FILE_EXTENSIONS = [
+    'pec',
+    'yml',
+    'yaml',
+    'shader',
+    'glsl',
+    'frag',
+    'fsh',
+    'fs',
+    'ttf',
+    'otf',
+    'fnt',
+    'json',
+    'xml',
+    'csv',
+    'txt',
+    'log',
+    'md',
+    'html',
+    'css',
+    'js',
+    'png',
+    'jpg',
+    'jpeg',
+    'gif',
+    'bmp',
+    'webp',
+    'svg',
+    'ico',
+    'tiff',
+    'tif',
+    'avif',
+    'apng',
+    'mp4',
+    'webm',
+    'mkv',
+    'avi',
+    'mov',
+    'flv',
+    'wmv',
+    'mp3',
+    'wav',
+    'ogg',
+    'flac',
+    'aac',
+    'm4a',
+    'wma',
+    'opus',
+    'woff',
+    'woff2',
+  ];
+
+  const getUrlExtension = (url: URL): string | undefined => {
+    const pathname = url.pathname;
+    const lastSegment = pathname.split('/').pop() ?? '';
+    const parts = lastSegment.split('.');
+    if (parts.length > 1) {
+      return parts.pop()!.toLowerCase();
+    }
+    return undefined;
+  };
+
   const handleClipboard = async () => {
     let text: string | undefined;
     try {
@@ -555,7 +618,11 @@
       console.warn('Failed to read clipboard:', e);
       return;
     }
-    if (!text || (clipboardModal && clipboardModal.open)) return;
+    if (clipboardModal && clipboardModal.open) return;
+    if (!text) {
+      notify(m.clipboard_no_url());
+      return;
+    }
     try {
       const url = new URL(text);
       if (url.protocol === 'http:' || url.protocol === 'https:') {
@@ -566,11 +633,20 @@
           return;
         }
         clipboardUrl = url;
-        clipboardModal.showModal();
+        const ext = getUrlExtension(url);
+        if (ext && ZIP_EXTENSIONS.includes(ext)) {
+          resolveClipboardUrl('zip');
+        } else if (ext && PLAIN_FILE_EXTENSIONS.includes(ext)) {
+          resolveClipboardUrl('file');
+        } else {
+          clipboardModal.showModal();
+        }
+      } else {
+        notify(m.clipboard_no_url());
       }
     } catch (e) {
       console.debug('Not a URL:', e);
-      return;
+      notify(m.clipboard_no_url());
     }
   };
 
