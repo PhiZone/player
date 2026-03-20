@@ -64,7 +64,7 @@
   import { REPO_API_LINK, REPO_LINK, VERSION } from '$lib';
   import { SendIntent, type Intent } from 'send-intent';
   import { Filesystem } from '@capacitor/filesystem';
-  import { join, tempDir, videoDir } from '@tauri-apps/api/path';
+  import { homeDir, join, tempDir, videoDir } from '@tauri-apps/api/path';
   import { download as tauriDownload } from '@tauri-apps/plugin-upload';
   import { readFile, remove, writeFile } from '@tauri-apps/plugin-fs';
   import { random } from 'mathjs';
@@ -433,7 +433,11 @@
     }
 
     if (!mediaOptions.exportPath && IS_TAURI) {
-      mediaOptions.exportPath = await join(await videoDir(), 'PhiZone Player');
+      try {
+        mediaOptions.exportPath = await join(await videoDir(), 'PhiZone Player');
+      } catch {
+        mediaOptions.exportPath = await join(await homeDir(), 'PhiZone Player');
+      }
     }
 
     if (

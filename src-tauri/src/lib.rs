@@ -55,7 +55,12 @@ pub fn run() {
             {
                 // register deep links
                 use tauri_plugin_deep_link::DeepLinkExt;
-                app.deep_link().register_all()?;
+                if let Err(e) = app.deep_link().register_all() {
+                    log::warn!(
+                        "Failed to register deep link: {}",
+                        e
+                    );
+                }
             }
 
             // parse CLI arguments first
