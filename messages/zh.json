@@ -146,6 +146,7 @@
 
   "load_files": "载入文件",
   "load_directory": "载入文件夹",
+  "drop_files_here": "将文件拖放到此处",
   "load_from_url": "从链接载入",
   "paste_url": "粘贴链接",
 

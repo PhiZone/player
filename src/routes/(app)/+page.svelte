@@ -210,6 +210,51 @@
 
   let isFirstLoad = !page.url.searchParams.get('t');
 
+  let isDragging = false;
+  let dragCounter = 0;
+
+  const ACCEPTED_EXTENSIONS = [
+    '.pez',
+    '.pec',
+    '.yml',
+    '.yaml',
+    '.shader',
+    '.glsl',
+    '.frag',
+    '.fsh',
+    '.fs',
+    '.ttf',
+    '.otf',
+    '.fnt',
+  ];
+  const ACCEPTED_MIME_PREFIXES = ['image/', 'video/', 'audio/', 'text/'];
+  const ACCEPTED_MIME_TYPES = [
+    'application/zip',
+    'application/json',
+    'application/x-zip-compressed',
+  ];
+
+  const isAcceptedFile = (file: File) => {
+    const name = file.name.toLowerCase();
+    if (ACCEPTED_EXTENSIONS.some((ext) => name.endsWith(ext))) return true;
+    const type = file.type;
+    if (ACCEPTED_MIME_TYPES.includes(type)) return true;
+    if (ACCEPTED_MIME_PREFIXES.some((prefix) => type.startsWith(prefix))) return true;
+    return false;
+  };
+
+  const hasValidDragItems = (dataTransfer: DataTransfer | null) => {
+    if (!dataTransfer?.items) return false;
+    for (const item of dataTransfer.items) {
+      if (item.kind !== 'file') continue;
+      const type = item.type;
+      if (!type) return true;
+      if (ACCEPTED_MIME_TYPES.includes(type)) return true;
+      if (ACCEPTED_MIME_PREFIXES.some((prefix) => type.startsWith(prefix))) return true;
+    }
+    return false;
+  };
+
   let clipboardUrl: URL | undefined;
   let lastResolvedClipboardUrl: URL | undefined;
   let ignoredUrls: string[] = [];
@@ -1229,6 +1274,14 @@
     return await Promise.all(files.map(decompress));
   };
 
+  const processInputFiles = async (files: File[]) => {
+    const zipArchives = files.filter(isZip);
+    for (const bundleFiles of await decompressZipArchives(zipArchives)) {
+      await handleFiles(bundleFiles);
+    }
+    await handleFiles(files.filter((file) => !isZip(file)));
+  };
+
   const handleFiles = async (files: File[] | null, replacee?: number) => {
     if (!files || files.length === 0) {
       return;
@@ -1586,6 +1639,59 @@
   <title>{m.app_title()}</title>
 </svelte:head>
 
+{#if !IS_ANDROID_OR_IOS && Capacitor.getPlatform() === 'web'}
+  <div
+    class="pointer-events-none fixed inset-0 z-50 transition-all duration-200"
+    class:opacity-0={!isDragging}
+  >
+    <div
+      class="flex h-full w-full items-center justify-center rounded-xl bg-black/50 backdrop-blur-sm"
+    >
+      <div class="flex flex-col items-center gap-4 text-white">
+        <i class="fa-solid fa-file-import fa-4x"></i>
+        <span class="text-2xl font-semibold">{m.drop_files_here()}</span>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<svelte:document
+  ondragenter={(e) => {
+    if (IS_ANDROID_OR_IOS || Capacitor.getPlatform() !== 'web') return;
+    e.preventDefault();
+    dragCounter++;
+    if (hasValidDragItems(e.dataTransfer)) {
+      isDragging = true;
+    }
+  }}
+  ondragover={(e) => {
+    if (IS_ANDROID_OR_IOS || Capacitor.getPlatform() !== 'web') return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+  }}
+  ondragleave={(e) => {
+    if (IS_ANDROID_OR_IOS || Capacitor.getPlatform() !== 'web') return;
+    e.preventDefault();
+    dragCounter--;
+    if (dragCounter <= 0) {
+      dragCounter = 0;
+      isDragging = false;
+    }
+  }}
+  ondrop={async (e) => {
+    if (IS_ANDROID_OR_IOS || Capacitor.getPlatform() !== 'web') return;
+    e.preventDefault();
+    dragCounter = 0;
+    isDragging = false;
+    const fileList = e.dataTransfer?.files;
+    if (!fileList || fileList.length === 0) return;
+    const files = Array.from(fileList).filter(isAcceptedFile);
+    if (files.length === 0) return;
+    showCollapse = true;
+    await processInputFiles(files);
+  }}
+/>
+
 <dialog id="clipboard" class="modal" bind:this={clipboardModal}>
   <div class="modal-box max-w-3xl">
     <h3 class="text-lg font-bold">{m.resolve_url()}</h3>
@@ -1797,12 +1903,7 @@
           oninput={async (e) => {
             const fileList = e.currentTarget.files;
             if (!fileList || fileList.length === 0) return;
-            const files = Array.from(fileList);
-            const zipArchives = files.filter(isZip);
-            for (const bundleFiles of await decompressZipArchives(zipArchives)) {
-              await handleFiles(bundleFiles);
-            }
-            await handleFiles(files.filter((file) => !isZip(file)));
+            await processInputFiles(Array.from(fileList));
           }}
         />
       </label>
