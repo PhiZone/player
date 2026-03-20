@@ -63,6 +63,7 @@ export default [
         ...globals.browser,
         ...globals.node,
         NodeJS: true,
+        __COMMIT_HASH__: 'readonly',
       },
       parser: tsParser,
       ecmaVersion: 2020,

@@ -17,6 +17,9 @@
       <span class="text-sm font-bold text-gray-900 dark:text-white">
         {VERSION}
       </span>
+      <span class="text-xs text-gray-500 dark:text-neutral-500">
+        ({__COMMIT_HASH__})
+      </span>
       <svg
         class="size-5 text-gray-300 dark:text-neutral-600"
         width="16"

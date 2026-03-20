@@ -12,3 +12,5 @@ declare module 'stats-js' {
 
   export = StatsJS;
 }
+
+declare const __COMMIT_HASH__: string;

@@ -1,6 +1,9 @@
 import { defineConfig } from 'vite';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
+import { execSync } from 'child_process';
+
+const commitHash = execSync('git rev-parse --short HEAD').toString().trim();
 
 const viteServerConfig = () => ({
   name: 'add-headers',
@@ -26,6 +29,9 @@ export default defineConfig({
       strategy: ['cookie', 'localStorage', 'preferredLanguage', 'baseLocale'],
     }),
   ],
+  define: {
+    __COMMIT_HASH__: JSON.stringify(commitHash),
+  },
   optimizeDeps: {
     exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/util'],
   },
