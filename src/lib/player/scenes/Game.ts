@@ -104,6 +104,8 @@ export class Game extends Scene {
   private _timeScale: number = 1;
   private _lastProgressUpdate: number | undefined;
 
+  private _fonts: Record<string, string> = {};
+
   private _objects: Node[] = [];
 
   private _song: Sound.NoAudioSound | Sound.HTML5AudioSound | Sound.WebAudioSound;
@@ -251,7 +253,9 @@ export class Game extends Scene {
             : nameLower.endsWith('.woff')
               ? 'woff'
               : 'truetype';
-        this.load.font(key, asset, fontType);
+        const id = `font-${crypto.randomUUID()}`;
+        this.load.font(id, asset, fontType);
+        this._fonts[name] = id;
       } else if (assetTypes[i] !== 6) console.log('Not supported:', name);
     });
   }
@@ -862,6 +866,11 @@ export class Game extends Scene {
     const entry = new ShaderNode(name, object, lowerDepth, upperDepth, ROOT);
     this._objects.push(entry);
     return entry;
+  }
+
+  getFont(name: string | undefined) {
+    console.log('Getting font', name, name ? this._fonts[name] : this._respack.fonts[0].name);
+    return name ? this._fonts[name] : this._respack.fonts[0].name;
   }
 
   getBeat(songTime: number) {

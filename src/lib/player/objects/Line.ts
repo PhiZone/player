@@ -101,10 +101,11 @@ export class Line {
     this._textScale = this._scene.p(50);
     this._line = this._hasText
       ? new GameObjects.Text(scene, 0, 0, this._text ?? '', {
-          fontFamily: scene.respack.fonts[0].name,
+          fontFamily: scene.getFont(this._font),
           fontSize: this._textScale,
           color: '#ffffff',
           align: 'left',
+          resolution: 2,
         }).setOrigin(0.5)
       : this._hasAnimatedTexture
         ? new GameObjects.Sprite(scene, 0, 0, `asset-${lineData.Texture}`).play(
@@ -247,7 +248,7 @@ export class Line {
     if (this._hasText) {
       const textObj = this._line as GameObjects.Text;
       textObj.setText(this._text ?? '');
-      const fontFamily = this._font ? `asset-${this._font}` : this._scene.respack.fonts[0].name;
+      const fontFamily = this._scene.getFont(this._font);
       if (this._appliedFont !== fontFamily) {
         textObj.setFontFamily(fontFamily);
         this._appliedFont = fontFamily;
