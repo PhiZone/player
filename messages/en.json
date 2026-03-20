@@ -146,6 +146,7 @@
 
   "load_files": "Load files",
   "load_directory": "Load directory",
+  "drop_files_here": "Drop files here",
   "load_from_url": "Load from URL",
   "paste_url": "Paste URL",
 
