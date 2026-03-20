@@ -265,7 +265,7 @@ export class Game extends Scene {
     const load = async () => {
       const { background, cropped } = await processIllustration(
         this._illustrationUrl,
-        80 * this._data.preferences.backgroundBlur,
+        115 * this._data.preferences.backgroundBlur,
         this._data.preferences.backgroundLuminance,
       );
       this.load.image('illustration-background', background);
