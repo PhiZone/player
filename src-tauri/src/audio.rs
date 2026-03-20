@@ -71,7 +71,7 @@ pub fn mix_audio(
 
             let spec = WavSpec {
                 channels: 2,         // Stereo output
-                sample_rate: 44100,  // Standard audio sample rate
+                sample_rate: 48000,  // Standard audio sample rate
                 bits_per_sample: 32, // 32-bit audio
                 sample_format: SampleFormat::Float,
             };
@@ -145,7 +145,7 @@ pub fn mix_audio(
 
             let mut proc = cmd_hidden("ffmpeg")
                 .args(
-                    format!("-y -f f32le -ar 44100 -ac 2 -i - -c:a pcm_f32le -f wav")
+                    format!("-y -f f32le -ar 48000 -ac 2 -i - -c:a pcm_f32le -f wav")
                         .split_whitespace(),
                 )
                 .arg(output)

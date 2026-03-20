@@ -1227,7 +1227,7 @@ export const getAudio = async (url: string): Promise<string> => {
   }
   EventBus.emit('loading-detail', m.processing_audio());
   await ffmpeg.writeFile('input', await fetchFile(originalAudio));
-  await ffmpeg.exec('-i input -ar 44100 -ac 2 -f wav -y output'.split(' '));
+  await ffmpeg.exec('-i input -ar 48000 -ac 2 -f wav -y output'.split(' '));
   const data = await ffmpeg.readFile('output');
   return URL.createObjectURL(
     new Blob([(data as Uint8Array).buffer as ArrayBuffer], { type: 'audio/wav' }),

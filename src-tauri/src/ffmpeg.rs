@@ -137,7 +137,7 @@ pub fn convert_audio(app: AppHandle, input: String, output: String) -> Result<()
         move || {
             let result = cmd_hidden(&*FFMPEG_CMD.lock().unwrap())
                 .args(
-                    format!("-i {} -ar 44100 -c:a pcm_f32le -y {}", input, output)
+                    format!("-i {} -ar 48000 -c:a pcm_f32le -y {}", input, output)
                         .split_whitespace(),
                 )
                 .status()

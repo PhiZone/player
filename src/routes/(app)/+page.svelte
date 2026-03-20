@@ -909,7 +909,7 @@
     try {
       progressDetail = m.converting({ name: audio.name });
       await ffmpeg.writeFile('input', await fetchFile(audio));
-      await ffmpeg.exec('-i input -ar 44100 -ac 2 -f wav -y output'.split(' '));
+      await ffmpeg.exec('-i input -ar 48000 -ac 2 -f wav -y output'.split(' '));
       const data = await ffmpeg.readFile('output');
       return new File([(data as Uint8Array).buffer as ArrayBuffer], audio.name, {
         type: 'audio/wav',
