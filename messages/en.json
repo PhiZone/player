@@ -27,11 +27,11 @@
   "resolve_url": "Resolve URL?",
   "resolve_url_description": {
     "0": "The following URL was detected in your clipboard:",
-    "1": "Would you like to resolve it as a ZIP or a plain file, or ignore it instead?"
+    "1": "Would you like to resolve it as a ZIP or a plain file?"
   },
   "resolve_as_zip": "Resolve as ZIP",
   "resolve_as_file": "Resolve as plain file",
-  "ignore": "Ignore",
+  "read_clipboard": "Read clipboard",
 
   "switch_to_chart": "Chart",
   "switch_to_respack": "Respack",

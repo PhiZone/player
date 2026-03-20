@@ -52,7 +52,6 @@
   import { Capacitor } from '@capacitor/core';
   import { Network } from '@capacitor/network';
   import { getCurrentWebviewWindow, WebviewWindow } from '@tauri-apps/api/webviewWindow';
-  import { getCurrentWindow } from '@tauri-apps/api/window';
   import { PhysicalPosition, PhysicalSize } from '@tauri-apps/api/dpi';
   import { currentMonitor, type Monitor } from '@tauri-apps/api/window';
   import { getCurrent, onOpenUrl } from '@tauri-apps/plugin-deep-link';
@@ -331,22 +330,6 @@
           await handleFilePaths(result, handler);
         }
       }
-      unlistens.push(
-        await getCurrentWindow().onFocusChanged(async ({ payload: focused }) => {
-          if (focused) {
-            await handleClipboard();
-          }
-        }),
-      );
-    } else {
-      addEventListener('visibilitychange', async () => {
-        if (document.visibilityState === 'visible') {
-          await handleClipboard();
-        }
-      });
-      window.onfocus = async () => {
-        await handleClipboard();
-      };
     }
 
     if (Capacitor.getPlatform() !== 'web') {
@@ -558,7 +541,6 @@
   };
 
   const handleClipboard = async () => {
-    if (!IS_TAURI && !document.hasFocus()) return;
     let text: string | undefined;
     try {
       if (Capacitor.getPlatform() === 'web') {
@@ -1563,7 +1545,7 @@
             clipboardUrl = undefined;
           }}
         >
-          {m.ignore()}
+          {m.cancel()}
         </button>
       </form>
     </div>
@@ -1586,6 +1568,17 @@
 </div>
 
 <div class="mt-3 gap-3 flex justify-center">
+  <button
+    type="button"
+    class="aspect-square py-3 px-4 inline-flex items-center justify-center text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-100 focus:outline-none focus:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-700 dark:focus:bg-neutral-700 transition"
+    title={m.read_clipboard()}
+    aria-label={m.read_clipboard()}
+    onclick={async () => {
+      await handleClipboard();
+    }}
+  >
+    <i class="fa-regular fa-clipboard"></i>
+  </button>
   <button
     type="button"
     class="inline-flex justify-center items-center gap-x-3 text-center bg-gradient-to-tl from-blue-500 via-violet-500 to-fuchsia-500 dark:from-blue-700 dark:via-violet-700 dark:to-fuchsia-700 text-white text-sm font-medium rounded-md focus:outline-none py-3 px-4 transition-all duration-300 bg-size-200 bg-pos-0 hover:bg-pos-100"
