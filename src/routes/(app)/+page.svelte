@@ -1011,7 +1011,38 @@
     try {
       progressDetail = m.converting({ name: audio.name });
       await ffmpeg.writeFile('input', await fetchFile(audio));
-      await ffmpeg.exec('-i input -ar 48000 -ac 2 -f wav -y output'.split(' '));
+
+      let maxVolume = 0;
+      const logHandler = ({ message }: { message: string }) => {
+        const match = message.match(/max_volume: ([-.\d]+) dB/);
+        if (match) {
+          maxVolume = parseFloat(match[1]);
+        }
+      };
+
+      ffmpeg.on('log', logHandler);
+      await ffmpeg.exec('-i input -af volumedetect -f null -'.split(' '));
+      ffmpeg.off('log', logHandler);
+
+      const volumeAdjust = -maxVolume;
+      if (volumeAdjust > 0) {
+        console.log(`Adjusting volume for ${audio.name} by ${volumeAdjust} dB`);
+      }
+
+      await ffmpeg.exec([
+        '-i',
+        'input',
+        '-af',
+        `volume=${volumeAdjust}dB`,
+        '-ar',
+        '48000',
+        '-ac',
+        '2',
+        '-f',
+        'wav',
+        '-y',
+        'output',
+      ]);
       const data = await ffmpeg.readFile('output');
       return new File([(data as Uint8Array).buffer as ArrayBuffer], audio.name, {
         type: 'audio/wav',
@@ -1330,6 +1361,7 @@
             replaceeBundle.illustration = id;
           }
         } else if (type === 1) {
+          file = await convertAudio(file);
           audioFiles.push({ id, file });
           if (replacee !== undefined && replacee < chartBundles.length) {
             const replaceeBundle = chartBundles[replacee];

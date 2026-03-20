@@ -135,9 +135,28 @@ pub fn convert_audio(app: AppHandle, input: String, output: String) -> Result<()
     std::thread::spawn({
         let app = app.clone();
         move || {
+            let detect_cmd = cmd_hidden(&*FFMPEG_CMD.lock().unwrap())
+                .args(format!("-i {} -af volumedetect -f null -", input).split_whitespace())
+                .output();
+
+            let mut gain = 0.0;
+            if let Ok(output_res) = detect_cmd {
+                let stderr = String::from_utf8_lossy(&output_res.stderr);
+                for line in stderr.lines() {
+                    if let Some(idx) = line.find("max_volume:") {
+                        let vol_str = line[idx + 11..].trim();
+                        if let Some(db_idx) = vol_str.find(" dB") {
+                            if let Ok(vol) = vol_str[..db_idx].trim().parse::<f32>() {
+                                gain = -vol;
+                            }
+                        }
+                    }
+                }
+            }
+
             let result = cmd_hidden(&*FFMPEG_CMD.lock().unwrap())
                 .args(
-                    format!("-i {} -ar 48000 -c:a pcm_f32le -y {}", input, output)
+                    format!("-i {} -af volume={}dB -ar 48000 -c:a pcm_f32le -y {}", input, gain, output)
                         .split_whitespace(),
                 )
                 .status()
