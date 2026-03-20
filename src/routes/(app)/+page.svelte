@@ -1641,12 +1641,10 @@
 
 {#if !IS_ANDROID_OR_IOS && Capacitor.getPlatform() === 'web'}
   <div
-    class="pointer-events-none fixed inset-0 z-50 transition-all duration-200"
+    class="pointer-events-none fixed inset-0 z-50 transition-all duration-200 backdrop-blur-sm"
     class:opacity-0={!isDragging}
   >
-    <div
-      class="flex h-full w-full items-center justify-center rounded-xl bg-black/50 backdrop-blur-sm"
-    >
+    <div class="flex h-full w-full items-center justify-center rounded-xl bg-black/50">
       <div class="flex flex-col items-center gap-4 text-white">
         <i class="fa-solid fa-file-import fa-4x"></i>
         <span class="text-2xl font-semibold">{m.drop_files_here()}</span>
