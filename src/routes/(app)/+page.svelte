@@ -594,11 +594,10 @@
   ];
 
   const getUrlExtension = (url: URL): string | undefined => {
-    const pathname = url.pathname;
-    const lastSegment = pathname.split('/').pop() ?? '';
-    const parts = lastSegment.split('.');
-    if (parts.length > 1) {
-      return parts.pop()!.toLowerCase();
+    const lastSegment = url.pathname.split('/').pop() ?? '';
+    const dotIndex = lastSegment.lastIndexOf('.');
+    if (dotIndex > 0) {
+      return lastSegment.slice(dotIndex + 1).toLowerCase();
     }
     return undefined;
   };
