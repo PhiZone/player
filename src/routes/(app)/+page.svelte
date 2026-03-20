@@ -741,6 +741,7 @@
   const getFileType = (mime: string | null, fileName: string) => {
     const extension = fileName.toLowerCase().split('.').pop() ?? '';
     const isGLSLShader = ['shader', 'glsl', 'frag', 'fsh', 'fs'].includes(extension);
+    const isFont = ['ttf', 'otf', 'woff', 'woff2'].includes(extension);
     if (mime?.startsWith('image/')) {
       return 0;
     }
@@ -751,13 +752,15 @@
       return 2;
     }
     if (
-      (!isGLSLShader && mime?.startsWith('text/')) ||
+      (!isGLSLShader && !isFont && mime?.startsWith('text/')) ||
       mime === 'application/json' ||
       ['yml', 'yaml'].includes(extension)
     ) {
       return 3;
     }
-    return isGLSLShader ? 4 : 5;
+    if (isGLSLShader) return 4;
+    if (isFont) return 5;
+    return 6;
   };
 
   const getTypeOfRespack = (pack: ResourcePack<File> | ResourcePack<string>) =>
@@ -2024,7 +2027,7 @@
                               bind:value={asset.type}
                               class="form-select py-1 px-2 pe-8 block border-gray-200 rounded-lg text-sm focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
                             >
-                              {#each Array(6) as _, i}
+                              {#each Array(7) as _, i}
                                 <option value={i} selected={asset.type === i}>
                                   {#if i === 0}
                                     {m['asset.types.0']()}
@@ -2038,6 +2041,8 @@
                                     {m['asset.types.4']()}
                                   {:else if i === 5}
                                     {m['asset.types.5']()}
+                                  {:else if i === 6}
+                                    {m['asset.types.6']()}
                                   {/if}
                                 </option>
                               {/each}

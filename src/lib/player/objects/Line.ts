@@ -71,6 +71,8 @@ export class Line {
   private _scaleY: number | undefined = undefined;
   private _text: string | undefined = undefined;
   private _textScale: number;
+  private _font: string | undefined = undefined;
+  private _appliedFont: string | undefined = undefined;
   private _height: number = 0;
   private _lastUpdate: number = -Infinity;
 
@@ -99,10 +101,11 @@ export class Line {
     this._textScale = this._scene.p(50);
     this._line = this._hasText
       ? new GameObjects.Text(scene, 0, 0, this._text ?? '', {
-          fontFamily: scene.respack.fonts[0].name,
+          fontFamily: scene.getFont(this._font),
           fontSize: this._textScale,
           color: '#ffffff',
           align: 'left',
+          resolution: 2,
         }).setOrigin(0.5)
       : this._hasAnimatedTexture
         ? new GameObjects.Sprite(scene, 0, 0, `asset-${lineData.Texture}`).play(
@@ -242,7 +245,15 @@ export class Line {
             (this._scaleY ?? 1)
         : this._scene.o(1) * this._scene.preferences.lineThickness * (this._scaleY ?? 1.35),
     );
-    if (this._hasText) (this._line as GameObjects.Text).setText(this._text ?? '');
+    if (this._hasText) {
+      const textObj = this._line as GameObjects.Text;
+      textObj.setText(this._text ?? '');
+      const fontFamily = this._scene.getFont(this._font);
+      if (this._appliedFont !== fontFamily) {
+        textObj.setFontFamily(fontFamily);
+        this._appliedFont = fontFamily;
+      }
+    }
     if (this._hasAnimatedTexture) {
       const sprite = this._line as GameObjects.Sprite;
       if (this._gif !== undefined && this._gif >= 0 && this._gif <= 1) {
@@ -420,6 +431,7 @@ export class Line {
       scaleX: this._scaleX,
       scaleY: this._scaleY,
       text: this._text,
+      font: this._font,
     } = this.handleExtendedEventLayer(beat / this._data.bpmfactor, 0));
   }
 
@@ -538,6 +550,7 @@ export class Line {
     scaleX: number | undefined;
     scaleY: number | undefined;
     text: string | undefined;
+    font: string | undefined;
   } {
     const extended = this._data.extended;
     if (!extended)
@@ -548,7 +561,13 @@ export class Line {
         scaleX: undefined,
         scaleY: undefined,
         text: undefined,
+        font: undefined,
       };
+
+    const text = this.handleEvent(beat, layerIndex, extended.textEvents, this._curText) as
+      | string
+      | undefined;
+    const font = extended.textEvents?.[this._curText[layerIndex]]?.font;
 
     return {
       color: this.handleEvent(beat, layerIndex, extended.colorEvents, this._curColor) as
@@ -566,9 +585,8 @@ export class Line {
       scaleY: this.handleEvent(beat, layerIndex, extended.scaleYEvents, this._curScaleY) as
         | number
         | undefined,
-      text: this.handleEvent(beat, layerIndex, extended.textEvents, this._curText) as
-        | string
-        | undefined,
+      text,
+      font,
     };
   }
 
