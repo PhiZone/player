@@ -138,8 +138,6 @@ export class Game extends Scene {
   preload() {
     if (this._status === GameStatus.ERROR) return;
 
-    this.load.setCORS('anonymous');
-
     this.load.on('progress', (progress: number) => {
       EventBus.emit('loading', progress);
     });
@@ -300,6 +298,7 @@ export class Game extends Scene {
       }
       this._chart = chart;
       if (this._extraUrl) {
+        console.log('extra.json exists.');
         const extra = await loadJson(this._extraUrl, 'extra.json');
         this._extra = extra;
         if (!this._extra) {
@@ -320,6 +319,7 @@ export class Game extends Scene {
         });
         await Promise.all(
           this._shaderAssets.map(async (asset) => {
+            console.log('Loading shader: ', asset.url);
             asset.source = await loadText(asset.url, asset.key);
           }),
         );

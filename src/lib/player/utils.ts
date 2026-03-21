@@ -1499,7 +1499,6 @@ const convertApngToSpritesheet = async (buffer: ArrayBuffer) => {
 const createImageFromBlob = (blob: Blob) =>
   new Promise<HTMLImageElement>((resolve) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img);
     img.src = URL.createObjectURL(blob);
   });
