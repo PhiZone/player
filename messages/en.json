@@ -45,6 +45,8 @@
   "extracting_files": "Extracting files",
   "setting_up": "Setting up {name}",
   "converting": "Converting {name}",
+  "saving_respack": "Saving resource pack",
+  "loading_stored_respacks": "Loading stored resource packs",
   "finished": "Finished",
 
   "processing_audio": "Processing audio",
