@@ -16,7 +16,11 @@ if (now - lastMessageTime > MESSAGE_INTERVAL_MS) {
   process.env.LAST_MESSAGE_TIME = now;
 }
 
-if (process.env.PUBLIC_FFMPEG_URL) {
+if (
+  process.env.PUBLIC_FFMPEG_URL ||
+  process.env.PUBLIC_FFMPEG_CORE_URL ||
+  process.env.PUBLIC_FFMPEG_WASM_URL
+) {
   rmSync('./static/ffmpeg', { recursive: true, force: true });
 }
 

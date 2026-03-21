@@ -21,8 +21,22 @@ export const loadFFmpeg = async (
   }) => void,
 ) => {
   await ffmpeg.load({
-    coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript', true, callback),
-    wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm', true, callback),
+    coreURL: await toBlobURL(
+      'PUBLIC_FFMPEG_CORE_URL' in env && env.PUBLIC_FFMPEG_CORE_URL
+        ? (env.PUBLIC_FFMPEG_CORE_URL as string)
+        : `${baseURL}/ffmpeg-core.js`,
+      'text/javascript',
+      true,
+      callback,
+    ),
+    wasmURL: await toBlobURL(
+      'PUBLIC_FFMPEG_WASM_URL' in env && env.PUBLIC_FFMPEG_WASM_URL
+        ? (env.PUBLIC_FFMPEG_WASM_URL as string)
+        : `${baseURL}/ffmpeg-core.wasm`,
+      'application/wasm',
+      true,
+      callback,
+    ),
   });
 };
 
