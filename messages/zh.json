@@ -45,6 +45,8 @@
   "extracting_files": "解压文件",
   "setting_up": "设置 {name}",
   "converting": "转换 {name}",
+  "saving_respack": "保存资源包",
+  "loading_stored_respacks": "加载已存储的资源包",
   "finished": "完成",
 
   "processing_audio": "处理音频",

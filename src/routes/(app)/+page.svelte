@@ -84,6 +84,13 @@
   import { hexToRgba } from '$lib/player/utils';
   import { m } from '$lib/paraglide/messages';
   import LanguageSwitcher from '$lib/components/LanguageSwitcher.svelte';
+  import {
+    saveRespack,
+    loadAllRespacks,
+    deleteRespack as deleteStoredRespack,
+    saveSelectedRespack,
+    loadSelectedRespack,
+  } from '$lib/services/respackStorage';
 
   interface FileEntry {
     id: number;
@@ -111,23 +118,7 @@
     metadata: Metadata;
   }
 
-  // let _respackDB = new Database<ResourcePack<File>>('resource_packs', RESPACK_DB_VERSION, {
-  //   structures: [
-  //     {
-  //       name: 'id',
-  //       options: { key: true, unique: true },
-  //     },
-  //     {
-  //       name: 'name',
-  //       options: { unique: false, index: true },
-  //     },
-  //     {
-  //       name: 'date_added',
-  //       options: { unique: false },
-  //     },
-  //   ],
-  //   autoIncrement: true,
-  // });
+  // Resource pack storage is handled by $lib/services/respackStorage
 
   let showCollapse = false;
   let showRespack = false;
@@ -294,6 +285,20 @@
       }
     });
     if (directoryInput) directoryInput.webkitdirectory = true;
+
+    try {
+      const storedPacks = await loadAllRespacks();
+      if (storedPacks.length > 0) {
+        resourcePacks.push(...storedPacks);
+        resourcePacks = resourcePacks;
+      }
+      const storedSelection = loadSelectedRespack();
+      if (storedSelection && resourcePacks.some((p) => p.id === storedSelection)) {
+        selectedResourcePack = storedSelection;
+      }
+    } catch (e) {
+      console.warn('Failed to load stored resource packs:', e);
+    }
 
     await init();
 
@@ -1405,10 +1410,17 @@
         const metadata = readMetadataForRespack(content);
         if (metadata) {
           try {
-            resourcePacks.push(await importRespack(metadata));
+            const pack = await importRespack(metadata);
+            const existingIndex = resourcePacks.findIndex((p) => p.id === pack.id);
+            if (existingIndex >= 0) {
+              resourcePacks[existingIndex] = pack;
+            } else {
+              resourcePacks.push(pack);
+            }
             resourcePacks = resourcePacks;
             assets = assets.filter((a) => a.id !== asset.id);
             respacksResolved++;
+            saveRespack(pack).catch((e) => console.warn('Failed to store resource pack:', e));
           } catch (e) {
             console.debug(e);
           }
@@ -1420,10 +1432,17 @@
         const metadata = readMetadataForPhiraRespack(content);
         if (metadata) {
           try {
-            resourcePacks.push(await importRespack(await convertPhiraRespack(metadata), false));
+            const pack = await importRespack(await convertPhiraRespack(metadata), false);
+            const existingIndex = resourcePacks.findIndex((p) => p.id === pack.id);
+            if (existingIndex >= 0) {
+              resourcePacks[existingIndex] = pack;
+            } else {
+              resourcePacks.push(pack);
+            }
             resourcePacks = resourcePacks;
             assets = assets.filter((a) => a.id !== asset.id);
             respacksResolved++;
+            saveRespack(pack).catch((e) => console.warn('Failed to store resource pack:', e));
           } catch (e) {
             console.debug(e);
           }
@@ -1468,6 +1487,7 @@
     }
     if (resourcePacks.length > 1 && selectedResourcePack === DEFAULT_RESOURCE_PACK_ID) {
       selectedResourcePack = resourcePacks[1].id;
+      saveSelectedRespack(selectedResourcePack);
     }
     chartFiles = chartFiles;
     audioFiles = audioFiles;
@@ -2836,6 +2856,7 @@
                 class:btn-active={selectedResourcePack === pack.id}
                 onclick={() => {
                   selectedResourcePack = pack.id;
+                  saveSelectedRespack(pack.id);
                 }}
               >
                 {selectedResourcePack === pack.id ? m.selected() : m.select()}
@@ -2858,8 +2879,12 @@
                 aria-label={m.delete()}
                 onclick={() => {
                   resourcePacks = resourcePacks.filter((b) => b.id !== pack.id);
+                  deleteStoredRespack(pack.id).catch((e) =>
+                    console.warn('Failed to delete stored resource pack:', e),
+                  );
                   if (selectedResourcePack === pack.id) {
                     selectedResourcePack = DEFAULT_RESOURCE_PACK_ID;
+                    saveSelectedRespack(DEFAULT_RESOURCE_PACK_ID);
                   }
                 }}
               >
