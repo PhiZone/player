@@ -1,6 +1,5 @@
 import * as env from '$env/static/public';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
-import { toBlobURL } from '@ffmpeg/util';
 import { base } from '$app/paths';
 
 const ffmpeg = new FFmpeg();
@@ -9,35 +8,30 @@ const baseURL =
     ? (env.PUBLIC_FFMPEG_URL as string)
     : `${base}/ffmpeg`;
 
-export const loadFFmpeg = async (
-  callback?: ({
-    url,
-    received,
-    total,
-  }: {
-    url: string | URL;
-    received: number;
-    total: number;
-  }) => void,
-) => {
+export const getFFmpegURLs = () => ({
+  core:
+    'PUBLIC_FFMPEG_CORE_URL' in env && env.PUBLIC_FFMPEG_CORE_URL
+      ? (env.PUBLIC_FFMPEG_CORE_URL as string)
+      : `${baseURL}/ffmpeg-core.js`,
+  wasm:
+    'PUBLIC_FFMPEG_WASM_URL' in env && env.PUBLIC_FFMPEG_WASM_URL
+      ? (env.PUBLIC_FFMPEG_WASM_URL as string)
+      : `${baseURL}/ffmpeg-core.wasm`,
+  isRemote:
+    ('PUBLIC_FFMPEG_URL' in env && env.PUBLIC_FFMPEG_URL) ||
+    ('PUBLIC_FFMPEG_CORE_URL' in env && env.PUBLIC_FFMPEG_CORE_URL) ||
+    ('PUBLIC_FFMPEG_WASM_URL' in env && env.PUBLIC_FFMPEG_WASM_URL),
+});
+
+export const loadFFmpeg = async (core: Blob, wasm: Blob) => {
+  const coreURL = URL.createObjectURL(core);
+  const wasmURL = URL.createObjectURL(wasm);
   await ffmpeg.load({
-    coreURL: await toBlobURL(
-      'PUBLIC_FFMPEG_CORE_URL' in env && env.PUBLIC_FFMPEG_CORE_URL
-        ? (env.PUBLIC_FFMPEG_CORE_URL as string)
-        : `${baseURL}/ffmpeg-core.js`,
-      'text/javascript',
-      true,
-      callback,
-    ),
-    wasmURL: await toBlobURL(
-      'PUBLIC_FFMPEG_WASM_URL' in env && env.PUBLIC_FFMPEG_WASM_URL
-        ? (env.PUBLIC_FFMPEG_WASM_URL as string)
-        : `${baseURL}/ffmpeg-core.wasm`,
-      'application/wasm',
-      true,
-      callback,
-    ),
+    coreURL,
+    wasmURL,
   });
+  URL.revokeObjectURL(coreURL);
+  URL.revokeObjectURL(wasmURL);
 };
 
 export const terminateFFmpeg = () => ffmpeg.terminate();
