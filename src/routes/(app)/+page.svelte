@@ -78,7 +78,7 @@
   } from '$lib/player/services/ffmpeg/tauri';
   import { open, ask } from '@tauri-apps/plugin-dialog';
   import { DEFAULT_RESOURCE_PACK, DEFAULT_RESOURCE_PACK_ID } from '$lib/player/constants';
-  import { getFFmpeg, getFFmpegURLs, loadFFmpeg } from '$lib/player/services/ffmpeg';
+  import { getFFmpeg, loadFFmpeg } from '$lib/player/services/ffmpeg';
   import { fetchFile } from '@ffmpeg/util';
   import { convertHoldAtlas, getImageDimensions } from '$lib/converters/phira/respack';
   import { hexToRgba } from '$lib/player/utils';
@@ -1011,11 +1011,8 @@
       progress = clamp(p.progress, 0, 1);
     });
     if (!ffmpeg.loaded) {
-      const { core, wasm } = getFFmpegURLs();
-      const coreBlob = await download(core);
-      const wasmBlob = await download(wasm);
       progressDetail = m.loading({ name: 'FFmpeg' });
-      await loadFFmpeg(coreBlob, wasmBlob);
+      await loadFFmpeg();
     }
     try {
       progressDetail = m.converting({ name: audio.name });
