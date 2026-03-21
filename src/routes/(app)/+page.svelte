@@ -24,6 +24,7 @@
     GradeLetter,
     PhiraResourcePack,
     OrdinaryParticle,
+    ResultsMusic,
   } from '$lib/types';
   import {
     clamp,
@@ -998,7 +999,7 @@
     return bundle;
   };
 
-  const convertAudio = async (audio: File) => {
+  const convertAudio = async (audio: File, normalizeVolume = true) => {
     progress = 0;
     const ffmpeg = getFFmpeg();
     ffmpeg.on('progress', (p) => {
@@ -1010,30 +1011,33 @@
     }
     try {
       progressDetail = m.converting({ name: audio.name });
-      await ffmpeg.writeFile('input', await fetchFile(audio));
+      const id = crypto.randomUUID();
+      await ffmpeg.writeFile(`input_${id}`, await fetchFile(audio));
 
       let maxVolume = 0;
-      const logHandler = ({ message }: { message: string }) => {
-        const match = message.match(/max_volume: ([-.\d]+) dB/);
-        if (match) {
-          maxVolume = parseFloat(match[1]);
-        }
-      };
+      if (normalizeVolume) {
+        const logHandler = ({ message }: { message: string }) => {
+          const match = message.match(/max_volume: ([-.\d]+) dB/);
+          if (match) {
+            maxVolume = parseFloat(match[1]);
+          }
+        };
 
-      ffmpeg.on('log', logHandler);
-      await ffmpeg.exec('-i input -af volumedetect -f null -'.split(' '));
-      ffmpeg.off('log', logHandler);
+        ffmpeg.on('log', logHandler);
+        await ffmpeg.exec(`-i input_${id} -af volumedetect -f null -`.split(' '));
+        ffmpeg.off('log', logHandler);
+      }
 
-      const volumeAdjust = -maxVolume;
-      if (volumeAdjust > 0) {
-        console.log(`Adjusting volume for ${audio.name} by ${volumeAdjust} dB`);
+      const volumeIncrease = -maxVolume;
+      if (volumeIncrease > 0) {
+        console.log(`Amplifying ${audio.name} by ${volumeIncrease} dB`);
       }
 
       await ffmpeg.exec([
         '-i',
-        'input',
+        `input_${id}`,
         '-af',
-        `volume=${volumeAdjust}dB`,
+        `volume=${volumeIncrease}dB`,
         '-ar',
         '48000',
         '-ac',
@@ -1041,9 +1045,11 @@
         '-f',
         'wav',
         '-y',
-        'output',
+        `output_${id}`,
       ]);
-      const data = await ffmpeg.readFile('output');
+      const data = await ffmpeg.readFile(`output_${id}`);
+      await ffmpeg.deleteFile(`input_${id}`);
+      await ffmpeg.deleteFile(`output_${id}`);
       return new File([(data as Uint8Array).buffer as ArrayBuffer], audio.name, {
         type: 'audio/wav',
       });
@@ -1094,21 +1100,15 @@
             file: await findFile(e.file),
           })),
         )
-      ).filter((e) => e.file !== undefined) as NoteSkin<File>[],
-      hitSounds: await (async () => {
-        const results = [];
-        for (const e of metadata.hitSounds) {
-          const file = await findFile(e.file);
-          if (!file) {
-            continue;
-          }
-          results.push({
+      ).filter((e): e is NoteSkin<File> => e.file !== undefined),
+      hitSounds: (
+        await Promise.all(
+          metadata.hitSounds.map(async (e) => ({
             name: e.name,
-            file: await convertAudio(file),
-          });
-        }
-        return results;
-      })(),
+            file: await findFile(e.file),
+          })),
+        )
+      ).filter((e): e is HitSound<File> => e.file !== undefined),
       hitEffects: await (async () => {
         if (!metadata.hitEffects) {
           return undefined;
@@ -1132,23 +1132,17 @@
               file: await findFile(e.file),
             })),
           )
-        ).filter((e) => e.file !== undefined) as GradeLetter<File>[],
-        music: await (async () => {
-          const results = [];
-          for (const e of metadata.ending.music) {
-            const file = await findFile(e.file);
-            if (!file) {
-              continue;
-            }
-            results.push({
+        ).filter((e): e is GradeLetter<File> => e.file !== undefined),
+        music: (
+          await Promise.all(
+            metadata.ending.music.map(async (e) => ({
               levelType: e.levelType,
               beats: e.beats,
               bpm: e.bpm,
-              file: await convertAudio(file),
-            });
-          }
-          return results;
-        })(),
+              file: await findFile(e.file),
+            })),
+          )
+        ).filter((e): e is ResultsMusic<File> => e.file !== undefined),
       },
       fonts: (
         await Promise.all(
@@ -1168,10 +1162,10 @@
           ),
         )
       ).filter(
-        (e) =>
+        (e): e is Font<File> | BitmapFont<File> =>
           ('file' in e && e.file !== undefined) ||
           (e.texture !== undefined && e.descriptor !== undefined),
-      ) as (Font<File> | BitmapFont<File>)[],
+      ),
       options: {
         holdBodyRepeat: metadata.options?.holdBodyRepeat,
         holdCompact: metadata.options?.holdCompact,
