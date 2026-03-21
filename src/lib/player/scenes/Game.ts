@@ -138,6 +138,8 @@ export class Game extends Scene {
   preload() {
     if (this._status === GameStatus.ERROR) return;
 
+    this.load.setCORS('anonymous');
+
     this.load.on('progress', (progress: number) => {
       EventBus.emit('loading', progress);
     });
