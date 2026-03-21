@@ -30,6 +30,9 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "macOS": {
+      "exceptionDomain": "localhost"
+    },
     "fileAssociations": [
       {
         "ext": ["pez"],
