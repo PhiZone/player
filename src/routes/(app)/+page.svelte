@@ -1300,6 +1300,17 @@
       : convertRespackToURL(pack as ResourcePack<File>);
   };
 
+  const addOrReplaceRespack = (pack: ResourcePackWithId<File>) => {
+    const existingIndex = resourcePacks.findIndex((p) => p.id === pack.id);
+    if (existingIndex >= 0) {
+      resourcePacks[existingIndex] = pack;
+    } else {
+      resourcePacks.push(pack);
+    }
+    resourcePacks = resourcePacks;
+    saveRespack(pack).catch((e) => console.warn('Failed to store resource pack:', e));
+  };
+
   const decompressZipArchives = async (files: File[]) => {
     return await Promise.all(files.map(decompress));
   };
@@ -1411,16 +1422,9 @@
         if (metadata) {
           try {
             const pack = await importRespack(metadata);
-            const existingIndex = resourcePacks.findIndex((p) => p.id === pack.id);
-            if (existingIndex >= 0) {
-              resourcePacks[existingIndex] = pack;
-            } else {
-              resourcePacks.push(pack);
-            }
-            resourcePacks = resourcePacks;
+            addOrReplaceRespack(pack);
             assets = assets.filter((a) => a.id !== asset.id);
             respacksResolved++;
-            saveRespack(pack).catch((e) => console.warn('Failed to store resource pack:', e));
           } catch (e) {
             console.debug(e);
           }
@@ -1433,16 +1437,9 @@
         if (metadata) {
           try {
             const pack = await importRespack(await convertPhiraRespack(metadata), false);
-            const existingIndex = resourcePacks.findIndex((p) => p.id === pack.id);
-            if (existingIndex >= 0) {
-              resourcePacks[existingIndex] = pack;
-            } else {
-              resourcePacks.push(pack);
-            }
-            resourcePacks = resourcePacks;
+            addOrReplaceRespack(pack);
             assets = assets.filter((a) => a.id !== asset.id);
             respacksResolved++;
-            saveRespack(pack).catch((e) => console.warn('Failed to store resource pack:', e));
           } catch (e) {
             console.debug(e);
           }
