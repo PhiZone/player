@@ -34,6 +34,11 @@ export class ResultsUI extends GameObjects.Container {
   constructor(scene: Game, resultsMusic: ResultsMusic<string>, loopsToRender: number) {
     super(scene, scene.w(0), scene.h(-500) + scene.d(0.41));
 
+    if (scene.render && loopsToRender === 0) {
+      EventBus.emit('render-stop');
+      return;
+    }
+
     this._scene = scene;
     const stats = scene.statistics.stats;
     this._innerContainer = this.createInnerContainer();
