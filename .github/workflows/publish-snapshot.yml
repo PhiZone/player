@@ -106,7 +106,7 @@ jobs:
 
   publish-capacitor-ios:
     name: Build for iOS
-    runs-on: macos-15
+    runs-on: macos-26
     needs: [metadata, publish-capacitor-android]
     permissions:
       contents: write

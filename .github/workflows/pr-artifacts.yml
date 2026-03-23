@@ -54,7 +54,7 @@ jobs:
 
   generate-capacitor-ios:
     name: Build for iOS
-    runs-on: macos-15
+    runs-on: macos-26
     needs: metadata
     permissions:
       contents: write
