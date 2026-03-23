@@ -15,7 +15,7 @@ const start = async (parent: string, sceneConfig: Config) => {
     width: parentElement.clientWidth * window.devicePixelRatio,
     height: parentElement.clientHeight * window.devicePixelRatio,
     fps: {
-      smoothStep: !(IS_TAURI && sceneConfig.render),
+      smoothStep: !sceneConfig.render,
     },
     scale: {
       mode: Scale.EXPAND,
@@ -39,7 +39,7 @@ const start = async (parent: string, sceneConfig: Config) => {
   if (
     Capacitor.getPlatform() !== 'web' ||
     sceneConfig.preferences.aspectRatio !== null ||
-    (IS_TAURI && sceneConfig.render)
+    sceneConfig.render
   ) {
     if (
       sceneConfig.mediaOptions.overrideResolution &&
@@ -68,7 +68,7 @@ const start = async (parent: string, sceneConfig: Config) => {
       );
     }
 
-    if (IS_TAURI && sceneConfig.render) {
+    if (sceneConfig.render) {
       if (sceneConfig.mediaOptions.overrideResolution !== null) {
         dimensions = {
           width: sceneConfig.mediaOptions.overrideResolution[0],
@@ -76,12 +76,27 @@ const start = async (parent: string, sceneConfig: Config) => {
         };
       } else {
         const ratio = sceneConfig.preferences.aspectRatio;
-        const monitor = await currentMonitor();
-        if (monitor) {
+        if (IS_TAURI) {
+          const monitor = await currentMonitor();
+          if (monitor) {
+            if (ratio) {
+              dimensions = fit(ratio[0], ratio[1], monitor.size.width, monitor.size.height, true);
+            } else {
+              dimensions = monitor.size;
+            }
+          }
+        } else {
+          const screenWidth =
+            Math.max(window.screen.width, window.screen.height) * window.devicePixelRatio;
+          const screenHeight =
+            Math.min(window.screen.width, window.screen.height) * window.devicePixelRatio;
           if (ratio) {
-            dimensions = fit(ratio[0], ratio[1], monitor.size.width, monitor.size.height, true);
+            dimensions = fit(ratio[0], ratio[1], screenWidth, screenHeight, true);
           } else {
-            dimensions = monitor.size;
+            dimensions = {
+              width: screenWidth,
+              height: screenHeight,
+            };
           }
         }
       }
