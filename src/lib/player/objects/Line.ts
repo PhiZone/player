@@ -98,14 +98,13 @@ export class Line {
     this._hasAnimatedTexture =
       ['.gif', '.apng'].some((e) => lineData.Texture.toLowerCase().endsWith(e)) &&
       this._scene.textures.exists(`asset-${lineData.Texture}`);
-    this._textScale = this._scene.p(50);
+    this._textScale = this._scene.p(100);
     this._line = this._hasText
       ? new GameObjects.Text(scene, 0, 0, this._text ?? '', {
           fontFamily: scene.getFont(this._font),
           fontSize: this._textScale,
           color: '#ffffff',
           align: 'left',
-          resolution: 2,
         }).setOrigin(0.5)
       : this._hasAnimatedTexture
         ? new GameObjects.Sprite(scene, 0, 0, `asset-${lineData.Texture}`).play(
