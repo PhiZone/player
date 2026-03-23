@@ -25,6 +25,13 @@ type BrowserRenderOutput = {
 
 const LARGE_REMOTE_FILE_THRESHOLD_BYTES = 128 * 1024 * 1024;
 const BROWSER_AUDIO_SAMPLE_RATE = 48_000;
+const BROWSER_MIN_FRAME_BATCH_SIZE = 1200;
+const BROWSER_MAX_FRAME_BATCH_SIZE = 7200;
+const BROWSER_MIN_MEMORY_BUDGET_MIB = 1024;
+const BROWSER_DEFAULT_MEMORY_BUDGET_MIB = 1024 * 8;
+const BROWSER_MEMORY_BUDGET_STORAGE_KEY = 'browserRenderMemoryLimitMiB';
+const BROWSER_RENDER_TRANSPORT_STORAGE_KEY = 'browserRenderTransport';
+const BROWSER_TAURI_WS_URL = 'ws://127.0.0.1:63402';
 
 export class Renderer {
   private _scene: Game;
@@ -47,6 +54,17 @@ export class Renderer {
   private _browserFrameCanvas: HTMLCanvasElement | null = null;
   private _browserFrameContext: CanvasRenderingContext2D | null = null;
   private _browserFinalizePromise: Promise<void> | null = null;
+  private _browserPendingStartFrame: number | null = null;
+  private _browserPendingFrameCount: number = 0;
+  private _browserSegmentCount: number = 0;
+  private _browserEncodedFrameCount: number = 0;
+  private _browserBatchSize: number = BROWSER_MIN_FRAME_BATCH_SIZE;
+  private _browserExpectedFrameCount: number = 0;
+  private _browserMemoryBudgetBytes: number = BROWSER_DEFAULT_MEMORY_BUDGET_MIB * 1024 * 1024;
+  private _browserTransport: 'wasm' | 'tauri-ws' = 'wasm';
+  private _browserTauriWs: WebSocket | null = null;
+  private _browserTauriWsReady: Promise<void> | null = null;
+  private _browserTauriWsVideo: Uint8Array | null = null;
 
   constructor(scene: Game, mediaOptions: MediaOptions, resultsMusic: ResultsMusic<string>) {
     this._scene = scene;
@@ -165,6 +183,32 @@ export class Renderer {
     const canvas = this._scene.game.canvas;
     const width = canvas.width;
     const height = canvas.height;
+    this._browserExpectedFrameCount = Math.ceil(this._length * frameRate);
+    this._browserTransport =
+      localStorage.getItem(BROWSER_RENDER_TRANSPORT_STORAGE_KEY) === 'tauri-ws'
+        ? 'tauri-ws'
+        : 'wasm';
+
+    const memoryBudgetMiB = this.resolveBrowserRenderMemoryBudgetMiB();
+    this._browserMemoryBudgetBytes = memoryBudgetMiB * 1024 * 1024;
+    this._browserBatchSize = this.calculateAdaptiveBatchSize(width, height);
+
+    console.log(
+      `[Renderer] Browser render memory budget: ${memoryBudgetMiB} MiB, adaptive batch size: ${this._browserBatchSize}`,
+    );
+
+    if (this._browserTransport === 'tauri-ws') {
+      try {
+        this._browserTauriWsReady = this.setupBrowserTauriWsTransport(width, height, frameRate);
+        await this._browserTauriWsReady;
+        EventBus.emit('rendering-detail', m['rendering_details.rendering_frames_tauri_ws']());
+      } catch (error) {
+        console.warn('[Renderer] Falling back to wasm render transport:', error);
+        this._browserTransport = 'wasm';
+        this._browserTauriWs = null;
+        this._browserTauriWsReady = null;
+      }
+    }
 
     this._browserFrameWidth = width;
     this._browserFrameHeight = height;
@@ -202,7 +246,11 @@ export class Renderer {
 
           this._frameWritePromise = this._frameWritePromise
             .then(async () => {
-              await this.writeBrowserFrame(frameNumber, frameCopy);
+              if (this._browserTransport === 'tauri-ws') {
+                await this.writeBrowserFrameToTauriWs(frameNumber, frameCopy);
+              } else {
+                await this.writeBrowserFrame(frameNumber, frameCopy);
+              }
               EventBus.emit('rendering', this._frameCount);
             })
             .then(() => {
@@ -263,6 +311,218 @@ export class Renderer {
     });
 
     await getFFmpeg().writeFile(frameName, new Uint8Array(await pngBlob.arrayBuffer()));
+
+    if (this._browserPendingStartFrame === null) {
+      this._browserPendingStartFrame = frameNumber;
+    }
+    this._browserPendingFrameCount++;
+
+    await this.flushBrowserFrameBatches();
+  }
+
+  private resolveBrowserRenderMemoryBudgetMiB() {
+    const fromStorage = Number(localStorage.getItem(BROWSER_MEMORY_BUDGET_STORAGE_KEY));
+    if (Number.isFinite(fromStorage) && fromStorage >= BROWSER_MIN_MEMORY_BUDGET_MIB) {
+      return Math.floor(fromStorage);
+    }
+
+    const deviceMemoryGiB = Number(
+      (navigator as Navigator & { deviceMemory?: number }).deviceMemory,
+    );
+    if (Number.isFinite(deviceMemoryGiB) && deviceMemoryGiB > 0) {
+      const derived = Math.floor(deviceMemoryGiB * 192);
+      return Math.max(BROWSER_MIN_MEMORY_BUDGET_MIB, Math.min(derived, 2048));
+    }
+
+    return BROWSER_DEFAULT_MEMORY_BUDGET_MIB;
+  }
+
+  private async setupBrowserTauriWsTransport(width: number, height: number, frameRate: number) {
+    return await new Promise<void>((resolve, reject) => {
+      const ws = new WebSocket(BROWSER_TAURI_WS_URL);
+      ws.binaryType = 'arraybuffer';
+
+      const cleanup = () => {
+        ws.onopen = null;
+        ws.onclose = null;
+        ws.onerror = null;
+      };
+
+      ws.onopen = () => {
+        try {
+          ws.send(
+            JSON.stringify({
+              type: 'init',
+              resolution: `${width}x${height}`,
+              framerate: frameRate,
+              codec: this._options.videoCodec,
+              bitrate: `${this._options.videoBitrate}k`,
+            }),
+          );
+        } catch (error) {
+          cleanup();
+          reject(error);
+        }
+      };
+
+      ws.onmessage = (event) => {
+        if (typeof event.data === 'string') {
+          if (event.data === 'ready') {
+            this._browserTauriWs = ws;
+            cleanup();
+            resolve();
+            return;
+          }
+          if (event.data.startsWith('error:')) {
+            cleanup();
+            reject(new Error(event.data));
+          }
+          return;
+        }
+      };
+
+      ws.onerror = () => {
+        cleanup();
+        reject(new Error('Unable to connect to Tauri browser render WebSocket backend.'));
+      };
+
+      ws.onclose = () => {
+        cleanup();
+      };
+    });
+  }
+
+  private rgbaToRgb(frame: Uint8Array) {
+    const rgb = new Uint8Array((frame.length / 4) * 3);
+    for (let i = 0, j = 0; i < frame.length; i += 4, j += 3) {
+      rgb[j] = frame[i];
+      rgb[j + 1] = frame[i + 1];
+      rgb[j + 2] = frame[i + 2];
+    }
+    return rgb;
+  }
+
+  private async writeBrowserFrameToTauriWs(frameNumber: number, rgbaFrame: Uint8Array) {
+    if (!this._browserTauriWs) {
+      throw new Error('Tauri WS render transport is not initialized.');
+    }
+
+    const ws = this._browserTauriWs;
+    const rgbFrame = this.rgbaToRgb(rgbaFrame);
+
+    while (ws.bufferedAmount > rgbFrame.length * 6) {
+      await new Promise((resolve) => setTimeout(resolve, 4));
+    }
+
+    ws.send(rgbFrame);
+    this._browserEncodedFrameCount = frameNumber + 1;
+    EventBus.emit('rendering', this._browserEncodedFrameCount);
+    EventBus.emit(
+      'rendering-detail',
+      m['rendering_details.rendering_frames_stream_progress']({
+        current: this._browserEncodedFrameCount,
+        total: this._browserExpectedFrameCount,
+      }),
+    );
+  }
+
+  private calculateAdaptiveBatchSize(width: number, height: number) {
+    // Conservative estimate for per-frame FS footprint after PNG encoding overhead.
+    const estimatedBytesPerFrame = Math.max(width * height * 4 * 1.35, 64 * 1024);
+    const reservedForEncoder = this._browserMemoryBudgetBytes * 0.55;
+    const availableForFrames = Math.max(this._browserMemoryBudgetBytes - reservedForEncoder, 1);
+    const rawBatch = Math.floor(availableForFrames / estimatedBytesPerFrame);
+
+    return Math.max(
+      BROWSER_MIN_FRAME_BATCH_SIZE,
+      Math.min(BROWSER_MAX_FRAME_BATCH_SIZE, rawBatch || BROWSER_MIN_FRAME_BATCH_SIZE),
+    );
+  }
+
+  private async flushBrowserFrameBatches(force = false) {
+    const ffmpeg = getFFmpeg();
+    const frameRate = this._options.frameRate;
+    const videoBitrate = `${this._options.videoBitrate}k`;
+
+    while (
+      this._browserPendingStartFrame !== null &&
+      (force
+        ? this._browserPendingFrameCount > 0
+        : this._browserPendingFrameCount >= this._browserBatchSize)
+    ) {
+      const startFrame = this._browserPendingStartFrame;
+      const count = force
+        ? this._browserPendingFrameCount
+        : Math.min(this._browserBatchSize, this._browserPendingFrameCount);
+      const segmentName = `segment_${this._browserSegmentCount.toString().padStart(5, '0')}.mp4`;
+      const totalSegments = Math.max(
+        1,
+        Math.ceil(this._browserExpectedFrameCount / Math.max(1, this._browserBatchSize)),
+      );
+      const segmentNumber = this._browserSegmentCount + 1;
+
+      const onProgress = ({ progress }: { progress: number }) => {
+        const ratio = Number.isFinite(progress) ? Math.max(0, Math.min(1, progress)) : 0;
+        const encodedFrames = this._browserEncodedFrameCount + Math.floor(ratio * count);
+        EventBus.emit('rendering', encodedFrames);
+        EventBus.emit(
+          'rendering-detail',
+          m['rendering_details.rendering_frames_segment_progress']({
+            current: segmentNumber,
+            total: totalSegments,
+            percent: (ratio * 100).toFixed(1),
+          }),
+        );
+      };
+
+      ffmpeg.on('progress', onProgress);
+
+      try {
+        await ffmpeg.exec([
+          '-framerate',
+          String(frameRate),
+          '-start_number',
+          String(startFrame),
+          '-i',
+          'frame_%08d.png',
+          '-frames:v',
+          String(count),
+          '-c:v',
+          this._options.videoCodec,
+          '-b:v',
+          videoBitrate,
+          '-vf',
+          'vflip',
+          '-pix_fmt',
+          'yuv420p',
+          '-movflags',
+          '+faststart',
+          '-y',
+          segmentName,
+        ]);
+      } finally {
+        ffmpeg.off('progress', onProgress);
+      }
+
+      this._browserEncodedFrameCount += count;
+      EventBus.emit('rendering', this._browserEncodedFrameCount);
+
+      for (let i = 0; i < count; i++) {
+        const frameName = `frame_${(startFrame + i).toString().padStart(8, '0')}.png`;
+        try {
+          await ffmpeg.deleteFile(frameName);
+        } catch {
+          // Ignore already-removed frame files.
+        }
+      }
+
+      this._browserSegmentCount++;
+      this._browserPendingFrameCount -= count;
+      this._browserPendingStartFrame += count;
+      if (this._browserPendingFrameCount === 0) {
+        this._browserPendingStartFrame = null;
+      }
+    }
   }
 
   private async resolveBrowserSongInput(): Promise<{ filename: string; data: Uint8Array }> {
@@ -474,17 +734,23 @@ export class Renderer {
     const runFfmpegWithProgress = async (
       args: string[],
       detailLabel: string,
-      phase: 'encode' | 'combine',
+      phase: 'combine' | 'finalize',
     ) => {
       const onProgress = ({ progress }: { progress: number }) => {
         const ratio = Number.isFinite(progress) ? Math.max(0, Math.min(1, progress)) : 0;
         const pct = (ratio * 100).toFixed(1);
-        EventBus.emit('rendering-detail', `${detailLabel} (${pct}%)`);
+        EventBus.emit(
+          'rendering-detail',
+          m['rendering_details.rendering_phase_progress']({
+            phase: detailLabel,
+            percent: pct,
+          }),
+        );
 
         // Use a small synthetic tail so browser users can see post-frame FFmpeg activity.
         const base = this._frameCount;
         const span = Math.max(1, Math.ceil(this._options.frameRate * 2));
-        const phaseOffset = phase === 'encode' ? 0 : span;
+        const phaseOffset = phase === 'finalize' ? 0 : span;
         EventBus.emit('rendering', base + phaseOffset + Math.round(ratio * span));
       };
 
@@ -502,41 +768,119 @@ export class Renderer {
     const syntheticHitsounds = await this.createSyntheticHitsoundsBlob(sounds, timestamps);
     await ffmpeg.writeFile('hitsounds.wav', new Uint8Array(await syntheticHitsounds.arrayBuffer()));
 
+    if (this._browserTransport === 'tauri-ws' && this._browserTauriWs) {
+      EventBus.emit('rendering-detail', m['rendering_details.rendering_frames_tauri_ws']());
+
+      const videoData = await new Promise<Uint8Array>((resolve, reject) => {
+        const ws = this._browserTauriWs!;
+
+        const onMessage = (event: MessageEvent) => {
+          if (typeof event.data === 'string') {
+            if (event.data === 'finished') {
+              ws.removeEventListener('message', onMessage);
+              if (!this._browserTauriWsVideo) {
+                reject(new Error('No video payload received from tauri-ws backend.'));
+                return;
+              }
+              resolve(this._browserTauriWsVideo);
+              return;
+            }
+            if (event.data.startsWith('progress:')) {
+              const count = Number(event.data.split(':')[1]);
+              if (Number.isFinite(count) && count > 0) {
+                EventBus.emit('rendering', count);
+              }
+              return;
+            }
+            if (event.data.startsWith('error:')) {
+              ws.removeEventListener('message', onMessage);
+              reject(new Error(event.data));
+            }
+            return;
+          }
+
+          const buffer = event.data as ArrayBuffer;
+          this._browserTauriWsVideo = new Uint8Array(buffer);
+        };
+
+        ws.addEventListener('message', onMessage);
+        ws.send('finish');
+      });
+
+      await ffmpeg.writeFile('video-stream.mp4', videoData);
+    } else {
+      await this.flushBrowserFrameBatches(true);
+
+      if (this._browserSegmentCount === 0) {
+        throw new Error('No encoded video segments were produced.');
+      }
+
+      if (this._browserSegmentCount === 1) {
+        await runFfmpegWithProgress(
+          [
+            '-i',
+            'segment_00000.mp4',
+            '-c',
+            'copy',
+            '-movflags',
+            '+faststart',
+            '-y',
+            'video-stream.mp4',
+          ],
+          m['rendering_details.rendering_frames'](),
+          'finalize',
+        );
+      } else {
+        const lines = Array.from({ length: this._browserSegmentCount }, (_, i) => {
+          return `file 'segment_${i.toString().padStart(5, '0')}.mp4'`;
+        }).join('\n');
+
+        await ffmpeg.writeFile('segments.txt', new TextEncoder().encode(lines));
+
+        await runFfmpegWithProgress(
+          [
+            '-f',
+            'concat',
+            '-safe',
+            '0',
+            '-i',
+            'segments.txt',
+            '-c',
+            'copy',
+            '-movflags',
+            '+faststart',
+            '-y',
+            'video-stream.mp4',
+          ],
+          m['rendering_details.rendering_frames'](),
+          'finalize',
+        );
+      }
+
+      for (let i = 0; i < this._browserSegmentCount; i++) {
+        try {
+          await ffmpeg.deleteFile(`segment_${i.toString().padStart(5, '0')}.mp4`);
+        } catch {
+          // Ignore cleanup failures.
+        }
+      }
+      try {
+        await ffmpeg.deleteFile('segments.txt');
+      } catch {
+        // Ignore cleanup failures.
+      }
+    }
+
     EventBus.emit('rendering-detail', m['rendering_details.retrieving_song']());
     const { filename: songInputName, data: songInputData } = await this.resolveBrowserSongInput();
     await ffmpeg.writeFile(songInputName, songInputData);
 
     EventBus.emit('rendering-detail', m['rendering_details.combining_streams']());
 
-    const frameRate = this._options.frameRate;
-    const videoBitrate = `${this._options.videoBitrate}k`;
     const audioBitrate = `${this._options.audioBitrate}k`;
     const outputName = `${ensafeFilename(this._scene.metadata.title ?? 'render')}-${moment().format(
       'YYYY-MM-DD_HH-mm-ss',
     )}.mp4`;
-
-    await runFfmpegWithProgress(
-      [
-        '-framerate',
-        String(frameRate),
-        '-i',
-        'frame_%08d.png',
-        '-c:v',
-        this._options.videoCodec,
-        '-b:v',
-        videoBitrate,
-        '-vf',
-        'vflip',
-        '-pix_fmt',
-        'yuv420p',
-        '-movflags',
-        '+faststart',
-        '-y',
-        'video-stream.mp4',
-      ],
-      'Encoding video stream',
-      'encode',
-    );
 
     await runFfmpegWithProgress(
       [

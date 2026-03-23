@@ -412,26 +412,28 @@
 {#if render}
   <div class="absolute inset-0 flex justify-center items-center">
     <div
-      class="p-5 min-w-80 flex flex-col gap-3 justify-center items-center rounded-[32px] backdrop-blur-2xl backdrop-brightness-[60%] hover:backdrop-blur-3xl hover:backdrop-brightness-[35%] trans"
+      class="px-6 py-5 w-fit min-w-[22rem] max-w-[min(94vw,64rem)] flex flex-col gap-3 justify-center items-center rounded-[32px] backdrop-blur-2xl backdrop-brightness-[60%] hover:backdrop-blur-3xl hover:backdrop-brightness-[35%] trans"
     >
-      <span class="text-7xl font-bold uppercase">{m.rendering()}</span>
+      <span class="text-5xl md:text-6xl font-bold uppercase text-center leading-tight">
+        {m.rendering()}
+      </span>
       <div class="flex flex-col gap-1 w-full">
         {#if showProgress}
           <progress class="progress w-full" value={renderingPercent}></progress>
         {:else}
           <progress class="progress w-full"></progress>
         {/if}
-        <div class="flex justify-center text-md w-full relative">
-          <span class="absolute left-0 trans" class:opacity-0={!showProgress}>
+        <div class="grid grid-cols-[7rem_1fr_7rem] items-center text-md w-full gap-2">
+          <span class="justify-self-start trans" class:opacity-0={!showProgress}>
             {renderingPercent.toLocaleString(undefined, {
               style: 'percent',
               minimumFractionDigits: 2,
             })}
           </span>
-          <span>
+          <span class="text-center break-words whitespace-normal leading-snug">
             {renderingDetail}
           </span>
-          <span class="absolute right-0 trans" class:opacity-0={!showProgress}>
+          <span class="justify-self-end text-right trans" class:opacity-0={!showProgress}>
             {convertTime(renderingETA, true)}
           </span>
         </div>

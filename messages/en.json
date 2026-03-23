@@ -225,6 +225,10 @@
   "rendering": "Rendering",
   "rendering_details": {
     "rendering_frames": "Rendering frames",
+    "rendering_frames_tauri_ws": "Rendering frames via Tauri WebSocket",
+    "rendering_frames_segment_progress": "Rendering frames {current}/{total} ({percent}%)",
+    "rendering_frames_stream_progress": "Rendering frames {current}/{total}",
+    "rendering_phase_progress": "{phase} ({percent}%)",
     "waiting_for_ffmpeg": "Waiting for FFmpeg",
     "preparing_audio_assets": "Preparing audio presets",
     "mixing_audio": "Mixing audio",

@@ -2,6 +2,7 @@ use futures::{SinkExt, StreamExt};
 #[cfg(unix)]
 use std::fs;
 use std::io::Write;
+use std::time::{SystemTime, UNIX_EPOCH};
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 use std::process::{Child, ChildStdin};
@@ -9,6 +10,7 @@ use std::sync::{LazyLock, Mutex};
 use tauri::{AppHandle, Emitter};
 use tokio::net::TcpListener;
 use tokio_tungstenite::accept_async;
+use tokio_tungstenite::tungstenite::Message;
 
 use crate::cmd_hidden;
 use crate::send_webhook_notification;
@@ -16,6 +18,186 @@ use crate::send_webhook_notification;
 static FFMPEG_CMD: LazyLock<Mutex<String>> = LazyLock::new(|| Mutex::new("ffmpeg".to_string()));
 static FFMPEG_STDIN: LazyLock<Mutex<Option<ChildStdin>>> = LazyLock::new(|| Mutex::new(None));
 static FFMPEG_PROCESS: LazyLock<Mutex<Option<Child>>> = LazyLock::new(|| Mutex::new(None));
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BrowserRenderInit {
+    #[serde(rename = "type")]
+    kind: String,
+    resolution: String,
+    framerate: u32,
+    codec: String,
+    bitrate: String,
+}
+
+pub async fn start_browser_render_ws_server() -> Result<(), String> {
+    let listener = TcpListener::bind("127.0.0.1:63402")
+        .await
+        .map_err(|e| format!("Failed to bind browser render WS server: {}", e))?;
+
+    println!("[TAURI] Browser render WS server listening on ws://127.0.0.1:63402");
+
+    loop {
+        let (stream, _) = listener
+            .accept()
+            .await
+            .map_err(|e| format!("Failed to accept browser render WS connection: {}", e))?;
+
+        tokio::spawn(async move {
+            let ws_stream = match accept_async(stream).await {
+                Ok(s) => s,
+                Err(e) => {
+                    eprintln!("[TAURI] Browser render WS handshake failed: {}", e);
+                    return;
+                }
+            };
+
+            let (mut write, mut read) = ws_stream.split();
+            let mut stdin: Option<ChildStdin> = None;
+            let mut process: Option<Child> = None;
+            let mut output_path: Option<std::path::PathBuf> = None;
+            let mut frames_received: u64 = 0;
+            let report_interval = get_report_interval() as u64;
+
+            while let Some(Ok(message)) = read.next().await {
+                if message.is_text() {
+                    let text = match message.to_text() {
+                        Ok(t) => t,
+                        Err(e) => {
+                            let _ = write
+                                .send(Message::Text(format!("error:invalid_text:{}", e).into()))
+                                .await;
+                            continue;
+                        }
+                    };
+
+                    if text == "finish" {
+                        if let Some(mut p) = process.take() {
+                            drop(stdin.take());
+
+                            match p.wait() {
+                                Ok(status) if status.success() => {
+                                    if let Some(path) = output_path.take() {
+                                        match tokio::fs::read(&path).await {
+                                            Ok(data) => {
+                                                let _ = write.send(Message::Binary(data.into())).await;
+                                                let _ = tokio::fs::remove_file(path).await;
+                                                let _ = write.send(Message::Text("finished".into())).await;
+                                            }
+                                            Err(e) => {
+                                                let _ = write
+                                                    .send(Message::Text(
+                                                        format!("error:read_output:{}", e).into(),
+                                                    ))
+                                                    .await;
+                                            }
+                                        }
+                                    }
+                                }
+                                Ok(status) => {
+                                    let _ = write
+                                        .send(Message::Text(
+                                            format!("error:ffmpeg_status:{}", status).into(),
+                                        ))
+                                        .await;
+                                }
+                                Err(e) => {
+                                    let _ = write
+                                        .send(Message::Text(
+                                            format!("error:wait_process:{}", e).into(),
+                                        ))
+                                        .await;
+                                }
+                            }
+                        } else {
+                            let _ = write.send(Message::Text("error:not_initialized".into())).await;
+                        }
+                        break;
+                    }
+
+                    if text == "pause" {
+                        let _ = write
+                            .send(Message::Text(frames_received.to_string().into()))
+                            .await;
+                        continue;
+                    }
+
+                    match serde_json::from_str::<BrowserRenderInit>(text) {
+                        Ok(init) if init.kind == "init" => {
+                            let ts = SystemTime::now()
+                                .duration_since(UNIX_EPOCH)
+                                .map(|d| d.as_nanos())
+                                .unwrap_or(0);
+                            let path = std::env::temp_dir()
+                                .join(format!("phizone-player-browser-render-{}.mp4", ts));
+
+                            let mut cmd = cmd_hidden(&*FFMPEG_CMD.lock().unwrap());
+                            cmd.args(
+                                format!(
+                                    "-probesize 50M -f rawvideo -pix_fmt rgb24 -s {} -r {} -thread_queue_size 1024 -i pipe:0 -c:v {} -b:v {} -vf vflip -pix_fmt yuv420p -movflags +faststart -y {}",
+                                    init.resolution,
+                                    init.framerate,
+                                    init.codec,
+                                    init.bitrate,
+                                    path.display()
+                                )
+                                .split_whitespace(),
+                            )
+                            .stdin(std::process::Stdio::piped())
+                            .stdout(std::process::Stdio::null())
+                            .stderr(std::process::Stdio::null());
+
+                            match cmd.spawn() {
+                                Ok(mut child) => {
+                                    stdin = child.stdin.take();
+                                    process = Some(child);
+                                    output_path = Some(path);
+                                    frames_received = 0;
+                                    let _ = write.send(Message::Text("ready".into())).await;
+                                }
+                                Err(e) => {
+                                    let _ = write
+                                        .send(Message::Text(
+                                            format!("error:spawn_ffmpeg:{}", e).into(),
+                                        ))
+                                        .await;
+                                }
+                            }
+                        }
+                        _ => {
+                            let _ = write.send(Message::Text("error:invalid_command".into())).await;
+                        }
+                    }
+                    continue;
+                }
+
+                if message.is_binary() {
+                    frames_received += 1;
+
+                    if let Some(stdin_ref) = stdin.as_mut() {
+                        if let Err(e) = stdin_ref.write_all(&message.into_data()) {
+                            let _ = write
+                                .send(Message::Text(format!("error:write_stdin:{}", e).into()))
+                                .await;
+                            break;
+                        }
+
+                        if report_interval > 0 && frames_received % report_interval == 0 {
+                            let _ = write
+                                .send(Message::Text(
+                                    format!("progress:{}", frames_received).into(),
+                                ))
+                                .await;
+                        }
+                    } else {
+                        let _ = write.send(Message::Text("error:not_initialized".into())).await;
+                        break;
+                    }
+                }
+            }
+        });
+    }
+}
 
 fn get_report_interval() -> u32 {
     match std::env::var("REPORT_INTERVAL") {
