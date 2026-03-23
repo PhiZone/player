@@ -225,6 +225,10 @@
   "rendering": "渲染中",
   "rendering_details": {
     "rendering_frames": "渲染画面",
+    "rendering_frames_tauri_ws": "通过 Tauri WebSocket 渲染画面",
+    "rendering_frames_segment_progress": "渲染画面 {current}/{total} ({percent}%)",
+    "rendering_frames_stream_progress": "渲染画面 {current}/{total}",
+    "rendering_phase_progress": "{phase}（{percent}%）",
     "waiting_for_ffmpeg": "等待 FFmpeg",
     "preparing_audio_assets": "准备音频资源",
     "mixing_audio": "混合音频",

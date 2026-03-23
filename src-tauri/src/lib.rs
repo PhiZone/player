@@ -77,6 +77,12 @@ pub fn run() {
                         .build(),
                 )?;
             }
+
+            tauri::async_runtime::spawn(async {
+                if let Err(e) = ffmpeg::start_browser_render_ws_server().await {
+                    eprintln!("[TAURI] Browser render WS server failed: {}", e);
+                }
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

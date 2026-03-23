@@ -376,7 +376,7 @@ export const fit = (
 export const triggerDownload = (
   blob: Blob,
   name: string,
-  purpose: 'adjustedOffset' | 'resourcePack',
+  purpose: 'adjustedOffset' | 'resourcePack' | 'rendering',
   always = false,
 ) => {
   if (IS_IFRAME && purpose !== 'resourcePack') {

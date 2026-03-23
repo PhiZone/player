@@ -59,6 +59,7 @@
   let showProgress = true;
   let renderingDetail = '';
   let renderingOutput = '';
+  let renderingOutputBlob: Blob | null = null;
   let lastProgressBarPercent = 0;
 
   let wakeLock: WakeLockSentinel | null = null;
@@ -136,7 +137,7 @@
       renderingETA =
         ((Date.now() - renderingStarted) / 1000 / Math.min(renderingProgress, renderingTotal)) *
         Math.max(renderingTotal - renderingProgress, 0);
-      if (renderingPercent - lastProgressBarPercent >= 0.01) {
+      if (IS_TAURI && renderingPercent - lastProgressBarPercent >= 0.01) {
         getCurrentWebviewWindow().setProgressBar({
           status: ProgressBarStatus.Normal,
           progress: Math.round(renderingPercent * 100),
@@ -146,26 +147,41 @@
     });
 
     EventBus.on('video-rendering-finished', () => {
-      showProgress = false;
-      getCurrentWebviewWindow().setProgressBar({
-        status: ProgressBarStatus.Indeterminate,
-      });
+      if (IS_TAURI) {
+        showProgress = false;
+        getCurrentWebviewWindow().setProgressBar({
+          status: ProgressBarStatus.Indeterminate,
+        });
+      } else {
+        showProgress = true;
+      }
     });
 
-    EventBus.on('rendering-finished', (output: string) => {
-      renderingOutput = output;
+    EventBus.on('rendering-finished', (output: string | { name: string; blob: Blob }) => {
+      const resolvedOutput =
+        typeof output === 'string'
+          ? { name: output, blob: null }
+          : { name: output.name, blob: output.blob };
+
+      renderingOutput = resolvedOutput.name;
+      renderingOutputBlob = resolvedOutput.blob;
       showProgress = true;
       renderingPercent = 1;
-      getCurrentWebviewWindow().setProgressBar({
-        status: ProgressBarStatus.None,
-      });
-      notify(m.rendering_saved({ path: output }), 'success', async () => {
-        await openPath(output.split(sep()).slice(0, -1).join(sep()));
+      if (IS_TAURI) {
+        getCurrentWebviewWindow().setProgressBar({
+          status: ProgressBarStatus.None,
+        });
+      }
+
+      notify(m.rendering_saved({ path: resolvedOutput.name }), 'success', async () => {
+        if (IS_TAURI) {
+          await openPath(resolvedOutput.name.split(sep()).slice(0, -1).join(sep()));
+        }
       });
       wakeLock?.release().then(() => {
         wakeLock = null;
       });
-      if (config.automate) invoke('close');
+      if (IS_TAURI && config.automate) invoke('close');
     });
 
     EventBus.on('rendering-detail', (p: string) => {
@@ -396,26 +412,28 @@
 {#if render}
   <div class="absolute inset-0 flex justify-center items-center">
     <div
-      class="p-5 min-w-80 flex flex-col gap-3 justify-center items-center rounded-[32px] backdrop-blur-2xl backdrop-brightness-[60%] hover:backdrop-blur-3xl hover:backdrop-brightness-[35%] trans"
+      class="px-6 py-5 w-fit min-w-[22rem] max-w-[min(94vw,64rem)] flex flex-col gap-3 justify-center items-center rounded-[32px] backdrop-blur-2xl backdrop-brightness-[60%] hover:backdrop-blur-3xl hover:backdrop-brightness-[35%] trans"
     >
-      <span class="text-7xl font-bold uppercase">{m.rendering()}</span>
+      <span class="text-5xl md:text-6xl font-bold uppercase text-center leading-tight">
+        {m.rendering()}
+      </span>
       <div class="flex flex-col gap-1 w-full">
         {#if showProgress}
           <progress class="progress w-full" value={renderingPercent}></progress>
         {:else}
           <progress class="progress w-full"></progress>
         {/if}
-        <div class="flex justify-center text-md w-full relative">
-          <span class="absolute left-0 trans" class:opacity-0={!showProgress}>
+        <div class="grid grid-cols-[7rem_1fr_7rem] items-center text-md w-full gap-2">
+          <span class="justify-self-start trans" class:opacity-0={!showProgress}>
             {renderingPercent.toLocaleString(undefined, {
               style: 'percent',
               minimumFractionDigits: 2,
             })}
           </span>
-          <span>
+          <span class="text-center break-words whitespace-normal leading-snug">
             {renderingDetail}
           </span>
-          <span class="absolute right-0 trans" class:opacity-0={!showProgress}>
+          <span class="justify-self-end text-right trans" class:opacity-0={!showProgress}>
             {convertTime(renderingETA, true)}
           </span>
         </div>
@@ -427,24 +445,37 @@
       class="p-3 flex flex-col gap-3 justify-center items-center rounded-full backdrop-blur-2xl backdrop-brightness-[60%] hover:backdrop-blur-3xl hover:backdrop-brightness-[35%] trans uppercase"
     >
       {#if renderingOutput}
-        <div class="flex gap-2 w-96">
-          <button
-            class="btn btn-outline border-2 btn-success text-xl rounded-full flex-1"
-            on:click={async () => {
-              await openPath(renderingOutput);
-            }}
-          >
-            {m.open_file()}
-          </button>
-          <button
-            class="btn btn-outline border-2 btn-info text-xl rounded-full flex-1"
-            on:click={async () => {
-              await openPath(renderingOutput.split(sep()).slice(0, -1).join(sep()));
-            }}
-          >
-            {m.open_folder()}
-          </button>
-        </div>
+        {#if IS_TAURI}
+          <div class="flex gap-2 w-96">
+            <button
+              class="btn btn-outline border-2 btn-success text-xl rounded-full flex-1"
+              on:click={async () => {
+                await openPath(renderingOutput);
+              }}
+            >
+              {m.open_file()}
+            </button>
+            <button
+              class="btn btn-outline border-2 btn-info text-xl rounded-full flex-1"
+              on:click={async () => {
+                await openPath(renderingOutput.split(sep()).slice(0, -1).join(sep()));
+              }}
+            >
+              {m.open_folder()}
+            </button>
+          </div>
+        {:else if renderingOutputBlob}
+          <div class="flex gap-2 w-96">
+            <button
+              class="btn btn-outline border-2 btn-success text-xl rounded-full flex-1"
+              on:click={() => {
+                triggerDownload(renderingOutputBlob!, renderingOutput, 'rendering');
+              }}
+            >
+              {m.open_file()}
+            </button>
+          </div>
+        {/if}
       {:else}
         <button
           class="btn btn-outline border-2 btn-error text-xl rounded-full"
