@@ -871,7 +871,6 @@ export class Game extends Scene {
   }
 
   getFont(name: string | undefined) {
-    console.log('Getting font', name, name ? this._fonts[name] : this._respack.fonts[0].name);
     return name ? this._fonts[name] : this._respack.fonts[0].name;
   }
 
