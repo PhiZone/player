@@ -913,7 +913,7 @@
 
   const setupFFmpeg = async () => {
     if (ffmpegEncoders === undefined) {
-      const link = getFFmpegDownloadLink();
+      const link = await getFFmpegDownloadLink();
       if (
         link &&
         (await ask('FFmpeg could not be found on your system. Do you want to install it?'))

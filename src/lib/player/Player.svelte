@@ -35,7 +35,7 @@
   import StatsJS from 'stats-js';
   import { m } from '$lib/paraglide/messages';
   import { tauriInvoke } from '$lib/services/tauriIpc';
-  import { pathSep, closeCurrentWindow } from '$lib/services/tauriFsBridge';
+  import { pathSep } from '$lib/services/tauriFsBridge';
 
   export let gameRef: GameReference;
   export let config: Config | null = null;
@@ -43,9 +43,7 @@
 
   config ??= getParams();
   if (!config) {
-    goto(
-      `${base}/${IS_TAURI_LIKE || Capacitor.getPlatform() !== 'web' ? `?t=${Date.now()}` : ''}`,
-    );
+    goto(`${base}/${IS_TAURI_LIKE || Capacitor.getPlatform() !== 'web' ? `?t=${Date.now()}` : ''}`);
   }
 
   let loadingProgress = 0;
@@ -466,22 +464,29 @@
     >
       {#if renderingOutput}
         <div class="flex gap-2 w-96">
-          <button
-            class="btn btn-outline border-2 btn-success text-xl rounded-full flex-1"
-            on:click={async () => {
-              await openPath(renderingOutput);
-            }}
-          >
-            {m.open_file()}
-          </button>
-          <button
-            class="btn btn-outline border-2 btn-info text-xl rounded-full flex-1"
-            on:click={async () => {
-              await openPath(renderingOutput.split(sep()).slice(0, -1).join(sep()));
-            }}
-          >
-            {m.open_folder()}
-          </button>
+          {#if IS_TAURI}
+            <button
+              class="btn btn-outline border-2 btn-success text-xl rounded-full flex-1"
+              on:click={async () => {
+                const { openPath } = await import('@tauri-apps/plugin-opener');
+                await openPath(renderingOutput);
+              }}
+            >
+              {m.open_file()}
+            </button>
+            <button
+              class="btn btn-outline border-2 btn-info text-xl rounded-full flex-1"
+              on:click={async () => {
+                const { openPath } = await import('@tauri-apps/plugin-opener');
+                const separator = await pathSep();
+                await openPath(
+                  renderingOutput.split(separator).slice(0, -1).join(separator),
+                );
+              }}
+            >
+              {m.open_folder()}
+            </button>
+          {/if}
         </div>
       {:else}
         <button

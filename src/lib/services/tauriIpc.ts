@@ -3,8 +3,10 @@
  * WebSocket bridge when running in a browser with the `backend` query param.
  */
 
-import { IS_TAURI } from '$lib/utils';
 import { hasTauriBackendParam, bridgeInvoke, bridgeListen } from '$lib/services/tauriIpcBridge';
+
+/** Check for Tauri without importing from $lib/utils to avoid circular deps. */
+const isTauri = () => '__TAURI_INTERNALS__' in window;
 
 /**
  * Calls a Tauri command – either through the native IPC or via the WS bridge.
@@ -13,7 +15,7 @@ export async function tauriInvoke<T = unknown>(
   command: string,
   args?: Record<string, unknown>,
 ): Promise<T> {
-  if (IS_TAURI) {
+  if (isTauri()) {
     const { invoke } = await import('@tauri-apps/api/core');
     return invoke<T>(command, args);
   }
@@ -31,7 +33,7 @@ export async function tauriListen<T = unknown>(
   event: string,
   handler: (event: { payload: T }) => void,
 ): Promise<() => void> {
-  if (IS_TAURI) {
+  if (isTauri()) {
     const { listen } = await import('@tauri-apps/api/event');
     return listen<T>(event, handler);
   }

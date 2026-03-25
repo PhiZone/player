@@ -6,13 +6,15 @@
  * routed through the WebSocket IPC bridge.
  */
 
-import { IS_TAURI } from '$lib/utils';
 import { tauriInvoke } from '$lib/services/tauriIpc';
+
+/** Check for Tauri without importing from $lib/utils to avoid circular deps. */
+const isTauri = () => '__TAURI_INTERNALS__' in window;
 
 // ── Path helpers ──────────────────────────────────────────────────────
 
 export async function pathJoin(...parts: string[]): Promise<string> {
-  if (IS_TAURI) {
+  if (isTauri()) {
     const { join } = await import('@tauri-apps/api/path');
     // join() takes exactly 2 args, so chain them
     let result = parts[0];
@@ -27,7 +29,7 @@ export async function pathJoin(...parts: string[]): Promise<string> {
 }
 
 export async function pathTempDir(): Promise<string> {
-  if (IS_TAURI) {
+  if (isTauri()) {
     const { tempDir } = await import('@tauri-apps/api/path');
     return tempDir();
   }
@@ -35,7 +37,7 @@ export async function pathTempDir(): Promise<string> {
 }
 
 export async function pathVideoDir(): Promise<string> {
-  if (IS_TAURI) {
+  if (isTauri()) {
     const { videoDir } = await import('@tauri-apps/api/path');
     return videoDir();
   }
@@ -45,7 +47,7 @@ export async function pathVideoDir(): Promise<string> {
 // ── Filesystem operations ─────────────────────────────────────────────
 
 export async function fsMkdir(path: string, options?: { recursive?: boolean }): Promise<void> {
-  if (IS_TAURI) {
+  if (isTauri()) {
     const { mkdir } = await import('@tauri-apps/plugin-fs');
     return mkdir(path, options);
   }
@@ -53,7 +55,7 @@ export async function fsMkdir(path: string, options?: { recursive?: boolean }): 
 }
 
 export async function fsRemove(path: string, options?: { recursive?: boolean }): Promise<void> {
-  if (IS_TAURI) {
+  if (isTauri()) {
     const { remove } = await import('@tauri-apps/plugin-fs');
     return remove(path, options);
   }
@@ -61,7 +63,7 @@ export async function fsRemove(path: string, options?: { recursive?: boolean }):
 }
 
 export async function fsWriteFile(path: string, data: Uint8Array): Promise<void> {
-  if (IS_TAURI) {
+  if (isTauri()) {
     const { writeFile } = await import('@tauri-apps/plugin-fs');
     return writeFile(path, data);
   }
@@ -73,7 +75,7 @@ export async function fsWriteFile(path: string, data: Uint8Array): Promise<void>
 // ── Window operations ─────────────────────────────────────────────────
 
 export async function closeCurrentWindow(): Promise<void> {
-  if (IS_TAURI) {
+  if (isTauri()) {
     const { getCurrentWindow } = await import('@tauri-apps/api/window');
     await getCurrentWindow().close();
   } else {
@@ -84,7 +86,7 @@ export async function closeCurrentWindow(): Promise<void> {
 // ── Path separator ────────────────────────────────────────────────────
 
 export async function pathSep(): Promise<string> {
-  if (IS_TAURI) {
+  if (isTauri()) {
     const { sep } = await import('@tauri-apps/api/path');
     return sep();
   }

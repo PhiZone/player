@@ -17,7 +17,10 @@ type EventCallback<T = unknown> = (event: { payload: T }) => void;
 
 let ws: WebSocket | null = null;
 let nextId = 1;
-const pendingInvokes = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
+const pendingInvokes = new Map<
+  number,
+  { resolve: (v: unknown) => void; reject: (e: Error) => void }
+>();
 const eventListeners = new Map<string, Set<EventCallback>>();
 
 let connectPromise: Promise<void> | null = null;
@@ -90,7 +93,10 @@ async function ensureConnection(): Promise<void> {
 /**
  * Mimics Tauri's invoke() – sends a command to the backend and awaits the response.
  */
-export async function bridgeInvoke<T = unknown>(command: string, args?: Record<string, unknown>): Promise<T> {
+export async function bridgeInvoke<T = unknown>(
+  command: string,
+  args?: Record<string, unknown>,
+): Promise<T> {
   await ensureConnection();
   const id = nextId++;
   return new Promise<T>((resolve, reject) => {
