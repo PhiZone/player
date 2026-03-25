@@ -1,0 +1,92 @@
+/**
+ * Thin wrappers around Tauri filesystem / path APIs.
+ *
+ * When running inside Tauri, these delegate to the native plugins.
+ * When running in a browser with the `backend` query param, they are
+ * routed through the WebSocket IPC bridge.
+ */
+
+import { IS_TAURI } from '$lib/utils';
+import { tauriInvoke } from '$lib/services/tauriIpc';
+
+// ── Path helpers ──────────────────────────────────────────────────────
+
+export async function pathJoin(...parts: string[]): Promise<string> {
+  if (IS_TAURI) {
+    const { join } = await import('@tauri-apps/api/path');
+    // join() takes exactly 2 args, so chain them
+    let result = parts[0];
+    for (let i = 1; i < parts.length; i++) {
+      result = await join(result, parts[i]);
+    }
+    return result;
+  }
+  // Use the platform-agnostic separator (/) for non-Tauri environments.
+  // The backend will normalise the path.
+  return parts.join('/');
+}
+
+export async function pathTempDir(): Promise<string> {
+  if (IS_TAURI) {
+    const { tempDir } = await import('@tauri-apps/api/path');
+    return tempDir();
+  }
+  return tauriInvoke<string>('get_temp_dir');
+}
+
+export async function pathVideoDir(): Promise<string> {
+  if (IS_TAURI) {
+    const { videoDir } = await import('@tauri-apps/api/path');
+    return videoDir();
+  }
+  return tauriInvoke<string>('get_video_dir');
+}
+
+// ── Filesystem operations ─────────────────────────────────────────────
+
+export async function fsMkdir(path: string, options?: { recursive?: boolean }): Promise<void> {
+  if (IS_TAURI) {
+    const { mkdir } = await import('@tauri-apps/plugin-fs');
+    return mkdir(path, options);
+  }
+  await tauriInvoke('fs_mkdir', { path, recursive: options?.recursive ?? false });
+}
+
+export async function fsRemove(path: string, options?: { recursive?: boolean }): Promise<void> {
+  if (IS_TAURI) {
+    const { remove } = await import('@tauri-apps/plugin-fs');
+    return remove(path, options);
+  }
+  await tauriInvoke('fs_remove', { path, recursive: options?.recursive ?? false });
+}
+
+export async function fsWriteFile(path: string, data: Uint8Array): Promise<void> {
+  if (IS_TAURI) {
+    const { writeFile } = await import('@tauri-apps/plugin-fs');
+    return writeFile(path, data);
+  }
+  // Convert Uint8Array to base64 for transport over JSON
+  const base64 = btoa(String.fromCharCode(...data));
+  await tauriInvoke('fs_write_file', { path, dataBase64: base64 });
+}
+
+// ── Window operations ─────────────────────────────────────────────────
+
+export async function closeCurrentWindow(): Promise<void> {
+  if (IS_TAURI) {
+    const { getCurrentWindow } = await import('@tauri-apps/api/window');
+    await getCurrentWindow().close();
+  } else {
+    window.close();
+  }
+}
+
+// ── Path separator ────────────────────────────────────────────────────
+
+export async function pathSep(): Promise<string> {
+  if (IS_TAURI) {
+    const { sep } = await import('@tauri-apps/api/path');
+    return sep();
+  }
+  return '/';
+}

@@ -1,11 +1,13 @@
 import type { FFmpegEncoder } from '$lib/types';
-import { IS_TAURI } from '$lib/utils';
-import { invoke } from '@tauri-apps/api/core';
-import { platform, arch } from '@tauri-apps/plugin-os';
+import { IS_TAURI, IS_TAURI_LIKE } from '$lib/utils';
+import { tauriInvoke } from '$lib/services/tauriIpc';
 
 let frameStreaming = false;
 
-export const getFFmpegDownloadLink = () => {
+export const getFFmpegDownloadLink = async () => {
+  // FFmpeg download only makes sense in native Tauri where we need the binary locally
+  if (!IS_TAURI) return null;
+  const { platform, arch } = await import('@tauri-apps/plugin-os');
   const p = platform();
   const a = arch();
   if (!['windows', 'linux', 'macos'].includes(p) || !['x86_64', 'aarch64'].includes(a)) {
@@ -24,9 +26,9 @@ export const getFFmpegDownloadLink = () => {
 };
 
 export const setFFmpegPath = async (path: string) => {
-  if (!IS_TAURI) return;
+  if (!IS_TAURI_LIKE) return;
   try {
-    await invoke('set_ffmpeg_path', { path });
+    await tauriInvoke('set_ffmpeg_path', { path });
     localStorage.setItem('ffmpegPath', path);
   } catch (e) {
     console.error(e);
@@ -34,9 +36,9 @@ export const setFFmpegPath = async (path: string) => {
 };
 
 export const getEncoders = async () => {
-  if (!IS_TAURI) return;
+  if (!IS_TAURI_LIKE) return;
   const doGetEncoders = async () => {
-    return (await invoke('get_ffmpeg_encoders')) as FFmpegEncoder[];
+    return (await tauriInvoke('get_ffmpeg_encoders')) as FFmpegEncoder[];
   };
   try {
     return await doGetEncoders();
@@ -55,8 +57,8 @@ export const getEncoders = async () => {
 };
 
 export const convertAudio = async (input: string, output: string) => {
-  if (!IS_TAURI) return;
-  return await invoke('convert_audio', { input, output });
+  if (!IS_TAURI_LIKE) return;
+  return await tauriInvoke('convert_audio', { input, output });
 };
 
 export const setupVideo = async (
@@ -67,9 +69,9 @@ export const setupVideo = async (
   codec: string,
   bitrate: number,
 ) => {
-  if (!IS_TAURI) return;
+  if (!IS_TAURI_LIKE) return;
   frameStreaming = true;
-  return await invoke('setup_video', {
+  return await tauriInvoke('setup_video', {
     output,
     resolution: `${resolution[0]}x${resolution[1]}`,
     frameRate,
@@ -80,9 +82,9 @@ export const setupVideo = async (
 };
 
 export const finishVideo = async () => {
-  if (!IS_TAURI) return;
+  if (!IS_TAURI_LIKE) return;
   frameStreaming = false;
-  return await invoke('finish_video');
+  return await tauriInvoke('finish_video');
 };
 
 export const combineStreams = async (
@@ -93,8 +95,8 @@ export const combineStreams = async (
   audioBitrate: number,
   output: string,
 ) => {
-  if (!IS_TAURI) return;
-  return await invoke('combine_streams', {
+  if (!IS_TAURI_LIKE) return;
+  return await tauriInvoke('combine_streams', {
     inputVideo,
     inputMusic,
     inputHitsounds,

@@ -1,6 +1,6 @@
 import { Cameras, GameObjects, Scene, Sound } from 'phaser';
 import { EventBus } from '../EventBus';
-import { inferLevelType, fit, send, getLines, IS_TAURI } from '$lib/utils';
+import { inferLevelType, fit, send, getLines, IS_TAURI_LIKE } from '$lib/utils';
 import {
   processIllustration,
   loadJson,
@@ -166,7 +166,7 @@ export class Game extends Scene {
     this._practice = this._data.practice;
     this._autostart = this._data.autostart;
     this._adjustOffset = this._data.adjustOffset;
-    this._render = this._data.render && IS_TAURI;
+    this._render = this._data.render && IS_TAURI_LIKE;
 
     this._respack = new ResourcePackHandler(this._data.resourcePack);
 

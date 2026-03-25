@@ -25,6 +25,17 @@ import { invoke } from '@tauri-apps/api/core';
 
 export const IS_TAURI = '__TAURI_INTERNALS__' in window;
 
+/**
+ * True when running inside Tauri **or** when the `backend` query param is
+ * present, meaning we're in a browser that should proxy IPC calls to a
+ * running Tauri backend via WebSocket.
+ */
+export const IS_TAURI_LIKE: boolean = (() => {
+  if (IS_TAURI) return true;
+  if (typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).has('backend');
+})();
+
 export const IS_IOS = (() => {
   const iosQuirkPresent = () => {
     const audio = new Audio();

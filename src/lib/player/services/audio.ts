@@ -1,8 +1,8 @@
 import type { Sound, Timestamp } from '$lib/types';
-import { IS_TAURI } from '$lib/utils';
-import { invoke } from '@tauri-apps/api/core';
+import { IS_TAURI_LIKE } from '$lib/utils';
+import { tauriInvoke } from '$lib/services/tauriIpc';
 
-const IS_USABLE = IS_TAURI;
+const IS_USABLE = IS_TAURI_LIKE;
 export const mixAudio = async (
   sounds: Sound[],
   timestamps: Timestamp[],
@@ -10,7 +10,7 @@ export const mixAudio = async (
   output: string,
 ) => {
   if (!IS_USABLE) return;
-  return await invoke('mix_audio', {
+  return await tauriInvoke('mix_audio', {
     sounds,
     timestamps,
     length,

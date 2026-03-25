@@ -1,7 +1,7 @@
 import { Game as MainGame } from './scenes/Game';
 import { WEBGL, Game, Scale, type Types } from 'phaser';
 import type { Config } from '$lib/types';
-import { fit, IS_TAURI } from '$lib/utils';
+import { fit, IS_TAURI, IS_TAURI_LIKE } from '$lib/utils';
 import { Capacitor } from '@capacitor/core';
 import { currentMonitor, getCurrentWindow } from '@tauri-apps/api/window';
 import { EventBus } from './EventBus';
@@ -15,7 +15,7 @@ const start = async (parent: string, sceneConfig: Config) => {
     width: parentElement.clientWidth * window.devicePixelRatio,
     height: parentElement.clientHeight * window.devicePixelRatio,
     fps: {
-      smoothStep: !(IS_TAURI && sceneConfig.render),
+      smoothStep: !(IS_TAURI_LIKE && sceneConfig.render),
     },
     scale: {
       mode: Scale.EXPAND,
@@ -39,7 +39,7 @@ const start = async (parent: string, sceneConfig: Config) => {
   if (
     Capacitor.getPlatform() !== 'web' ||
     sceneConfig.preferences.aspectRatio !== null ||
-    (IS_TAURI && sceneConfig.render)
+    (IS_TAURI_LIKE && sceneConfig.render)
   ) {
     if (
       sceneConfig.mediaOptions.overrideResolution &&
@@ -68,7 +68,7 @@ const start = async (parent: string, sceneConfig: Config) => {
       );
     }
 
-    if (IS_TAURI && sceneConfig.render) {
+    if (IS_TAURI_LIKE && sceneConfig.render) {
       if (sceneConfig.mediaOptions.overrideResolution !== null) {
         dimensions = {
           width: sceneConfig.mediaOptions.overrideResolution[0],
@@ -76,13 +76,21 @@ const start = async (parent: string, sceneConfig: Config) => {
         };
       } else {
         const ratio = sceneConfig.preferences.aspectRatio;
-        const monitor = await currentMonitor();
-        if (monitor) {
-          if (ratio) {
-            dimensions = fit(ratio[0], ratio[1], monitor.size.width, monitor.size.height, true);
-          } else {
-            dimensions = monitor.size;
-          }
+        let monitorSize: { width: number; height: number } | null = null;
+        if (IS_TAURI) {
+          const monitor = await currentMonitor();
+          if (monitor) monitorSize = monitor.size;
+        }
+        if (!monitorSize) {
+          monitorSize = {
+            width: window.screen.width * window.devicePixelRatio,
+            height: window.screen.height * window.devicePixelRatio,
+          };
+        }
+        if (ratio) {
+          dimensions = fit(ratio[0], ratio[1], monitorSize.width, monitorSize.height, true);
+        } else {
+          dimensions = monitorSize;
         }
       }
     }

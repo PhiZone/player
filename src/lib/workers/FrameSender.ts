@@ -4,14 +4,14 @@ enum WebSocketState {
   CLOSED = 3,
 }
 
-const WEBSOCKET_URL = 'ws://localhost:63401';
+const DEFAULT_WEBSOCKET_URL = 'ws://localhost:63401';
 const FRAME_BATCH_SIZE = 500;
 
 class FrameSender {
-  private _ws: WebSocket;
+  private _ws!: WebSocket;
   private _wsState: WebSocketState = WebSocketState.CLOSED;
   private _frameQueue: (Uint8Array<ArrayBuffer> | false)[] = [];
-  private _sharedView: Uint8Array;
+  private _sharedView!: Uint8Array;
   private _isSendingFrame: boolean = false;
   private _renderedFrameCount: number = 0;
   private _processedFrameCount: number = 0;
@@ -19,7 +19,32 @@ class FrameSender {
   private _timeout: NodeJS.Timeout | null = null;
 
   constructor() {
-    this._ws = new WebSocket(WEBSOCKET_URL);
+    self.onmessage = (event) => {
+      const { type, buffer, frameNumber, wsUrl } = event.data;
+
+      if (type === 'init') {
+        this._sharedView = new Uint8Array(buffer);
+        this.connect(wsUrl ?? DEFAULT_WEBSOCKET_URL);
+        console.log('[FrameSender] Shared view initialized');
+        return;
+      }
+
+      if (type === 'stop') {
+        this._frameQueue.push(false);
+        console.log('[FrameSender] Received stop signal');
+        this.sendFrame();
+        return;
+      }
+
+      if (type === 'frame') {
+        this._renderedFrameCount = frameNumber;
+        this.processFrame();
+      }
+    };
+  }
+
+  connect(url: string) {
+    this._ws = new WebSocket(url);
     this._ws.binaryType = 'arraybuffer';
     this._ws.onopen = () => {
       this._wsState = WebSocketState.OPEN;
@@ -38,28 +63,6 @@ class FrameSender {
         this.dispatch(true);
       } catch (e) {
         console.error(e);
-      }
-    };
-
-    self.onmessage = (event) => {
-      const { type, buffer, frameNumber } = event.data;
-
-      if (type === 'init') {
-        this._sharedView = new Uint8Array(buffer);
-        console.log('[FrameSender] Shared view initialized');
-        return;
-      }
-
-      if (type === 'stop') {
-        this._frameQueue.push(false);
-        console.log('[FrameSender] Received stop signal');
-        this.sendFrame();
-        return;
-      }
-
-      if (type === 'frame') {
-        this._renderedFrameCount = frameNumber;
-        this.processFrame();
       }
     };
   }
