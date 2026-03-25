@@ -85,6 +85,40 @@ pub fn run() {
                 ws_server::start(handle).await;
             });
 
+            // If --browser was specified, launch the external browser after the
+            // WS server is ready and wait for it to connect.
+            if let Some(browser_cmd) = CLI_ARGS.lock().unwrap().get("browser").cloned() {
+                let base_url = CLI_ARGS
+                    .lock()
+                    .unwrap()
+                    .get("url")
+                    .cloned()
+                    .unwrap_or_else(|| "http://localhost:9900".to_string());
+
+                tauri::async_runtime::spawn(async move {
+                    // Wait until the WS server has bound to its port.
+                    ws_server::wait_for_ready().await;
+
+                    let separator = if base_url.contains('?') { "&" } else { "?" };
+                    let full_url = format!(
+                        "{}{}backend=ws://localhost:{}",
+                        base_url,
+                        separator,
+                        ws_server::WS_PORT,
+                    );
+                    println!("[TAURI] Launching browser: {} \"{}\"", browser_cmd, full_url);
+
+                    if let Err(e) = launch_browser(&browser_cmd, &full_url) {
+                        eprintln!("[TAURI] Failed to launch browser: {}", e);
+                        return;
+                    }
+
+                    println!("[TAURI] Waiting for browser to connect…");
+                    ws_server::wait_for_ipc_client().await;
+                    println!("[TAURI] Browser client connected via WebSocket");
+                });
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -148,6 +182,24 @@ pub fn cmd_hidden(program: impl AsRef<std::ffi::OsStr>) -> Command {
     }
     #[cfg(not(target_os = "windows"))]
     cmd
+}
+
+/// Launch an external browser by running `<command> <url>` directly (no shell).
+///
+/// The `command` string is split on whitespace: the first token is the
+/// executable and the remaining tokens become extra arguments, followed by
+/// the URL as the final argument.
+fn launch_browser(command: &str, url: &str) -> Result<(), String> {
+    let mut parts = command.split_whitespace();
+    let program = parts.next().ok_or("Empty browser command")?;
+    let mut cmd = Command::new(program);
+    for arg in parts {
+        cmd.arg(arg);
+    }
+    cmd.arg(url);
+    cmd.spawn()
+        .map_err(|e| format!("Failed to spawn browser process: {}", e))?;
+    Ok(())
 }
 
 fn extract_files_from_args(args_map: &HashMap<String, String>) -> Vec<PathBuf> {

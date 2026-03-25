@@ -1,4 +1,5 @@
 use std::io::Write;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock, Mutex};
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
@@ -6,13 +7,13 @@ use futures::{SinkExt, StreamExt};
 use serde_json::Value;
 use tauri::Manager;
 use tokio::net::TcpListener;
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, Notify};
 use tokio_tungstenite::accept_async;
 
 use crate::{audio, ffmpeg, send_webhook_notification};
 
 /// Port for the WebSocket server used for IPC + frame transfer.
-const WS_PORT: u16 = 63401;
+pub const WS_PORT: u16 = 63401;
 
 // ── Global state ─────────────────────────────────────────────────────
 
@@ -27,6 +28,16 @@ pub static FRAME_STATE: LazyLock<Mutex<FrameState>> =
 /// Stored `AppHandle` so WS command handlers can call `app.emit()` etc.
 static APP_HANDLE: LazyLock<Mutex<Option<tauri::AppHandle>>> =
     LazyLock::new(|| Mutex::new(None));
+
+/// Notified (once) when the WS server has bound to its port.
+static SERVER_READY: LazyLock<Notify> = LazyLock::new(Notify::new);
+
+/// Notified (once) when the first IPC client connects via WebSocket.
+static IPC_CLIENT_CONNECTED: LazyLock<Notify> = LazyLock::new(Notify::new);
+
+/// `true` once any IPC client has ever connected. Prevents duplicate
+/// notifications on `IPC_CLIENT_CONNECTED`.
+static IPC_CLIENT_SEEN: AtomicBool = AtomicBool::new(false);
 
 /// Mutable state for frame streaming progress.
 pub struct FrameState {
@@ -63,6 +74,17 @@ pub fn broadcast_event(event: &str, payload: Value) {
     }
 }
 
+/// Wait until the WS server has bound to its port and is ready to accept
+/// connections.
+pub async fn wait_for_ready() {
+    SERVER_READY.notified().await;
+}
+
+/// Wait until an IPC client has connected via WebSocket.
+pub async fn wait_for_ipc_client() {
+    IPC_CLIENT_CONNECTED.notified().await;
+}
+
 // ── Server entry point ──────────────────────────────────────────────
 
 /// Start the always-on WebSocket server on port 63401.
@@ -83,6 +105,9 @@ pub async fn start(app_handle: tauri::AppHandle) {
         }
     };
     println!("[WS Server] Listening on port {}", WS_PORT);
+
+    // Signal that the server is ready to accept connections.
+    SERVER_READY.notify_one();
 
     while let Ok((stream, addr)) = listener.accept().await {
         tokio::spawn(async move {
@@ -111,7 +136,7 @@ async fn handle_connection(
     // Track whether this connection has been identified as an IPC client.
     // Only IPC clients receive event broadcasts (to avoid confusing the
     // FrameSender worker which only expects "finished" or integer strings).
-    let is_ipc = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let is_ipc = Arc::new(AtomicBool::new(false));
 
     // Spawn a task that forwards broadcast events to this connection.
     let event_rx = EVENT_TX
@@ -127,7 +152,7 @@ async fn handle_connection(
             loop {
                 match rx.recv().await {
                     Ok(msg) => {
-                        if is_ipc_for_events.load(std::sync::atomic::Ordering::Relaxed) {
+                        if is_ipc_for_events.load(Ordering::Relaxed) {
                             let mut w = write_for_events.lock().await;
                             if w.send(msg.into()).await.is_err() {
                                 break;
@@ -167,7 +192,11 @@ async fn handle_connection(
             // Try to parse as JSON IPC invoke message.
             if let Ok(json) = serde_json::from_str::<Value>(text) {
                 if json.get("type").and_then(|t| t.as_str()) == Some("invoke") {
-                    is_ipc.store(true, std::sync::atomic::Ordering::Relaxed);
+                    is_ipc.store(true, Ordering::Relaxed);
+                    // Signal the very first IPC client connection (globally).
+                    if !IPC_CLIENT_SEEN.swap(true, Ordering::Relaxed) {
+                        IPC_CLIENT_CONNECTED.notify_one();
+                    }
                     let response = handle_invoke(&json).await;
                     let mut w = write.lock().await;
                     let _ = w.send(response.into()).await;
