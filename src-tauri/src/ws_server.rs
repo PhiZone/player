@@ -11,6 +11,9 @@ use tokio_tungstenite::accept_async;
 
 use crate::{audio, ffmpeg, send_webhook_notification};
 
+/// Port for the WebSocket server used for IPC + frame transfer.
+const WS_PORT: u16 = 63401;
+
 // ── Global state ─────────────────────────────────────────────────────
 
 /// Broadcast channel for forwarding events to IPC WebSocket clients.
@@ -72,14 +75,14 @@ pub async fn start(app_handle: tauri::AppHandle) {
     let (event_tx, _) = broadcast::channel::<String>(256);
     *EVENT_TX.lock().unwrap() = Some(event_tx);
 
-    let listener = match TcpListener::bind("127.0.0.1:63401").await {
+    let listener = match TcpListener::bind(format!("127.0.0.1:{}", WS_PORT)).await {
         Ok(l) => l,
         Err(e) => {
-            eprintln!("[WS Server] Failed to bind to port 63401: {}", e);
+            eprintln!("[WS Server] Failed to bind to port {}: {}", WS_PORT, e);
             return;
         }
     };
-    println!("[WS Server] Listening on port 63401");
+    println!("[WS Server] Listening on port {}", WS_PORT);
 
     while let Ok((stream, addr)) = listener.accept().await {
         tokio::spawn(async move {
@@ -293,7 +296,7 @@ fn handle_frame_data(data: &[u8]) {
 // ── IPC invoke dispatch ─────────────────────────────────────────────
 
 async fn handle_invoke(json: &Value) -> String {
-    let id = json["id"].as_u64().unwrap_or(0);
+    let id = json["id"].as_u64().unwrap_or(0); // Default to 0 for malformed requests
     let command = json["command"].as_str().unwrap_or("");
     let args = json
         .get("args")
@@ -337,7 +340,8 @@ fn dispatch_command(command: &str, args: &Value) -> Result<Value, String> {
         }
         "get_current_dir" => {
             let dir = std::env::current_exe()
-                .map(|p| p.parent().unwrap().to_string_lossy().into_owned())
+                .ok()
+                .and_then(|p| p.parent().map(|pp| pp.to_string_lossy().into_owned()))
                 .unwrap_or_default();
             Ok(Value::String(dir))
         }

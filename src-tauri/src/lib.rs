@@ -288,6 +288,10 @@ fn convert_audio(app: AppHandle, input: String, output: String) -> Result<(), St
     ffmpeg::convert_audio(app, input, output)
 }
 
+/// Set up the FFmpeg video encoding process.
+///
+/// No longer async: the TCP listener that previously lived here has been
+/// moved to the always-on WebSocket server (`ws_server.rs`).
 #[tauri::command]
 fn setup_video(
     output: String,
