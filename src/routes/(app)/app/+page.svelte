@@ -1,7 +1,7 @@
 <script lang="ts">
   import { REPO_LINK, VERSION as FV } from '$lib';
   import Distribution from '$lib/components/Distribution.svelte';
-  import { IS_ANDROID_OR_IOS, IS_TAURI } from '$lib/utils';
+  import { IS_ANDROID_OR_IOS, IS_TAURI_LIKE } from '$lib/utils';
   import { Capacitor } from '@capacitor/core';
   import { page } from '$app/state';
   import { onMount } from 'svelte';
@@ -67,7 +67,7 @@
 
   onMount(() => {
     if (
-      !IS_TAURI &&
+      !IS_TAURI_LIKE &&
       Capacitor.getPlatform() === 'web' &&
       (page.url.searchParams.has('file') || page.url.searchParams.has('zip'))
     ) {

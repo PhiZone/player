@@ -1,12 +1,12 @@
 <script lang="ts">
   import { m } from '$lib/paraglide/messages';
-  import { IS_TAURI } from '$lib/utils';
+  import { IS_TAURI_LIKE } from '$lib/utils';
   import { Capacitor } from '@capacitor/core';
 
   let modal: HTMLDialogElement;
 </script>
 
-{#if !IS_TAURI && Capacitor.getPlatform() === 'web'}
+{#if !IS_TAURI_LIKE && Capacitor.getPlatform() === 'web'}
   <button
     aria-label={m.local_storage()}
     onclick={() => modal.showModal()}

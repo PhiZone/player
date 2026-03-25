@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { setFullscreen, alertError, IS_TAURI } from '$lib/utils';
+  import { setFullscreen, alertError, IS_TAURI_LIKE } from '$lib/utils';
+  import { tauriInvoke } from '$lib/services/tauriIpc';
   import '@fortawesome/fontawesome-free/css/all.min.css';
   import '../app.css';
-  import { invoke } from '@tauri-apps/api/core';
 
   setFullscreen();
   addEventListener('error', (e) => alertError(e.error, e.message));
@@ -10,8 +10,8 @@
 
   const logFunc = console.log;
   console.log = (...args) => {
-    if (IS_TAURI) {
-      invoke('console_log', {
+    if (IS_TAURI_LIKE) {
+      tauriInvoke('console_log', {
         message: String(args.join(' ')),
         severity: 'info',
       });
@@ -21,8 +21,8 @@
 
   const warnFunc = console.warn;
   console.warn = (...args) => {
-    if (IS_TAURI) {
-      invoke('console_log', {
+    if (IS_TAURI_LIKE) {
+      tauriInvoke('console_log', {
         message: String(args.join(' ')),
         severity: 'warn',
       });
@@ -32,8 +32,8 @@
 
   const errorFunc = console.error;
   console.error = (...args) => {
-    if (IS_TAURI) {
-      invoke('console_log', {
+    if (IS_TAURI_LIKE) {
+      tauriInvoke('console_log', {
         message: String(args.join(' ')),
         severity: 'error',
       });

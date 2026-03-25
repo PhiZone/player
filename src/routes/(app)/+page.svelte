@@ -38,6 +38,7 @@
     inferLevelType,
     IS_ANDROID_OR_IOS,
     IS_TAURI,
+    IS_TAURI_LIKE,
     isPec,
     isZip,
     notify,
@@ -164,7 +165,7 @@
     adjustOffset: false,
     render: false,
     newTab: Capacitor.getPlatform() === 'web',
-    inApp: IS_TAURI || Capacitor.getPlatform() !== 'web' ? 2 : 0,
+    inApp: IS_TAURI_LIKE || Capacitor.getPlatform() !== 'web' ? 2 : 0,
   };
   let mediaOptions: MediaOptions = {
     frameRate: 60,
@@ -381,6 +382,8 @@
           await handleFilePaths(result, handler);
         }
       }
+    } else if (IS_TAURI_LIKE && isFirstLoad) {
+      if (crossOriginIsolated) ffmpegEncoders = await getEncoders();
     }
 
     if (Capacitor.getPlatform() !== 'web') {
@@ -466,16 +469,23 @@
       mediaResolutionHeight = mediaOptions.overrideResolution[1];
     }
 
-    if (!mediaOptions.exportPath && IS_TAURI) {
+    if (!mediaOptions.exportPath && IS_TAURI_LIKE) {
       try {
-        mediaOptions.exportPath = await join(await videoDir(), 'PhiZone Player');
+        if (IS_TAURI) {
+          mediaOptions.exportPath = await join(await videoDir(), 'PhiZone Player');
+        } else {
+          const { pathJoin, pathVideoDir } = await import('$lib/services/tauriFsBridge');
+          mediaOptions.exportPath = await pathJoin(await pathVideoDir(), 'PhiZone Player');
+        }
       } catch {
-        mediaOptions.exportPath = await join(await homeDir(), 'PhiZone Player');
+        if (IS_TAURI) {
+          mediaOptions.exportPath = await join(await homeDir(), 'PhiZone Player');
+        }
       }
     }
 
     if (
-      !IS_TAURI &&
+      !IS_TAURI_LIKE &&
       Capacitor.getPlatform() === 'web' &&
       (page.url.searchParams.has('file') || page.url.searchParams.has('zip'))
     ) {
@@ -895,7 +905,9 @@
       alert(m.rendering_not_available());
       return false;
     }
-    setupFFmpeg();
+    if (IS_TAURI) {
+      setupFFmpeg();
+    }
     return true;
   };
 
@@ -1646,7 +1658,14 @@
         sort: false,
       },
     );
-    const url = paramsString.length <= 15360 ? `${base}/play/?${paramsString}` : `${base}/play/`;
+    let url = paramsString.length <= 15360 ? `${base}/play/?${paramsString}` : `${base}/play/`;
+
+    // When running in browser mode with a backend, propagate the backend param
+    const backendParam = IS_TAURI_LIKE && !IS_TAURI ? page.url.searchParams.get('backend') : null;
+    if (backendParam) {
+      const sep = url.includes('?') ? '&' : '?';
+      url += `${sep}backend=${encodeURIComponent(backendParam)}`;
+    }
 
     if (IS_TAURI) {
       if (toggles.render) {
@@ -1668,6 +1687,8 @@
       } else {
         configureWebviewWindow(getCurrentWebviewWindow());
       }
+    } else if (IS_TAURI_LIKE && toggles.render) {
+      setupRendering();
     }
 
     if (Capacitor.getPlatform() === 'web' && toggles.newTab && !automate) {
@@ -1813,7 +1834,7 @@
       <i class="fa-solid fa-angle-down fa-sm"></i>
     </span>
   </button>
-  {#if !IS_TAURI && Capacitor.getPlatform() === 'web'}
+  {#if !IS_TAURI_LIKE && Capacitor.getPlatform() === 'web'}
     <a
       href="{base}/app"
       target={chartFiles.length > 0 ||
@@ -2488,7 +2509,7 @@
                 </span>
               </label>
             </div>
-            {#if IS_TAURI}
+            {#if IS_TAURI_LIKE}
               <div
                 class="flex flex-col {!isRenderingAvailable && ffmpegEncoders === undefined
                   ? 'tooltip'

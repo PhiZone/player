@@ -18,14 +18,13 @@
     clamp,
     getParams,
     IS_TAURI,
+    IS_TAURI_LIKE,
     notify,
     showPerformance,
     fromRichText,
     triggerDownload,
   } from '$lib/utils';
   import { convertTime, findPredominantBpm, getTimeSec } from './utils';
-  import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
-  import { ProgressBarStatus } from '@tauri-apps/api/window';
   import WaveSurfer, { type WaveSurferOptions } from 'wavesurfer.js';
   import Minimap from 'wavesurfer.js/dist/plugins/minimap.esm.js';
   import Regions from 'wavesurfer.js/dist/plugins/regions.esm.js';
@@ -34,10 +33,9 @@
   import { base } from '$app/paths';
   import { Capacitor } from '@capacitor/core';
   import StatsJS from 'stats-js';
-  import { openPath } from '@tauri-apps/plugin-opener';
-  import { sep } from '@tauri-apps/api/path';
   import { m } from '$lib/paraglide/messages';
-  import { invoke } from '@tauri-apps/api/core';
+  import { tauriInvoke } from '$lib/services/tauriIpc';
+  import { pathSep, closeCurrentWindow } from '$lib/services/tauriFsBridge';
 
   export let gameRef: GameReference;
   export let config: Config | null = null;
@@ -45,7 +43,9 @@
 
   config ??= getParams();
   if (!config) {
-    goto(`${base}/${IS_TAURI || Capacitor.getPlatform() !== 'web' ? `?t=${Date.now()}` : ''}`);
+    goto(
+      `${base}/${IS_TAURI_LIKE || Capacitor.getPlatform() !== 'web' ? `?t=${Date.now()}` : ''}`,
+    );
   }
 
   let loadingProgress = 0;
@@ -136,10 +136,14 @@
       renderingETA =
         ((Date.now() - renderingStarted) / 1000 / Math.min(renderingProgress, renderingTotal)) *
         Math.max(renderingTotal - renderingProgress, 0);
-      if (renderingPercent - lastProgressBarPercent >= 0.01) {
-        getCurrentWebviewWindow().setProgressBar({
-          status: ProgressBarStatus.Normal,
-          progress: Math.round(renderingPercent * 100),
+      if (IS_TAURI && renderingPercent - lastProgressBarPercent >= 0.01) {
+        import('@tauri-apps/api/webviewWindow').then(({ getCurrentWebviewWindow }) => {
+          import('@tauri-apps/api/window').then(({ ProgressBarStatus }) => {
+            getCurrentWebviewWindow().setProgressBar({
+              status: ProgressBarStatus.Normal,
+              progress: Math.round(renderingPercent * 100),
+            });
+          });
         });
         lastProgressBarPercent = renderingPercent;
       }
@@ -147,25 +151,41 @@
 
     EventBus.on('video-rendering-finished', () => {
       showProgress = false;
-      getCurrentWebviewWindow().setProgressBar({
-        status: ProgressBarStatus.Indeterminate,
-      });
+      if (IS_TAURI) {
+        import('@tauri-apps/api/webviewWindow').then(({ getCurrentWebviewWindow }) => {
+          import('@tauri-apps/api/window').then(({ ProgressBarStatus }) => {
+            getCurrentWebviewWindow().setProgressBar({
+              status: ProgressBarStatus.Indeterminate,
+            });
+          });
+        });
+      }
     });
 
-    EventBus.on('rendering-finished', (output: string) => {
+    EventBus.on('rendering-finished', async (output: string) => {
       renderingOutput = output;
       showProgress = true;
       renderingPercent = 1;
-      getCurrentWebviewWindow().setProgressBar({
-        status: ProgressBarStatus.None,
-      });
+      if (IS_TAURI) {
+        import('@tauri-apps/api/webviewWindow').then(({ getCurrentWebviewWindow }) => {
+          import('@tauri-apps/api/window').then(({ ProgressBarStatus }) => {
+            getCurrentWebviewWindow().setProgressBar({
+              status: ProgressBarStatus.None,
+            });
+          });
+        });
+      }
+      const separator = await pathSep();
       notify(m.rendering_saved({ path: output }), 'success', async () => {
-        await openPath(output.split(sep()).slice(0, -1).join(sep()));
+        if (IS_TAURI) {
+          const { openPath } = await import('@tauri-apps/plugin-opener');
+          await openPath(output.split(separator).slice(0, -1).join(separator));
+        }
       });
       wakeLock?.release().then(() => {
         wakeLock = null;
       });
-      if (config.automate) invoke('close');
+      if (config.automate) tauriInvoke('close');
     });
 
     EventBus.on('rendering-detail', (p: string) => {
@@ -262,10 +282,16 @@
     EventBus.on('update', (t: number) => {
       if (t !== timeSec) {
         if (IS_TAURI && !render && t < duration) {
-          getCurrentWebviewWindow().setProgressBar({
-            status:
-              status === GameStatus.PLAYING ? ProgressBarStatus.Normal : ProgressBarStatus.Paused,
-            progress: Math.round((t * 100) / duration),
+          import('@tauri-apps/api/webviewWindow').then(({ getCurrentWebviewWindow }) => {
+            import('@tauri-apps/api/window').then(({ ProgressBarStatus }) => {
+              getCurrentWebviewWindow().setProgressBar({
+                status:
+                  status === GameStatus.PLAYING
+                    ? ProgressBarStatus.Normal
+                    : ProgressBarStatus.Paused,
+                progress: Math.round((t * 100) / duration),
+              });
+            });
           });
         }
         wavesurfer?.setTime(t);
@@ -295,8 +321,12 @@
     EventBus.on('finished', () => {
       status = GameStatus.FINISHED;
       if (IS_TAURI && !render) {
-        getCurrentWebviewWindow().setProgressBar({
-          status: ProgressBarStatus.None,
+        import('@tauri-apps/api/webviewWindow').then(({ getCurrentWebviewWindow }) => {
+          import('@tauri-apps/api/window').then(({ ProgressBarStatus }) => {
+            getCurrentWebviewWindow().setProgressBar({
+              status: ProgressBarStatus.None,
+            });
+          });
         });
       }
     });
@@ -317,18 +347,26 @@
   const exit = () => {
     localStorage.removeItem('player');
     if (IS_TAURI) {
-      getCurrentWebviewWindow().setProgressBar({
-        status: ProgressBarStatus.None,
+      import('@tauri-apps/api/webviewWindow').then(({ getCurrentWebviewWindow }) => {
+        import('@tauri-apps/api/window').then(({ ProgressBarStatus }) => {
+          getCurrentWebviewWindow().setProgressBar({
+            status: ProgressBarStatus.None,
+          });
+        });
       });
     }
     if (!config || config.newTab) {
       if (IS_TAURI) {
-        getCurrentWebviewWindow().close();
+        import('@tauri-apps/api/webviewWindow').then(({ getCurrentWebviewWindow }) => {
+          getCurrentWebviewWindow().close();
+        });
       } else {
         window.close();
       }
     } else {
-      goto(`${base}/${IS_TAURI || Capacitor.getPlatform() !== 'web' ? `?t=${Date.now()}` : ''}`);
+      goto(
+        `${base}/${IS_TAURI_LIKE || Capacitor.getPlatform() !== 'web' ? `?t=${Date.now()}` : ''}`,
+      );
     }
   };
 
