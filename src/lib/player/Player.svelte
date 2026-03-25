@@ -463,8 +463,8 @@
       class="p-3 flex flex-col gap-3 justify-center items-center rounded-full backdrop-blur-2xl backdrop-brightness-[60%] hover:backdrop-blur-3xl hover:backdrop-brightness-[35%] trans uppercase"
     >
       {#if renderingOutput}
-        <div class="flex gap-2 w-96">
-          {#if IS_TAURI}
+        {#if IS_TAURI}
+          <div class="flex gap-2 w-96">
             <button
               class="btn btn-outline border-2 btn-success text-xl rounded-full flex-1"
               on:click={async () => {
@@ -486,8 +486,8 @@
             >
               {m.open_folder()}
             </button>
-          {/if}
-        </div>
+          </div>
+        {/if}
       {:else}
         <button
           class="btn btn-outline border-2 btn-error text-xl rounded-full"
