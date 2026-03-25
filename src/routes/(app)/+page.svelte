@@ -37,6 +37,7 @@
     haveSameKeys,
     inferLevelType,
     IS_ANDROID_OR_IOS,
+    IS_BROWSER_WITH_BACKEND,
     IS_TAURI,
     IS_TAURI_LIKE,
     isPec,
@@ -1661,7 +1662,7 @@
     let url = paramsString.length <= 15360 ? `${base}/play/?${paramsString}` : `${base}/play/`;
 
     // When running in browser mode with a backend, propagate the backend param
-    const backendParam = IS_TAURI_LIKE && !IS_TAURI ? page.url.searchParams.get('backend') : null;
+    const backendParam = IS_BROWSER_WITH_BACKEND ? page.url.searchParams.get('backend') : null;
     if (backendParam) {
       const sep = url.includes('?') ? '&' : '?';
       url += `${sep}backend=${encodeURIComponent(backendParam)}`;

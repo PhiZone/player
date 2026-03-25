@@ -23,8 +23,10 @@ export async function pathJoin(...parts: string[]): Promise<string> {
     }
     return result;
   }
-  // Use the platform-agnostic separator (/) for non-Tauri environments.
-  // The backend will normalise the path.
+  // In non-Tauri (browser) mode, join path parts with forward slashes.
+  // The Tauri backend already uses platform-native separators internally,
+  // and the IPC bridge commands (e.g. fs_mkdir, fs_write_file) receive full
+  // paths that the backend processes as-is.
   return parts.join('/');
 }
 

@@ -22,6 +22,9 @@ import { Signal } from '../objects/Signal';
 import { m } from '$lib/paraglide/messages';
 import { getTauriBackendUrl } from '$lib/services/tauriIpcBridge';
 
+/** Default port for the frame streaming WebSocket server (must match FrameSender.ts). */
+const FRAME_WS_PORT = 63401;
+
 export class Renderer {
   private _scene: Game;
   private _options: MediaOptions;
@@ -107,7 +110,7 @@ export class Renderer {
       type: 'init',
       buffer: sharedBuffer,
       wsUrl: getTauriBackendUrl()
-        ? `ws://${new URL(getTauriBackendUrl()!).hostname}:63401`
+        ? `ws://${new URL(getTauriBackendUrl()!).hostname}:${FRAME_WS_PORT}`
         : undefined,
     });
 

@@ -4,7 +4,10 @@ enum WebSocketState {
   CLOSED = 3,
 }
 
-const DEFAULT_WEBSOCKET_URL = 'ws://localhost:63401';
+/** Default port for the frame streaming WebSocket server (must match FrameSender.ts). */
+const FRAME_WS_PORT = 63401;
+
+const DEFAULT_WEBSOCKET_URL = `ws://localhost:${FRAME_WS_PORT}`;
 const FRAME_BATCH_SIZE = 500;
 
 class FrameSender {

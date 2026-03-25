@@ -36,6 +36,12 @@ export const IS_TAURI_LIKE: boolean = (() => {
   return new URLSearchParams(window.location.search).has('backend');
 })();
 
+/**
+ * True when running in a browser (not native Tauri) with the `backend`
+ * query param, i.e. proxying to the Tauri backend over WebSocket.
+ */
+export const IS_BROWSER_WITH_BACKEND = IS_TAURI_LIKE && !IS_TAURI;
+
 export const IS_IOS = (() => {
   const iosQuirkPresent = () => {
     const audio = new Audio();
