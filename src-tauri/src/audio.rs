@@ -163,6 +163,10 @@ pub fn mix_audio(
             drop(writer);
             if proc.wait().map_err(|e| e.to_string())?.success() {
                 app.emit("audio-mixing-finished", ()).unwrap();
+                crate::ws_server::broadcast_event(
+                    "audio-mixing-finished",
+                    serde_json::Value::Null,
+                );
                 println!(" finished.");
                 Ok(())
             } else {

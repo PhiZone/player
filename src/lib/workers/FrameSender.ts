@@ -61,7 +61,9 @@ class FrameSender {
         return;
       }
       try {
-        this._processedFrameCount = parseInt(event.data);
+        const count = parseInt(event.data);
+        if (isNaN(count)) return; // Ignore non-numeric messages (e.g. IPC event broadcasts)
+        this._processedFrameCount = count;
         this._wsState = WebSocketState.OPEN;
         this.dispatch(true);
       } catch (e) {

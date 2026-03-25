@@ -8,6 +8,7 @@ use url::Url;
 
 mod audio;
 mod ffmpeg;
+pub mod ws_server;
 
 static CLI_ARGS: LazyLock<Mutex<HashMap<String, String>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
@@ -77,6 +78,13 @@ pub fn run() {
                         .build(),
                 )?;
             }
+
+            // Start the always-on WebSocket server for IPC + frame transfer.
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                ws_server::start(handle).await;
+            });
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -281,7 +289,7 @@ fn convert_audio(app: AppHandle, input: String, output: String) -> Result<(), St
 }
 
 #[tauri::command]
-async fn setup_video(
+fn setup_video(
     output: String,
     resolution: String,
     frame_rate: u32,
@@ -289,7 +297,17 @@ async fn setup_video(
     codec: String,
     bitrate: String,
 ) -> Result<(), String> {
-    ffmpeg::setup_video(output, resolution, frame_rate, duration, codec, bitrate).await
+    let (total_frames, report_interval) =
+        ffmpeg::setup_video_process(output, resolution, frame_rate, duration, codec, bitrate)?;
+
+    let mut state = ws_server::FRAME_STATE.lock().unwrap();
+    state.active = true;
+    state.frames_received = 0;
+    state.total_frames = total_frames;
+    state.report_interval = report_interval;
+    state.start_time = None;
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -329,8 +347,7 @@ fn mix_audio(
     audio::mix_audio(app, sounds, timestamps, length, output)
 }
 
-#[tauri::command]
-fn console_log(message: String, severity: String) -> Result<(), String> {
+pub fn do_console_log(message: &str, severity: &str) {
     match severity.to_lowercase().as_str() {
         "error" => {
             eprintln!("[ERROR] {}", message);
@@ -353,11 +370,15 @@ fn console_log(message: String, severity: String) -> Result<(), String> {
             log::trace!("{}", message);
         }
         _ => {
-            // Default to log level for unknown severity
             println!("[LOG] {}", message);
             log::info!("{}", message);
         }
     }
+}
+
+#[tauri::command]
+fn console_log(message: String, severity: String) -> Result<(), String> {
+    do_console_log(&message, &severity);
     Ok(())
 }
 
