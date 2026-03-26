@@ -57,10 +57,7 @@ pub fn run() {
                 // register deep links
                 use tauri_plugin_deep_link::DeepLinkExt;
                 if let Err(e) = app.deep_link().register_all() {
-                    log::warn!(
-                        "Failed to register deep link: {}",
-                        e
-                    );
+                    log::warn!("Failed to register deep link: {}", e);
                 }
             }
 
@@ -106,7 +103,10 @@ pub fn run() {
                         separator,
                         ws_server::WS_PORT,
                     );
-                    println!("[TAURI] Launching browser: {} \"{}\"", browser_cmd, full_url);
+                    println!(
+                        "[TAURI] Launching browser: {} \"{}\"",
+                        browser_cmd, full_url
+                    );
 
                     if let Err(e) = launch_browser(&browser_cmd, &full_url) {
                         eprintln!("[TAURI] Failed to launch browser: {}", e);
@@ -186,16 +186,51 @@ pub fn cmd_hidden(program: impl AsRef<std::ffi::OsStr>) -> Command {
 
 /// Launch an external browser by running `<command> <url>` directly (no shell).
 ///
-/// The `command` string is split on whitespace: the first token is the
-/// executable and the remaining tokens become extra arguments, followed by
-/// the URL as the final argument.
+/// The `command` string is parsed using shell-style quoting rules (via
+/// `shell_words::split`), so values like `"Google Chrome"` or
+/// `'/usr/bin/my browser'` are handled correctly.
+///
+/// On macOS, if the command is not an absolute path, it is treated as an
+/// application name and launched via `open -a <name> <url>`.  Passing
+/// `"open"` (case-insensitive) opens the URL in the default browser.
 fn launch_browser(command: &str, url: &str) -> Result<(), String> {
-    let mut parts = command.split_whitespace();
-    let program = parts.next().ok_or("Empty browser command")?;
-    let mut cmd = Command::new(program);
-    for arg in parts {
-        cmd.arg(arg);
+    let parts = shell_words::split(command)
+        .map_err(|e| format!("Failed to parse browser command: {}", e))?;
+    if parts.is_empty() {
+        return Err("Empty browser command".to_string());
     }
+
+    let mut cmd;
+
+    #[cfg(target_os = "macos")]
+    {
+        if parts[0].eq_ignore_ascii_case("open") {
+            // `open` with optional extra flags (e.g. `open -a Firefox`)
+            cmd = Command::new(&parts[0]);
+            for arg in &parts[1..] {
+                cmd.arg(arg);
+            }
+        } else if parts[0].starts_with('/') {
+            // Absolute path to a browser binary
+            cmd = Command::new(&parts[0]);
+            for arg in &parts[1..] {
+                cmd.arg(arg);
+            }
+        } else {
+            // Treat as an application name (e.g. "Google Chrome", "Firefox")
+            cmd = Command::new("open");
+            cmd.arg("-a").arg(parts.join(" "));
+        }
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        cmd = Command::new(&parts[0]);
+        for arg in &parts[1..] {
+            cmd.arg(arg);
+        }
+    }
+
     cmd.arg(url);
     cmd.spawn()
         .map_err(|e| format!("Failed to spawn browser process: {}", e))?;
