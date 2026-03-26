@@ -84,7 +84,13 @@ pub fn run() {
 
             // If --browser was specified, launch the external browser after the
             // WS server is ready and wait for it to connect.
-            if let Some(browser_cmd) = CLI_ARGS.lock().unwrap().get("browser").cloned() {
+            //
+            // NOTE: We extract both values before the `if` to avoid a
+            // deadlock.  `if let` keeps temporaries (including MutexGuard)
+            // alive for the entire block, so a second .lock() inside the
+            // body would deadlock on the same, non-reentrant Mutex.
+            let browser_cmd = CLI_ARGS.lock().unwrap().get("browser").cloned();
+            if let Some(browser_cmd) = browser_cmd {
                 let base_url = CLI_ARGS
                     .lock()
                     .unwrap()
