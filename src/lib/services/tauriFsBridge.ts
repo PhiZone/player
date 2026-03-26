@@ -81,6 +81,21 @@ export async function fsWriteFile(path: string, data: Uint8Array): Promise<void>
   await tauriInvoke('fs_write_file', { path, dataBase64: base64 });
 }
 
+export async function fsReadFile(path: string): Promise<Uint8Array> {
+  if (isTauri()) {
+    const { readFile } = await import('@tauri-apps/plugin-fs');
+    return readFile(path);
+  }
+  // Read file from the backend via WS bridge; data comes back as base64.
+  const base64 = await tauriInvoke<string>('fs_read_file', { path });
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
 // ── Window operations ─────────────────────────────────────────────────
 
 export async function closeCurrentWindow(): Promise<void> {
@@ -99,5 +114,16 @@ export async function pathSep(): Promise<string> {
     const { sep } = await import('@tauri-apps/api/path');
     return sep();
   }
-  return '/';
+  return tauriInvoke<string>('get_path_sep');
+}
+
+// ── Opener ────────────────────────────────────────────────────────────
+
+export async function openPath(path: string): Promise<void> {
+  if (isTauri()) {
+    const { openPath: nativeOpenPath } = await import('@tauri-apps/plugin-opener');
+    await nativeOpenPath(path);
+  } else {
+    await tauriInvoke('open_path', { path });
+  }
 }

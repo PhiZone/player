@@ -93,6 +93,8 @@
     saveSelectedRespack,
     loadSelectedRespack,
   } from '$lib/services/respackStorage';
+  import { tauriInvoke } from '$lib/services/tauriIpc';
+  import { fsReadFile } from '$lib/services/tauriFsBridge';
 
   interface FileEntry {
     id: number;
@@ -273,6 +275,12 @@
 
   const unlistens: UnlistenFn[] = [];
 
+  /** Read a file from the backend filesystem and return it as a File object. */
+  const filePathHandler = async (path: string): Promise<File> => {
+    const data = await fsReadFile(path);
+    return new File([data], path.split('/').pop() ?? path.split('\\').pop() ?? path);
+  };
+
   onMount(async () => {
     [
       { key: 'debug', name: m.debug_mode() },
@@ -365,26 +373,20 @@
       onOpenUrl(async (urls) => {
         await handleRedirect(urls[0]);
       });
-      const handler = async (path: string) => {
-        const data = await readFile(path);
-        return new File(
-          [Uint8Array.from(data)],
-          path.split('/').pop() ?? path.split('\\').pop() ?? path,
-        );
-      };
       listen('files-opened', async (event: { payload: string[] }) => {
         const filePaths = event.payload;
-        await handleFilePaths(filePaths, handler);
+        await handleFilePaths(filePaths, filePathHandler);
       });
+    }
+
+    if (IS_TAURI_LIKE) {
       if (isFirstLoad) {
         if (crossOriginIsolated) ffmpegEncoders = await getEncoders();
-        const result: string[] = await invoke('get_files_opened');
-        if (result) {
-          await handleFilePaths(result, handler);
+        const result: string[] = await tauriInvoke('get_files_opened');
+        if (result && result.length > 0) {
+          await handleFilePaths(result, filePathHandler);
         }
       }
-    } else if (IS_TAURI_LIKE && isFirstLoad) {
-      if (crossOriginIsolated) ffmpegEncoders = await getEncoders();
     }
 
     if (Capacitor.getPlatform() !== 'web') {
@@ -437,8 +439,8 @@
 
     let pref, tgs, mopts;
 
-    if (IS_TAURI) {
-      const args: Record<string, string> = await invoke('get_args');
+    if (IS_TAURI_LIKE) {
+      const args: Record<string, string> = await tauriInvoke('get_args');
       if (args['preferences']) pref = args['preferences'];
       if (args['toggles']) tgs = args['toggles'];
       if (args['mediaOptions']) mopts = args['mediaOptions'];

@@ -35,7 +35,7 @@
   import StatsJS from 'stats-js';
   import { m } from '$lib/paraglide/messages';
   import { tauriInvoke } from '$lib/services/tauriIpc';
-  import { pathSep } from '$lib/services/tauriFsBridge';
+  import { pathSep, openPath } from '$lib/services/tauriFsBridge';
 
   export let gameRef: GameReference;
   export let config: Config | null = null;
@@ -175,8 +175,7 @@
       }
       const separator = await pathSep();
       notify(m.rendering_saved({ path: output }), 'success', async () => {
-        if (IS_TAURI) {
-          const { openPath } = await import('@tauri-apps/plugin-opener');
+        if (IS_TAURI_LIKE) {
           await openPath(output.split(separator).slice(0, -1).join(separator));
         }
       });
@@ -463,12 +462,11 @@
       class="p-3 flex flex-col gap-3 justify-center items-center rounded-full backdrop-blur-2xl backdrop-brightness-[60%] hover:backdrop-blur-3xl hover:backdrop-brightness-[35%] trans uppercase"
     >
       {#if renderingOutput}
-        {#if IS_TAURI}
+        {#if IS_TAURI_LIKE}
           <div class="flex gap-2 w-96">
             <button
               class="btn btn-outline border-2 btn-success text-xl rounded-full flex-1"
               on:click={async () => {
-                const { openPath } = await import('@tauri-apps/plugin-opener');
                 await openPath(renderingOutput);
               }}
             >
@@ -477,11 +475,8 @@
             <button
               class="btn btn-outline border-2 btn-info text-xl rounded-full flex-1"
               on:click={async () => {
-                const { openPath } = await import('@tauri-apps/plugin-opener');
                 const separator = await pathSep();
-                await openPath(
-                  renderingOutput.split(separator).slice(0, -1).join(separator),
-                );
+                await openPath(renderingOutput.split(separator).slice(0, -1).join(separator));
               }}
             >
               {m.open_folder()}

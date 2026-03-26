@@ -577,6 +577,21 @@ fn dispatch_command(command: &str, args: &Value) -> Result<Value, String> {
                 .map_err(|e| format!("Failed to write file: {}", e))?;
             Ok(Value::Null)
         }
+        "fs_read_file" => {
+            let path = args["path"].as_str().ok_or("Missing 'path'")?;
+            let data = std::fs::read(path)
+                .map_err(|e| format!("Failed to read file: {}", e))?;
+            let encoded = STANDARD.encode(&data);
+            Ok(Value::String(encoded))
+        }
+        "open_path" => {
+            let path = args["path"].as_str().ok_or("Missing 'path'")?;
+            open::that(path).map_err(|e| format!("Failed to open path: {}", e))?;
+            Ok(Value::Null)
+        }
+        "get_path_sep" => {
+            Ok(Value::String(std::path::MAIN_SEPARATOR.to_string()))
+        }
 
         _ => Err(format!("Unknown command: {}", command)),
     }
