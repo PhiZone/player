@@ -8,6 +8,7 @@ use url::Url;
 
 mod audio;
 mod ffmpeg;
+pub mod ws_server;
 
 static CLI_ARGS: LazyLock<Mutex<HashMap<String, String>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
@@ -56,10 +57,7 @@ pub fn run() {
                 // register deep links
                 use tauri_plugin_deep_link::DeepLinkExt;
                 if let Err(e) = app.deep_link().register_all() {
-                    log::warn!(
-                        "Failed to register deep link: {}",
-                        e
-                    );
+                    log::warn!("Failed to register deep link: {}", e);
                 }
             }
 
@@ -77,6 +75,56 @@ pub fn run() {
                         .build(),
                 )?;
             }
+
+            // Start the always-on WebSocket server for IPC + frame transfer.
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                ws_server::start(handle).await;
+            });
+
+            // If --browser was specified, launch the external browser after the
+            // WS server is ready and wait for it to connect.
+            //
+            // NOTE: We extract both values before the `if` to avoid a
+            // deadlock.  `if let` keeps temporaries (including MutexGuard)
+            // alive for the entire block, so a second .lock() inside the
+            // body would deadlock on the same, non-reentrant Mutex.
+            let browser_cmd = CLI_ARGS.lock().unwrap().get("browser").cloned();
+            if let Some(browser_cmd) = browser_cmd {
+                let base_url = CLI_ARGS
+                    .lock()
+                    .unwrap()
+                    .get("url")
+                    .cloned()
+                    .unwrap_or_else(|| "http://localhost:9900".to_string());
+
+                tauri::async_runtime::spawn(async move {
+                    // Wait until the WS server has bound to its port.
+                    ws_server::wait_for_ready().await;
+
+                    let separator = if base_url.contains('?') { "&" } else { "?" };
+                    let full_url = format!(
+                        "{}{}backend=ws://localhost:{}",
+                        base_url,
+                        separator,
+                        ws_server::WS_PORT,
+                    );
+                    println!(
+                        "[TAURI] Launching browser: {} \"{}\"",
+                        browser_cmd, full_url
+                    );
+
+                    if let Err(e) = launch_browser(&browser_cmd, &full_url) {
+                        eprintln!("[TAURI] Failed to launch browser: {}", e);
+                        return;
+                    }
+
+                    println!("[TAURI] Waiting for browser to connect…");
+                    ws_server::wait_for_ipc_client().await;
+                    println!("[TAURI] Browser client connected via WebSocket");
+                });
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -140,6 +188,67 @@ pub fn cmd_hidden(program: impl AsRef<std::ffi::OsStr>) -> Command {
     }
     #[cfg(not(target_os = "windows"))]
     cmd
+}
+
+/// Launch an external browser by running `<command> <url>` directly (no shell).
+///
+/// If `command` is a path to an existing file, it is used as the executable
+/// directly (handles paths with spaces such as `C:\Program Files\…`).
+/// Otherwise the string is parsed using shell-style quoting rules (via
+/// `shell_words::split`), so values like `chrome --incognito` work too.
+///
+/// On macOS, if the command is not an absolute path, it is treated as an
+/// application name and launched via `open -a <name> <url>`.  Passing
+/// `"open"` (case-insensitive) opens the URL in the default browser.
+fn launch_browser(command: &str, url: &str) -> Result<(), String> {
+    // If the raw string is an existing file, treat it as a single executable
+    // path (avoids splitting paths that contain spaces).
+    let parts: Vec<String> = if std::path::Path::new(command).is_file() {
+        vec![command.to_string()]
+    } else {
+        let p = shell_words::split(command)
+            .map_err(|e| format!("Failed to parse browser command: {}", e))?;
+        if p.is_empty() {
+            return Err("Empty browser command".to_string());
+        }
+        p
+    };
+
+    let mut cmd;
+
+    #[cfg(target_os = "macos")]
+    {
+        if parts[0].eq_ignore_ascii_case("open") {
+            // `open` with optional extra flags (e.g. `open -a Firefox`)
+            cmd = Command::new(&parts[0]);
+            for arg in &parts[1..] {
+                cmd.arg(arg);
+            }
+        } else if parts[0].starts_with('/') {
+            // Absolute path to a browser binary
+            cmd = Command::new(&parts[0]);
+            for arg in &parts[1..] {
+                cmd.arg(arg);
+            }
+        } else {
+            // Treat as an application name (e.g. "Google Chrome", "Firefox")
+            cmd = Command::new("open");
+            cmd.arg("-a").arg(parts.join(" "));
+        }
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        cmd = Command::new(&parts[0]);
+        for arg in &parts[1..] {
+            cmd.arg(arg);
+        }
+    }
+
+    cmd.arg(url);
+    cmd.spawn()
+        .map_err(|e| format!("Failed to spawn browser process: {}", e))?;
+    Ok(())
 }
 
 fn extract_files_from_args(args_map: &HashMap<String, String>) -> Vec<PathBuf> {
@@ -280,8 +389,12 @@ fn convert_audio(app: AppHandle, input: String, output: String) -> Result<(), St
     ffmpeg::convert_audio(app, input, output)
 }
 
+/// Set up the FFmpeg video encoding process.
+///
+/// No longer async: the TCP listener that previously lived here has been
+/// moved to the always-on WebSocket server (`ws_server.rs`).
 #[tauri::command]
-async fn setup_video(
+fn setup_video(
     output: String,
     resolution: String,
     frame_rate: u32,
@@ -289,7 +402,17 @@ async fn setup_video(
     codec: String,
     bitrate: String,
 ) -> Result<(), String> {
-    ffmpeg::setup_video(output, resolution, frame_rate, duration, codec, bitrate).await
+    let (total_frames, report_interval) =
+        ffmpeg::setup_video_process(output, resolution, frame_rate, duration, codec, bitrate)?;
+
+    let mut state = ws_server::FRAME_STATE.lock().unwrap();
+    state.active = true;
+    state.frames_received = 0;
+    state.total_frames = total_frames;
+    state.report_interval = report_interval;
+    state.start_time = None;
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -329,8 +452,7 @@ fn mix_audio(
     audio::mix_audio(app, sounds, timestamps, length, output)
 }
 
-#[tauri::command]
-fn console_log(message: String, severity: String) -> Result<(), String> {
+pub fn do_console_log(message: &str, severity: &str) {
     match severity.to_lowercase().as_str() {
         "error" => {
             eprintln!("[ERROR] {}", message);
@@ -353,11 +475,15 @@ fn console_log(message: String, severity: String) -> Result<(), String> {
             log::trace!("{}", message);
         }
         _ => {
-            // Default to log level for unknown severity
             println!("[LOG] {}", message);
             log::info!("{}", message);
         }
     }
+}
+
+#[tauri::command]
+fn console_log(message: String, severity: String) -> Result<(), String> {
+    do_console_log(&message, &severity);
     Ok(())
 }
 

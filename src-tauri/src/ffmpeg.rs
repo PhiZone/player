@@ -1,4 +1,3 @@
-use futures::{SinkExt, StreamExt};
 #[cfg(unix)]
 use std::fs;
 use std::io::Write;
@@ -7,8 +6,6 @@ use std::os::unix::fs::PermissionsExt;
 use std::process::{Child, ChildStdin};
 use std::sync::{LazyLock, Mutex};
 use tauri::{AppHandle, Emitter};
-use tokio::net::TcpListener;
-use tokio_tungstenite::accept_async;
 
 use crate::cmd_hidden;
 use crate::send_webhook_notification;
@@ -156,8 +153,11 @@ pub fn convert_audio(app: AppHandle, input: String, output: String) -> Result<()
 
             let result = cmd_hidden(&*FFMPEG_CMD.lock().unwrap())
                 .args(
-                    format!("-i {} -af volume={}dB -ar 48000 -c:a pcm_f32le -y {}", input, gain, output)
-                        .split_whitespace(),
+                    format!(
+                        "-i {} -af volume={}dB -ar 48000 -c:a pcm_f32le -y {}",
+                        input, gain, output
+                    )
+                    .split_whitespace(),
                 )
                 .status()
                 .map_err(|e| e.to_string());
@@ -165,6 +165,10 @@ pub fn convert_audio(app: AppHandle, input: String, output: String) -> Result<()
             match result {
                 Ok(_) => {
                     app.emit("audio-conversion-finished", ()).unwrap();
+                    crate::ws_server::broadcast_event(
+                        "audio-conversion-finished",
+                        serde_json::Value::Null,
+                    );
                 }
                 Err(e) => {
                     eprintln!("[TAURI] Audio conversion failed: {}", e);
@@ -186,7 +190,7 @@ pub fn combine_streams(
     output: String,
 ) -> Result<(), String> {
     send_webhook_notification("combining_streams", 0.0, None);
-    
+
     std::thread::spawn({
         let app = app.clone();
         move || {
@@ -217,6 +221,10 @@ pub fn combine_streams(
             match result {
                 Ok(_) => {
                     app.emit("stream-combination-finished", &output).unwrap();
+                    crate::ws_server::broadcast_event(
+                        "stream-combination-finished",
+                        serde_json::Value::String(output),
+                    );
                     println!(" finished.");
                 }
                 Err(e) => {
@@ -229,14 +237,18 @@ pub fn combine_streams(
     Ok(())
 }
 
-pub async fn setup_video(
+/// Spawn the FFmpeg process for video encoding. Returns (total_frames, report_interval).
+///
+/// Frame data is fed to FFmpeg through the global `FFMPEG_STDIN` by the
+/// WebSocket server (see `ws_server.rs`).
+pub fn setup_video_process(
     output: String,
     resolution: String,
     framerate: u32,
     duration: f64,
     codec: String,
     bitrate: String,
-) -> Result<(), String> {
+) -> Result<(u64, u32), String> {
     let mut process = cmd_hidden(&*FFMPEG_CMD.lock().unwrap())
         .args(format!(
             "-probesize 50M -f rawvideo -pix_fmt rgb24 -s {} -r {} -thread_queue_size 1024 -i pipe:0 -c:v {} -b:v {} -vf vflip -pix_fmt yuv420p -movflags +faststart -y {}",
@@ -251,140 +263,26 @@ pub async fn setup_video(
     *FFMPEG_STDIN.lock().unwrap() = stdin;
     *FFMPEG_PROCESS.lock().unwrap() = Some(process);
 
-    let listener = TcpListener::bind("127.0.0.1:63401")
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let mut frames_received = 0;
     let total_frames = (duration * framerate as f64).ceil() as u64;
     let report_interval = get_report_interval();
     println!("[TAURI] FFmpeg setup complete");
 
-    tokio::spawn(async move {
-        let mut start_time: Option<std::time::Instant> = None;
-        
-        while let Ok((stream, _)) = listener.accept().await {
-            let ws_stream = match accept_async(stream).await {
-                Ok(s) => s,
-                Err(e) => {
-                    eprintln!("[TAURI] WebSocket handshake failed: {}", e);
-                    continue;
-                }
-            };
-            println!("[TAURI] WebSocket connection established");
-            let (mut write, mut read) = ws_stream.split();
+    Ok((total_frames, report_interval))
+}
 
-            while let Some(Ok(message)) =
-                tokio::time::timeout(std::time::Duration::from_secs(60), read.next())
-                    .await
-                    .unwrap_or(None)
-            {
-                if message.is_binary() {
-                    frames_received += 1;
-                    let data = message.into_data();
-
-                    // Start timer when we receive the first frame
-                    if start_time.is_none() {
-                        start_time = Some(std::time::Instant::now());
-                    }
-
-                    if frames_received % report_interval as u64 == 0 {
-                        let progress_percent = if total_frames > 0 {
-                            (frames_received as f64 / total_frames as f64) * 100.0
-                        } else {
-                            0.0
-                        };
-                        
-                        // Calculate ETA
-                        let eta_seconds = if let Some(start) = start_time {
-                            let elapsed = start.elapsed().as_secs_f64();
-                            let progress_ratio = frames_received as f64 / total_frames as f64;
-                            
-                            if progress_ratio > 0.0 && frames_received >= report_interval as u64 {
-                                // ETA = (elapsed_time / progress_ratio) - elapsed_time
-                                let total_estimated_time = elapsed / progress_ratio;
-                                let remaining_time = total_estimated_time - elapsed;
-                                Some(remaining_time.max(0.0)) // Ensure non-negative
-                            } else {
-                                None // Not enough data for reliable estimate
-                            }
-                        } else {
-                            None
-                        };
-                        
-                        let total_digits = total_frames.to_string().len();
-                        if let Some(eta) = eta_seconds {
-                            let eta_mins = (eta / 60.0) as u32;
-                            let eta_secs = (eta % 60.0) as u32;
-                            print!(
-                                "\r[TAURI] Rendering: {:6.2}% ({:width$}/{}) ETA: {:02}:{:02} ... ",
-                                progress_percent,
-                                frames_received,
-                                total_frames,
-                                eta_mins,
-                                eta_secs,
-                                width = total_digits
-                            );
-                        } else {
-                            print!(
-                                "\r[TAURI] Rendering: {:6.2}% ({:width$}/{}) ... ",
-                                progress_percent,
-                                frames_received,
-                                total_frames,
-                                width = total_digits
-                            );
-                        }
-                        std::io::stdout().flush().unwrap();
-                        send_webhook_notification("rendering", progress_percent / 100.0, eta_seconds);
-                    }
-
-                    if let Some(stdin) = &mut *FFMPEG_STDIN.lock().unwrap() {
-                        if let Err(e) = stdin.write_all(&data) {
-                            println!();
-                            eprintln!("[TAURI] Error writing to FFmpeg: {}", e);
-                            break;
-                        }
-                        if let Err(e) = stdin.flush() {
-                            println!();
-                            eprintln!("[TAURI] Error flushing FFmpeg: {}", e);
-                            break;
-                        }
-                    } else {
-                        println!();
-                        eprintln!("[TAURI] FFmpeg stdin not available");
-                        break;
-                    }
-                } else if message.is_text() {
-                    let text = message.to_text().unwrap();
-                    if text == "finish" {
-                        println!("finished.");
-                        match finish_video() {
-                            Ok(_) => {
-                                write.send("finished".into()).await.unwrap();
-                            }
-                            Err(e) => {
-                                eprintln!("[TAURI] Error finishing video: {}", e);
-                            }
-                        }
-                        return;
-                    } else if text == "pause" {
-                        write
-                            .send(frames_received.to_string().into())
-                            .await
-                            .unwrap();
-                    }
-                }
-            }
-            println!("[TAURI] Connection closed due to inactivity or end of stream");
-            // Finish video encoding when connection closes
-            if let Err(e) = finish_video() {
-                eprintln!("[TAURI] Error finishing video on connection close: {}", e);
-            }
-            return;
-        }
-    });
-
-    Ok(())
+/// Write raw frame data to the FFmpeg stdin pipe.
+pub fn write_frame_data(data: &[u8]) -> Result<(), String> {
+    if let Some(stdin) = &mut *FFMPEG_STDIN.lock().unwrap() {
+        stdin
+            .write_all(data)
+            .map_err(|e| format!("Error writing to FFmpeg: {}", e))?;
+        stdin
+            .flush()
+            .map_err(|e| format!("Error flushing FFmpeg: {}", e))?;
+        Ok(())
+    } else {
+        Err("FFmpeg stdin not available".to_string())
+    }
 }
 
 pub fn finish_video() -> Result<(), String> {

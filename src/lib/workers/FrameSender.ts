@@ -4,14 +4,17 @@ enum WebSocketState {
   CLOSED = 3,
 }
 
-const WEBSOCKET_URL = 'ws://localhost:63401';
+/** Default port for the frame streaming WebSocket server (must match FrameSender.ts). */
+const FRAME_WS_PORT = 63401;
+
+const DEFAULT_WEBSOCKET_URL = `ws://localhost:${FRAME_WS_PORT}`;
 const FRAME_BATCH_SIZE = 500;
 
 class FrameSender {
-  private _ws: WebSocket;
+  private _ws!: WebSocket;
   private _wsState: WebSocketState = WebSocketState.CLOSED;
   private _frameQueue: (Uint8Array<ArrayBuffer> | false)[] = [];
-  private _sharedView: Uint8Array;
+  private _sharedView!: Uint8Array;
   private _isSendingFrame: boolean = false;
   private _renderedFrameCount: number = 0;
   private _processedFrameCount: number = 0;
@@ -19,33 +22,12 @@ class FrameSender {
   private _timeout: NodeJS.Timeout | null = null;
 
   constructor() {
-    this._ws = new WebSocket(WEBSOCKET_URL);
-    this._ws.binaryType = 'arraybuffer';
-    this._ws.onopen = () => {
-      this._wsState = WebSocketState.OPEN;
-      console.log('[FrameSender] WebSocket connection established');
-    };
-    this._ws.onmessage = (event: { data: string }) => {
-      if (event.data === 'finished') {
-        this.dispatch(false, true);
-        this._ws.close();
-        console.log('[FrameSender] WebSocket connection closed');
-        return;
-      }
-      try {
-        this._processedFrameCount = parseInt(event.data);
-        this._wsState = WebSocketState.OPEN;
-        this.dispatch(true);
-      } catch (e) {
-        console.error(e);
-      }
-    };
-
     self.onmessage = (event) => {
-      const { type, buffer, frameNumber } = event.data;
+      const { type, buffer, frameNumber, wsUrl } = event.data;
 
       if (type === 'init') {
         this._sharedView = new Uint8Array(buffer);
+        this.connect(wsUrl ?? DEFAULT_WEBSOCKET_URL);
         console.log('[FrameSender] Shared view initialized');
         return;
       }
@@ -60,6 +42,32 @@ class FrameSender {
       if (type === 'frame') {
         this._renderedFrameCount = frameNumber;
         this.processFrame();
+      }
+    };
+  }
+
+  connect(url: string) {
+    this._ws = new WebSocket(url);
+    this._ws.binaryType = 'arraybuffer';
+    this._ws.onopen = () => {
+      this._wsState = WebSocketState.OPEN;
+      console.log('[FrameSender] WebSocket connection established');
+    };
+    this._ws.onmessage = (event: { data: string }) => {
+      if (event.data === 'finished') {
+        this.dispatch(false, true);
+        this._ws.close();
+        console.log('[FrameSender] WebSocket connection closed');
+        return;
+      }
+      try {
+        const count = parseInt(event.data);
+        if (isNaN(count)) return; // Ignore non-numeric messages (e.g. IPC event broadcasts)
+        this._processedFrameCount = count;
+        this._wsState = WebSocketState.OPEN;
+        this.dispatch(true);
+      } catch (e) {
+        console.error(e);
       }
     };
   }

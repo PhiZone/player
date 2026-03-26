@@ -5,15 +5,25 @@ import type { Game } from '../scenes/Game';
 import Worker from '../../workers/FrameSender?worker';
 import { mixAudio } from './audio';
 import { download, getTimeSec, urlToBase64 } from '../utils';
-import { videoDir, join, tempDir } from '@tauri-apps/api/path';
 import { base } from '$app/paths';
-import { mkdir, remove, writeFile } from '@tauri-apps/plugin-fs';
-import { listen } from '@tauri-apps/api/event';
 import { ensafeFilename } from '$lib/utils';
+import { tauriListen } from '$lib/services/tauriIpc';
+import {
+  pathJoin,
+  pathTempDir,
+  pathVideoDir,
+  fsMkdir,
+  fsRemove,
+  fsWriteFile,
+  closeCurrentWindow,
+} from '$lib/services/tauriFsBridge';
 import moment from 'moment';
-import { getCurrentWindow } from '@tauri-apps/api/window';
 import { Signal } from '../objects/Signal';
 import { m } from '$lib/paraglide/messages';
+import { getTauriBackendUrl } from '$lib/services/tauriIpcBridge';
+
+/** Default port for the frame streaming WebSocket server (must match FrameSender.ts). */
+const FRAME_WS_PORT = 63401;
 
 export class Renderer {
   private _scene: Game;
@@ -49,9 +59,9 @@ export class Renderer {
     const width = canvas.width;
     const height = canvas.height;
 
-    this._tempDir = await join(await tempDir(), 'cn.phizone.player', crypto.randomUUID());
-    await mkdir(this._tempDir, { recursive: true });
-    const videoFile = await join(this._tempDir, 'video-stream.mp4');
+    this._tempDir = await pathJoin(await pathTempDir(), 'cn.phizone.player', crypto.randomUUID());
+    await fsMkdir(this._tempDir, { recursive: true });
+    const videoFile = await pathJoin(this._tempDir, 'video-stream.mp4');
 
     await setupVideo(
       videoFile,
@@ -96,7 +106,13 @@ export class Renderer {
     const sharedView = new Uint8Array(sharedBuffer);
     const rawBufferView = new Uint8Array(new ArrayBuffer(canvas.width * canvas.height * 4));
 
-    this._worker.postMessage({ type: 'init', buffer: sharedBuffer });
+    this._worker.postMessage({
+      type: 'init',
+      buffer: sharedBuffer,
+      wsUrl: getTauriBackendUrl()
+        ? `ws://${new URL(getTauriBackendUrl()!).hostname}:${FRAME_WS_PORT}`
+        : undefined,
+    });
 
     this._scene.game.events.on('prerender', () => {
       if (this._isStopped) return;
@@ -129,10 +145,10 @@ export class Renderer {
       this.stopRendering();
     });
 
-    listen('stream-combination-finished', async (event) => {
+    tauriListen('stream-combination-finished', async (event) => {
       EventBus.emit('rendering-finished', event.payload);
       EventBus.emit('rendering-detail', m['rendering_details.finished']());
-      await remove(this._tempDir, { recursive: true });
+      await fsRemove(this._tempDir, { recursive: true });
     });
 
     this.setTick(0);
@@ -239,39 +255,42 @@ export class Renderer {
 
     if (customHitsoundCount > 0) {
       const signal = new Signal(customHitsoundCount);
-      listen('audio-conversion-finished', () => {
+      tauriListen('audio-conversion-finished', () => {
         signal.emit();
       });
       await signal.wait();
     }
 
-    const hitsoundsFile = await join(this._tempDir, 'hitsounds.wav');
+    const hitsoundsFile = await pathJoin(this._tempDir, 'hitsounds.wav');
 
     EventBus.emit('rendering-detail', m['rendering_details.mixing_audio']());
     await mixAudio(sounds, timestamps, this._length, hitsoundsFile);
 
-    listen('audio-mixing-finished', async () => {
+    tauriListen('audio-mixing-finished', async () => {
       EventBus.emit('audio-mixing-finished');
       await this.finalize(videoFile, hitsoundsFile);
     });
   }
 
   async finalize(videoFile: string, hitsoundsFile: string) {
-    const songFile = await join(this._tempDir, 'song.tmp');
+    const songFile = await pathJoin(this._tempDir, 'song.tmp');
 
     console.log('[Renderer] Retrieving song audio');
     EventBus.emit('rendering-detail', m['rendering_details.retrieving_song']());
-    await writeFile(
+    await fsWriteFile(
       songFile,
       new Uint8Array(await (await download(this._scene.songUrl, 'song')).arrayBuffer()),
     );
 
-    const renderDestDir = await join(
-      this._options.exportPath ?? (await join(await videoDir(), 'PhiZone Player')),
+    const renderDestDir = await pathJoin(
+      this._options.exportPath ?? (await pathJoin(await pathVideoDir(), 'PhiZone Player')),
       ensafeFilename(`${this._scene.metadata.title} [${this._scene.metadata.level}]`),
     );
-    await mkdir(renderDestDir, { recursive: true });
-    const renderOutput = await join(renderDestDir, `${moment().format('YYYY-MM-DD_HH-mm-ss')}.mp4`);
+    await fsMkdir(renderDestDir, { recursive: true });
+    const renderOutput = await pathJoin(
+      renderDestDir,
+      `${moment().format('YYYY-MM-DD_HH-mm-ss')}.mp4`,
+    );
     console.log('[Renderer] Saving video to', renderOutput);
 
     EventBus.emit('rendering-detail', m['rendering_details.combining_streams']());
@@ -286,9 +305,9 @@ export class Renderer {
   }
 
   async convertAudio(url: string, name: string) {
-    const input = await join(this._tempDir, `hitsound-${name}`);
-    const output = await join(this._tempDir, `hitsound-${name}.wav`);
-    await writeFile(
+    const input = await pathJoin(this._tempDir, `hitsound-${name}`);
+    const output = await pathJoin(this._tempDir, `hitsound-${name}.wav`);
+    await fsWriteFile(
       input,
       new Uint8Array(await (await download(url, `hit sound ${name}`)).arrayBuffer()),
     );
@@ -301,8 +320,8 @@ export class Renderer {
     this._isStopped = true;
     await finishVideo();
     await new Promise((resolve) => setTimeout(resolve, 500));
-    await remove(this._tempDir, { recursive: true });
-    await getCurrentWindow().close();
+    await fsRemove(this._tempDir, { recursive: true });
+    await closeCurrentWindow();
   }
 
   public get length() {

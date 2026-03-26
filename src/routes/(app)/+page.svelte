@@ -37,7 +37,9 @@
     haveSameKeys,
     inferLevelType,
     IS_ANDROID_OR_IOS,
+    IS_BROWSER_WITH_BACKEND,
     IS_TAURI,
+    IS_TAURI_LIKE,
     isPec,
     isZip,
     notify,
@@ -91,6 +93,8 @@
     saveSelectedRespack,
     loadSelectedRespack,
   } from '$lib/services/respackStorage';
+  import { tauriInvoke } from '$lib/services/tauriIpc';
+  import { fsReadFile } from '$lib/services/tauriFsBridge';
 
   interface FileEntry {
     id: number;
@@ -164,7 +168,7 @@
     adjustOffset: false,
     render: false,
     newTab: Capacitor.getPlatform() === 'web',
-    inApp: IS_TAURI || Capacitor.getPlatform() !== 'web' ? 2 : 0,
+    inApp: IS_TAURI_LIKE || Capacitor.getPlatform() !== 'web' ? 2 : 0,
   };
   let mediaOptions: MediaOptions = {
     frameRate: 60,
@@ -204,6 +208,8 @@
 
   let isDragging = false;
   let dragCounter = 0;
+
+  let isHandedOff = false;
 
   const ACCEPTED_EXTENSIONS = [
     '.pez',
@@ -270,6 +276,15 @@
   };
 
   const unlistens: UnlistenFn[] = [];
+
+  /** Read a file from the backend filesystem and return it as a File object. */
+  const filePathHandler = async (path: string): Promise<File> => {
+    const data = await fsReadFile(path);
+    return new File(
+      [new Uint8Array(data)],
+      path.split('/').pop() ?? path.split('\\').pop() ?? path,
+    );
+  };
 
   onMount(async () => {
     [
@@ -363,22 +378,20 @@
       onOpenUrl(async (urls) => {
         await handleRedirect(urls[0]);
       });
-      const handler = async (path: string) => {
-        const data = await readFile(path);
-        return new File(
-          [Uint8Array.from(data)],
-          path.split('/').pop() ?? path.split('\\').pop() ?? path,
-        );
-      };
       listen('files-opened', async (event: { payload: string[] }) => {
         const filePaths = event.payload;
-        await handleFilePaths(filePaths, handler);
+        await handleFilePaths(filePaths, filePathHandler);
       });
+    }
+
+    if (IS_TAURI_LIKE) {
       if (isFirstLoad) {
         if (crossOriginIsolated) ffmpegEncoders = await getEncoders();
-        const result: string[] = await invoke('get_files_opened');
-        if (result) {
-          await handleFilePaths(result, handler);
+        if (!isHandedOff) {
+          const result: string[] = await tauriInvoke('get_files_opened');
+          if (result && result.length > 0) {
+            await handleFilePaths(result, filePathHandler);
+          }
         }
       }
     }
@@ -433,12 +446,13 @@
 
     let pref, tgs, mopts;
 
-    if (IS_TAURI) {
-      const args: Record<string, string> = await invoke('get_args');
+    if (IS_TAURI_LIKE) {
+      const args: Record<string, string> = await tauriInvoke('get_args');
+      if (args['browser'] && IS_TAURI) isHandedOff = true;
       if (args['preferences']) pref = args['preferences'];
       if (args['toggles']) tgs = args['toggles'];
       if (args['mediaOptions']) mopts = args['mediaOptions'];
-      automate = args['automate'] === 'true';
+      automate = !isHandedOff && args['automate'] === 'true';
       if (args['title']) overrideTitle = args['title'];
       if (args['level']) overrideLevel = args['level'];
     }
@@ -466,16 +480,23 @@
       mediaResolutionHeight = mediaOptions.overrideResolution[1];
     }
 
-    if (!mediaOptions.exportPath && IS_TAURI) {
+    if (!mediaOptions.exportPath && IS_TAURI_LIKE) {
       try {
-        mediaOptions.exportPath = await join(await videoDir(), 'PhiZone Player');
+        if (IS_TAURI) {
+          mediaOptions.exportPath = await join(await videoDir(), 'PhiZone Player');
+        } else {
+          const { pathJoin, pathVideoDir } = await import('$lib/services/tauriFsBridge');
+          mediaOptions.exportPath = await pathJoin(await pathVideoDir(), 'PhiZone Player');
+        }
       } catch {
-        mediaOptions.exportPath = await join(await homeDir(), 'PhiZone Player');
+        if (IS_TAURI) {
+          mediaOptions.exportPath = await join(await homeDir(), 'PhiZone Player');
+        }
       }
     }
 
     if (
-      !IS_TAURI &&
+      !IS_TAURI_LIKE &&
       Capacitor.getPlatform() === 'web' &&
       (page.url.searchParams.has('file') || page.url.searchParams.has('zip'))
     ) {
@@ -895,13 +916,15 @@
       alert(m.rendering_not_available());
       return false;
     }
-    setupFFmpeg();
+    if (IS_TAURI) {
+      setupFFmpeg();
+    }
     return true;
   };
 
   const setupFFmpeg = async () => {
     if (ffmpegEncoders === undefined) {
-      const link = getFFmpegDownloadLink();
+      const link = await getFFmpegDownloadLink();
       if (
         link &&
         (await ask('FFmpeg could not be found on your system. Do you want to install it?'))
@@ -1646,7 +1669,14 @@
         sort: false,
       },
     );
-    const url = paramsString.length <= 15360 ? `${base}/play/?${paramsString}` : `${base}/play/`;
+    let url = paramsString.length <= 15360 ? `${base}/play/?${paramsString}` : `${base}/play/`;
+
+    // When running in browser mode with a backend, propagate the backend param
+    const backendParam = IS_BROWSER_WITH_BACKEND ? page.url.searchParams.get('backend') : null;
+    if (backendParam) {
+      const sep = url.includes('?') ? '&' : '?';
+      url += `${sep}backend=${encodeURIComponent(backendParam)}`;
+    }
 
     if (IS_TAURI) {
       if (toggles.render) {
@@ -1668,6 +1698,8 @@
       } else {
         configureWebviewWindow(getCurrentWebviewWindow());
       }
+    } else if (IS_TAURI_LIKE && toggles.render) {
+      setupRendering();
     }
 
     if (Capacitor.getPlatform() === 'web' && toggles.newTab && !automate) {
@@ -1813,7 +1845,7 @@
       <i class="fa-solid fa-angle-down fa-sm"></i>
     </span>
   </button>
-  {#if !IS_TAURI && Capacitor.getPlatform() === 'web'}
+  {#if !IS_TAURI_LIKE && Capacitor.getPlatform() === 'web'}
     <a
       href="{base}/app"
       target={chartFiles.length > 0 ||
@@ -2488,7 +2520,7 @@
                 </span>
               </label>
             </div>
-            {#if IS_TAURI}
+            {#if IS_TAURI_LIKE}
               <div
                 class="flex flex-col {!isRenderingAvailable && ffmpegEncoders === undefined
                   ? 'tooltip'

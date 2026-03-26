@@ -35,7 +35,7 @@ pub fn mix_audio(
     output: String,
 ) -> Result<(), String> {
     send_webhook_notification("mixing_audio", 0.0, None);
-    
+
     std::thread::spawn(move || {
         let mix_result = (|| -> Result<(), String> {
             print!("[TAURI] Mixing audio...");
@@ -163,6 +163,7 @@ pub fn mix_audio(
             drop(writer);
             if proc.wait().map_err(|e| e.to_string())?.success() {
                 app.emit("audio-mixing-finished", ()).unwrap();
+                crate::ws_server::broadcast_event("audio-mixing-finished", serde_json::Value::Null);
                 println!(" finished.");
                 Ok(())
             } else {

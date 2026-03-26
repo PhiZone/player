@@ -21,9 +21,26 @@ import { ungzip } from 'pako';
 import { fileTypeFromBlob } from 'file-type';
 import { DEFAULT_RESOURCE_PACK } from './player/constants';
 import { m } from './paraglide/messages';
-import { invoke } from '@tauri-apps/api/core';
+import { tauriInvoke } from './services/tauriIpc';
 
 export const IS_TAURI = '__TAURI_INTERNALS__' in window;
+
+/**
+ * True when running inside Tauri **or** when the `backend` query param is
+ * present, meaning we're in a browser that should proxy IPC calls to a
+ * running Tauri backend via WebSocket.
+ */
+export const IS_TAURI_LIKE: boolean = (() => {
+  if (IS_TAURI) return true;
+  if (typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).has('backend');
+})();
+
+/**
+ * True when running in a browser (not native Tauri) with the `backend`
+ * query param, i.e. proxying to the Tauri backend over WebSocket.
+ */
+export const IS_BROWSER_WITH_BACKEND = IS_TAURI_LIKE && !IS_TAURI;
 
 export const IS_IOS = (() => {
   const iosQuirkPresent = () => {
@@ -624,8 +641,8 @@ export const alertError = (error?: Error, message?: string) => {
   }
   if (message) message2 = message;
   const errMessage = `(${m.click_to_copy()}) [${type}] ${message2.split('\n')[0]}`;
-  if (IS_TAURI)
-    invoke('console_log', {
+  if (IS_TAURI_LIKE)
+    tauriInvoke('console_log', {
       message: message || error?.message || String(error),
       severity: 'error',
     });
