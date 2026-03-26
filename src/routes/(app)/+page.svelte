@@ -280,7 +280,10 @@
   /** Read a file from the backend filesystem and return it as a File object. */
   const filePathHandler = async (path: string): Promise<File> => {
     const data = await fsReadFile(path);
-    return new File([data], path.split('/').pop() ?? path.split('\\').pop() ?? path);
+    return new File(
+      [new Uint8Array(data)],
+      path.split('/').pop() ?? path.split('\\').pop() ?? path,
+    );
   };
 
   onMount(async () => {
