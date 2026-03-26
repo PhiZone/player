@@ -448,13 +448,13 @@
 
     if (IS_TAURI_LIKE) {
       const args: Record<string, string> = await tauriInvoke('get_args');
+      if (args['browser'] && IS_TAURI) isHandedOff = true;
       if (args['preferences']) pref = args['preferences'];
       if (args['toggles']) tgs = args['toggles'];
       if (args['mediaOptions']) mopts = args['mediaOptions'];
-      automate = args['automate'] === 'true';
+      automate = !isHandedOff && args['automate'] === 'true';
       if (args['title']) overrideTitle = args['title'];
       if (args['level']) overrideLevel = args['level'];
-      if (args['browser'] && IS_TAURI) isHandedOff = true;
     }
 
     pref ??= localStorage.getItem('preferences');
