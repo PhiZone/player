@@ -192,19 +192,27 @@ pub fn cmd_hidden(program: impl AsRef<std::ffi::OsStr>) -> Command {
 
 /// Launch an external browser by running `<command> <url>` directly (no shell).
 ///
-/// The `command` string is parsed using shell-style quoting rules (via
-/// `shell_words::split`), so values like `"Google Chrome"` or
-/// `'/usr/bin/my browser'` are handled correctly.
+/// If `command` is a path to an existing file, it is used as the executable
+/// directly (handles paths with spaces such as `C:\Program Files\…`).
+/// Otherwise the string is parsed using shell-style quoting rules (via
+/// `shell_words::split`), so values like `chrome --incognito` work too.
 ///
 /// On macOS, if the command is not an absolute path, it is treated as an
 /// application name and launched via `open -a <name> <url>`.  Passing
 /// `"open"` (case-insensitive) opens the URL in the default browser.
 fn launch_browser(command: &str, url: &str) -> Result<(), String> {
-    let parts = shell_words::split(command)
-        .map_err(|e| format!("Failed to parse browser command: {}", e))?;
-    if parts.is_empty() {
-        return Err("Empty browser command".to_string());
-    }
+    // If the raw string is an existing file, treat it as a single executable
+    // path (avoids splitting paths that contain spaces).
+    let parts: Vec<String> = if std::path::Path::new(command).is_file() {
+        vec![command.to_string()]
+    } else {
+        let p = shell_words::split(command)
+            .map_err(|e| format!("Failed to parse browser command: {}", e))?;
+        if p.is_empty() {
+            return Err("Empty browser command".to_string());
+        }
+        p
+    };
 
     let mut cmd;
 
