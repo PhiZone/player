@@ -69,16 +69,23 @@ export async function fsWriteFile(path: string, data: Uint8Array): Promise<void>
     const { writeFile } = await import('@tauri-apps/plugin-fs');
     return writeFile(path, data);
   }
-  // Convert Uint8Array to base64 for transport over JSON.
-  // We chunk the conversion to avoid exceeding the call-stack limit that
-  // `String.fromCharCode(...hugeArray)` would hit on large files.
-  const CHUNK = 0x8000; // 32 KiB per chunk
-  let binary = '';
-  for (let i = 0; i < data.length; i += CHUNK) {
-    binary += String.fromCharCode(...data.subarray(i, i + CHUNK));
+  // Send data in chunks to avoid exceeding JavaScript's maximum string
+  // length when building the intermediate binary / base64 strings.
+  const SLICE = 3 * 1024 * 1024; // 3 MiB of raw data per round-trip
+  const CHAR_CHUNK = 0x8000; // 32 KiB per String.fromCharCode call
+  for (let offset = 0; offset < data.length; offset += SLICE) {
+    const slice = data.subarray(offset, offset + SLICE);
+    let binary = '';
+    for (let i = 0; i < slice.length; i += CHAR_CHUNK) {
+      binary += String.fromCharCode(...slice.subarray(i, i + CHAR_CHUNK));
+    }
+    const base64 = btoa(binary);
+    await tauriInvoke('fs_write_file', {
+      path,
+      dataBase64: base64,
+      append: offset > 0,
+    });
   }
-  const base64 = btoa(binary);
-  await tauriInvoke('fs_write_file', { path, dataBase64: base64 });
 }
 
 export async function fsReadFile(path: string): Promise<Uint8Array> {

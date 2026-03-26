@@ -549,7 +549,20 @@ fn dispatch_command(command: &str, args: &Value) -> Result<Value, String> {
             let data = STANDARD
                 .decode(data_b64)
                 .map_err(|e| format!("Invalid base64: {}", e))?;
-            std::fs::write(path, &data).map_err(|e| format!("Failed to write file: {}", e))?;
+            let append = args["append"].as_bool().unwrap_or(false);
+            if append {
+                use std::fs::OpenOptions;
+                let mut file = OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(path)
+                    .map_err(|e| format!("Failed to open file for append: {}", e))?;
+                file.write_all(&data)
+                    .map_err(|e| format!("Failed to append to file: {}", e))?;
+            } else {
+                std::fs::write(path, &data)
+                    .map_err(|e| format!("Failed to write file: {}", e))?;
+            }
             Ok(Value::Null)
         }
         "fs_read_file" => {
