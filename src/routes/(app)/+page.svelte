@@ -209,6 +209,8 @@
   let isDragging = false;
   let dragCounter = 0;
 
+  let isHandedOff = false;
+
   const ACCEPTED_EXTENSIONS = [
     '.pez',
     '.pec',
@@ -382,9 +384,11 @@
     if (IS_TAURI_LIKE) {
       if (isFirstLoad) {
         if (crossOriginIsolated) ffmpegEncoders = await getEncoders();
-        const result: string[] = await tauriInvoke('get_files_opened');
-        if (result && result.length > 0) {
-          await handleFilePaths(result, filePathHandler);
+        if (!isHandedOff) {
+          const result: string[] = await tauriInvoke('get_files_opened');
+          if (result && result.length > 0) {
+            await handleFilePaths(result, filePathHandler);
+          }
         }
       }
     }
@@ -447,6 +451,7 @@
       automate = args['automate'] === 'true';
       if (args['title']) overrideTitle = args['title'];
       if (args['level']) overrideLevel = args['level'];
+      if (args['browser'] && IS_TAURI) isHandedOff = true;
     }
 
     pref ??= localStorage.getItem('preferences');
