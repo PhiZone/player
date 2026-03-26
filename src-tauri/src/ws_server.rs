@@ -26,8 +26,7 @@ pub static FRAME_STATE: LazyLock<Mutex<FrameState>> =
     LazyLock::new(|| Mutex::new(FrameState::default()));
 
 /// Stored `AppHandle` so WS command handlers can call `app.emit()` etc.
-static APP_HANDLE: LazyLock<Mutex<Option<tauri::AppHandle>>> =
-    LazyLock::new(|| Mutex::new(None));
+static APP_HANDLE: LazyLock<Mutex<Option<tauri::AppHandle>>> = LazyLock::new(|| Mutex::new(None));
 
 /// Notified (once) when the WS server has bound to its port.
 static SERVER_READY: LazyLock<Notify> = LazyLock::new(Notify::new);
@@ -127,9 +126,7 @@ pub async fn start(app_handle: tauri::AppHandle) {
 
 // ── Connection handler ──────────────────────────────────────────────
 
-async fn handle_connection(
-    ws_stream: tokio_tungstenite::WebSocketStream<tokio::net::TcpStream>,
-) {
+async fn handle_connection(ws_stream: tokio_tungstenite::WebSocketStream<tokio::net::TcpStream>) {
     let (write, mut read) = ws_stream.split();
     let write = Arc::new(tokio::sync::Mutex::new(write));
 
@@ -139,11 +136,7 @@ async fn handle_connection(
     let is_ipc = Arc::new(AtomicBool::new(false));
 
     // Spawn a task that forwards broadcast events to this connection.
-    let event_rx = EVENT_TX
-        .lock()
-        .unwrap()
-        .as_ref()
-        .map(|tx| tx.subscribe());
+    let event_rx = EVENT_TX.lock().unwrap().as_ref().map(|tx| tx.subscribe());
     let write_for_events = write.clone();
     let is_ipc_for_events = is_ipc.clone();
 
@@ -240,7 +233,10 @@ async fn handle_connection(
         println!("[WS Server] Frame connection closed unexpectedly, finishing video");
         FRAME_STATE.lock().unwrap().active = false;
         if let Err(e) = ffmpeg::finish_video() {
-            eprintln!("[WS Server] Error finishing video on connection close: {}", e);
+            eprintln!(
+                "[WS Server] Error finishing video on connection close: {}",
+                e
+            );
         }
     }
 
@@ -375,9 +371,7 @@ fn dispatch_command(command: &str, args: &Value) -> Result<Value, String> {
             Ok(Value::String(dir))
         }
         "set_ffmpeg_path" => {
-            let path = args["path"]
-                .as_str()
-                .ok_or("Missing 'path' argument")?;
+            let path = args["path"].as_str().ok_or("Missing 'path' argument")?;
             ffmpeg::set_ffmpeg_path(path)?;
             Ok(Value::Null)
         }
@@ -386,10 +380,7 @@ fn dispatch_command(command: &str, args: &Value) -> Result<Value, String> {
             Ok(serde_json::to_value(encoders).unwrap())
         }
         "convert_audio" => {
-            let input = args["input"]
-                .as_str()
-                .ok_or("Missing 'input'")?
-                .to_string();
+            let input = args["input"].as_str().ok_or("Missing 'input'")?.to_string();
             let output = args["output"]
                 .as_str()
                 .ok_or("Missing 'output'")?
@@ -411,16 +402,9 @@ fn dispatch_command(command: &str, args: &Value) -> Result<Value, String> {
                 .as_str()
                 .ok_or("Missing 'resolution'")?
                 .to_string();
-            let frame_rate = args["frameRate"]
-                .as_u64()
-                .ok_or("Missing 'frameRate'")? as u32;
-            let duration = args["duration"]
-                .as_f64()
-                .ok_or("Missing 'duration'")?;
-            let codec = args["codec"]
-                .as_str()
-                .ok_or("Missing 'codec'")?
-                .to_string();
+            let frame_rate = args["frameRate"].as_u64().ok_or("Missing 'frameRate'")? as u32;
+            let duration = args["duration"].as_f64().ok_or("Missing 'duration'")?;
+            let codec = args["codec"].as_str().ok_or("Missing 'codec'")?.to_string();
             let bitrate = args["bitrate"]
                 .as_str()
                 .ok_or("Missing 'bitrate'")?
@@ -504,12 +488,8 @@ fn dispatch_command(command: &str, args: &Value) -> Result<Value, String> {
             Ok(Value::Null)
         }
         "console_log" => {
-            let message = args["message"]
-                .as_str()
-                .ok_or("Missing 'message'")?;
-            let severity = args["severity"]
-                .as_str()
-                .ok_or("Missing 'severity'")?;
+            let message = args["message"].as_str().ok_or("Missing 'message'")?;
+            let severity = args["severity"].as_str().ok_or("Missing 'severity'")?;
             crate::do_console_log(message, severity);
             Ok(Value::Null)
         }
@@ -556,31 +536,25 @@ fn dispatch_command(command: &str, args: &Value) -> Result<Value, String> {
                     std::fs::remove_dir_all(path)
                         .map_err(|e| format!("Failed to remove: {}", e))?;
                 } else {
-                    std::fs::remove_dir(path)
-                        .map_err(|e| format!("Failed to remove: {}", e))?;
+                    std::fs::remove_dir(path).map_err(|e| format!("Failed to remove: {}", e))?;
                 }
             } else {
-                std::fs::remove_file(path)
-                    .map_err(|e| format!("Failed to remove: {}", e))?;
+                std::fs::remove_file(path).map_err(|e| format!("Failed to remove: {}", e))?;
             }
             Ok(Value::Null)
         }
         "fs_write_file" => {
             let path = args["path"].as_str().ok_or("Missing 'path'")?;
-            let data_b64 = args["dataBase64"]
-                .as_str()
-                .ok_or("Missing 'dataBase64'")?;
+            let data_b64 = args["dataBase64"].as_str().ok_or("Missing 'dataBase64'")?;
             let data = STANDARD
                 .decode(data_b64)
                 .map_err(|e| format!("Invalid base64: {}", e))?;
-            std::fs::write(path, &data)
-                .map_err(|e| format!("Failed to write file: {}", e))?;
+            std::fs::write(path, &data).map_err(|e| format!("Failed to write file: {}", e))?;
             Ok(Value::Null)
         }
         "fs_read_file" => {
             let path = args["path"].as_str().ok_or("Missing 'path'")?;
-            let data = std::fs::read(path)
-                .map_err(|e| format!("Failed to read file: {}", e))?;
+            let data = std::fs::read(path).map_err(|e| format!("Failed to read file: {}", e))?;
             let encoded = STANDARD.encode(&data);
             Ok(Value::String(encoded))
         }
@@ -589,9 +563,7 @@ fn dispatch_command(command: &str, args: &Value) -> Result<Value, String> {
             open::that(path).map_err(|e| format!("Failed to open path: {}", e))?;
             Ok(Value::Null)
         }
-        "get_path_sep" => {
-            Ok(Value::String(std::path::MAIN_SEPARATOR.to_string()))
-        }
+        "get_path_sep" => Ok(Value::String(std::path::MAIN_SEPARATOR.to_string())),
 
         _ => Err(format!("Unknown command: {}", command)),
     }

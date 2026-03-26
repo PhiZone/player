@@ -153,8 +153,11 @@ pub fn convert_audio(app: AppHandle, input: String, output: String) -> Result<()
 
             let result = cmd_hidden(&*FFMPEG_CMD.lock().unwrap())
                 .args(
-                    format!("-i {} -af volume={}dB -ar 48000 -c:a pcm_f32le -y {}", input, gain, output)
-                        .split_whitespace(),
+                    format!(
+                        "-i {} -af volume={}dB -ar 48000 -c:a pcm_f32le -y {}",
+                        input, gain, output
+                    )
+                    .split_whitespace(),
                 )
                 .status()
                 .map_err(|e| e.to_string());
@@ -187,7 +190,7 @@ pub fn combine_streams(
     output: String,
 ) -> Result<(), String> {
     send_webhook_notification("combining_streams", 0.0, None);
-    
+
     std::thread::spawn({
         let app = app.clone();
         move || {
