@@ -381,7 +381,13 @@ jobs:
               echo "Skipping $original_path"
               continue
             fi
-            renamed_path=$(echo "$original_path" | sed -E "s/PhiZone Player[_-]${{ needs.metadata.outputs.version }}(-1)?/PhiZone.Player_${{ needs.metadata.outputs.version-name }}/g")
+            
+            if [[ "$original_path" == *"/debug/"* || "$original_path" == *"\\debug\\"* ]]; then
+              renamed_path=$(echo "$original_path" | sed -E "s/PhiZone Player[_-]${{ needs.metadata.outputs.version }}(-1)?/PhiZone.Player_${{ needs.metadata.outputs.version-name }}-debug/g")
+            else
+              renamed_path=$(echo "$original_path" | sed -E "s/PhiZone Player[_-]${{ needs.metadata.outputs.version }}(-1)?/PhiZone.Player_${{ needs.metadata.outputs.version-name }}/g")
+            fi
+            
             echo "Renaming: $original_path -> $renamed_path"
             mv "$original_path" "$renamed_path"
             renamed_paths="$renamed_paths $renamed_path"
