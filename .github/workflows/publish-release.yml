@@ -85,6 +85,7 @@ jobs:
         run: |
           mv android/app/build/outputs/bundle/release/app-release.aab android/app/build/outputs/bundle/release/PhiZone.Player_${{ needs.metadata.outputs.version }}.aab
           mv ${{ steps.sign-apk.outputs.signedReleaseFile }} android/app/build/outputs/apk/release/PhiZone.Player_${{ needs.metadata.outputs.version }}.apk
+          cd build && zip -r ../PhiZone.Player_${{ needs.metadata.outputs.version }}.zip .
 
       - name: Publish release
         run: |
@@ -92,7 +93,8 @@ jobs:
           --title "v${{ needs.metadata.outputs.version }}" \
           --notes "See the assets for downloads." --draft \
           android/app/build/outputs/bundle/release/PhiZone.Player_${{ needs.metadata.outputs.version }}.aab \
-          android/app/build/outputs/apk/release/PhiZone.Player_${{ needs.metadata.outputs.version }}.apk
+          android/app/build/outputs/apk/release/PhiZone.Player_${{ needs.metadata.outputs.version }}.apk \
+          PhiZone.Player_${{ needs.metadata.outputs.version }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
 

@@ -93,6 +93,7 @@ jobs:
         run: |
           mv android/app/build/outputs/bundle/release/app-release.aab android/app/build/outputs/bundle/release/PhiZone.Player_${{ needs.metadata.outputs.version-name }}.aab
           mv ${{ steps.sign-apk.outputs.signedReleaseFile }} android/app/build/outputs/apk/release/PhiZone.Player_${{ needs.metadata.outputs.version-name }}.apk
+          cd build && zip -r ../PhiZone.Player_${{ needs.metadata.outputs.version-name }}.zip .
 
       - name: Publish release
         run: |
@@ -100,7 +101,8 @@ jobs:
           --title "v${{ needs.metadata.outputs.version }} ${{ needs.metadata.outputs.current-week }}" \
           --notes "Automated snapshot release. See the assets for downloads." --prerelease \
           android/app/build/outputs/bundle/release/PhiZone.Player_${{ needs.metadata.outputs.version-name }}.aab \
-          android/app/build/outputs/apk/release/PhiZone.Player_${{ needs.metadata.outputs.version-name }}.apk
+          android/app/build/outputs/apk/release/PhiZone.Player_${{ needs.metadata.outputs.version-name }}.apk \
+          PhiZone.Player_${{ needs.metadata.outputs.version-name }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
 
