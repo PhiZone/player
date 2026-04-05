@@ -19,26 +19,26 @@ export class GameUI {
   private _debug: UIComponent | undefined = undefined;
 
   private _positions: number[][] = [
-    [-655, 430],
-    [0, 440],
-    [0, 440],
-    [650, 425],
-    [650, 430],
-    [-650, -430],
-    [650, -430],
-    [0, -430],
+    [-648, 425],
+    [0, 437],
+    [0, 437],
+    [643, 423],
+    [643, 428],
+    [-643, -428],
+    [643, -428],
+    [0, -428],
   ];
   private _offsets: number[][] = [
     [0, 5],
     [0, 0],
-    [0, 53],
+    [0, 61],
     [0, 0],
-    [0, 38],
+    [0, 45],
     [0, 0],
     [0, 0],
     [0, 0],
   ];
-  private _fontSizes: number[] = [0, 55, 18, 40, 19, 28, 28, 18];
+  private _fontSizes: number[] = [0, 63, 22, 46, 22, 34, 34, 24];
   private _targets: (Button | UIComponent | ProgressBar)[];
   private _upperTargets: (Button | UIComponent | ProgressBar)[];
   private _lowerTargets: UIComponent[];
@@ -240,7 +240,7 @@ export class GameUI {
         this._scene.h(this._positions[i][1]),
       );
       if ('resize' in obj) {
-        obj.resize(this._scene.p(0.3));
+        obj.resize(this._scene.p(0.325));
       } else {
         obj.text.setFontSize(this._scene.p(this._fontSizes[i]));
         obj.text.setPosition(
