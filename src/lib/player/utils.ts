@@ -590,12 +590,6 @@ export const scaleConfigImages = async (config: Config): Promise<void> => {
       grade.file = await scaleAndRevoke(grade.file);
     }),
   );
-
-  if (config.resourcePack.hitEffects) {
-    config.resourcePack.hitEffects.spriteSheet = await scaleAndRevoke(
-      config.resourcePack.hitEffects.spriteSheet,
-    );
-  }
 };
 
 export const processIllustration = (
