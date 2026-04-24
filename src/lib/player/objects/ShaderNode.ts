@@ -1,13 +1,13 @@
-import type { GameObjects } from 'phaser';
+import type { ShaderNodeObject } from '$lib/types';
 import { Node } from './Node';
 
 export class ShaderNode extends Node {
-  object: GameObjects.Layer;
+  object: ShaderNodeObject;
   upperDepth: number;
 
   constructor(
     name: string,
-    object: GameObjects.Layer,
+    object: ShaderNodeObject,
     depth: number,
     upperDepth: number,
     parent: Node,

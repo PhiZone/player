@@ -343,12 +343,14 @@ export enum Grade {
 
 export type GameObject =
   | GameObjects.Container
-  | GameObjects.Layer
+  | ShaderNodeObject
   | GameObjects.Image
   | GameObjects.Video
   | GameObjects.Sprite
   | GameObjects.Rectangle
   | GameObjects.Text;
+
+export type ShaderNodeObject = GameObjects.Container;
 
 export interface PhiraExtra {
   bpm?: {
