@@ -358,20 +358,40 @@ jobs:
           APPLE_API_ISSUER: ${{ startsWith(matrix.platform, 'macos-') && secrets.APPLE_ASC_API_KEY_ISSUER_ID || '' }}
           APPLE_API_KEY_PATH: ${{ startsWith(matrix.platform, 'macos-') && steps.apple-signing.outputs.ASC_API_KEY_PATH || '' }}
         with:
-          tagName: v${{ needs.metadata.outputs.version }}
-          releaseName: 'v${{ needs.metadata.outputs.version }}'
-          releaseBody: 'See the assets for downloads.'
-          releaseDraft: true
+          includeDebug: true
           args: ${{ matrix.args }}
 
-      - name: Upload built binary to GitHub Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+      - name: Rename builds
         run: |
-          VERSION=${{ needs.metadata.outputs.version }}
+          IFS=','
+          SPACE='.SPACE_PLACEHOLDER.'
+          artifact_paths=$(echo '${{ steps.build.outputs.artifactPaths }}' | sed -e 's/\[//g; s/\]//g' -e 's/["]//g' -e 's/ /$SPACE/g')
+          renamed_paths=""
+          for artifact_path in $artifact_paths; do
+            original_path=$(echo "$artifact_path" | sed -e 's/$SPACE/ /g')
+            if [[ "$original_path" == *.app ]]; then
+              echo "Skipping $original_path"
+              continue
+            fi
+
+            if [[ "$original_path" == *"/debug/"* || "$original_path" == *"\\debug\\"* ]]; then
+              renamed_path=$(echo "$original_path" | sed -E "s/PhiZone Player[_-]${{ needs.metadata.outputs.version }}(-1)?/PhiZone.Player_${{ needs.metadata.outputs.version }}-debug/g")
+            else
+              renamed_path=$(echo "$original_path" | sed -E "s/PhiZone Player[_-]${{ needs.metadata.outputs.version }}(-1)?/PhiZone.Player_${{ needs.metadata.outputs.version }}/g")
+            fi
+
+            echo "Renaming: $original_path -> $renamed_path"
+            mv "$original_path" "$renamed_path"
+            renamed_paths="$renamed_paths $renamed_path"
+          done
+
+          # Add built binary to renamed_paths
+          VERSION="${{ needs.metadata.outputs.version }}"
           PLATFORM=""
           BINARY=""
           DEST=""
+          DEBUG_BINARY=""
+          DEBUG_DEST=""
 
           if [[ "${{ startsWith(matrix.platform, 'ubuntu-') }}" == "true" ]]; then
             if [[ "${{ endsWith(matrix.platform, '-arm') }}" == "true" ]]; then
@@ -399,10 +419,39 @@ jobs:
             DEST="PhiZone.Player-${VERSION}-${PLATFORM}"
           fi
 
+          if [[ -n "$BINARY" ]]; then
+            DEBUG_BINARY="${BINARY/release/debug}"
+            if [[ "$DEST" == *.exe ]]; then
+              DEBUG_DEST="${DEST/.exe/-debug.exe}"
+            else
+              DEBUG_DEST="${DEST}-debug"
+            fi
+          fi
+
           if [[ -f "$BINARY" ]]; then
             cp "$BINARY" "$DEST"
-            gh release upload "v${VERSION}" "$DEST" --repo "$GITHUB_REPOSITORY"
+            renamed_paths="$renamed_paths $DEST"
           else
             echo "Binary not found for $PLATFORM at $BINARY"
             exit 1
           fi
+
+          if [[ -f "$DEBUG_BINARY" ]]; then
+            cp "$DEBUG_BINARY" "$DEBUG_DEST"
+            renamed_paths="$renamed_paths $DEBUG_DEST"
+          elif [[ "$PLATFORM" == "windows-x86_64" && -f "src-tauri/debug/phizone-player.exe" ]]; then
+            # Fallback for publish-debug.yml discrepancy
+            cp "src-tauri/debug/phizone-player.exe" "$DEBUG_DEST"
+            renamed_paths="$renamed_paths $DEBUG_DEST"
+          else
+            echo "Debug binary not found for $PLATFORM at $DEBUG_BINARY"
+            exit 1
+          fi
+
+          echo "RENAMED_PATHS=$renamed_paths" >> $GITHUB_ENV
+
+      - name: Publish release
+        run: |
+          gh release upload "v${{ needs.metadata.outputs.version }}" $RENAMED_PATHS
+        env:
+          GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
