@@ -7,11 +7,6 @@ settings:
 overrides:
   cookie: '>=0.7.0'
 
-patchedDependencies:
-  phaser@4.0.0:
-    hash: bd1862387ff519272619b89ad6811601b46eac2bd5e97c2632c9adee02c8db03
-    path: patches/phaser@4.0.0.patch
-
 importers:
 
   .:
@@ -107,8 +102,8 @@ importers:
         specifier: ^2.1.0
         version: 2.1.0
       phaser:
-        specifier: ^4.0.0
-        version: 4.0.0(patch_hash=bd1862387ff519272619b89ad6811601b46eac2bd5e97c2632c9adee02c8db03)
+        specifier: github:Naptie/phaser#dist
+        version: https://codeload.github.com/Naptie/phaser/tar.gz/b537691fdf0432fa3b54be7095570d05c9f78086
       query-string:
         specifier: ^9.3.1
         version: 9.3.1
@@ -2648,8 +2643,9 @@ packages:
     resolution: {integrity: sha512-qTAAlrEsl8s4OiEQY69wDvcMIdQN6wdz5ojQiOy6YRMuynxenON0O5oCpJI6lshc6scgAY8qvJ2On/p+CXY0GA==}
     engines: {node: '>=4'}
 
-  phaser@4.0.0:
-    resolution: {integrity: sha512-f9oYpu3/UymB5JJDZRqOsNQm5FkMMC7u8eL8yQuqGAa54wTbgE2QbTOn70vgvlOVuYeQcw2mOQ52PpJHBSBkfQ==}
+  phaser@https://codeload.github.com/Naptie/phaser/tar.gz/b537691fdf0432fa3b54be7095570d05c9f78086:
+    resolution: {tarball: https://codeload.github.com/Naptie/phaser/tar.gz/b537691fdf0432fa3b54be7095570d05c9f78086}
+    version: 4.0.0
 
   picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
@@ -5860,7 +5856,7 @@ snapshots:
       postgres-date: 1.0.7
       postgres-interval: 1.2.0
 
-  phaser@4.0.0(patch_hash=bd1862387ff519272619b89ad6811601b46eac2bd5e97c2632c9adee02c8db03):
+  phaser@https://codeload.github.com/Naptie/phaser/tar.gz/b537691fdf0432fa3b54be7095570d05c9f78086:
     dependencies:
       eventemitter3: 5.0.4
 
