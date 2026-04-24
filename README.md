@@ -77,7 +77,7 @@ The Z indexes of judgment lines whose `zIndex` is not present (see [Chart enhanc
 
 ### Chart enhancements
 
-Aside from adding support for RPE features, we've also designed some original properties for judgment lines & notes.
+Aside from adding support of RPE features, we've also designed some original properties for judgment lines & notes.
 
 | Property                | Value(s)                                                                                                                         | Example                         | Description                                                                                                                                                                                                                                                                    |
 | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -92,7 +92,7 @@ Aside from adding support for RPE features, we've also designed some original pr
 
 ### Video enhancements
 
-Support for videos in `extra.json` gets extended with the following new properties for each entry in the `videos` list:
+Support of videos in `extra.json` gets extended with the following new properties for each entry in the `videos` list:
 
 | Property | Type   | Description                                                                                 |
 | -------- | ------ | ------------------------------------------------------------------------------------------- |
@@ -181,7 +181,7 @@ Notice that there are two events that share the same shader code. This is a work
 
 ### Customizable resource pack
 
-We have support for Phira resource packs (except for `hitFxScale`, `hitFxRotate`, `hitFxTinted`). Moreover, we've designed a new format to allow for more customizations:
+We have support of Phira resource packs (except for `hitFxScale`, `hitFxRotate`, `hitFxTinted`). Moreover, we've designed a new format to allow for more customizations:
 
 - Root:
 
@@ -301,45 +301,48 @@ Export the default resource pack to view an example.
 
 ## Development
 
-| Feature                                    | Version | Remark                                                                                                                            | Status/Progress     | 功能                    |
-| :----------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------- | ----------------------- |
-| Basic RPE support                          | 0.0.1   |                                                                                                                                   | ✅ Done             | 基本 RPE 适配           |
-| Support for custom line textures           | 0.0.1   |                                                                                                                                   | ✅ Done             | 判定线自定义贴图适配    |
-| Support for flipping modes                 | 0.0.1   |                                                                                                                                   | ✅ Done             | 镜像模式适配            |
-| Support for custom hit sounds              | 0.0.1   |                                                                                                                                   | ✅ Done             | 自定义打击音效适配      |
-| Support for `zOrder`                       | 0.0.1   |                                                                                                                                   | ✅ Done             | Z 轴排序适配            |
-| Basic support for the extended event layer | 0.0.2   | Excluding GIF events & incline events                                                                                             | ✅ Done             | 扩展事件层的基本适配    |
-| Cross-platform distribution                | 0.0.3   | Plan to reference [this blog](https://nsarrazin.com/blog/sveltekit-universal)                                                     | ✅ Done             | 跨平台分发              |
-| Support for Phira `extra.json`             | 0.0.4   | Including shaders                                                                                                                 | ✅ Done<sup>1</sup> | Phira `extra.json` 适配 |
-| Support for `attachUI`                     | 0.0.4   |                                                                                                                                   | ✅ Done             | UI 绑定适配             |
-| Support for anchors                        | 0.0.4   |                                                                                                                                   | ✅ Done             | 锚点适配                |
-| Support for APNGs                          | 0.0.4   |                                                                                                                                   | ✅ Done             | APNG 格式适配           |
-| Shader feature enhancements                | 0.0.5   | More flexibility                                                                                                                  | ✅ Done             | 着色器功能增强          |
-| Support for Bézier easings                 | 0.0.5   |                                                                                                                                   | ✅ Done             | 贝塞尔缓动适配          |
-| Video feature enhancements                 | 0.0.5   |                                                                                                                                   | ✅ Done             | 视频功能增强            |
-| Offset adjustment mode                     | 0.0.6   |                                                                                                                                   | ✅ Done             | 延迟调整模式            |
-| Full support for the extended event layer  | 0.0.6   | GIF events & incline events                                                                                                       | ✅ Done             | 扩展事件层的完全适配    |
-| Support for all note properties            | 0.0.7   |                                                                                                                                   | ✅ Done             | 所有 Note 属性的适配    |
-| Better input detections                    | 0.0.8   | Especially for Flicks                                                                                                             | ✅ Done<sup>2</sup> | 输入检测优化            |
-| Full RPE support                           | 0.1.0   |                                                                                                                                   | ✅ Done             | 完全 RPE 适配           |
-| Web deployment                             | 0.1.0   |                                                                                                                                   | ✅ Done             | Web 部署                |
-| Optimized shader node insertion logic      | 0.1.1   |                                                                                                                                   | ✅ Done             | 着色器节点插入逻辑优化  |
-| New version notification                   | 0.1.1   |                                                                                                                                   | ✅ Done             | 新版本通知              |
-| File association                           | 0.1.2   | For desktop distributions                                                                                                         | ✅ Done             | 文件关联                |
-| Send intent                                | 0.1.2   |                                                                                                                                   | ✅ Done<sup>3</sup> | 发送意图                |
-| Channel messaging                          | 0.1.2   | Send/receive message events                                                                                                       | ✅ Done             | 频道通信                |
-| PE support                                 | 0.1.2   |                                                                                                                                   | ✅ Done             | PE 适配                 |
-| Keyboard input                             | 0.1.2   |                                                                                                                                   | ✅ Done             | 键盘输入                |
-| Rendering mode                             | 0.2.0   |                                                                                                                                   | ✅ Done<sup>4</sup> | 渲染模式                |
-| Customizable resource pack                 | 0.2.0   |                                                                                                                                   | ✅ Done             | 可自定义资源包          |
-| I18n and l10n                              | 0.3.0   |                                                                                                                                   | ✅ Done             | 国际化与本地化          |
-| Local storage                              | 0.4.0   |                                                                                                                                   | 🚧 Working          | 本地存储                |
-| Optimization                               | 0.4.0   |                                                                                                                                   | 🚧 Working          | 优化                    |
-| Stream mode                                | 0.5.0   |                                                                                                                                   | ⏳ Postponed        | 流转模式                |
-| Masking lines                              | 0.5.1   | Polygon-shaped masks applied to notes (or optionally lines), defined by one or several lines (masking lines) and the screen edges |                     | 遮罩线                  |
-| PhiZone integration                        | 0.6.0   |                                                                                                                                   |                     | PhiZone 集成            |
+| Feature                                   | Version | Remark                                                                                                                            | Status/Progress     | 功能                    |
+| :---------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------- | ----------------------- |
+| Basic RPE support                         | 0.0.1   |                                                                                                                                   | ✅ Done             | 基本 RPE 适配           |
+| Support of custom line textures           | 0.0.1   |                                                                                                                                   | ✅ Done             | 判定线自定义贴图适配    |
+| Support of flipping modes                 | 0.0.1   |                                                                                                                                   | ✅ Done             | 镜像模式适配            |
+| Support of custom hit sounds              | 0.0.1   |                                                                                                                                   | ✅ Done             | 自定义打击音效适配      |
+| Support of `zOrder`                       | 0.0.1   |                                                                                                                                   | ✅ Done             | Z 轴排序适配            |
+| Basic support of the extended event layer | 0.0.2   | Excluding GIF events & incline events                                                                                             | ✅ Done             | 扩展事件层的基本适配    |
+| Cross-platform distribution               | 0.0.3   | Plan to reference [this blog](https://nsarrazin.com/blog/sveltekit-universal)                                                     | ✅ Done             | 跨平台分发              |
+| Support of Phira `extra.json`             | 0.0.4   | Including shaders                                                                                                                 | ✅ Done<sup>1</sup> | Phira `extra.json` 适配 |
+| Support of `attachUI`                     | 0.0.4   |                                                                                                                                   | ✅ Done             | UI 绑定适配             |
+| Support of anchors                        | 0.0.4   |                                                                                                                                   | ✅ Done             | 锚点适配                |
+| Support of APNGs                          | 0.0.4   |                                                                                                                                   | ✅ Done             | APNG 格式适配           |
+| Shader feature enhancements               | 0.0.5   | More flexibility                                                                                                                  | ✅ Done             | 着色器功能增强          |
+| Support of Bézier easings                 | 0.0.5   |                                                                                                                                   | ✅ Done             | 贝塞尔缓动适配          |
+| Video feature enhancements                | 0.0.5   |                                                                                                                                   | ✅ Done             | 视频功能增强            |
+| Offset adjustment mode                    | 0.0.6   |                                                                                                                                   | ✅ Done             | 延迟调整模式            |
+| Full support of the extended event layer  | 0.0.6   | GIF events & incline events                                                                                                       | ✅ Done             | 扩展事件层的完全适配    |
+| Support of all note properties            | 0.0.7   |                                                                                                                                   | ✅ Done             | 所有 Note 属性的适配    |
+| Better input detections                   | 0.0.8   | Especially for Flicks                                                                                                             | ✅ Done<sup>2</sup> | 输入检测优化            |
+| Full RPE support                          | 0.1.0   |                                                                                                                                   | ✅ Done             | 完全 RPE 适配           |
+| Web deployment                            | 0.1.0   |                                                                                                                                   | ✅ Done             | Web 部署                |
+| Optimized shader node insertion logic     | 0.1.1   |                                                                                                                                   | ✅ Done             | 着色器节点插入逻辑优化  |
+| New version notification                  | 0.1.1   |                                                                                                                                   | ✅ Done             | 新版本通知              |
+| File association                          | 0.1.2   | For desktop distributions                                                                                                         | ✅ Done             | 文件关联                |
+| Send intent                               | 0.1.2   |                                                                                                                                   | ✅ Done<sup>3</sup> | 发送意图                |
+| Channel messaging                         | 0.1.2   | Send/receive message events                                                                                                       | ✅ Done             | 频道通信                |
+| PE support                                | 0.1.2   |                                                                                                                                   | ✅ Done             | PE 适配                 |
+| Keyboard input                            | 0.1.2   |                                                                                                                                   | ✅ Done             | 键盘输入                |
+| Rendering mode                            | 0.2.0   |                                                                                                                                   | ✅ Done<sup>4</sup> | 渲染模式                |
+| Customizable resource pack                | 0.2.0   |                                                                                                                                   | ✅ Done             | 可自定义资源包          |
+| I18n and l10n                             | 0.3.0   |                                                                                                                                   | ✅ Done             | 国际化与本地化          |
+| Local respack storage                     | 0.4.0   |                                                                                                                                   | ✅ Done             | 本地资源包存储          |
+| Automation support                        | 0.4.0   |                                                                                                                                   | ✅ Done             | 自动化支持              |
+| Rendering in browser                      | 0.4.0   | Available when a backend Websocket URL is provided                                                                                | ✅ Done             | 浏览器内渲染            |
+| Phaser 4 migration                        | 0.4.0   |                                                                                                                                   | 🚧 Working          | Phaser 4 迁移           |
+| Local chart storage                       | -       |                                                                                                                                   | 🚧 Working          | 本地谱面存储            |
+| Optimization                              | -       |                                                                                                                                   | 🚧 Working          | 优化                    |
+| Stream mode                               | -       |                                                                                                                                   |                     | 流转模式                |
+| Masking lines                             | -       | Polygon-shaped masks applied to notes (or optionally lines), defined by one or several lines (masking lines) and the screen edges |                     | 遮罩线                  |
 
-<sup>1</sup> Support for fragment shaders is partial, due to WebGL relying on an older version of GLSL.  
+<sup>1</sup> Support of fragment shaders is partial, due to WebGL relying on an older version of GLSL.  
 <sup>2</sup> The feature needs improving.  
 <sup>3</sup> The app currently shows up for `application/zip` and `application/octet-stream` files on Android and any type of files on iOS/iPadOS. This is not the desired behavior and is subject to change.  
 <sup>4</sup> The feature is usable but not efficient. Major refactorizations might take place.
