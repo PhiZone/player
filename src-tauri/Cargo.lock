@@ -3404,7 +3404,7 @@ dependencies = [
 
 [[package]]
 name = "phizone-player"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "base64 0.22.1",
  "dirs 6.0.0",
