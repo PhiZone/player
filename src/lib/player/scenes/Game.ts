@@ -33,7 +33,7 @@ import { KeyboardHandler } from '../handlers/KeyboardHandler';
 import { JudgmentHandler } from '../handlers/JudgmentHandler';
 import { StatisticsHandler } from '../handlers/StatisticsHandler';
 import { terminateFFmpeg } from '../services/ffmpeg';
-import { ShaderPipeline } from '../objects/ShaderPipeline';
+import { ShaderFilter } from '../objects/ShaderPipeline';
 import { Video } from '../objects/Video';
 import { Signal } from '../objects/Signal';
 import { Node, ROOT } from '../objects/Node';
@@ -93,6 +93,7 @@ export class Game extends Scene {
             key: string;
             effect: ShaderEffect;
             target: Cameras.Scene2D.Camera | ShaderNode;
+            filter: ShaderFilter;
           }
         | undefined
       )[]
@@ -406,7 +407,8 @@ export class Game extends Scene {
   resetShadersAndVideos() {
     this._shaders?.forEach((shader) => {
       if (!shader) return;
-      ('object' in shader.target ? shader.target.object : shader.target).resetPostPipeline();
+      const filterTarget = 'object' in shader.target ? shader.target.object : shader.target;
+      filterTarget.filters?.external.clear();
     });
     this._videos?.forEach((video) => video.destroy());
   }
@@ -599,19 +601,11 @@ export class Game extends Scene {
     this._notes.forEach((note) => note.updateJudgment(beat, songTime));
     this._shaders?.forEach((shader) => {
       if (!shader) return;
-      (
-        ('object' in shader.target
-          ? shader.target.object.getPostPipeline(shader.key)
-          : shader.target.getPostPipeline(shader.key)) as ShaderPipeline
-      )?.detach(beat);
+      shader.filter.detach(beat);
     });
     this._shaders?.forEach((shader) => {
       if (!shader) return;
-      (
-        ('object' in shader.target
-          ? shader.target.object.getPostPipeline(shader.key)
-          : shader.target.getPostPipeline(shader.key)) as ShaderPipeline
-      )?.update(beat, songTime);
+      shader.filter.update(beat, songTime);
     });
     this._videos?.forEach((video) => video.update(beat, songTime));
   }
@@ -787,19 +781,15 @@ export class Game extends Scene {
         return undefined;
       }
       const key = `sh-${effect.shader.slice(6)}-${i}`;
-      if (!('pipelines' in this.renderer)) {
+      if (!('renderNodes' in this.renderer)) {
         alert(m.error_shader_unavailable());
         return undefined;
       }
-      this.renderer.pipelines.addPostPipeline(key, ShaderPipeline);
-      let target;
+      let target: Cameras.Scene2D.Camera | ShaderNode;
+      let filterTarget: Cameras.Scene2D.Camera | GameObjects.Layer;
       if (effect.global) {
         target = this.cameras.main;
-        target.setPostPipeline(key, {
-          scene: this,
-          fragShader: asset.source,
-          data: effect,
-        });
+        filterTarget = this.cameras.main;
       } else {
         if (!effect.targetRange) {
           effect.targetRange = {
@@ -808,20 +798,32 @@ export class Game extends Scene {
             exclusive: false,
           };
         }
-        target = this.registerShaderNode(
+        const shaderNode = this.registerShaderNode(
           new GameObjects.Layer(this),
           effect.targetRange.minZIndex,
           effect.targetRange.maxZIndex,
           key,
         );
-        target.object.setPostPipeline(key, {
-          scene: this,
-          fragShader: asset.source,
-          data: effect,
-          target,
-        });
+        target = shaderNode;
+        filterTarget = shaderNode.object;
       }
-      return { key, effect, target };
+      const camera =
+        filterTarget instanceof Cameras.Scene2D.Camera ? filterTarget : this.cameras.main;
+      const filter = new ShaderFilter(
+        camera,
+        key,
+        this,
+        asset.source!,
+        effect,
+        target instanceof Cameras.Scene2D.Camera ? undefined : target,
+      );
+      if (filterTarget instanceof Cameras.Scene2D.Camera) {
+        filterTarget.filters.external.add(filter);
+      } else {
+        filterTarget.enableFilters();
+        filterTarget.filters!.external.add(filter);
+      }
+      return { key, effect, target, filter };
     });
   }
 

@@ -1,0 +1,430 @@
+diff --git a/dist/phaser-arcade-physics.js b/dist/phaser-arcade-physics.js
+index b327634ea0ee10c96f7d81c931e8bda0051fa967..cc7a5550b488df781cff0978d1c5525b3d1d6faa 100644
+--- a/dist/phaser-arcade-physics.js
++++ b/dist/phaser-arcade-physics.js
+@@ -165747,7 +165747,16 @@ var WebGLSnapshot = function (sourceContext, config)
+ 
+         var total = width * height * 4;
+ 
+-        var pixels = new Uint8Array(total);
++        var pixels = GetFastValue(config, 'pixels', null) || new Uint8Array(total);
++
++        if (type === 'raw')
++        {
++            gl.readPixels(x, bufferHeight - y - height, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
++
++            callback.call(null, pixels);
++
++            return;
++        }
+ 
+         gl.readPixels(x, bufferHeight - y - height, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+ 
+@@ -169870,9 +169879,9 @@ var WebGLRenderer = new Class({
+      *
+      * @return {this} This WebGL Renderer.
+      */
+-    snapshot: function (callback, type, encoderOptions)
++    snapshot: function (callback, type, encoderOptions, pixels)
+     {
+-        return this.snapshotArea(0, 0, this.gl.drawingBufferWidth, this.gl.drawingBufferHeight, callback, type, encoderOptions);
++        return this.snapshotArea(0, 0, this.gl.drawingBufferWidth, this.gl.drawingBufferHeight, callback, type, encoderOptions, pixels);
+     },
+ 
+     /**
+@@ -169901,7 +169910,7 @@ var WebGLRenderer = new Class({
+      *
+      * @return {this} This WebGL Renderer.
+      */
+-    snapshotArea: function (x, y, width, height, callback, type, encoderOptions)
++    snapshotArea: function (x, y, width, height, callback, type, encoderOptions, pixels)
+     {
+         var state = this.snapshotState;
+ 
+@@ -169914,6 +169923,7 @@ var WebGLRenderer = new Class({
+         state.width = width;
+         state.height = height;
+         state.unpremultiplyAlpha = this.game.config.premultipliedAlpha;
++        state.pixels = pixels || null;
+ 
+         return this;
+     },
+@@ -234293,7 +234303,7 @@ var TweenManager = new Class({
+         this.timeScale = 1;
+         this.paused = false;
+ 
+-        this.startTime = Date.now();
++        this.startTime = this.scene.game.getTime();
+         this.prevTime = this.startTime;
+         this.nextTime = this.gap;
+ 
+@@ -234705,7 +234715,7 @@ var TweenManager = new Class({
+      */
+     getDelta: function (tick)
+     {
+-        var elapsed = Date.now() - this.prevTime;
++        var elapsed = this.scene.game.getTime() - this.prevTime;
+ 
+         if (elapsed > this.maxLag)
+         {
+diff --git a/dist/phaser.esm.js b/dist/phaser.esm.js
+index e7049850e70c634df72f7bfc352b9abedefcc879..982c851722f6adb4c3f6e94006b6a5b83ce8b5f6 100644
+--- a/dist/phaser.esm.js
++++ b/dist/phaser.esm.js
+@@ -183833,7 +183833,16 @@ var WebGLSnapshot = function (sourceContext, config)
+ 
+         var total = width * height * 4;
+ 
+-        var pixels = new Uint8Array(total);
++        var pixels = GetFastValue(config, 'pixels', null) || new Uint8Array(total);
++
++        if (type === 'raw')
++        {
++            gl.readPixels(x, bufferHeight - y - height, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
++
++            callback.call(null, pixels);
++
++            return;
++        }
+ 
+         gl.readPixels(x, bufferHeight - y - height, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+ 
+@@ -187956,9 +187965,9 @@ var WebGLRenderer = new Class({
+      *
+      * @return {this} This WebGL Renderer.
+      */
+-    snapshot: function (callback, type, encoderOptions)
++    snapshot: function (callback, type, encoderOptions, pixels)
+     {
+-        return this.snapshotArea(0, 0, this.gl.drawingBufferWidth, this.gl.drawingBufferHeight, callback, type, encoderOptions);
++        return this.snapshotArea(0, 0, this.gl.drawingBufferWidth, this.gl.drawingBufferHeight, callback, type, encoderOptions, pixels);
+     },
+ 
+     /**
+@@ -187987,7 +187996,7 @@ var WebGLRenderer = new Class({
+      *
+      * @return {this} This WebGL Renderer.
+      */
+-    snapshotArea: function (x, y, width, height, callback, type, encoderOptions)
++    snapshotArea: function (x, y, width, height, callback, type, encoderOptions, pixels)
+     {
+         var state = this.snapshotState;
+ 
+@@ -188000,6 +188009,7 @@ var WebGLRenderer = new Class({
+         state.width = width;
+         state.height = height;
+         state.unpremultiplyAlpha = this.game.config.premultipliedAlpha;
++        state.pixels = pixels || null;
+ 
+         return this;
+     },
+@@ -252379,7 +252389,7 @@ var TweenManager = new Class({
+         this.timeScale = 1;
+         this.paused = false;
+ 
+-        this.startTime = Date.now();
++        this.startTime = this.scene.game.getTime();
+         this.prevTime = this.startTime;
+         this.nextTime = this.gap;
+ 
+@@ -252791,7 +252801,7 @@ var TweenManager = new Class({
+      */
+     getDelta: function (tick)
+     {
+-        var elapsed = Date.now() - this.prevTime;
++        var elapsed = this.scene.game.getTime() - this.prevTime;
+ 
+         if (elapsed > this.maxLag)
+         {
+diff --git a/dist/phaser.js b/dist/phaser.js
+index 3be76065feadcf6654e2f74550d9be29d0c5385c..88824318ebea1a62e5a1810f09c09f9fb5bf7f66 100644
+--- a/dist/phaser.js
++++ b/dist/phaser.js
+@@ -183943,7 +183943,16 @@ var WebGLSnapshot = function (sourceContext, config)
+ 
+         var total = width * height * 4;
+ 
+-        var pixels = new Uint8Array(total);
++        var pixels = GetFastValue(config, 'pixels', null) || new Uint8Array(total);
++
++        if (type === 'raw')
++        {
++            gl.readPixels(x, bufferHeight - y - height, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
++
++            callback.call(null, pixels);
++
++            return;
++        }
+ 
+         gl.readPixels(x, bufferHeight - y - height, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+ 
+@@ -188066,9 +188075,9 @@ var WebGLRenderer = new Class({
+      *
+      * @return {this} This WebGL Renderer.
+      */
+-    snapshot: function (callback, type, encoderOptions)
++    snapshot: function (callback, type, encoderOptions, pixels)
+     {
+-        return this.snapshotArea(0, 0, this.gl.drawingBufferWidth, this.gl.drawingBufferHeight, callback, type, encoderOptions);
++        return this.snapshotArea(0, 0, this.gl.drawingBufferWidth, this.gl.drawingBufferHeight, callback, type, encoderOptions, pixels);
+     },
+ 
+     /**
+@@ -188097,7 +188106,7 @@ var WebGLRenderer = new Class({
+      *
+      * @return {this} This WebGL Renderer.
+      */
+-    snapshotArea: function (x, y, width, height, callback, type, encoderOptions)
++    snapshotArea: function (x, y, width, height, callback, type, encoderOptions, pixels)
+     {
+         var state = this.snapshotState;
+ 
+@@ -188110,6 +188119,7 @@ var WebGLRenderer = new Class({
+         state.width = width;
+         state.height = height;
+         state.unpremultiplyAlpha = this.game.config.premultipliedAlpha;
++        state.pixels = pixels || null;
+ 
+         return this;
+     },
+@@ -252489,7 +252499,7 @@ var TweenManager = new Class({
+         this.timeScale = 1;
+         this.paused = false;
+ 
+-        this.startTime = Date.now();
++        this.startTime = this.scene.game.getTime();
+         this.prevTime = this.startTime;
+         this.nextTime = this.gap;
+ 
+@@ -252901,7 +252911,7 @@ var TweenManager = new Class({
+      */
+     getDelta: function (tick)
+     {
+-        var elapsed = Date.now() - this.prevTime;
++        var elapsed = this.scene.game.getTime() - this.prevTime;
+ 
+         if (elapsed > this.maxLag)
+         {
+diff --git a/src/renderer/snapshot/WebGLSnapshot.js b/src/renderer/snapshot/WebGLSnapshot.js
+index 67bf077e1cfc0386c68ecc88426392f8ec323992..f77a4b5dd49fd400b80a5edfd4aa0422784c3a9e 100644
+--- a/src/renderer/snapshot/WebGLSnapshot.js
++++ b/src/renderer/snapshot/WebGLSnapshot.js
+@@ -63,7 +63,16 @@ var WebGLSnapshot = function (sourceContext, config)
+ 
+         var total = width * height * 4;
+ 
+-        var pixels = new Uint8Array(total);
++        var pixels = GetFastValue(config, 'pixels', null) || new Uint8Array(total);
++
++        if (type === 'raw')
++        {
++            gl.readPixels(x, bufferHeight - y - height, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
++
++            callback.call(null, pixels);
++
++            return;
++        }
+ 
+         gl.readPixels(x, bufferHeight - y - height, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+ 
+diff --git a/src/renderer/webgl/WebGLRenderer.js b/src/renderer/webgl/WebGLRenderer.js
+index 3bc0d48bf97da95e4676a837517b27571db14dc5..b787c44c1676cfc38945e101303ac561ae4cbbbc 100644
+--- a/src/renderer/webgl/WebGLRenderer.js
++++ b/src/renderer/webgl/WebGLRenderer.js
+@@ -2139,9 +2139,9 @@ var WebGLRenderer = new Class({
+      *
+      * @return {this} This WebGL Renderer.
+      */
+-    snapshot: function (callback, type, encoderOptions)
++    snapshot: function (callback, type, encoderOptions, pixels)
+     {
+-        return this.snapshotArea(0, 0, this.gl.drawingBufferWidth, this.gl.drawingBufferHeight, callback, type, encoderOptions);
++        return this.snapshotArea(0, 0, this.gl.drawingBufferWidth, this.gl.drawingBufferHeight, callback, type, encoderOptions, pixels);
+     },
+ 
+     /**
+@@ -2170,7 +2170,7 @@ var WebGLRenderer = new Class({
+      *
+      * @return {this} This WebGL Renderer.
+      */
+-    snapshotArea: function (x, y, width, height, callback, type, encoderOptions)
++    snapshotArea: function (x, y, width, height, callback, type, encoderOptions, pixels)
+     {
+         var state = this.snapshotState;
+ 
+@@ -2183,6 +2183,7 @@ var WebGLRenderer = new Class({
+         state.width = width;
+         state.height = height;
+         state.unpremultiplyAlpha = this.game.config.premultipliedAlpha;
++        state.pixels = pixels || null;
+ 
+         return this;
+     },
+diff --git a/src/tweens/TweenManager.js b/src/tweens/TweenManager.js
+index 152f445a5536b994b538bef67dc5a1dd6b565495..8b00030aeb96265c027a3c2849439cd9d03359cd 100644
+--- a/src/tweens/TweenManager.js
++++ b/src/tweens/TweenManager.js
+@@ -236,7 +236,7 @@ var TweenManager = new Class({
+         this.timeScale = 1;
+         this.paused = false;
+ 
+-        this.startTime = Date.now();
++        this.startTime = this.scene.game.getTime();
+         this.prevTime = this.startTime;
+         this.nextTime = this.gap;
+ 
+@@ -648,7 +648,7 @@ var TweenManager = new Class({
+      */
+     getDelta: function (tick)
+     {
+-        var elapsed = Date.now() - this.prevTime;
++        var elapsed = this.scene.game.getTime() - this.prevTime;
+ 
+         if (elapsed > this.maxLag)
+         {
+diff --git a/types/phaser.d.ts b/types/phaser.d.ts
+index db79c3d931df0b9a1fbb952d9a2648e5c51a8168..2714a59c18dbbc1ea650db02339fd38a3ed96479 100644
+--- a/types/phaser.d.ts
++++ b/types/phaser.d.ts
+@@ -47274,7 +47274,7 @@ declare namespace Phaser {
+              * @param encoderOptions The image quality, between 0 and 1. Used for image formats with lossy compression, such as `image/jpeg`. Default 0.92.
+              * @returns This Render Texture instance.
+              */
+-            snapshotArea(x: number, y: number, width: number, height: number, callback: Phaser.Types.Renderer.Snapshot.SnapshotCallback, type?: string, encoderOptions?: number): this;
++            snapshotArea(x: number, y: number, width: number, height: number, callback: Phaser.Types.Renderer.Snapshot.SnapshotCallback, type?: string, encoderOptions?: number, pixels?: ArrayBufferView | null): this;
+ 
+             /**
+              * Takes a snapshot of the whole of this Render Texture.
+@@ -47295,7 +47295,7 @@ declare namespace Phaser {
+              * @param encoderOptions The image quality, between 0 and 1. Used for image formats with lossy compression, such as `image/jpeg`. Default 0.92.
+              * @returns This Render Texture instance.
+              */
+-            snapshot(callback: Phaser.Types.Renderer.Snapshot.SnapshotCallback, type?: string, encoderOptions?: number): this;
++            snapshot(callback: Phaser.Types.Renderer.Snapshot.SnapshotCallback, type?: string, encoderOptions?: number, pixels?: ArrayBufferView | null): this;
+ 
+             /**
+              * Takes a snapshot of the given pixel from this Render Texture.
+@@ -98182,7 +98182,7 @@ declare namespace Phaser {
+ 
+         namespace Renderer {
+             namespace Snapshot {
+-                type SnapshotCallback = (snapshot: Phaser.Display.Color | HTMLImageElement)=>void;
++                type SnapshotCallback = (snapshot: Phaser.Display.Color | HTMLImageElement | Uint8Array<ArrayBuffer>)=>void;
+ 
+                 type SnapshotState = {
+                     /**
+@@ -98233,6 +98233,10 @@ declare namespace Phaser {
+                      * Should the snapshot be unpremultiplied before being returned? WebGL only.
+                      */
+                     unpremultiplyAlpha?: boolean;
++                    /**
++                     * An optional pre-allocated pixel buffer to write into.
++                     */
++                    pixels?: ArrayBufferView | null;
+                 };
+ 
+             }
+@@ -116452,7 +116456,7 @@ declare namespace Phaser {
+                  * @param encoderOptions The image quality, between 0 and 1. Used for image formats with lossy compression, such as `image/jpeg`. Default 0.92.
+                  * @returns This Canvas Renderer.
+                  */
+-                snapshot(callback: Phaser.Types.Renderer.Snapshot.SnapshotCallback, type?: string, encoderOptions?: number): this;
++                snapshot(callback: Phaser.Types.Renderer.Snapshot.SnapshotCallback, type?: string, encoderOptions?: number, pixels?: ArrayBufferView | null): this;
+ 
+                 /**
+                  * Schedules a snapshot of the given area of the game viewport to be taken after the current frame is rendered.
+@@ -116473,7 +116477,7 @@ declare namespace Phaser {
+                  * @param encoderOptions The image quality, between 0 and 1. Used for image formats with lossy compression, such as `image/jpeg`. Default 0.92.
+                  * @returns This Canvas Renderer.
+                  */
+-                snapshotArea(x: number, y: number, width: number, height: number, callback: Phaser.Types.Renderer.Snapshot.SnapshotCallback, type?: string, encoderOptions?: number): this;
++                snapshotArea(x: number, y: number, width: number, height: number, callback: Phaser.Types.Renderer.Snapshot.SnapshotCallback, type?: string, encoderOptions?: number, pixels?: ArrayBufferView | null): this;
+ 
+                 /**
+                  * Schedules a snapshot of the given pixel from the game viewport to be taken after the current frame is rendered.
+@@ -121692,7 +121696,7 @@ declare namespace Phaser {
+                  * @param encoderOptions The image quality, between 0 and 1. Used for image formats with lossy compression, such as `image/jpeg`. Default 0.92.
+                  * @returns This WebGL Renderer.
+                  */
+-                snapshot(callback: Phaser.Types.Renderer.Snapshot.SnapshotCallback, type?: string, encoderOptions?: number): this;
++                snapshot(callback: Phaser.Types.Renderer.Snapshot.SnapshotCallback, type?: string, encoderOptions?: number, pixels?: ArrayBufferView | null): this;
+ 
+                 /**
+                  * Schedules a snapshot of the given area of the game viewport to be taken after the current frame is rendered.
+@@ -121715,7 +121719,7 @@ declare namespace Phaser {
+                  * @param encoderOptions The image quality, between 0 and 1. Used for image formats with lossy compression, such as `image/jpeg`. Default 0.92.
+                  * @returns This WebGL Renderer.
+                  */
+-                snapshotArea(x: number, y: number, width: number, height: number, callback: Phaser.Types.Renderer.Snapshot.SnapshotCallback, type?: string, encoderOptions?: number): this;
++                snapshotArea(x: number, y: number, width: number, height: number, callback: Phaser.Types.Renderer.Snapshot.SnapshotCallback, type?: string, encoderOptions?: number, pixels?: ArrayBufferView | null): this;
+ 
+                 /**
+                  * Schedules a snapshot of the given pixel from the game viewport to be taken after the current frame is rendered.
+@@ -129287,7 +129291,7 @@ declare namespace Phaser {
+              * @param encoderOptions The image quality, between 0 and 1. Used for image formats with lossy compression, such as `image/jpeg`. Default 0.92.
+              * @returns This Dynamic Texture instance.
+              */
+-            snapshotArea(x: number, y: number, width: number, height: number, callback: Phaser.Types.Renderer.Snapshot.SnapshotCallback, type?: string, encoderOptions?: number): this;
++            snapshotArea(x: number, y: number, width: number, height: number, callback: Phaser.Types.Renderer.Snapshot.SnapshotCallback, type?: string, encoderOptions?: number, pixels?: ArrayBufferView | null): this;
+ 
+             /**
+              * Takes a snapshot of the whole of this Dynamic Texture.
+@@ -129308,7 +129312,7 @@ declare namespace Phaser {
+              * @param encoderOptions The image quality, between 0 and 1. Used for image formats with lossy compression, such as `image/jpeg`. Default 0.92.
+              * @returns This Dynamic Texture instance.
+              */
+-            snapshot(callback: Phaser.Types.Renderer.Snapshot.SnapshotCallback, type?: string, encoderOptions?: number): this;
++            snapshot(callback: Phaser.Types.Renderer.Snapshot.SnapshotCallback, type?: string, encoderOptions?: number, pixels?: ArrayBufferView | null): this;
+ 
+             /**
+              * Takes a snapshot of the given pixel from this Dynamic Texture.
+@@ -130576,7 +130580,8 @@ declare namespace Phaser {
+              * @param y The y coordinate of the pixel within the Texture.
+              * @param key The unique string-based key of the Texture.
+              * @param frame The string or index of the Frame.
+-             * @returns A Color object populated with the color values of the requested pixel,or `null` if the coordinates were out of bounds.
++             * @returns A Color object populated with the color values of the requested pixel,
++or `null` if the coordinates were out of bounds.
+              */
+             getPixel(x: number, y: number, key: string, frame?: string | number): Phaser.Display.Color | null;
+ 
+@@ -132312,7 +132317,8 @@ declare namespace Phaser {
+                  * @param insertNull Controls how empty tiles (those with an index of -1) are stored in
+                  * the LayerData. If `true`, empty tile positions are stored as `null`. If `false`, a Tile object
+                  * with an index of -1 is created for each empty position instead.
+-                 * @returns - An array of LayerData objects, one for each entry injson.layer.
++                 * @returns - An array of LayerData objects, one for each entry in
++json.layer.
+                  */
+                 function ParseTileLayers(json: object, insertNull: boolean): Phaser.Tilemaps.LayerData[];
+ 
+@@ -132535,7 +132541,8 @@ declare namespace Phaser {
+                  * @param json The Tiled JSON object.
+                  * @param insertNull Controls how empty tiles, tiles with an index of -1, in the map
+                  * data are handled (see {@link Phaser.Tilemaps.Parsers.Tiled.ParseJSONTiled}).
+-                 * @returns - An array of LayerData objects, one for each entry injson.layers with the type 'tilelayer'.
++                 * @returns - An array of LayerData objects, one for each entry in
++json.layers with the type 'tilelayer'.
+                  */
+                 function ParseTileLayers(json: object, insertNull: boolean): Phaser.Tilemaps.LayerData[];
+ 
+@@ -133331,7 +133338,8 @@ declare namespace Phaser {
+              * GID this set will use here. Default 0.
+              * @param tileOffset Tile texture drawing offset.
+              * If not specified, it will default to {0, 0} Default {x: 0, y: 0}.
+-             * @returns Returns the Tileset object that was created or updated, or null if itfailed.
++             * @returns Returns the Tileset object that was created or updated, or null if it
++failed.
+              */
+             addTilesetImage(tilesetName: string, key?: string, tileWidth?: number, tileHeight?: number, tileMargin?: number, tileSpacing?: number, gid?: number, tileOffset?: object): Phaser.Tilemaps.Tileset | null;
+ 
+@@ -139240,7 +139248,8 @@ declare namespace Phaser {
+              * Returns the texture coordinates (UV in pixels) in the Tileset image for the given tile index.
+              * Returns null if tile index is not contained in this Tileset.
+              * @param tileIndex The unique id of the tile across all tilesets in the map.
+-             * @returns Object in the form { x, y } representing the top-left UV coordinatewithin the Tileset image.
++             * @returns Object in the form { x, y } representing the top-left UV coordinate
++within the Tileset image.
+              */
+             getTileTextureCoordinates(tileIndex: number): object | null;
+ 

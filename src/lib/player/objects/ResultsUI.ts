@@ -3,7 +3,6 @@ import type { Game } from '../scenes/Game';
 import type { Grade, ResultsMusic } from '$lib/types';
 import { pad, position } from '../utils';
 import { EventBus } from '../EventBus';
-import { Capacitor } from '@capacitor/core';
 
 export class ResultsUI extends GameObjects.Container {
   private _scene: Game;
@@ -264,9 +263,6 @@ export class ResultsUI extends GameObjects.Container {
 
     this._tweening = true;
     this._started = this._scene.game.getTime();
-
-    if (Capacitor.getPlatform() !== 'android')
-      this._grade.preFX?.addShine((this._bpm / 120) * this._scene.tweens.timeScale, 1, 3, false);
 
     // Overlay (to dim the background)
     this._scene.tweens.add({
