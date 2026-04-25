@@ -103,7 +103,7 @@ importers:
         version: 2.1.0
       phaser:
         specifier: github:Naptie/phaser#dist
-        version: https://codeload.github.com/Naptie/phaser/tar.gz/b537691fdf0432fa3b54be7095570d05c9f78086
+        version: https://codeload.github.com/Naptie/phaser/tar.gz/a7cb3305833b7e152a2d3c8798a58ab7ff8d41b5
       query-string:
         specifier: ^9.3.1
         version: 9.3.1
@@ -2643,8 +2643,8 @@ packages:
     resolution: {integrity: sha512-qTAAlrEsl8s4OiEQY69wDvcMIdQN6wdz5ojQiOy6YRMuynxenON0O5oCpJI6lshc6scgAY8qvJ2On/p+CXY0GA==}
     engines: {node: '>=4'}
 
-  phaser@https://codeload.github.com/Naptie/phaser/tar.gz/b537691fdf0432fa3b54be7095570d05c9f78086:
-    resolution: {tarball: https://codeload.github.com/Naptie/phaser/tar.gz/b537691fdf0432fa3b54be7095570d05c9f78086}
+  phaser@https://codeload.github.com/Naptie/phaser/tar.gz/a7cb3305833b7e152a2d3c8798a58ab7ff8d41b5:
+    resolution: {tarball: https://codeload.github.com/Naptie/phaser/tar.gz/a7cb3305833b7e152a2d3c8798a58ab7ff8d41b5}
     version: 4.0.0
 
   picocolors@1.1.1:
@@ -5856,7 +5856,7 @@ snapshots:
       postgres-date: 1.0.7
       postgres-interval: 1.2.0
 
-  phaser@https://codeload.github.com/Naptie/phaser/tar.gz/b537691fdf0432fa3b54be7095570d05c9f78086:
+  phaser@https://codeload.github.com/Naptie/phaser/tar.gz/a7cb3305833b7e152a2d3c8798a58ab7ff8d41b5:
     dependencies:
       eventemitter3: 5.0.4
 
