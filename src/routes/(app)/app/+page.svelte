@@ -90,7 +90,7 @@
       <form method="dialog" class="gap-3 w-full flex justify-center">
         <button
           class="w-full inline-flex justify-center items-center gap-x-3 text-center bg-gradient-to-tl from-blue-500 via-violet-500 to-fuchsia-500 dark:from-blue-700 dark:via-violet-700 dark:to-fuchsia-700 text-white text-sm font-medium rounded-md focus:outline-none py-3 px-4 transition-all duration-300 bg-size-200 bg-pos-0 hover:bg-pos-100"
-          on:click={() => {
+          onclick={() => {
             window.open(
               `${IS_ANDROID_OR_IOS ? `${base}/app` : 'phizone-player://'}${page.url.search}`,
             );

@@ -1,4 +1,4 @@
-import { GameObjects } from 'phaser';
+import { GameObjects, Math as PhaserMath } from 'phaser';
 import {
   type ColorEvent,
   type Event,
@@ -595,7 +595,7 @@ export class Line {
     const halfScreenHeight = this._scene.sys.canvas.height / 2;
     const vector = this.vector;
     vector.scale(dot([this.x - halfScreenWidth, this.y - halfScreenHeight], [vector.x, vector.y]));
-    vector.add(new Phaser.Math.Vector2(halfScreenWidth, halfScreenHeight));
+    vector.add(new PhaserMath.Vector2(halfScreenWidth, halfScreenHeight));
     this._noteMask.setPosition(vector.x, vector.y);
     this._noteMask.setRotation(this._line.rotation);
     this._noteMask.clear();
@@ -662,7 +662,7 @@ export class Line {
   }
 
   public get vector() {
-    return new Phaser.Math.Vector2(Math.cos(this._line.rotation), Math.sin(this._line.rotation));
+    return new PhaserMath.Vector2(Math.cos(this._line.rotation), Math.sin(this._line.rotation));
   }
 
   public get alpha() {

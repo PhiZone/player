@@ -37,7 +37,7 @@
 <button
   aria-label="Edit preferences"
   class="py-3 px-4 inline-flex justify-center items-center gap-x-2 text-center text-sm font-medium rounded-lg transition border border-gray-200 text-gray-500 hover:border-blue-500 hover:text-blue-500 focus:outline-none focus:border-blue-500 focus:text-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:border-neutral-700 dark:text-neutral-400 dark:hover:text-blue-500 dark:hover:border-blue-500 dark:focus:text-blue-500 dark:focus:border-blue-500 {$$restProps.class}"
-  on:click={() => {
+  onclick={() => {
     aspectRatio1 = preferences.aspectRatio ? preferences.aspectRatio[0] : 0;
     aspectRatio2 = preferences.aspectRatio ? preferences.aspectRatio[1] : 0;
     modal.showModal();
@@ -104,7 +104,7 @@
             max="150"
             bind:value={preferences.perfectJudgment}
             class="range range-sm join-item w-7/12"
-            on:input={(e) => {
+            oninput={(e) => {
               const perfectJudgment = parseInt(e.currentTarget.value);
               if (
                 preferences.goodJudgment <
@@ -120,7 +120,7 @@
             type="text"
             value={preferences.perfectJudgment}
             class="form-input border-transparent shadow-sm rounded-lg focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 w-1/6 text-right"
-            on:focusout={(e) => {
+            onfocusout={(e) => {
               if (!/^[+-]?[0-9]+$/.test(e.currentTarget.value)) {
                 e.currentTarget.value = `${preferences.perfectJudgment}`;
                 return;
@@ -168,7 +168,7 @@
             type="text"
             value={preferences.goodJudgment}
             class="form-input border-transparent shadow-sm rounded-lg focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 w-1/6 text-right"
-            on:focusout={(e) => {
+            onfocusout={(e) => {
               if (!/^[+-]?[0-9]+$/.test(e.currentTarget.value)) {
                 e.currentTarget.value = `${Math.round(preferences.goodJudgment)}`;
                 return;
@@ -237,7 +237,7 @@
             type="text"
             value={preferences.noteSize}
             class="form-input border-transparent shadow-sm rounded-lg focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 w-1/6 text-right"
-            on:focusout={(e) => {
+            onfocusout={(e) => {
               if (!/^[+-]?([0-9]*[.])?[0-9]+$/.test(e.currentTarget.value)) {
                 e.currentTarget.value = `${preferences.noteSize}`;
                 return;
@@ -267,7 +267,7 @@
             type="text"
             value={preferences.lineThickness}
             class="form-input border-transparent shadow-sm rounded-lg focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 w-1/6 text-right"
-            on:focusout={(e) => {
+            onfocusout={(e) => {
               if (!/^[+-]?([0-9]*[.])?[0-9]+$/.test(e.currentTarget.value)) {
                 e.currentTarget.value = `${preferences.lineThickness}`;
                 return;
@@ -293,7 +293,7 @@
             max="100"
             value={preferences.backgroundLuminance * 100}
             class="range range-sm join-item w-7/12"
-            on:input={(e) => {
+            oninput={(e) => {
               const backgroundLuminance = parseInt(e.currentTarget.value);
               preferences.backgroundLuminance = backgroundLuminance / 100;
             }}
@@ -302,7 +302,7 @@
             type="text"
             value={preferences.backgroundLuminance}
             class="form-input border-transparent shadow-sm rounded-lg focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 w-1/6 text-right"
-            on:focusout={(e) => {
+            onfocusout={(e) => {
               if (!/^[+-]?[0-9]+$/.test(e.currentTarget.value)) {
                 e.currentTarget.value = `${preferences.backgroundLuminance}`;
                 return;
@@ -332,7 +332,7 @@
             type="text"
             value={preferences.backgroundBlur}
             class="form-input border-transparent shadow-sm rounded-lg focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 w-1/6 text-right"
-            on:focusout={(e) => {
+            onfocusout={(e) => {
               if (!/^[+-]?([0-9]*[.])?[0-9]+$/.test(e.currentTarget.value)) {
                 e.currentTarget.value = `${preferences.backgroundBlur}`;
                 return;
@@ -363,7 +363,7 @@
             type="text"
             value={preferences.chartOffset}
             class="form-input border-transparent shadow-sm rounded-lg focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 w-1/6 text-right"
-            on:focusout={(e) => {
+            onfocusout={(e) => {
               if (!/^[+-]?[0-9]+$/.test(e.currentTarget.value)) {
                 e.currentTarget.value = `${preferences.chartOffset}`;
                 return;
@@ -389,7 +389,7 @@
             max="100"
             value={preferences.hitSoundVolume * 100}
             class="range range-sm join-item w-7/12"
-            on:input={(e) => {
+            oninput={(e) => {
               const hitSoundVolume = parseInt(e.currentTarget.value);
               preferences.hitSoundVolume = hitSoundVolume / 100;
             }}
@@ -398,7 +398,7 @@
             type="text"
             value={preferences.hitSoundVolume}
             class="form-input border-transparent shadow-sm rounded-lg focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 w-1/6 text-right"
-            on:focusout={(e) => {
+            onfocusout={(e) => {
               if (!/^[+-]?[0-9]+$/.test(e.currentTarget.value)) {
                 e.currentTarget.value = `${preferences.hitSoundVolume}`;
                 return;
@@ -424,7 +424,7 @@
             max="100"
             value={preferences.musicVolume * 100}
             class="range range-sm join-item w-7/12"
-            on:input={(e) => {
+            oninput={(e) => {
               const musicVolume = parseInt(e.currentTarget.value);
               preferences.musicVolume = musicVolume / 100;
             }}
@@ -433,7 +433,7 @@
             type="text"
             value={preferences.musicVolume}
             class="form-input border-transparent shadow-sm rounded-lg focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 w-1/6 text-right"
-            on:focusout={(e) => {
+            onfocusout={(e) => {
               if (!/^[+-]?[0-9]+$/.test(e.currentTarget.value)) {
                 e.currentTarget.value = `${preferences.musicVolume}`;
                 return;
@@ -463,7 +463,7 @@
             type="text"
             value={preferences.timeScale}
             class="form-input border-transparent shadow-sm rounded-lg focus:z-10 transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:text-neutral-300 dark:placeholder-neutral-500 dark:focus:ring-neutral-600 w-1/6 text-right"
-            on:focusout={(e) => {
+            onfocusout={(e) => {
               if (!/^[+-]?([0-9]*[.])?[0-9]+$/.test(e.currentTarget.value)) {
                 e.currentTarget.value = `${preferences.timeScale}`;
                 return;
@@ -514,7 +514,7 @@
           name="aspectRatio1"
           value={aspectRatio1}
           class="form-select border-gray-200 rounded-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:focus:ring-neutral-600 join-item w-[37.5%]"
-          on:input={(e) => {
+          oninput={(e) => {
             aspectRatio1 = parseInt(e.currentTarget.value);
             preferences.aspectRatio =
               aspectRatio1 > 0 && aspectRatio2 > 0 ? [aspectRatio1, aspectRatio2] : null;
@@ -535,7 +535,7 @@
           name="aspectRatio2"
           value={aspectRatio2}
           class="form-select border-gray-200 rounded-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none bg-base-100 dark:border-neutral-700 dark:text-neutral-300 dark:focus:ring-neutral-600 join-item w-[37.5%]"
-          on:input={(e) => {
+          oninput={(e) => {
             aspectRatio2 = parseInt(e.currentTarget.value);
             preferences.aspectRatio =
               aspectRatio1 > 0 && aspectRatio2 > 0 ? [aspectRatio1, aspectRatio2] : null;
