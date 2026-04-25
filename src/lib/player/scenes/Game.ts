@@ -22,7 +22,6 @@ import {
   type ResultsMusic,
   type RpeJson,
   type ShaderEffect,
-  type ShaderNodeObject,
 } from '$lib/types';
 import { Line } from '../objects/Line';
 import type { LongNote } from '../objects/LongNote';
@@ -787,7 +786,7 @@ export class Game extends Scene {
         return undefined;
       }
       let target: Cameras.Scene2D.Camera | ShaderNode;
-      let filterTarget: Cameras.Scene2D.Camera | ShaderNodeObject;
+      let filterTarget: Cameras.Scene2D.Camera | GameObjects.Layer;
       if (effect.global) {
         target = this.cameras.main;
         filterTarget = this.cameras.main;
@@ -800,7 +799,7 @@ export class Game extends Scene {
           };
         }
         const shaderNode = this.registerShaderNode(
-          new GameObjects.Container(this),
+          new GameObjects.Layer(this),
           effect.targetRange.minZIndex,
           effect.targetRange.maxZIndex,
           key,
@@ -861,7 +860,7 @@ export class Game extends Scene {
   }
 
   registerShaderNode(
-    object: ShaderNodeObject,
+    object: GameObjects.Layer,
     lowerDepth: number,
     upperDepth: number,
     name: string,
