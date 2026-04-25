@@ -1,4 +1,4 @@
-import { GameObjects } from 'phaser';
+import { GameObjects, Math as PhaserMath } from 'phaser';
 import { HitEffects } from '../objects/HitEffects';
 import type { LongNote } from '../objects/LongNote';
 import type { PlainNote } from '../objects/PlainNote';
@@ -203,7 +203,7 @@ export class JudgmentHandler {
       ? judgeWindow
       : judgeWindow.filter(
           (note) =>
-            (Phaser.Math.Distance.BetweenPoints(
+            (PhaserMath.Distance.BetweenPoints(
               note.judgmentPosition,
               getJudgmentPosition(input, note.line),
             ) *
@@ -216,7 +216,7 @@ export class JudgmentHandler {
         continue;
       }
       const distanceActual = input
-        ? (Phaser.Math.Distance.BetweenPoints(note.judgmentPosition, input.position) * 1350) /
+        ? (PhaserMath.Distance.BetweenPoints(note.judgmentPosition, input.position) * 1350) /
           this._scene.sys.canvas.width
         : 0;
       // if (distanceRelative > threshold) {
