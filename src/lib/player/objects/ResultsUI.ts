@@ -1,4 +1,4 @@
-import { GameObjects, Sound } from 'phaser';
+import { Actions, GameObjects, Sound } from 'phaser';
 import type { Game } from '../scenes/Game';
 import type { Grade, ResultsMusic } from '$lib/types';
 import { pad, position } from '../utils';
@@ -266,7 +266,9 @@ export class ResultsUI extends GameObjects.Container {
     this._started = this._scene.game.getTime();
 
     if (Capacitor.getPlatform() !== 'android')
-      this._grade.preFX?.addShine((this._bpm / 120) * this._scene.tweens.timeScale, 1, 3, false);
+      Actions.AddEffectShine(this._grade, {
+        radius: 0.4,
+      });
 
     // Overlay (to dim the background)
     this._scene.tweens.add({
