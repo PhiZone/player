@@ -26,6 +26,8 @@ import { dot } from 'mathjs';
 import type { Video } from './Video';
 import { isDebug } from '$lib/utils';
 
+const VISUAL_END_GRACE_SEC = 1;
+
 export class Line {
   private _scene: Game;
   private _index: number;
@@ -35,6 +37,9 @@ export class Line {
   private _noteContainers: Record<number, GameObjects.Container> = {};
   private _noteMask: GameObjects.Graphics | null = null;
   private _notes: (PlainNote | LongNote)[] = [];
+  private _notesByVisualStart: (PlainNote | LongNote)[] = [];
+  private _activeNotes: (PlainNote | LongNote)[] = [];
+  private _visualNoteIndex: number = 0;
   private _hasAttach: boolean = false;
   private _hasCustomTexture: boolean = false;
   private _hasAnimatedTexture: boolean = false;
@@ -212,17 +217,63 @@ export class Line {
         });
       }
     }
+
+    this._notesByVisualStart = [...this._notes].sort(
+      (a, b) => this.getNoteVisualStartTime(a) - this.getNoteVisualStartTime(b),
+    );
   }
 
-  update(beat: number, songTime: number, gameTime: number) {
+  update(beat: number, songTime: number, gameTime: number, forceFullNoteUpdate: boolean = false) {
     if (gameTime == this._lastUpdate) return;
     this._lastUpdate = gameTime;
     this._parent?.update(beat, songTime, gameTime);
     this.handleEventLayers(beat);
     this.updateParams();
-    this._notes.forEach((note) => {
-      note.update(beat / this._data.bpmfactor, songTime, this._height);
-    });
+    if (forceFullNoteUpdate) {
+      this.resetActiveNoteWindow();
+      this._notes.forEach((note) => {
+        note.update(beat / this._data.bpmfactor, songTime, this._height);
+      });
+      return;
+    }
+    this.updateActiveNotes(beat / this._data.bpmfactor, songTime);
+  }
+
+  updateActiveNotes(beat: number, songTime: number) {
+    while (
+      this._visualNoteIndex < this._notesByVisualStart.length &&
+      this.getNoteVisualStartTime(this._notesByVisualStart[this._visualNoteIndex]) <= songTime
+    ) {
+      const note = this._notesByVisualStart[this._visualNoteIndex++];
+      if (this.getNoteVisualEndTime(note) >= songTime) {
+        this._activeNotes.push(note);
+      }
+    }
+
+    for (let i = this._activeNotes.length - 1; i >= 0; i--) {
+      const note = this._activeNotes[i];
+      if (this.getNoteVisualEndTime(note) < songTime) {
+        note.setVisible(false);
+        this._activeNotes.splice(i, 1);
+        continue;
+      }
+      note.update(beat, songTime, this._height);
+    }
+  }
+
+  resetActiveNoteWindow() {
+    this._visualNoteIndex = 0;
+    this._activeNotes = [];
+  }
+
+  private getNoteVisualStartTime(note: PlainNote | LongNote) {
+    return note.hitTime - note.note.visibleTime;
+  }
+
+  private getNoteVisualEndTime(note: PlainNote | LongNote) {
+    return (
+      (note.note.type === 2 ? (note as LongNote).endHitTime : note.hitTime) + VISUAL_END_GRACE_SEC
+    );
   }
 
   destroy() {

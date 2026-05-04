@@ -26,6 +26,7 @@ export class LongNote extends GameObjects.Container {
   private _bodyWidth: number;
   private _bodyHeight: number;
   private _hitTime: number;
+  private _endTime: number;
   private _targetHeadHeight: number = 0;
   private _targetTailHeight: number = 0;
   private _judgmentType: JudgmentType = JudgmentType.UNJUDGED;
@@ -63,6 +64,7 @@ export class LongNote extends GameObjects.Container {
       this.setTint(rgbToHex(data.tint));
     }
     this._hitTime = getTimeSec(scene.bpmList, data.startBeat);
+    this._endTime = getTimeSec(scene.bpmList, data.endBeat);
     const bodyTexture = this._body.texture.getSourceImage();
     this._bodyWidth = bodyTexture.width;
     this._bodyHeight = bodyTexture.height;
@@ -243,12 +245,14 @@ export class LongNote extends GameObjects.Container {
   reset() {
     this._judgmentType = JudgmentType.UNJUDGED;
     this._beatJudged = undefined;
+    this.setVisible(true);
     this.resetAppearance();
   }
 
   resetTemp() {
     this._tempJudgmentType = JudgmentType.UNJUDGED;
     this._beatTempJudged = undefined;
+    this.setVisible(true);
     this.resetAppearance();
   }
 
@@ -258,6 +262,16 @@ export class LongNote extends GameObjects.Container {
     if (this._data.tint) {
       this.setTint(rgbToHex(this._data.tint));
     }
+  }
+
+  setVisible(value: boolean) {
+    super.setVisible(value);
+    if (value) {
+      this._head.setVisible(true);
+      this._body.setVisible(true);
+      this._tail.setVisible(true);
+    }
+    return this;
   }
 
   public get judgmentPosition() {
@@ -287,6 +301,10 @@ export class LongNote extends GameObjects.Container {
 
   public get hitTime() {
     return this._hitTime;
+  }
+
+  public get endHitTime() {
+    return this._endTime;
   }
 
   public get isTapped() {
