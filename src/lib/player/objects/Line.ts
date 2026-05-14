@@ -359,7 +359,7 @@ export class Line {
     tint: number;
   }) {
     this._attachedVideos.forEach((video) => {
-      video.updateAttach({ ...params, width: this._line.displayWidth });
+      video.updateAttach({ ...params });
     });
   }
 

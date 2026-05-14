@@ -185,9 +185,8 @@ export class Video extends GameObjects.Container {
     scaleX: number;
     scaleY: number;
     tint: number;
-    width: number;
   }) {
-    const { x, y, rotation, alpha, scaleX, scaleY, tint, width: lineWidth } = params;
+    const { x, y, rotation, alpha, scaleX, scaleY, tint } = params;
     this.updateTransform(
       x * (this._data.attach?.positionXFactor ?? 1) + this._scene.sys.canvas.width / 2,
       y * (this._data.attach?.positionYFactor ?? 1) + this._scene.sys.canvas.height / 2,
@@ -205,7 +204,10 @@ export class Video extends GameObjects.Container {
       if (this._mask) this._mask.scaleY = scaleY;
     }
     if (this._mask) {
-      const width = this._data.attach?.scaleXMode === 2 ? lineWidth : this._video.displayWidth;
+      const width =
+        this._data.attach?.scaleXMode === 2
+          ? this._video.displayWidth * scaleX
+          : this._video.displayWidth;
       const height = this._video.displayHeight * (this._data.attach?.scaleYMode === 2 ? scaleY : 1);
       this._mask.clear();
       // this._mask.fillStyle(0xffff00);
