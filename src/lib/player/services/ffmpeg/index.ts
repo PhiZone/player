@@ -27,10 +27,23 @@ export const getFFmpegURLs = () => ({
 const ensureMimeType = (blob: Blob, mimeType: string): Blob =>
   blob.type === mimeType ? blob : new Blob([blob], { type: mimeType });
 
-const fetchBlob = async (url: string): Promise<Blob> => {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`Failed to fetch ${url}: ${response.statusText}`);
-  return await response.blob();
+const MAX_FETCH_ATTEMPTS = 3;
+const FETCH_RETRY_DELAY_MS = 1000;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const fetchBlob = async (url: string, attempt = 0): Promise<Blob> => {
+  try {
+    const response = await fetch(url, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+    return await response.blob();
+  } catch (error) {
+    if (attempt >= MAX_FETCH_ATTEMPTS - 1) {
+      throw new Error(`Failed to fetch ${url}: ${(error as Error).message}`);
+    }
+    await sleep(FETCH_RETRY_DELAY_MS * (attempt + 1));
+    return fetchBlob(url, attempt + 1);
+  }
 };
 
 export const loadCachedFFmpegBlobs = async (): Promise<{ core: Blob; wasm: Blob } | null> => {
