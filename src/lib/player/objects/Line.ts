@@ -35,7 +35,7 @@ export class Line {
   private _line: GameObjects.Image | GameObjects.Sprite | GameObjects.Text;
   private _parent: Line | null = null;
   private _noteContainers: Record<number, GameObjects.Container> = {};
-  private _noteMask: GameObjects.Graphics | null = null;
+  private _noteMask: GameObjects.Rectangle | null = null;
   private _notes: (PlainNote | LongNote)[] = [];
   private _notesByVisualStart: (PlainNote | LongNote)[] = [];
   private _activeNotes: (PlainNote | LongNote)[] = [];
@@ -210,10 +210,11 @@ export class Line {
       });
 
       if (lineData.scaleOnNotes === 2) {
-        this._noteMask = new GameObjects.Graphics(scene);
-        const mask = this._noteMask.createGeometryMask();
+        this._noteMask = new GameObjects.Rectangle(scene, 0, 0, 1, 1, 0xffffff, 1);
         Object.values(this._noteContainers).forEach((container) => {
-          container.setMask(mask);
+          container
+            .enableFilters()
+            .filters!.internal.addMask(this._noteMask!, false, this._scene.cameras.main, 'world');
         });
       }
     }
@@ -278,6 +279,7 @@ export class Line {
 
   destroy() {
     this._line.destroy();
+    this._noteMask?.destroy();
     Object.values(this._noteContainers).forEach((container) => {
       container.destroy();
     });
@@ -649,10 +651,9 @@ export class Line {
     vector.add(new PhaserMath.Vector2(halfScreenWidth, halfScreenHeight));
     this._noteMask.setPosition(vector.x, vector.y);
     this._noteMask.setRotation(this._line.rotation);
-    this._noteMask.clear();
     const rectWidth = this._line.displayWidth;
     const rectHeight = this._scene.sys.canvas.width ** 2 + this._scene.sys.canvas.height ** 2;
-    this._noteMask.fillRect(-rectWidth / 2, -rectHeight / 2, rectWidth, rectHeight);
+    this._noteMask.setSize(rectWidth, rectHeight);
   }
 
   calculateHeight(beat: number) {

@@ -1,0 +1,13 @@
+diff --git a/plugins/gameobjects/mesh/quad/image/Image.d.ts b/plugins/gameobjects/mesh/quad/image/Image.d.ts
+index 55606e6d54e5feff8461115bc0e428bbb538b318..88937cab1879f50ac97cc4f49a9d72b459e84664 100644
+--- a/plugins/gameobjects/mesh/quad/image/Image.d.ts
++++ b/plugins/gameobjects/mesh/quad/image/Image.d.ts
+@@ -1,6 +1,6 @@
+ // import * as Phaser from 'phaser';
+-import Mesh from '../../mesh/Mesh';
+-import Vertex from '../../mesh/vertex/Vertex';
++import Mesh from '../../mesh/image/Image';
++import Vertex from '../../mesh/image/vertex/Vertex';
+ 
+ export default Image;
+ 

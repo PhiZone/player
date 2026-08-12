@@ -1,4 +1,5 @@
 import { GameObjects } from 'phaser';
+import { SkewImage } from 'phaser4-rex-plugins/plugins/quadimage';
 import {
   JudgmentType,
   type AlphaControl,
@@ -14,7 +15,7 @@ import type { Game } from '../scenes/Game';
 import type { Line } from './Line';
 import { NOTE_BASE_SIZE, NOTE_PRIORITIES } from '../constants';
 
-export class PlainNote extends GameObjects.Image {
+export class PlainNote extends SkewImage {
   private _scene: Game;
   private _index: number;
   private _data: Note;
@@ -197,8 +198,9 @@ export class PlainNote extends GameObjects.Image {
     this._targetHeight = height;
   }
 
-  applySkewX(_deg: number) {
-    // Skew is not supported in Phaser 4 (SkewImage from rex-plugins was removed)
+  applySkewX(deg: number) {
+    if (deg === 0) return;
+    super.setSkewXDeg(deg);
   }
 
   resize(chartDist: number | undefined = undefined) {
