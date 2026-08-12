@@ -33,18 +33,45 @@ const FETCH_RETRY_DELAY_MS = 1000;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const getContentLength = async (url: string): Promise<number> => {
+  try {
+    const response = await fetch(url, { method: 'HEAD', cache: 'no-store' });
+    if (!response.ok) return -1;
+    const length = parseInt(response.headers.get('content-length') ?? '-1', 10);
+    if (length > 0) return length;
+  } catch {
+    // fall through to range probe
+  }
+  try {
+    const response = await fetch(url, {
+      headers: { Range: 'bytes=0-0' },
+      cache: 'no-store',
+    });
+    if (!response.ok) return -1;
+    const range = response.headers.get('content-range');
+    const length = range ? parseInt(range.split('/')[1] ?? '-1', 10) : -1;
+    if (length > 0) return length;
+    const contentLength = parseInt(response.headers.get('content-length') ?? '-1', 10);
+    return contentLength > 0 ? contentLength : -1;
+  } catch {
+    return -1;
+  }
+};
+
 const fetchBlob = async (
   url: string,
+  expectedTotal: number,
   attempt = 0,
   onProgress?: (loaded: number, total: number) => void,
 ): Promise<Blob> => {
   try {
     const response = await fetch(url, { cache: 'no-store' });
     if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
-    if (!response.body || !onProgress) {
+    let total = parseInt(response.headers.get('content-length') ?? '-1', 10);
+    if (!(total > 0)) total = expectedTotal;
+    if (!response.body || !onProgress || !(total > 0)) {
       return await response.blob();
     }
-    const total = parseInt(response.headers.get('content-length') ?? '-1', 10);
     const reader = response.body.getReader();
     const chunks: Uint8Array<ArrayBuffer>[] = [];
     let loaded = 0;
@@ -63,7 +90,7 @@ const fetchBlob = async (
       throw new Error(`Failed to fetch ${url}: ${(error as Error).message}`);
     }
     await sleep(FETCH_RETRY_DELAY_MS * (attempt + 1));
-    return fetchBlob(url, attempt + 1, onProgress);
+    return fetchBlob(url, expectedTotal, attempt + 1, onProgress);
   }
 };
 
@@ -103,18 +130,33 @@ export const loadFFmpeg = async (
       wasm = cached.wasm;
     } else {
       const urls = getFFmpegURLs();
-      const progress: Record<string, { loaded: number; total: number }> = {};
-      const report = (key: string, loaded: number, total: number) => {
-        progress[key] = { loaded, total };
+      const [coreTotal, wasmTotal] = await Promise.all([
+        getContentLength(urls.core),
+        getContentLength(urls.wasm),
+      ]);
+      const sizes: Record<string, number> = {
+        [urls.core]: coreTotal,
+        [urls.wasm]: wasmTotal,
+      };
+      const loaded: Record<string, number> = { [urls.core]: 0, [urls.wasm]: 0 };
+      const report = (key: string, bytes: number, total: number) => {
+        loaded[key] = bytes;
+        if (total > 0) sizes[key] = total;
         if (!onProgress) return;
         const keys = [urls.core, urls.wasm];
-        const totalLoaded = keys.reduce((sum, k) => sum + (progress[k]?.loaded ?? 0), 0);
-        const totalSize = keys.reduce((sum, k) => sum + (progress[k]?.total ?? 0), 0);
-        if (totalSize > 0) onProgress(clamp(totalLoaded / totalSize, 0, 1));
+        const known = keys.filter((k) => sizes[k] > 0);
+        if (known.length === 0) return;
+        const totalLoaded = known.reduce((sum, k) => sum + loaded[k], 0);
+        const totalSize = known.reduce((sum, k) => sum + sizes[k], 0);
+        onProgress(clamp(totalLoaded / totalSize, 0, 1));
       };
       [core, wasm] = await Promise.all([
-        fetchBlob(urls.core, 0, (loaded, total) => report(urls.core, loaded, total)),
-        fetchBlob(urls.wasm, 0, (loaded, total) => report(urls.wasm, loaded, total)),
+        fetchBlob(urls.core, coreTotal, 0, (loadedBytes, total) =>
+          report(urls.core, loadedBytes, total),
+        ),
+        fetchBlob(urls.wasm, wasmTotal, 0, (loadedBytes, total) =>
+          report(urls.wasm, loadedBytes, total),
+        ),
       ]);
       await cacheFFmpegBlobs(core, wasm);
     }
