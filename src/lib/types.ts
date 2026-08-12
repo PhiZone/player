@@ -375,7 +375,7 @@ export interface Video {
     rotationFactor?: number;
     alphaFactor?: number;
     tintFactor?: number;
-    scaleXMode?: 0 | 1 | 2;
+    scaleXMode?: 0 | 1 | 2 | 3;
     scaleYMode?: 0 | 1 | 2;
   };
 }
