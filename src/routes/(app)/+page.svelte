@@ -146,7 +146,7 @@
   let selectedBundle = -1;
   let currentBundle: ChartBundle | undefined;
   let preferences: Preferences = {
-    aspectRatio: null,
+    aspectRatio: [3, 2],
     backgroundBlur: 1,
     backgroundLuminance: 0.5,
     chartFlipping: 0,
