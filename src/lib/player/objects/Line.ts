@@ -1,4 +1,4 @@
-import { GameObjects } from 'phaser';
+import { GameObjects, Math as PhaserMath } from 'phaser';
 import {
   type ColorEvent,
   type Event,
@@ -26,6 +26,8 @@ import { dot } from 'mathjs';
 import type { Video } from './Video';
 import { isDebug } from '$lib/utils';
 
+const VISUAL_END_GRACE_SEC = 1;
+
 export class Line {
   private _scene: Game;
   private _index: number;
@@ -33,8 +35,11 @@ export class Line {
   private _line: GameObjects.Image | GameObjects.Sprite | GameObjects.Text;
   private _parent: Line | null = null;
   private _noteContainers: Record<number, GameObjects.Container> = {};
-  private _noteMask: GameObjects.Graphics | null = null;
+  private _noteMask: GameObjects.Rectangle | null = null;
   private _notes: (PlainNote | LongNote)[] = [];
+  private _notesByVisualStart: (PlainNote | LongNote)[] = [];
+  private _activeNotes: (PlainNote | LongNote)[] = [];
+  private _visualNoteIndex: number = 0;
   private _hasAttach: boolean = false;
   private _hasCustomTexture: boolean = false;
   private _hasAnimatedTexture: boolean = false;
@@ -205,28 +210,76 @@ export class Line {
       });
 
       if (lineData.scaleOnNotes === 2) {
-        this._noteMask = new GameObjects.Graphics(scene);
-        const mask = this._noteMask.createGeometryMask();
+        this._noteMask = new GameObjects.Rectangle(scene, 0, 0, 1, 1, 0xffffff, 1);
         Object.values(this._noteContainers).forEach((container) => {
-          container.setMask(mask);
+          container
+            .enableFilters()
+            .filters!.internal.addMask(this._noteMask!, false, this._scene.cameras.main, 'world');
         });
       }
     }
+
+    this._notesByVisualStart = [...this._notes].sort(
+      (a, b) => this.getNoteVisualStartTime(a) - this.getNoteVisualStartTime(b),
+    );
   }
 
-  update(beat: number, songTime: number, gameTime: number) {
+  update(beat: number, songTime: number, gameTime: number, forceFullNoteUpdate: boolean = false) {
     if (gameTime == this._lastUpdate) return;
     this._lastUpdate = gameTime;
     this._parent?.update(beat, songTime, gameTime);
     this.handleEventLayers(beat);
     this.updateParams();
-    this._notes.forEach((note) => {
-      note.update(beat / this._data.bpmfactor, songTime, this._height);
-    });
+    if (forceFullNoteUpdate) {
+      this.resetActiveNoteWindow();
+      this._notes.forEach((note) => {
+        note.update(beat / this._data.bpmfactor, songTime, this._height);
+      });
+      return;
+    }
+    this.updateActiveNotes(beat / this._data.bpmfactor, songTime);
+  }
+
+  updateActiveNotes(beat: number, songTime: number) {
+    while (
+      this._visualNoteIndex < this._notesByVisualStart.length &&
+      this.getNoteVisualStartTime(this._notesByVisualStart[this._visualNoteIndex]) <= songTime
+    ) {
+      const note = this._notesByVisualStart[this._visualNoteIndex++];
+      if (this.getNoteVisualEndTime(note) >= songTime) {
+        this._activeNotes.push(note);
+      }
+    }
+
+    for (let i = this._activeNotes.length - 1; i >= 0; i--) {
+      const note = this._activeNotes[i];
+      if (this.getNoteVisualEndTime(note) < songTime) {
+        note.setVisible(false);
+        this._activeNotes.splice(i, 1);
+        continue;
+      }
+      note.update(beat, songTime, this._height);
+    }
+  }
+
+  resetActiveNoteWindow() {
+    this._visualNoteIndex = 0;
+    this._activeNotes = [];
+  }
+
+  private getNoteVisualStartTime(note: PlainNote | LongNote) {
+    return note.hitTime - note.note.visibleTime;
+  }
+
+  private getNoteVisualEndTime(note: PlainNote | LongNote) {
+    return (
+      (note.note.type === 2 ? (note as LongNote).endHitTime : note.hitTime) + VISUAL_END_GRACE_SEC
+    );
   }
 
   destroy() {
     this._line.destroy();
+    this._noteMask?.destroy();
     Object.values(this._noteContainers).forEach((container) => {
       container.destroy();
     });
@@ -595,13 +648,12 @@ export class Line {
     const halfScreenHeight = this._scene.sys.canvas.height / 2;
     const vector = this.vector;
     vector.scale(dot([this.x - halfScreenWidth, this.y - halfScreenHeight], [vector.x, vector.y]));
-    vector.add(new Phaser.Math.Vector2(halfScreenWidth, halfScreenHeight));
+    vector.add(new PhaserMath.Vector2(halfScreenWidth, halfScreenHeight));
     this._noteMask.setPosition(vector.x, vector.y);
     this._noteMask.setRotation(this._line.rotation);
-    this._noteMask.clear();
     const rectWidth = this._line.displayWidth;
     const rectHeight = this._scene.sys.canvas.width ** 2 + this._scene.sys.canvas.height ** 2;
-    this._noteMask.fillRect(-rectWidth / 2, -rectHeight / 2, rectWidth, rectHeight);
+    this._noteMask.setSize(rectWidth, rectHeight);
   }
 
   calculateHeight(beat: number) {
@@ -662,7 +714,7 @@ export class Line {
   }
 
   public get vector() {
-    return new Phaser.Math.Vector2(Math.cos(this._line.rotation), Math.sin(this._line.rotation));
+    return new PhaserMath.Vector2(Math.cos(this._line.rotation), Math.sin(this._line.rotation));
   }
 
   public get alpha() {

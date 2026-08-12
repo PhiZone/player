@@ -3,4 +3,4 @@ allowBuilds:
   esbuild: true
   sharp: true
 patchedDependencies:
-  'phaser@3.88.2': patches/phaser@3.88.2.patch
+  phaser4-rex-plugins@4.2.0: patches/phaser4-rex-plugins@4.2.0.patch

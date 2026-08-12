@@ -1,5 +1,5 @@
-// import { GameObjects } from 'phaser';
-import { SkewImage } from 'phaser3-rex-plugins/plugins/quadimage';
+import { GameObjects } from 'phaser';
+import { SkewImage } from 'phaser4-rex-plugins/plugins/quadimage';
 import {
   JudgmentType,
   type AlphaControl,
@@ -14,7 +14,6 @@ import { calculateValue, ControlTypes, easing, getTimeSec, rgbToHex } from '../u
 import type { Game } from '../scenes/Game';
 import type { Line } from './Line';
 import { NOTE_BASE_SIZE, NOTE_PRIORITIES } from '../constants';
-import { GameObjects } from 'phaser';
 
 export class PlainNote extends SkewImage {
   private _scene: Game;

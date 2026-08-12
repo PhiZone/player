@@ -1,4 +1,4 @@
-import type { Input } from 'phaser';
+import { type Input, Math } from 'phaser';
 import { FLICK_VELOCTY_THRESHOLD, JUDGMENT_THRESHOLD } from '../constants';
 import type { LongNote } from '../objects/LongNote';
 import type { PlainNote } from '../objects/PlainNote';
@@ -24,7 +24,7 @@ export class PointerHandler {
       this._scene.gameUI.pause.isInvocable(pointer.x, pointer.y)
     )
       return;
-    const position = new Phaser.Math.Vector2(pointer.x, pointer.y);
+    const position = new Math.Vector2(pointer.x, pointer.y);
     const tap = {
       id: pointer.id,
       time: this._scene.timeSec,
@@ -36,7 +36,7 @@ export class PointerHandler {
       id: pointer.id,
       time: this._scene.timeSec,
       position,
-      velocity: Phaser.Math.Vector2.ZERO,
+      velocity: Math.Vector2.ZERO,
       velocityConsumed: null,
       distance: Infinity,
     });
@@ -61,21 +61,18 @@ export class PointerHandler {
     if (index === -1) {
       return;
     }
-    const position = new Phaser.Math.Vector2(pointer.x, pointer.y);
+    const position = new Math.Vector2(pointer.x, pointer.y);
     const velocity = pointer.velocity;
     const velocityMagnitude = velocity
       .multiply(
-        new Phaser.Math.Vector2(
-          1350 / this._scene.sys.canvas.width,
-          900 / this._scene.sys.canvas.height,
-        ),
+        new Math.Vector2(1350 / this._scene.sys.canvas.width, 900 / this._scene.sys.canvas.height),
       )
       .length();
     velocity.normalize();
     this._pointerDrags[index].time = this._scene.timeSec;
     this._pointerDrags[index].position = position;
     this._pointerDrags[index].velocity =
-      velocityMagnitude >= FLICK_VELOCTY_THRESHOLD ? velocity : Phaser.Math.Vector2.ZERO;
+      velocityMagnitude >= FLICK_VELOCTY_THRESHOLD ? velocity : Math.Vector2.ZERO;
     // this._scene.tweens.add({
     //   targets: [
     //     this._scene.add
@@ -110,7 +107,7 @@ export class PointerHandler {
       .filter((input) => input.time < timeSec - delta / 100)
       .forEach((input) => {
         input.time = timeSec;
-        input.velocity = Phaser.Math.Vector2.ZERO;
+        input.velocity = Math.Vector2.ZERO;
         input.velocityConsumed = null;
       });
     this._pointerDrags
@@ -124,7 +121,7 @@ export class PointerHandler {
   findDrag(note: PlainNote | LongNote, requireVelocity: boolean = false) {
     const notePosition = note.judgmentPosition;
     this._pointerDrags.forEach((input) => {
-      input.distance = Phaser.Math.Distance.BetweenPoints(
+      input.distance = Math.Distance.BetweenPoints(
         notePosition,
         getJudgmentPosition(input, note.line),
       );

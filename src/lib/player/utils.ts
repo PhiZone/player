@@ -23,6 +23,7 @@ import { EventBus } from './EventBus';
 import { getFFmpeg, loadFFmpeg } from './services/ffmpeg';
 import type { Game } from './scenes/Game';
 import { MOBILE_MAX_IMAGE_DIMENSION, RESULTS_ILLUSTRATION_CORNER_RADIUS } from './constants';
+import { Math as PhaserMath } from 'phaser';
 import { parseGIF, decompressFrames, type ParsedFrame } from 'gifuct-js';
 import { dot, gcd, random } from 'mathjs';
 import { fileTypeFromBlob } from 'file-type';
@@ -987,7 +988,7 @@ export const getIntegral = (
 export const getJudgmentPosition = (input: PointerTap | PointerDrag, line: Line) => {
   const vector = line.vector;
   vector.scale(dot([input.position.x - line.x, input.position.y - line.y], [vector.x, vector.y]));
-  vector.add(new Phaser.Math.Vector2(line.x, line.y));
+  vector.add(new PhaserMath.Vector2(line.x, line.y));
   return vector;
 };
 

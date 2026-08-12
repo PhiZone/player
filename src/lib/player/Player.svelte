@@ -466,7 +466,7 @@
           <div class="flex gap-2 w-96">
             <button
               class="btn btn-outline border-2 btn-success text-xl rounded-full flex-1"
-              on:click={async () => {
+              onclick={async () => {
                 await openPath(renderingOutput);
               }}
             >
@@ -474,7 +474,7 @@
             </button>
             <button
               class="btn btn-outline border-2 btn-info text-xl rounded-full flex-1"
-              on:click={async () => {
+              onclick={async () => {
                 const separator = await pathSep();
                 await openPath(renderingOutput.split(separator).slice(0, -1).join(separator));
               }}
@@ -486,7 +486,7 @@
       {:else}
         <button
           class="btn btn-outline border-2 btn-error text-xl rounded-full"
-          on:click={async () => {
+          onclick={async () => {
             await gameRef.scene?.chartRenderer.cancel();
           }}
         >
@@ -558,7 +558,7 @@
     {/if}
     <button
       class="btn btn-outline border-2 btn-lg rounded-full text-2xl w-fit"
-      on:click={() => {
+      onclick={() => {
         setTimeout(() => {
           showStart = false;
         }, 500);
@@ -571,7 +571,7 @@
     <div class="flex flex-col gap-4 items-center">
       <h2 class="text-6xl font-bold uppercase">{m.paused()}</h2>
       <div class="flex gap-2">
-        <button class="btn btn-outline border-2 btn-lg btn-circle trans" on:click={exit}>
+        <button class="btn btn-outline border-2 btn-lg btn-circle trans" onclick={exit}>
           {#if !config || config.newTab}
             <i class="fa-solid fa-xmark fa-xl"></i>
           {:else}
@@ -580,7 +580,7 @@
         </button>
         <button
           class="btn btn-outline border-2 btn-lg rounded-full text-2xl w-fit trans"
-          on:click={() => {
+          onclick={() => {
             setTimeout(() => {
               showPause = false;
             }, 500);
@@ -592,7 +592,7 @@
         </button>
         <button
           class="btn btn-outline border-2 btn-lg rounded-full text-2xl w-fit trans"
-          on:click={() => {
+          onclick={() => {
             setTimeout(() => {
               showPause = false;
             }, 500);
@@ -659,9 +659,10 @@
           <div
             class="h-4"
             bind:this={minimapElement}
-            on:pointerdown={() => {
+            onpointerdown={() => {
               gameRef.scene?.pause(true);
             }}
+            role="complementary"
           ></div>
         </div>
         <div class="flex flex-col gap-2 items-center min-w-fit" bind:this={offsetElement}>
@@ -676,13 +677,15 @@
               {#each Array(6) as _, i}
                 <button
                   class="btn btn-sm btn-square btn-outline join-item"
-                  on:click={() => {
+                  onclick={() => {
                     offset += [-50, -10, -1, 1, 10, 50][i];
                     isOffsetAdjustedChartExported = false;
                     EventBus.emit('offset-adjusted', offset);
                     updateMarkers();
                   }}
-                  on:mousedown|preventDefault
+                  onmousedown={(e) => {
+                    e.preventDefault();
+                  }}
                 >
                   {#if i === 0}
                     <i class="fa-solid fa-angles-left"></i>
@@ -703,10 +706,12 @@
             <button
               class="btn btn-sm btn-circle btn-outline"
               aria-label="Export offset-adjusted chart"
-              on:click={() => {
+              onclick={() => {
                 exportOffsetAdjustedChart();
               }}
-              on:mousedown|preventDefault
+              onmousedown={(e) => {
+                e.preventDefault();
+              }}
             >
               <i class="fa-solid fa-file-export"></i>
             </button>
@@ -735,21 +740,21 @@
           status === GameStatus.PLAYING ||
           status === GameStatus.FINISHED ||
           timeSec === duration}
-        on:pointerdown={() => {
+        onpointerdown={() => {
           progressBarHeld = true;
           if (!keyboardSeeking && !showPause) {
             pausedByBar = true;
             gameRef.scene?.pause(true);
           }
         }}
-        on:pointerup={() => {
+        onpointerup={() => {
           progressBarHeld = false;
           if (pausedByBar) {
             pausedByBar = false;
             gameRef.scene?.resume();
           }
         }}
-        on:input={(e) => {
+        oninput={(e) => {
           gameRef.scene?.setSeek(Math.max(0, parseFloat(e.currentTarget.value)));
         }}
       />
@@ -786,7 +791,7 @@
     <button
       class="btn btn-outline join-item"
       aria-label="Speed up"
-      on:click={() => {
+      onclick={() => {
         if (!gameRef.scene) return;
         if (wavesurferOptions) wavesurferOptions.minPxPerSec *= gameRef.scene.timeScale;
         gameRef.scene.timeScale = Math.min(9.9, gameRef.scene.timeScale + 0.1);
@@ -795,14 +800,16 @@
           wavesurfer?.setOptions(wavesurferOptions);
         }
       }}
-      on:mousedown|preventDefault
+      onmousedown={(e) => {
+        e.preventDefault();
+      }}
     >
       <i class="fa-solid fa-plus fa-xl"></i>
     </button>
     <button
       class="btn w-16 h-16 btn-outline join-item text-2xl whitespace-nowrap"
       aria-label="Reset to normal speed"
-      on:click={() => {
+      onclick={() => {
         if (!gameRef.scene) return;
         if (wavesurferOptions) wavesurferOptions.minPxPerSec *= gameRef.scene.timeScale;
         gameRef.scene.timeScale = 1;
@@ -810,7 +817,9 @@
           wavesurfer?.setOptions(wavesurferOptions);
         }
       }}
-      on:mousedown|preventDefault
+      onmousedown={(e) => {
+        e.preventDefault();
+      }}
     >
       {gameRef.scene &&
       !equal(gameRef.scene.timeScale, parseFloat(gameRef.scene.timeScale.toFixed(1)))
@@ -821,7 +830,7 @@
     <button
       class="btn btn-outline join-item"
       aria-label="Speed down"
-      on:click={() => {
+      onclick={() => {
         if (!gameRef.scene) return;
         if (wavesurferOptions) wavesurferOptions.minPxPerSec *= gameRef.scene.timeScale;
         gameRef.scene.timeScale = Math.max(0.1, gameRef.scene.timeScale - 0.1);
@@ -830,7 +839,9 @@
           wavesurfer?.setOptions(wavesurferOptions);
         }
       }}
-      on:mousedown|preventDefault
+      onmousedown={(e) => {
+        e.preventDefault();
+      }}
     >
       <i class="fa-solid fa-minus fa-xl"></i>
     </button>
@@ -847,7 +858,7 @@
       <button
         class="btn btn-outline border-2 btn-lg btn-circle"
         aria-label="Restart"
-        on:click={() => {
+        onclick={() => {
           status = GameStatus.LOADING;
           gameRef.scene?.restart();
         }}
@@ -858,7 +869,7 @@
     <button
       class="btn btn-outline border-2 btn-lg btn-circle"
       aria-label={!config || config.newTab ? 'Close' : 'Home'}
-      on:click={exit}
+      onclick={exit}
     >
       {#if !config || config.newTab}
         <i class="fa-solid fa-xmark fa-xl"></i>

@@ -10,7 +10,7 @@ export class Video extends GameObjects.Container {
   private _data: VideoType;
   private _video: GameObjects.Video;
   private _overlay: GameObjects.Rectangle;
-  private _mask: GameObjects.Graphics | null = null;
+  private _mask: GameObjects.Rectangle | null = null;
   private _alphaAnimator: VariableAnimator;
   private _dimAnimator: VariableAnimator;
   private _ready: boolean = false;
@@ -95,10 +95,13 @@ export class Video extends GameObjects.Container {
           data.attach.scaleXMode === 3 ||
           data.attach.scaleYMode === 2
         ) {
-          this._mask = new GameObjects.Graphics(scene);
-          const mask = this._mask.createGeometryMask();
-          this._video.setMask(mask);
-          this._overlay.setMask(mask);
+          this._mask = new GameObjects.Rectangle(scene, 0, 0, 1, 1, 0xffffff, 1);
+          this.enableFilters().filters!.internal.addMask(
+            this._mask,
+            false,
+            scene.cameras.main,
+            'world',
+          );
         }
       }
       setTimeout(() => {
@@ -216,9 +219,7 @@ export class Video extends GameObjects.Container {
             ? this._video.displayWidth * scaleX
             : this._video.displayWidth;
       const height = this._video.displayHeight * (this._data.attach?.scaleYMode === 2 ? scaleY : 1);
-      this._mask.clear();
-      // this._mask.fillStyle(0xffff00);
-      this._mask.fillRect(-width / 2, -height / 2, width, height);
+      this._mask.setSize(width, height);
     }
   }
 

@@ -1,4 +1,4 @@
-import { Renderer } from 'phaser';
+import { Filters, Renderer } from 'phaser';
 import type { Game } from '../scenes/Game';
 import type { AnimatedVariable, ShaderEffect, VariableEvent } from '$lib/types';
 import {
@@ -142,37 +142,79 @@ function transformForLoops(src: string, max = 1024): string {
   return out;
 }
 
-export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
+type ShaderFilterNodeManager = Renderer.WebGL.RenderNodes.RenderNodeManager;
+type ProgramManager = InstanceType<typeof Renderer.WebGL.ProgramManager>;
+
+/**
+ * Custom filter render node for user-provided fragment shaders.
+ * Each shader effect gets its own render node instance registered by name.
+ */
+class ShaderFilterNode extends Renderer.WebGL.RenderNodes.BaseFilterShader {
+  declare programManager: ProgramManager;
+
+  constructor(name: string, manager: ShaderFilterNodeManager, fragShader: string) {
+    super(name, manager, undefined, fragShader);
+  }
+
+  setupTextures(controller: ShaderFilter, textures: Renderer.WebGL.Wrappers.WebGLTextureWrapper[]) {
+    const extraTextures = controller.extraTextures;
+    for (let i = 0; i < extraTextures.length; i++) {
+      textures[i + 1] = extraTextures[i];
+    }
+  }
+
+  setupUniforms(controller: ShaderFilter) {
+    const pm = this.programManager;
+    const uniforms = controller.uniforms;
+    for (const [name, value] of Object.entries(uniforms)) {
+      pm.setUniform(name, value);
+    }
+  }
+}
+
+export class ShaderFilter extends Filters.Controller {
   private _scene: Game;
   private _data: ShaderEffect;
   private _node?: ShaderNode;
   private _animators: VariableAnimator[] = [];
   private _targetsCollected: boolean = false;
   private _isLoaded: boolean = false;
+  private _uniforms: Record<string, number | number[]> = {};
+  private _extraTextures: Renderer.WebGL.Wrappers.WebGLTextureWrapper[] = [];
+  private _renderNodeName: string;
 
   constructor(
-    game: Phaser.Game,
-    postPipelineData: {
-      scene: Game;
-      fragShader: string;
-      data: ShaderEffect;
-      target?: ShaderNode;
-    },
+    camera: Phaser.Cameras.Scene2D.Camera,
+    renderNodeName: string,
+    scene: Game,
+    fragShader: string,
+    data: ShaderEffect,
+    target?: ShaderNode,
   ) {
-    postPipelineData.fragShader = postPipelineData.fragShader
+    fragShader = fragShader
       .replaceAll('uv', 'outTexCoord')
       .replaceAll('screenTexture', 'uMainSampler');
-    postPipelineData.fragShader = transformForLoops(postPipelineData.fragShader);
-    super({ game, fragShader: postPipelineData.fragShader });
-    this._scene = postPipelineData.scene;
-    this._data = postPipelineData.data;
+    fragShader = transformForLoops(fragShader);
+
+    // Register the render node for this shader
+    const renderer = scene.renderer as Phaser.Renderer.WebGL.WebGLRenderer;
+    renderer.renderNodes.addNode(
+      renderNodeName,
+      new ShaderFilterNode(renderNodeName, renderer.renderNodes, fragShader),
+    );
+
+    super(camera, renderNodeName);
+
+    this._renderNodeName = renderNodeName;
+    this._scene = scene;
+    this._data = data;
     this._data.startBeat = toBeats(this._data.start);
     this._data.endBeat = toBeats(this._data.end);
-    if (postPipelineData.target) {
-      this._node = postPipelineData.target;
+    if (target) {
+      this._node = target;
     }
 
-    [...postPipelineData.fragShader.matchAll(DEFAULT_VALUE_REGEX)].map((uniform) => {
+    [...fragShader.matchAll(DEFAULT_VALUE_REGEX)].map((uniform) => {
       const type = uniform[1];
       const name = uniform[2];
       const value = uniform[3];
@@ -213,22 +255,20 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
         }
       });
     }
+
     try {
-      this.bootFX();
+      this.boot();
     } catch (e) {
-      console.error(
-        e + '\n\nAt ' + postPipelineData.data.shader + ':\n\n' + postPipelineData.fragShader,
-      );
-      //alert(m.error_failed_to_load_shader({ name: this._data.shader }));
+      console.error(e + '\n\nAt ' + data.shader + ':\n\n' + fragShader);
     }
   }
 
-  onBoot(): void {
+  boot(): void {
     if (this._data.vars) {
       let textureSlot = 1;
       Object.entries(this._data.vars).forEach(([key, value]) => {
         if (typeof value === 'number' || (Array.isArray(value) && typeof value[0] === 'number')) {
-          this.setUniform(key, value, 0);
+          this.setUniformValue(key, value, 0);
         } else if (typeof value === 'string') {
           if (!this._scene.textures.exists(value)) {
             alert(
@@ -241,8 +281,9 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
           }
           const texture = this._scene.textures.get(`asset-${value}`).source[0].glTexture;
           if (texture) {
-            this.set1i(key, textureSlot);
-            this.bindTexture(texture, textureSlot++);
+            this._uniforms[key] = textureSlot;
+            this._extraTextures[textureSlot - 1] = texture;
+            textureSlot++;
           }
         }
       });
@@ -292,7 +333,7 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
         parent.addChild(this._node);
         (parent as ShaderNode).object.add(this._node.object);
       }
-      console.debug('Adding targets to', this.name, this._data, targets);
+      console.debug('Adding targets to', this._renderNodeName, this._data, targets);
       targets.forEach((target) => {
         this._node!.addChild(target);
         this._node!.object.add(target.object);
@@ -305,8 +346,9 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
       );
     }
     try {
-      this.set1f('time', time);
-      this.set2f('screenSize', this.renderer.width, this.renderer.height);
+      this._uniforms['time'] = time;
+      const renderer = this._scene.renderer as Phaser.Renderer.WebGL.WebGLRenderer;
+      this._uniforms['screenSize'] = [renderer.width, renderer.height];
       this._animators.forEach((animator) => animator.update(beat));
     } catch (e) {
       console.error(e);
@@ -321,21 +363,21 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
     if (!this.active) {
       if (this._targetsCollected && !this._node.parent) {
         this._targetsCollected = false;
-        console.debug('Removing targets from', this.name);
+        console.debug('Removing targets from', this._renderNodeName);
         this._node.object.removeAll();
         this._node.removeAll();
       }
     }
   }
 
-  setUniform(name: string, value: number | number[] | unknown, beat: number) {
+  setUniformValue(name: string, value: number | number[] | unknown, beat: number) {
     if (!value && value !== 0) return;
-    console.debug(beat.toFixed(3), this.name, name, value);
+    console.debug(beat.toFixed(3), this._renderNodeName, name, value);
     if (Array.isArray(value)) {
-      if (value.length === 2) this.set2f(name, value[0], value[1]);
-      else if (value.length === 3) this.set3f(name, value[0], value[1], value[2]);
-      else if (value.length === 4) this.set4f(name, value[0], value[1], value[2], value[3]);
-    } else if (typeof value === 'number') this.set1f(name, value);
+      this._uniforms[name] = value as number[];
+    } else if (typeof value === 'number') {
+      this._uniforms[name] = value;
+    }
   }
 
   correctRange(name: string, value: number[], force = false) {
@@ -355,22 +397,35 @@ export class ShaderPipeline extends Renderer.WebGL.Pipelines.PostFXPipeline {
     return value;
   }
 
+  get uniforms() {
+    return this._uniforms;
+  }
+
+  get extraTextures() {
+    return this._extraTextures;
+  }
+
   get scene() {
     return this._scene;
   }
 }
 
 class VariableAnimator {
-  private _shader: ShaderPipeline;
+  private _shader: ShaderFilter;
   private _name: string;
   private _events: VariableEvent[];
   private _cur: number = 0;
 
-  constructor(shader: ShaderPipeline, name: string, events: AnimatedVariable) {
+  constructor(shader: ShaderFilter, name: string, events: AnimatedVariable) {
     this._shader = shader;
     this._name = name;
     this._events = events;
-    processEvents(this._events, undefined, undefined, `Var ${name}, Shader ${this._shader.name}`);
+    processEvents(
+      this._events,
+      undefined,
+      undefined,
+      `Var ${name}, Shader ${this._shader.scene.metadata.title}`,
+    );
     if (
       ['color', 'tint', 'rgb', 'rgba'].some((e) => name.toLowerCase().includes(e)) &&
       this._events.some((e) =>
@@ -392,7 +447,7 @@ class VariableAnimator {
   }
 
   update(beat: number) {
-    this._shader.setUniform(this._name, this.handleEvent(beat), beat);
+    this._shader.setUniformValue(this._name, this.handleEvent(beat), beat);
   }
 
   handleEvent(beat: number) {

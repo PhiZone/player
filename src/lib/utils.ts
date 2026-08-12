@@ -16,7 +16,6 @@ import Notiflix from 'notiflix';
 import mime from 'mime/lite';
 import JSZip from 'jszip';
 import * as YAML from 'yaml';
-import tar from 'tar-stream';
 import { ungzip } from 'pako';
 import { fileTypeFromBlob } from 'file-type';
 import { DEFAULT_RESOURCE_PACK } from './player/constants';
@@ -550,30 +549,65 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
 
 export const extractTgz = async (blob: Blob): Promise<File[]> => {
   const arrayBuffer = await blob.arrayBuffer(); // Convert Blob to ArrayBuffer
-  const ungzipped = ungzip(new Uint8Array(arrayBuffer)); // Decompress .tgz
-  const extract = tar.extract(); // Create a tar extractor
+  const archive = ungzip(new Uint8Array(arrayBuffer)); // Decompress .tgz
+  const blockSize = 512;
+  const decoder = new TextDecoder();
+  const files: File[] = [];
+  let offset = 0;
+  let pendingPath = '';
 
-  return new Promise((resolve, reject) => {
-    const files: File[] = [];
+  const readTarField = (bytes: Uint8Array, start: number, length: number) => {
+    const value = decoder.decode(bytes.subarray(start, start + length));
+    const nullIndex = value.indexOf('\0');
+    return (nullIndex === -1 ? value : value.slice(0, nullIndex)).replace(/\s+$/u, '');
+  };
 
-    extract.on('entry', (header, stream, next) => {
-      const chunks: Uint8Array<ArrayBuffer>[] = [];
+  const readTarNumber = (bytes: Uint8Array, start: number, length: number) => {
+    const value = readTarField(bytes, start, length).trim();
+    return value ? Number.parseInt(value, 8) : 0;
+  };
 
-      stream.on('data', (chunk) => chunks.push(new Uint8Array(chunk)));
-      stream.on('end', () => {
-        const fileBlob = new Blob(chunks, { type: 'application/octet-stream' });
-        files.push(new File([fileBlob], header.name.split('/').pop() ?? ''));
-        next();
-      });
+  const isEmptyTarBlock = (bytes: Uint8Array, start: number) => {
+    for (let i = start; i < start + blockSize; i++) {
+      if (bytes[i] !== 0) return false;
+    }
+    return true;
+  };
 
-      stream.resume();
-    });
+  while (offset + blockSize <= archive.length) {
+    if (isEmptyTarBlock(archive, offset)) break;
 
-    extract.on('finish', () => resolve(files));
-    extract.on('error', reject);
+    const header = archive.subarray(offset, offset + blockSize);
+    const name = readTarField(header, 0, 100);
+    const prefix = readTarField(header, 345, 155);
+    const type = readTarField(header, 156, 1);
+    const size = readTarNumber(header, 124, 12);
+    const dataStart = offset + blockSize;
+    const dataEnd = dataStart + size;
 
-    extract.end(ungzipped);
-  });
+    if (dataEnd > archive.length) {
+      throw new Error('Invalid tar archive');
+    }
+
+    const entryPath = pendingPath || [prefix, name].filter(Boolean).join('/');
+    const basename = entryPath.split('/').pop() ?? entryPath;
+    const fileBytes = archive.slice(dataStart, dataEnd);
+
+    if (type === 'L') {
+      pendingPath = decoder.decode(fileBytes).replace(/[\0\n]+$/u, '');
+    } else if (type === '' || type === '0') {
+      if (basename) {
+        files.push(new File([fileBytes], basename, { type: 'application/octet-stream' }));
+      }
+      pendingPath = '';
+    } else {
+      pendingPath = '';
+    }
+
+    offset = dataStart + Math.ceil(size / blockSize) * blockSize;
+  }
+
+  return files;
 };
 
 export const isZip = (file: File) =>

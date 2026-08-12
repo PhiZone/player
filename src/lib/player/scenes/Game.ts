@@ -33,7 +33,7 @@ import { KeyboardHandler } from '../handlers/KeyboardHandler';
 import { JudgmentHandler } from '../handlers/JudgmentHandler';
 import { StatisticsHandler } from '../handlers/StatisticsHandler';
 import { terminateFFmpeg } from '../services/ffmpeg';
-import { ShaderPipeline } from '../objects/ShaderPipeline';
+import { ShaderFilter } from '../objects/ShaderPipeline';
 import { Video } from '../objects/Video';
 import { Signal } from '../objects/Signal';
 import { Node, ROOT } from '../objects/Node';
@@ -43,6 +43,9 @@ import { Clock } from '../services/clock';
 import { Renderer } from '../services/renderer';
 import { ResourcePackHandler } from '../handlers/ResourcePackHandler';
 import { m } from '$lib/paraglide/messages';
+import { HOLD_TAIL_TOLERANCE } from '../constants';
+
+const JUDGMENT_END_GRACE_SEC = 0.2;
 
 export class Game extends Scene {
   private _status: GameStatus = GameStatus.LOADING;
@@ -87,12 +90,17 @@ export class Game extends Scene {
   private _bpmIndex: number = 0;
   private _lines: Line[];
   private _notes: (PlainNote | LongNote)[];
+  private _judgmentNotesByStart: (PlainNote | LongNote)[] = [];
+  private _activeJudgmentNotes: (PlainNote | LongNote)[] = [];
+  private _judgmentNoteIndex: number = 0;
+  private _lastChartSongTime: number | undefined;
   private _shaders:
     | (
         | {
             key: string;
             effect: ShaderEffect;
             target: Cameras.Scene2D.Camera | ShaderNode;
+            filter: ShaderFilter;
           }
         | undefined
       )[]
@@ -406,7 +414,8 @@ export class Game extends Scene {
   resetShadersAndVideos() {
     this._shaders?.forEach((shader) => {
       if (!shader) return;
-      ('object' in shader.target ? shader.target.object : shader.target).resetPostPipeline();
+      const filterTarget = 'object' in shader.target ? shader.target.object : shader.target;
+      filterTarget.filters?.external.clear();
     });
     this._videos?.forEach((video) => video.destroy());
   }
@@ -595,23 +604,25 @@ export class Game extends Scene {
   updateChart(beat: number, songTime: number, gameTime: number) {
     if (this._status === GameStatus.FINISHED || this._status === GameStatus.DESTROYED) return;
     gameTime *= this._timeScale;
-    this._lines.forEach((line) => line.update(beat, songTime, gameTime));
-    this._notes.forEach((note) => note.updateJudgment(beat, songTime));
+    const forceFullNoteUpdate =
+      this._isSeeking ||
+      this._lastChartSongTime === undefined ||
+      songTime + 0.05 < this._lastChartSongTime;
+    if (forceFullNoteUpdate) this.resetActiveNoteWindows();
+    this._lines.forEach((line) => line.update(beat, songTime, gameTime, forceFullNoteUpdate));
+    if (forceFullNoteUpdate) {
+      this._notes.forEach((note) => note.updateJudgment(beat, songTime));
+    } else {
+      this.updateActiveJudgmentNotes(beat, songTime);
+    }
+    this._lastChartSongTime = songTime;
     this._shaders?.forEach((shader) => {
       if (!shader) return;
-      (
-        ('object' in shader.target
-          ? shader.target.object.getPostPipeline(shader.key)
-          : shader.target.getPostPipeline(shader.key)) as ShaderPipeline
-      )?.detach(beat);
+      shader.filter.detach(beat);
     });
     this._shaders?.forEach((shader) => {
       if (!shader) return;
-      (
-        ('object' in shader.target
-          ? shader.target.object.getPostPipeline(shader.key)
-          : shader.target.getPostPipeline(shader.key)) as ShaderPipeline
-      )?.update(beat, songTime);
+      shader.filter.update(beat, songTime);
     });
     this._videos?.forEach((video) => video.update(beat, songTime));
   }
@@ -717,6 +728,9 @@ export class Game extends Scene {
           ? a.note.type - b.note.type
           : a.note.startBeat - b.note.startBeat,
       );
+    this._judgmentNotesByStart = [...this._notes].sort(
+      (a, b) => this.getNoteJudgmentStartTime(a) - this.getNoteJudgmentStartTime(b),
+    );
     this._numberOfNotes = this._notes.length;
     this._lines
       .filter((line) => line.data.father != -1)
@@ -724,6 +738,48 @@ export class Game extends Scene {
         const father = this._lines[line.data.father];
         line.setParent(father);
       });
+  }
+
+  resetActiveNoteWindows() {
+    this._lines.forEach((line) => line.resetActiveNoteWindow());
+    this._judgmentNoteIndex = 0;
+    this._activeJudgmentNotes = [];
+  }
+
+  updateActiveJudgmentNotes(beat: number, songTime: number) {
+    while (
+      this._judgmentNoteIndex < this._judgmentNotesByStart.length &&
+      this.getNoteJudgmentStartTime(this._judgmentNotesByStart[this._judgmentNoteIndex]) <= songTime
+    ) {
+      const note = this._judgmentNotesByStart[this._judgmentNoteIndex++];
+      if (this.getNoteJudgmentEndTime(note) >= songTime) {
+        this._activeJudgmentNotes.push(note);
+      }
+    }
+
+    for (let i = this._activeJudgmentNotes.length - 1; i >= 0; i--) {
+      const note = this._activeJudgmentNotes[i];
+      if (this.getNoteJudgmentEndTime(note) < songTime) {
+        this._activeJudgmentNotes.splice(i, 1);
+        continue;
+      }
+      note.updateJudgment(beat, songTime);
+    }
+  }
+
+  private getNoteJudgmentStartTime(note: PlainNote | LongNote) {
+    return note.hitTime - (this.preferences.goodJudgment * 1.125) / 1000;
+  }
+
+  private getNoteJudgmentEndTime(note: PlainNote | LongNote) {
+    const endTime = note.note.type === 2 ? (note as LongNote).endHitTime : note.hitTime;
+    return (
+      endTime +
+      (note.note.type === 2
+        ? HOLD_TAIL_TOLERANCE / 1000
+        : (this.preferences.goodJudgment * 1.125) / 1000) +
+      JUDGMENT_END_GRACE_SEC
+    );
   }
 
   initializeHandlers() {
@@ -787,19 +843,15 @@ export class Game extends Scene {
         return undefined;
       }
       const key = `sh-${effect.shader.slice(6)}-${i}`;
-      if (!('pipelines' in this.renderer)) {
+      if (!('renderNodes' in this.renderer)) {
         alert(m.error_shader_unavailable());
         return undefined;
       }
-      this.renderer.pipelines.addPostPipeline(key, ShaderPipeline);
-      let target;
+      let target: Cameras.Scene2D.Camera | ShaderNode;
+      let filterTarget: Cameras.Scene2D.Camera | GameObjects.Layer;
       if (effect.global) {
         target = this.cameras.main;
-        target.setPostPipeline(key, {
-          scene: this,
-          fragShader: asset.source,
-          data: effect,
-        });
+        filterTarget = this.cameras.main;
       } else {
         if (!effect.targetRange) {
           effect.targetRange = {
@@ -808,20 +860,32 @@ export class Game extends Scene {
             exclusive: false,
           };
         }
-        target = this.registerShaderNode(
+        const shaderNode = this.registerShaderNode(
           new GameObjects.Layer(this),
           effect.targetRange.minZIndex,
           effect.targetRange.maxZIndex,
           key,
         );
-        target.object.setPostPipeline(key, {
-          scene: this,
-          fragShader: asset.source,
-          data: effect,
-          target,
-        });
+        target = shaderNode;
+        filterTarget = shaderNode.object;
       }
-      return { key, effect, target };
+      const camera =
+        filterTarget instanceof Cameras.Scene2D.Camera ? filterTarget : this.cameras.main;
+      const filter = new ShaderFilter(
+        camera,
+        key,
+        this,
+        asset.source!,
+        effect,
+        target instanceof Cameras.Scene2D.Camera ? undefined : target,
+      );
+      if (filterTarget instanceof Cameras.Scene2D.Camera) {
+        filterTarget.filters.external.add(filter);
+      } else {
+        filterTarget.enableFilters();
+        filterTarget.filters!.external.add(filter);
+      }
+      return { key, effect, target, filter };
     });
   }
 
