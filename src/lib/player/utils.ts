@@ -1218,7 +1218,9 @@ export const getAudio = async (url: string): Promise<string> => {
   });
   if (!ffmpeg.loaded) {
     EventBus.emit('loading-detail', m.loading({ name: 'FFmpeg' }));
-    await loadFFmpeg();
+    await loadFFmpeg(undefined, undefined, (progress) => {
+      EventBus.emit('loading', clamp(progress, 0, 1));
+    });
   }
   EventBus.emit('loading-detail', m.processing_audio());
   await ffmpeg.writeFile('input', await fetchFile(originalAudio));

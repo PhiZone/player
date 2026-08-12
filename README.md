@@ -101,16 +101,16 @@ Support of videos in `extra.json` gets extended with the following new propertie
 
 Properties residing in the `attach` object:
 
-| Property                     | Type   | Description                                                                                                                                       |
-| ---------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `line`                       | Number | Determines which line this video is attached to.                                                                                                  |
-| `positionXFactor` (optional) | Number | Multiplied by the x position of the line, determines the x position of this video. Defaults to `1`.                                               |
-| `positionYFactor` (optional) | Number | Multiplied by the y position of the line, determines the y position of this video. Defaults to `1`.                                               |
-| `rotationFactor` (optional)  | Number | Multiplied by the rotation of the line, determines the rotation of this video. Defaults to `1`.                                                   |
-| `alphaFactor` (optional)     | Number | Multiplied by the alpha of the line, determines the alpha of this video, together with the `alpha` property of the video itself. Defaults to `1`. |
-| `tintFactor` (optional)      | Number | Multiplied by the tint of the line, determines the tint of this video. Defaults to `1`.                                                           |
-| `scaleXMode` (optional)      | Number | Determines how `scaleX` events of the line affect this video. Values same as in `scaleOnNotes`. Defaults to `0`.                                  |
-| `scaleYMode` (optional)      | Number | Determines how `scaleY` events of the line affect this video. Values same as in `scaleOnNotes`. Defaults to `0`.                                  |
+| Property                     | Type   | Description                                                                                                                                                         |
+| ---------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `line`                       | Number | Determines which line this video is attached to.                                                                                                                    |
+| `positionXFactor` (optional) | Number | Multiplied by the x position of the line, determines the x position of this video. Defaults to `1`.                                                                 |
+| `positionYFactor` (optional) | Number | Multiplied by the y position of the line, determines the y position of this video. Defaults to `1`.                                                                 |
+| `rotationFactor` (optional)  | Number | Multiplied by the rotation of the line, determines the rotation of this video. Defaults to `1`.                                                                     |
+| `alphaFactor` (optional)     | Number | Multiplied by the alpha of the line, determines the alpha of this video, together with the `alpha` property of the video itself. Defaults to `1`.                   |
+| `tintFactor` (optional)      | Number | Multiplied by the tint of the line, determines the tint of this video. Defaults to `1`.                                                                             |
+| `scaleXMode` (optional)      | Number | Determines how `scaleX` events of the line affect this video. `0`: none; `1`: scale; `2`: clip to line width; `3`: clip to video width × `scaleX`. Defaults to `0`. |
+| `scaleYMode` (optional)      | Number | Determines how `scaleY` events of the line affect this video. Values same as in `scaleOnNotes`. Defaults to `0`.                                                    |
 
 ### Shader enhancements
 

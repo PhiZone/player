@@ -146,7 +146,7 @@
   let selectedBundle = -1;
   let currentBundle: ChartBundle | undefined;
   let preferences: Preferences = {
-    aspectRatio: null,
+    aspectRatio: [3, 2],
     backgroundBlur: 1,
     backgroundLuminance: 0.5,
     chartFlipping: 0,
@@ -1035,7 +1035,9 @@
     });
     if (!ffmpeg.loaded) {
       progressDetail = m.loading({ name: 'FFmpeg' });
-      await loadFFmpeg();
+      await loadFFmpeg(undefined, undefined, (p) => {
+        progress = clamp(p, 0, 1);
+      });
     }
     try {
       progressDetail = m.converting({ name: audio.name });
