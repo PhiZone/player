@@ -25,7 +25,7 @@
   "engines": {
     "node": ">=22"
   },
-  "packageManager": "pnpm@11.0.8+sha512.4c4097e1dd2d42372c4e7fa5a791ff28fc75a484c7ac192e64b1df0fdef17594ba982f9b4fed9adfb3c757846f565b799b2763fb3733d1de1bcb82cf46684912",
+  "packageManager": "pnpm@11.20.0+sha512.9a6f330a95b66446ea088faf1521405a8a01f07fde7124cc9958dfed52d4bb436737e65b08f85f37b46fcba375092558ac51262b816844b22f63406ed166bfee",
   "scripts": {
     "dev": "vite --config vite/config.dev.mjs --host",
     "build:only": "svelte-kit sync && vite build --config vite/config.prod.mjs",
@@ -124,15 +124,5 @@
   },
   "resolutions": {
     "cookie": ">=0.7.0"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@sentry/cli",
-      "esbuild",
-      "sharp"
-    ],
-    "patchedDependencies": {
-      "phaser@3.88.2": "patches/phaser@3.88.2.patch"
-    }
   }
 }

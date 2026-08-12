@@ -1035,7 +1035,9 @@
     });
     if (!ffmpeg.loaded) {
       progressDetail = m.loading({ name: 'FFmpeg' });
-      await loadFFmpeg();
+      await loadFFmpeg(undefined, undefined, (p) => {
+        progress = clamp(p, 0, 1);
+      });
     }
     try {
       progressDetail = m.converting({ name: audio.name });
