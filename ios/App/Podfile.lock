@@ -22,7 +22,7 @@ DEPENDENCIES:
   - "CapacitorCordova (from `../../node_modules/.pnpm/@capacitor+ios@7.6.2_@capacitor+core@7.6.2/node_modules/@capacitor/ios`)"
   - "CapacitorFilesystem (from `../../node_modules/.pnpm/@capacitor+filesystem@7.1.8_@capacitor+core@7.6.2/node_modules/@capacitor/filesystem`)"
   - "CapacitorNetwork (from `../../node_modules/.pnpm/@capacitor+network@7.0.4_@capacitor+core@7.6.2/node_modules/@capacitor/network`)"
-  - "SendIntent (from `../../node_modules/.pnpm/send-intent@7.0.0_@capacitor+core@7.6.2/node_modules/send-intent`)"
+  - "SendIntent (from `../../node_modules/.pnpm/send-intent@7.0.0_@capacitor+core@7.6.2_supports-color@7.2.0/node_modules/send-intent`)"
 
 SPEC REPOS:
   trunk:
@@ -42,7 +42,7 @@ EXTERNAL SOURCES:
   CapacitorNetwork:
     :path: "../../node_modules/.pnpm/@capacitor+network@7.0.4_@capacitor+core@7.6.2/node_modules/@capacitor/network"
   SendIntent:
-    :path: "../../node_modules/.pnpm/send-intent@7.0.0_@capacitor+core@7.6.2/node_modules/send-intent"
+    :path: "../../node_modules/.pnpm/send-intent@7.0.0_@capacitor+core@7.6.2_supports-color@7.2.0/node_modules/send-intent"
 
 SPEC CHECKSUMS:
   Capacitor: 5d4e6523047feb0e4755e5e922ded0372c2dde24
@@ -54,6 +54,6 @@ SPEC CHECKSUMS:
   IONFilesystemLib: 21a63377696b2d8fab5632ecfb7d2ac67bddb68a
   SendIntent: 8a6f646a4489f788d253ffbd1082a98ea388d870
 
-PODFILE CHECKSUM: 7b6db4197050475b8c793eac6cf877da859810ce
+PODFILE CHECKSUM: 7c7e4d64b5dccc602db2a8f64c87de16940de3c4
 
 COCOAPODS: 1.16.2
