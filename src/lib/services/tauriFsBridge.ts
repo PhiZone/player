@@ -46,7 +46,29 @@ export async function pathVideoDir(): Promise<string> {
   return tauriInvoke<string>('get_video_dir');
 }
 
+export async function pathAppDataDir(): Promise<string> {
+  if (isTauri()) {
+    const { appDataDir } = await import('@tauri-apps/api/path');
+    return appDataDir();
+  }
+  return tauriInvoke<string>('get_app_data_dir');
+}
+
 // ── Filesystem operations ─────────────────────────────────────────────
+
+export interface FsDirEntry {
+  name: string;
+  isDir: boolean;
+}
+
+export async function fsReadDir(path: string): Promise<FsDirEntry[]> {
+  if (isTauri()) {
+    const { readDir } = await import('@tauri-apps/plugin-fs');
+    const entries = await readDir(path);
+    return entries.map((entry) => ({ name: entry.name, isDir: entry.isDirectory ?? false }));
+  }
+  return tauriInvoke<FsDirEntry[]>('fs_read_dir', { path });
+}
 
 export async function fsMkdir(path: string, options?: { recursive?: boolean }): Promise<void> {
   if (isTauri()) {

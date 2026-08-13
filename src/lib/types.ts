@@ -14,6 +14,10 @@ export interface Config {
   newTab: boolean;
   inApp: number;
   automate: boolean;
+  /** Storage id of the chart this config was built from, if any. */
+  chartId?: string;
+  /** Original `createdAt` of the stored chart, so saves preserve it. */
+  chartCreatedAt?: number;
 }
 
 export interface Resources {
@@ -87,6 +91,40 @@ export interface MetadataEntry {
   charter: string;
   illustration: string;
   level: string;
+}
+
+/** A chart persisted in local storage (IndexedDB or Tauri app-data folder). */
+export interface StoredChart {
+  id: string;
+  createdAt: number;
+  updatedAt: number;
+  checksum?: string;
+  metadata: Metadata;
+  resources: {
+    chart: File;
+    song: File;
+    illustration: File;
+  };
+  assets: {
+    name: string;
+    type: number;
+    file: File;
+    included: boolean;
+  }[];
+}
+
+/** Lightweight listing entry used by the chart management grid. */
+export interface StoredChartSummary {
+  id: string;
+  createdAt: number;
+  updatedAt: number;
+  checksum?: string;
+  metadata: Metadata;
+  illustration?: {
+    data: Blob;
+    name: string;
+    type: string;
+  };
 }
 
 export interface RpeJson {

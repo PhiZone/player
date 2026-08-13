@@ -515,6 +515,33 @@ fn dispatch_command(command: &str, args: &Value) -> Result<Value, String> {
                 .into_owned();
             Ok(Value::String(dir))
         }
+        "get_app_data_dir" => {
+            if let Some(app) = APP_HANDLE.lock().unwrap().as_ref() {
+                if let Ok(dir) = app.path().app_data_dir() {
+                    return Ok(Value::String(dir.to_string_lossy().into_owned()));
+                }
+            }
+            // Fallback matching Tauri's default `${data_dir}/${identifier}`.
+            let dir = dirs::data_dir()
+                .unwrap_or_else(std::env::temp_dir)
+                .join("cn.phizone.player");
+            Ok(Value::String(dir.to_string_lossy().into_owned()))
+        }
+        "fs_read_dir" => {
+            let path = args["path"].as_str().ok_or("Missing 'path'")?;
+            let entries =
+                std::fs::read_dir(path).map_err(|e| format!("Failed to read directory: {}", e))?;
+            let result: Vec<Value> = entries
+                .filter_map(|e| e.ok())
+                .map(|e| {
+                    serde_json::json!({
+                        "name": e.file_name().to_string_lossy(),
+                        "isDir": e.file_type().map(|t| t.is_dir()).unwrap_or(false),
+                    })
+                })
+                .collect();
+            Ok(serde_json::to_value(result).unwrap())
+        }
         "fs_mkdir" => {
             let path = args["path"].as_str().ok_or("Missing 'path'")?;
             let recursive = args["recursive"].as_bool().unwrap_or(false);

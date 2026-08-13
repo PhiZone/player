@@ -12,11 +12,13 @@
   import { onDestroy, onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import start from './main';
-  import { EventBus } from './EventBus';
+  import { EventBus, setAutostartBlocked } from './EventBus';
   import { GameStatus, type Config } from '$lib/types';
   import {
     clamp,
     getParams,
+    IS_ANDROID_OR_IOS,
+    IS_IFRAME,
     IS_TAURI,
     IS_TAURI_LIKE,
     notify,
@@ -36,6 +38,7 @@
   import { m } from '$lib/paraglide/messages';
   import { tauriInvoke } from '$lib/services/tauriIpc';
   import { pathSep, openPath } from '$lib/services/tauriFsBridge';
+  import { syncChart } from '$lib/services/chartStorage';
 
   export let gameRef: GameReference;
   export let config: Config | null = null;
@@ -97,6 +100,30 @@
   let regions: Regions | undefined;
   let isOffsetAdjustedChartExported = false;
 
+  const isPortrait = () => window.matchMedia('(orientation: portrait)').matches;
+
+  let orientationPortrait = isPortrait();
+  let rotationPromptDismissed = false;
+
+  $: rotationPromptVisible =
+    status === GameStatus.LOADING &&
+    IS_ANDROID_OR_IOS &&
+    orientationPortrait &&
+    !rotationPromptDismissed;
+
+  $: {
+    setAutostartBlocked(rotationPromptVisible);
+    if (!rotationPromptVisible) EventBus.emit('autostart-unblocked');
+  }
+
+  const handleResize = () => {
+    orientationPortrait = isPortrait();
+  };
+
+  const dismissRotationPrompt = () => {
+    rotationPromptDismissed = true;
+  };
+
   let performanceEnabled = showPerformance();
   let performanceStats: StatsJS | undefined;
 
@@ -119,6 +146,8 @@
 
     addEventListener('contextmenu', handleContextMenu, { passive: false });
     addEventListener('wheel', handleWheel, { passive: false });
+    addEventListener('resize', handleResize);
+    addEventListener('orientationchange', handleResize);
 
     EventBus.on('loading', (p: number) => {
       loadingProgress = p;
@@ -293,7 +322,7 @@
         }
         wavesurfer?.setTime(t);
         if (t === duration && enableOffsetHelper && !isOffsetAdjustedChartExported) {
-          exportOffsetAdjustedChart();
+          saveOffsetAdjustedChart();
         }
       }
       timeSec = t;
@@ -334,6 +363,8 @@
     gameRef.game?.destroy(true);
     removeEventListener('contextmenu', handleContextMenu);
     removeEventListener('wheel', handleWheel);
+    removeEventListener('resize', handleResize);
+    removeEventListener('orientationchange', handleResize);
     if (performanceStats) {
       gameRef.scene?.events.off('preupdate', performanceStats.begin);
       gameRef.scene?.events.off('render', performanceStats.end);
@@ -401,7 +432,7 @@
     }
   };
 
-  const exportOffsetAdjustedChart = () => {
+  const saveOffsetAdjustedChart = async () => {
     const content = JSON.stringify(gameRef.scene?.chart, (key, value) => {
       if (
         key === 'startBeat' ||
@@ -413,12 +444,55 @@
       }
       return value;
     });
-    triggerDownload(
-      new Blob([content], { type: 'application/json' }),
-      `${title} [${level}] (offset ${offset >= 0 ? '+' : '-'}${Math.abs(offset).toFixed(0)}).json`,
-      'adjustedOffset',
-    );
-    isOffsetAdjustedChartExported = true;
+    const resources = config?.resources;
+    const c = config;
+    if (!resources || !c) return;
+    // In an embedded iframe the parent site explicitly asks for the file.
+    if (IS_IFRAME) {
+      triggerDownload(
+        new Blob([content], { type: 'application/json' }),
+        `${title} [${level}] (offset ${offset >= 0 ? '+' : '-'}${Math.abs(offset).toFixed(0)}).json`,
+        'adjustedOffset',
+      );
+      isOffsetAdjustedChartExported = true;
+      return;
+    }
+    try {
+      const fetchBlob = async (url: string) => await (await fetch(url)).blob();
+      const [songBlob, illustrationBlob] = await Promise.all([
+        fetchBlob(resources.song),
+        fetchBlob(resources.illustration),
+      ]);
+      const assetFiles = await Promise.all(
+        resources.assets.map(async (url, i) => ({
+          name: resources.assetNames[i],
+          type: resources.assetTypes[i],
+          file: new File([await fetchBlob(url)], resources.assetNames[i]),
+          included: true,
+        })),
+      );
+      const chartName = `${(title ?? 'chart').replaceAll(/[\\/:*?"<>|]/g, '')} [${level ?? ''}].json`;
+      await syncChart({
+        id: c.chartId ?? crypto.randomUUID(),
+        createdAt: c.chartCreatedAt ?? Date.now(),
+        updatedAt: Date.now(),
+        metadata: c.metadata,
+        resources: {
+          chart: new File([content], chartName, { type: 'application/json' }),
+          song: new File([songBlob], resources.song.split('/').pop() ?? 'song'),
+          illustration: new File(
+            [illustrationBlob],
+            resources.illustration.split('/').pop() ?? 'illustration',
+          ),
+        },
+        assets: assetFiles,
+      });
+      isOffsetAdjustedChartExported = true;
+      notify(m.chart_saved(), 'success');
+    } catch (e) {
+      console.warn('Failed to save offset-adjusted chart:', e);
+      notify(String(e), 'failure');
+    }
   };
 </script>
 
@@ -618,6 +692,25 @@
   {/if}
 </div>
 
+{#if rotationPromptVisible}
+  <div
+    class="absolute inset-0 z-50 flex flex-col justify-center items-center gap-6 p-8 text-center bg-black/70 backdrop-blur-2xl"
+  >
+    <button
+      class="btn btn-outline border-2 btn-circle absolute top-5 right-5"
+      aria-label={m.close()}
+      onclick={dismissRotationPrompt}
+    >
+      <i class="fa-solid fa-xmark fa-xl"></i>
+    </button>
+    <div class="rotate-device-animation text-7xl">
+      <i class="fa-solid fa-mobile-screen"></i>
+    </div>
+    <h2 class="text-4xl font-bold">{m.rotate_device()}</h2>
+    <span class="text-xl opacity-70">{m.rotate_device_description()}</span>
+  </div>
+{/if}
+
 {#if allowSeek}
   <div
     class="absolute bottom-5 px-4 py-2 w-[75vw] flex flex-col gap-4 opacity-0 trans {enableOffsetHelper
@@ -705,15 +798,16 @@
             </div>
             <button
               class="btn btn-sm btn-circle btn-outline"
-              aria-label="Export offset-adjusted chart"
+              aria-label={m.save_offset_chart()}
+              title={m.save_offset_chart()}
               onclick={() => {
-                exportOffsetAdjustedChart();
+                saveOffsetAdjustedChart();
               }}
               onmousedown={(e) => {
                 e.preventDefault();
               }}
             >
-              <i class="fa-solid fa-file-export"></i>
+              <i class="fa-solid fa-floppy-disk"></i>
             </button>
           </div>
         </div>
@@ -889,6 +983,20 @@
   .trans {
     transition-timing-function: cubic-bezier(0.165, 0.84, 0.44, 1);
     @apply transition duration-300;
+  }
+  .rotate-device-animation {
+    animation: rotate-device 2s ease-in-out infinite;
+  }
+  @keyframes rotate-device {
+    0% {
+      transform: rotate(-90deg);
+    }
+    50% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(-90deg);
+    }
   }
   .waveform-height {
     height: calc(100% - 16px);

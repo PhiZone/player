@@ -1,5 +1,5 @@
 import { Cameras, GameObjects, Scene, Sound } from 'phaser';
-import { EventBus } from '../EventBus';
+import { EventBus, isAutostartBlocked } from '../EventBus';
 import { inferLevelType, fit, send, getLines, IS_TAURI_LIKE } from '$lib/utils';
 import {
   processIllustration,
@@ -84,6 +84,7 @@ export class Game extends Scene {
   private _autoplay = false;
   private _practice = false;
   private _autostart = false;
+  private _autostartPending = false;
   private _adjustOffset = false;
   private _render = false;
 
@@ -111,6 +112,13 @@ export class Game extends Scene {
   private _isSeeking: boolean = false;
   private _timeScale: number = 1;
   private _lastProgressUpdate: number | undefined;
+
+  private _onAutostartUnblocked = () => {
+    if (this._autostartPending) {
+      this._autostartPending = false;
+      this.start();
+    }
+  };
 
   private _fonts: Record<string, string> = {};
 
@@ -270,6 +278,7 @@ export class Game extends Scene {
 
   create() {
     if (this._status === GameStatus.ERROR) return;
+    EventBus.on('autostart-unblocked', this._onAutostartUnblocked);
     const load = async () => {
       const { background, cropped } = await processIllustration(
         this._illustrationUrl,
@@ -363,7 +372,11 @@ export class Game extends Scene {
         if (this._render) {
           this.startRendering();
         } else if (this._autostart) {
-          this.start();
+          if (isAutostartBlocked()) {
+            this._autostartPending = true;
+          } else {
+            this.start();
+          }
         } else {
           this._status = GameStatus.READY;
         }
@@ -593,6 +606,7 @@ export class Game extends Scene {
   }
 
   destroy() {
+    EventBus.off('autostart-unblocked', this._onAutostartUnblocked);
     this._status = GameStatus.DESTROYED;
     this._song.destroy();
     this._lines.forEach((line) => line.destroy());

@@ -8,6 +8,7 @@ import {
   type ResourcePack,
   type ResourcePackWithId,
   type RpeMeta,
+  type StoredChart,
 } from './types';
 import { AndroidFullScreen } from '@awesome-cordova-plugins/android-full-screen';
 import { Capacitor } from '@capacitor/core';
@@ -344,6 +345,30 @@ export const convertRespackToURL = (respack: ResourcePack<File>) => {
   return result;
 };
 
+/** Re-zip a stored chart back into a .zip bundle for download. */
+export const exportChart = async (chart: StoredChart) => {
+  const zip = new JSZip();
+  const usedNames = new Set<string>();
+  const addFile = (file: File, preferredName?: string) => {
+    let name = preferredName ?? file.name;
+    let i = 2;
+    while (usedNames.has(name)) {
+      const dot = name.lastIndexOf('.');
+      name = dot > 0 ? `${name.slice(0, dot)}-${i}${name.slice(dot)}` : `${name}-${i}`;
+      i++;
+    }
+    usedNames.add(name);
+    zip.file(name, file);
+  };
+  addFile(chart.resources.chart);
+  addFile(chart.resources.song);
+  addFile(chart.resources.illustration);
+  chart.assets.forEach((asset) => addFile(asset.file, asset.name));
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const filename = ensafeFilename(chart.metadata.title ?? 'chart') + '.zip';
+  triggerDownload(blob, filename, 'chart');
+};
+
 export const updateMetadata = (metadata: MetadataEntry, chartMeta: RpeMeta) => {
   metadata.name = chartMeta.name;
   metadata.song = chartMeta.song;
@@ -392,10 +417,10 @@ export const fit = (
 export const triggerDownload = (
   blob: Blob,
   name: string,
-  purpose: 'adjustedOffset' | 'resourcePack',
+  purpose: 'adjustedOffset' | 'resourcePack' | 'chart',
   always = false,
 ) => {
-  if (IS_IFRAME && purpose !== 'resourcePack') {
+  if (IS_IFRAME && purpose !== 'resourcePack' && purpose !== 'chart') {
     send({
       type: 'fileOutput',
       payload: {
@@ -475,6 +500,10 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
 
   const automate = ['1', 'true'].some((v) => v == p.get('automate'));
 
+  const chartId = p.get('chartId') ?? undefined;
+  const chartCreatedAtRaw = p.get('chartCreatedAt');
+  const chartCreatedAt = chartCreatedAtRaw ? parseFloat(chartCreatedAtRaw) : undefined;
+
   let resourcePack = DEFAULT_RESOURCE_PACK as ResourcePack<string>;
   const respackParam = p.get('resourcePack');
   if (respackParam) {
@@ -544,6 +573,8 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
     newTab,
     inApp,
     automate,
+    chartId,
+    chartCreatedAt,
   };
 };
 

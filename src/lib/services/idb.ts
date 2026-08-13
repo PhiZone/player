@@ -1,9 +1,10 @@
 const DB_NAME = 'phizone_player';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 const STORES: Record<string, IDBObjectStoreParameters> = {
   resource_packs: { keyPath: 'id' },
   ffmpeg: { keyPath: 'key' },
+  charts: { keyPath: 'id' },
 };
 
 export function openDB(): Promise<IDBDatabase> {

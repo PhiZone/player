@@ -29,6 +29,7 @@
   import {
     clamp,
     convertRespackToURL,
+    exportChart,
     exportRespack,
     extractTgz,
     fit,
@@ -95,6 +96,16 @@
   } from '$lib/services/respackStorage';
   import { tauriInvoke } from '$lib/services/tauriIpc';
   import { fsReadFile } from '$lib/services/tauriFsBridge';
+  import {
+    computeChartChecksum,
+    deleteChart as deleteStoredChart,
+    loadAllChartSummaries,
+    loadChart as loadStoredChart,
+    syncChart as syncStoredChart,
+  } from '$lib/services/chartStorage';
+  import { groupFilesIntoCharts, type ChartGroupInput } from '$lib/services/chartGrouping';
+  import ChartManager from '$lib/components/ChartManager.svelte';
+  import type { StoredChart, StoredChartSummary } from '$lib/types';
 
   interface FileEntry {
     id: number;
@@ -120,19 +131,40 @@
     chart: number;
     illustration: number;
     metadata: Metadata;
+    /** Storage id once this bundle has been synced to chart storage. */
+    storedId?: string;
+    storedCreatedAt?: number;
+    storedChecksum?: string;
+    /** Per-chart asset files scoped at import time (within-batch grouping). */
+    scopedAssetFiles?: Set<File>;
   }
 
-  // Resource pack storage is handled by $lib/services/respackStorage
+  // Resource pack storage is handled by $lib/services/chartStorage
 
   let showCollapse = false;
-  let showRespack = false;
+  let viewMode: 'chart' | 'storage' | 'respack' = 'storage';
   let showMediaCollapse = false;
   let overrideResolution = false;
   let modalMem = false;
   let directoryInput: HTMLInputElement;
+  let fileInput: HTMLInputElement;
   let appModal: HTMLDialogElement;
   let clipboardModal: HTMLDialogElement;
   let monitor: Monitor | null = null;
+
+  let storedChartSummaries: StoredChartSummary[] = [];
+
+  // True only while handling programmatic postMessage imports (zipInput/
+  // fileInput/zipUrlInput/fileUrlInput) — those must not write to storage.
+  let isProgrammaticImport = false;
+  /** Raw files of the current import batch, used for within-batch grouping. */
+  let batchEntries: ChartGroupInput[] = [];
+
+  // Duplicate-import detection (checksum dedup).
+  const DUPLICATE_CHOICE_KEY = 'duplicateImportChoice';
+  let duplicateModal: HTMLDialogElement;
+  let duplicateModalMem = false;
+  let duplicateResolve: ((choice: 'overwrite' | 'load') => void) | null = null;
 
   let progress = -1;
   let progressSpeed = -1;
@@ -315,61 +347,82 @@
       console.warn('Failed to load stored resource packs:', e);
     }
 
+    try {
+      storedChartSummaries = await loadAllChartSummaries();
+    } catch (e) {
+      console.warn('Failed to load stored charts:', e);
+    }
+
     await init();
 
     addEventListener('message', async (e: MessageEvent<IncomingMessage>) => {
       const message = e.data;
       if (!message || !message.type) return;
       if (message.type === 'play') {
-        let config: Config;
-        const { preferences: pref, mediaOptions: rec, ...rest } = message.payload;
-        if (pref) preferences = pref;
-        if (rec) mediaOptions = rec;
-        for (const key in rest) {
-          if (rest[key as keyof typeof rest] !== undefined) {
-            toggles[key as keyof typeof toggles] = rest[key as keyof typeof rest] as never;
+        // Parent-site-driven playback is programmatic; it must not write to
+        // local storage (same rule as zip/fileInput imports).
+        isProgrammaticImport = true;
+        try {
+          let config: Config;
+          const { preferences: pref, mediaOptions: rec, ...rest } = message.payload;
+          if (pref) preferences = pref;
+          if (rec) mediaOptions = rec;
+          for (const key in rest) {
+            if (rest[key as keyof typeof rest] !== undefined) {
+              toggles[key as keyof typeof toggles] = rest[key as keyof typeof rest] as never;
+            }
           }
+          if ('resources' in message.payload) {
+            config = message.payload;
+          } else {
+            config = handleConfig();
+          }
+          await handleParams(config);
+        } finally {
+          isProgrammaticImport = false;
         }
-        if ('resources' in message.payload) {
-          config = message.payload;
-        } else {
-          config = handleConfig();
-        }
-        await handleParams(config);
       } else if (
         message.type === 'zipInput' ||
         message.type === 'fileInput' ||
         message.type === 'zipUrlInput' ||
         message.type === 'fileUrlInput'
       ) {
-        showCollapse = true;
-        const bundleFileMatrix: File[][] = [];
-        let replacee: number | undefined = undefined;
-        if (message.type.includes('Url')) {
-          const payload = (e.data as UrlInputMessage).payload;
-          replacee = payload.replacee;
-          if (message.type === 'zipUrlInput') {
-            bundleFileMatrix.push(
-              ...(await decompressZipArchives(await downloadUrls(payload.input))),
-            );
-          } else if (message.type === 'fileUrlInput') {
-            bundleFileMatrix.push(await downloadUrls(payload.input));
+        // Programmatic/automated imports from an embedding parent must not
+        // silently write to local storage.
+        isProgrammaticImport = true;
+        try {
+          showCollapse = true;
+          const bundleFileMatrix: File[][] = [];
+          let replacee: number | undefined = undefined;
+          if (message.type.includes('Url')) {
+            const payload = (e.data as UrlInputMessage).payload;
+            replacee = payload.replacee;
+            if (message.type === 'zipUrlInput') {
+              bundleFileMatrix.push(
+                ...(await decompressZipArchives(await downloadUrls(payload.input))),
+              );
+            } else if (message.type === 'fileUrlInput') {
+              bundleFileMatrix.push(await downloadUrls(payload.input));
+            }
+          } else {
+            const payload = (e.data as BlobInputMessage).payload;
+            replacee = payload.replacee;
+            if (message.type === 'zipInput') {
+              bundleFileMatrix.push(
+                ...(await decompressZipArchives(
+                  payload.input.map((blob) => new File([blob], 'archive.zip')),
+                )),
+              );
+            } else if (message.type === 'fileInput') {
+              bundleFileMatrix.push(payload.input.map((blob) => new File([blob], 'file')));
+            }
           }
-        } else {
-          const payload = (e.data as BlobInputMessage).payload;
-          replacee = payload.replacee;
-          if (message.type === 'zipInput') {
-            bundleFileMatrix.push(
-              ...(await decompressZipArchives(
-                payload.input.map((blob) => new File([blob], 'archive.zip')),
-              )),
-            );
-          } else if (message.type === 'fileInput') {
-            bundleFileMatrix.push(payload.input.map((blob) => new File([blob], 'file')));
+          batchEntries = bundleFileMatrix.flat().map((file) => ({ file }));
+          for (const files of bundleFileMatrix) {
+            await handleFiles(files, replacee);
           }
-        }
-        for (const files of bundleFileMatrix) {
-          await handleFiles(files, replacee);
+        } finally {
+          isProgrammaticImport = false;
         }
       }
     });
@@ -572,7 +625,7 @@
   };
 
   const handleConfig = () => {
-    const assetsIncluded = assets.filter((asset) => asset.included);
+    const assetsIncluded = bundleAssets().filter((asset) => asset.included);
     if (!currentBundle) {
       alert(m.no_bundle_available());
       throw new Error(m.no_bundle_available());
@@ -592,6 +645,8 @@
       resourcePack: ensureRespackSerializable(
         resourcePacks.find((pack) => pack.id === selectedResourcePack)!,
       ),
+      chartId: currentBundle?.storedId ?? undefined,
+      chartCreatedAt: currentBundle?.storedCreatedAt ?? undefined,
       ...toggles,
       automate,
     };
@@ -761,18 +816,21 @@
       });
 
     const regularFiles: File[] = [];
+    const decompressedFiles: File[] = [];
     for (const file of promises
       .filter((promise) => promise.status === 'fulfilled')
       .map((promise) => (promise as PromiseFulfilledResult<File>).value)) {
       try {
-        const files = await decompress(file);
-        await handleFiles(files);
+        decompressedFiles.push(...(await decompress(file)));
       } catch (e) {
         console.debug(`Cannot decompress ${file.name}`, e);
         regularFiles.push(file);
       }
     }
-    await handleFiles(regularFiles);
+    batchEntries = [...decompressedFiles, ...regularFiles].map((file) => ({ file }));
+    for (const files of [decompressedFiles, regularFiles]) {
+      await handleFiles(files);
+    }
   }
 
   const shareId = (a: FileEntry, b: FileEntry) =>
@@ -954,7 +1012,7 @@
     metadata?: Metadata,
     fallback: boolean = false,
     silent: boolean = true,
-  ) => {
+  ): Promise<ChartBundle | undefined> => {
     songFile ??= audioFiles.find((file) => shareId(file, chartFile));
     if (songFile === undefined) {
       if (!fallback) {
@@ -1342,10 +1400,15 @@
 
   const processInputFiles = async (files: File[]) => {
     const zipArchives = files.filter(isZip);
-    for (const bundleFiles of await decompressZipArchives(zipArchives)) {
+    const regularFiles = files.filter((file) => !isZip(file));
+    const decompressedFiles = (await decompressZipArchives(zipArchives)).flat();
+    // Grouping must see the *extracted* contents of any ZIPs, not the
+    // archive blobs themselves, otherwise each chart's files can never be
+    // told apart (and asset scoping falls back to "include everything").
+    batchEntries = [...decompressedFiles, ...regularFiles].map((file) => ({ file }));
+    for (const bundleFiles of [decompressedFiles, regularFiles]) {
       await handleFiles(bundleFiles);
     }
-    await handleFiles(files.filter((file) => !isZip(file)));
   };
 
   const handleFiles = async (files: File[] | null, replacee?: number) => {
@@ -1355,9 +1418,11 @@
     resetProgress();
     progressDetail = m.processing_files();
     const now = Date.now();
+    const importedAssetIds = new Set<number>();
     await Promise.all(
       files.map(async (file, i) => {
         const id = now + i;
+        importedAssetIds.add(id);
         let mimeType: string | null = null;
         try {
           mimeType = (await fileTypeFromBlob(file))?.mime.toString() ?? mime.getType(file.name);
@@ -1407,10 +1472,13 @@
         assets.push({ id, type, file, included: isIncluded(file.name) });
       }),
     );
-    progressDetail = m.resolving_resources();
-    const textAssets = assets.filter((asset) => asset.type === 3);
+    // Resolve only text assets from this import. The global asset pool also
+    // contains files from earlier imports and must not control this batch's
+    // deduplication or resource resolution.
+    const textAssets = assets.filter((asset) => importedAssetIds.has(asset.id) && asset.type === 3);
     let bundlesResolved = 0;
     let respacksResolved = 0;
+    const newlyResolvedBundles: ChartBundle[] = [];
     for (let i = 0; i < textAssets.length; i++) {
       progress = i / textAssets.length;
       const asset = textAssets[i];
@@ -1422,9 +1490,18 @@
       {
         let metadata = readMetadataForChart(content);
         if (metadata) {
-          const chartFile = chartFiles.find((file) => file.file.name === metadata.chart);
-          const songFile = audioFiles.find((file) => file.file.name === metadata.song);
-          const illustrationFile = imageFiles.find((file) => file.file.name === metadata.picture);
+          const chartFile =
+            chartFiles.find(
+              (file) => importedAssetIds.has(file.id) && file.file.name === metadata.chart,
+            ) ?? chartFiles.find((file) => file.file.name === metadata.chart);
+          const songFile =
+            audioFiles.find(
+              (file) => importedAssetIds.has(file.id) && file.file.name === metadata.song,
+            ) ?? audioFiles.find((file) => file.file.name === metadata.song);
+          const illustrationFile =
+            imageFiles.find(
+              (file) => importedAssetIds.has(file.id) && file.file.name === metadata.picture,
+            ) ?? imageFiles.find((file) => file.file.name === metadata.picture);
           if (chartFile) {
             try {
               const chartMeta = (JSON.parse(await chartFile.file.text()) as RpeJson).META;
@@ -1432,10 +1509,11 @@
             } catch (e) {
               console.debug('Chart is not a valid RPE JSON:', e);
             }
-            await createBundle(chartFile, songFile, illustrationFile, {
+            const bundle = await createBundle(chartFile, songFile, illustrationFile, {
               id: asset.id,
               ...metadata,
             });
+            if (bundle) newlyResolvedBundles.push(bundle);
             bundlesResolved++;
             continue;
           }
@@ -1472,32 +1550,65 @@
         }
       }
     }
-    if (
-      chartBundles.length === 0 &&
-      chartFiles.length > 0 &&
-      audioFiles.length > 0 &&
-      imageFiles.length > 0
-    ) {
-      let metadata = {
-        name: '',
-        song: '',
-        picture: '',
-        chart: '',
-        composer: '',
-        charter: '',
-        illustration: '',
-        level: '',
+    const unresolvedChartFiles = chartFiles.filter(
+      (chartFile) =>
+        importedAssetIds.has(chartFile.id) &&
+        !chartBundles.some((bundle) => bundle.chart === chartFile.id),
+    );
+    if (unresolvedChartFiles.length > 0 && audioFiles.length > 0 && imageFiles.length > 0) {
+      // Fallback: create one bundle per chart file, preferring song and
+      // illustration from the chart's own folder (or shareId match).
+      const folderOf = (file: File) => {
+        const name = file.webkitRelativePath || file.name;
+        const idx = name.indexOf('/');
+        return idx === -1 ? null : name.slice(0, idx);
       };
-      try {
-        metadata = readMetadataForChart(
+      for (const chartFile of unresolvedChartFiles) {
+        const folder = folderOf(chartFile.file);
+        const sameFolder = (entry: FileEntry) => folder !== null && folderOf(entry.file) === folder;
+        const currentAudioFiles = audioFiles.filter((file) => importedAssetIds.has(file.id));
+        const currentImageFiles = imageFiles.filter((file) => importedAssetIds.has(file.id));
+        const songFile =
+          currentAudioFiles.find((f) => sameFolder(f)) ??
+          currentAudioFiles.find((f) => shareId(f, chartFile)) ??
+          currentAudioFiles[0] ??
+          audioFiles.find((f) => shareId(f, chartFile)) ??
+          audioFiles[0];
+        const illustrationFile =
+          currentImageFiles.find((f) => sameFolder(f)) ??
+          currentImageFiles.find((f) => shareId(f, chartFile)) ??
+          currentImageFiles[0] ??
+          imageFiles.find((f) => shareId(f, chartFile)) ??
+          imageFiles[0];
+        let metadata = {
+          name: '',
+          song: '',
+          picture: '',
+          chart: '',
+          composer: '',
+          charter: '',
+          illustration: '',
+          level: '',
+        };
+        try {
+          metadata = readMetadataForChart(
+            undefined,
+            (JSON.parse(await chartFile.file.text()) as RpeJson).META,
+          );
+        } catch (e) {
+          console.debug('Chart is not a valid RPE JSON:', e);
+        }
+        const bundle = await createBundle(
+          chartFile,
+          songFile,
+          illustrationFile,
+          metadata,
           undefined,
-          (JSON.parse(await chartFiles[0].file.text()) as RpeJson).META,
+          true,
         );
-      } catch (e) {
-        console.debug('Chart is not a valid RPE JSON:', e);
+        if (bundle) newlyResolvedBundles.push(bundle);
       }
-      await createBundle(chartFiles[0], undefined, undefined, metadata, undefined, true);
-      bundlesResolved++;
+      bundlesResolved += chartFiles.length;
     }
     if (chartBundles.length > 0 && selectedBundle === -1) {
       currentBundle = chartBundles[0];
@@ -1517,7 +1628,16 @@
     assets = assets;
     chartBundles = chartBundles;
     done = true;
-    showRespack = respacksResolved > 0;
+    if (bundlesResolved > 0) {
+      viewMode = 'chart';
+    } else if (respacksResolved > 0) {
+      viewMode = 'respack';
+    }
+    if (newlyResolvedBundles.length > 0 && shouldSaveImport()) {
+      progressDetail = m.saving_chart();
+      showProgress = true;
+      await syncImportedCharts(newlyResolvedBundles);
+    }
     declareFinished();
     send({
       type: 'inputResponse',
@@ -1543,6 +1663,212 @@
         );
       }, 1000),
     );
+  };
+
+  // ── Chart storage sync ──────────────────────────────────────────────
+
+  const shouldSaveImport = () => !automate && !isProgrammaticImport;
+
+  const getDuplicateChoice = (): 'ask' | 'overwrite' | 'load' => {
+    const value = localStorage.getItem(DUPLICATE_CHOICE_KEY);
+    return value === 'overwrite' || value === 'load' ? value : 'ask';
+  };
+
+  const resolveDuplicateChoice = async (): Promise<'overwrite' | 'load'> => {
+    const remembered = getDuplicateChoice();
+    if (remembered !== 'ask') return remembered;
+    if (!duplicateModal) return 'overwrite';
+    duplicateModalMem = false;
+    duplicateModal.showModal();
+    return new Promise<'overwrite' | 'load'>((resolve) => {
+      duplicateResolve = resolve;
+    });
+  };
+
+  const chooseDuplicate = (choice: 'overwrite' | 'load') => {
+    if (duplicateModalMem) {
+      localStorage.setItem(DUPLICATE_CHOICE_KEY, choice);
+    }
+    duplicateResolve?.(choice);
+    duplicateResolve = null;
+  };
+
+  const refreshStoredSummaries = async () => {
+    try {
+      storedChartSummaries = await loadAllChartSummaries();
+    } catch (e) {
+      console.warn('Failed to reload stored charts:', e);
+    }
+  };
+
+  /** Asset entries belonging to `bundle` (per-chart scoping). */
+  const bundleAssets = (bundle: ChartBundle | undefined = currentBundle) => {
+    if (!bundle) return [];
+    if (bundle.scopedAssetFiles) {
+      const scope = bundle.scopedAssetFiles;
+      // Prefer identity matching; fall back to name matching. Audio files
+      // get re-created by convertAudio (same name, different File object),
+      // so identity alone would drop them from the scoped asset list.
+      let matched = assets.filter((asset) => scope.has(asset.file));
+      const matchedNames = new Set(matched.map((asset) => asset.file.name));
+      const unmatched = [...scope].filter((file) => !matchedNames.has(file.name));
+      if (unmatched.length > 0) {
+        const unmatchedNames = new Set(unmatched.map((file) => file.name));
+        matched = [
+          ...matched,
+          ...assets.filter(
+            (asset) => !matchedNames.has(asset.file.name) && unmatchedNames.has(asset.file.name),
+          ),
+        ];
+      }
+      return matched;
+    }
+    return [];
+  };
+
+  /** Convert the current working state for `bundle` into a StoredChart. */
+  const buildStoredChartFromBundle = (bundle: ChartBundle): StoredChart | null => {
+    const chartFile = chartFiles.find((file) => file.id === bundle.chart);
+    const songFile = audioFiles.find((file) => file.id === bundle.song);
+    const illustrationFile = imageFiles.find((file) => file.id === bundle.illustration);
+    if (!chartFile || !songFile || !illustrationFile) return null;
+    return {
+      id: bundle.storedId ?? crypto.randomUUID(),
+      createdAt: bundle.storedCreatedAt ?? Date.now(),
+      updatedAt: Date.now(),
+      checksum: bundle.storedChecksum,
+      metadata: { ...bundle.metadata },
+      resources: {
+        chart: chartFile.file,
+        song: songFile.file,
+        illustration: illustrationFile.file,
+      },
+      assets: bundleAssets(bundle).map((asset) => ({
+        name: asset.file.name,
+        type: asset.type,
+        file: asset.file,
+        included: asset.included,
+      })),
+    };
+  };
+
+  /** Upsert `bundle` to chart storage, remembering its storage identity. */
+  const syncBundle = async (
+    bundle: ChartBundle,
+    options: { computeChecksum?: boolean; silent?: boolean } = {},
+  ) => {
+    const stored = buildStoredChartFromBundle(bundle);
+    if (!stored) return;
+    // Always ensure a checksum exists — dedup compares against stored
+    // checksums, so charts saved via Play/Save without one would never
+    // match a re-imported copy.
+    if (options.computeChecksum || !stored.checksum) {
+      stored.checksum = await computeChartChecksum(stored);
+      bundle.storedChecksum = stored.checksum;
+    }
+    await syncStoredChart(stored);
+    bundle.storedId = stored.id;
+    bundle.storedCreatedAt = stored.createdAt;
+    await refreshStoredSummaries();
+    if (!options.silent) notify(m.chart_saved(), 'success');
+  };
+
+  /** Handle a freshly imported chart batch: dedup check + sync. */
+  const syncImportedCharts = async (bundles: ChartBundle[]) => {
+    // Always run within-batch grouping so each chart's asset list is scoped
+    // to files that actually belong to it (shareId match / explicit
+    // reference / sole occupant of a single-chart batch) — never the whole
+    // (potentially session-wide) `assets` pool. This also keeps checksums
+    // stable across re-imports of the same files.
+    const groups = await groupFilesIntoCharts(batchEntries);
+    let loadRequestedId: string | null = null;
+    for (const bundle of bundles) {
+      const bundleChartFile = chartFiles.find((file) => file.id === bundle.chart)?.file;
+      const group = groups.find((g) => g.chart.resources.chart === bundleChartFile);
+      // Always assign scoping when a group is found, even if it resolves to
+      // an empty set — that still means "no extra assets", which must take
+      // precedence over the unsafe include-everything fallback.
+      if (group) {
+        bundle.scopedAssetFiles = new Set(group.chart.assets.map((asset) => asset.file));
+      }
+      const stored = buildStoredChartFromBundle(bundle);
+      if (!stored) continue;
+      // Dedup against the original import payload. `handleFiles` may replace
+      // an audio File with a normalized WAV, so hashing `stored` here would
+      // make the import identity depend on post-processing rather than on
+      // the files the user actually imported.
+      stored.checksum = group
+        ? await computeChartChecksum(group.chart)
+        : await computeChartChecksum(stored);
+      const existing = storedChartSummaries.find((s) => s.checksum === stored.checksum);
+      if (existing) {
+        const choice = await resolveDuplicateChoice();
+        if (choice === 'load') {
+          // Defer replacing the working state until the loop ends — doing it
+          // here would wipe the other bundles of a multi-chart batch mid-way.
+          loadRequestedId = existing.id;
+          continue;
+        }
+        // "Import & overwrite": keep the new files, reuse the existing id.
+        stored.id = existing.id;
+        stored.createdAt = existing.createdAt;
+      }
+      bundle.storedChecksum = stored.checksum;
+      await syncStoredChart(stored);
+      bundle.storedId = stored.id;
+      bundle.storedCreatedAt = stored.createdAt;
+    }
+    if (loadRequestedId) {
+      const loaded = await loadStoredChart(loadRequestedId);
+      await loadChartIntoWorkingState(loaded);
+    }
+    await refreshStoredSummaries();
+  };
+
+  /** Replace the working state with a stored chart (Load action). */
+  const loadChartIntoWorkingState = async (stored: StoredChart) => {
+    chartFiles = [];
+    audioFiles = [];
+    imageFiles = [];
+    assets = [];
+    chartBundles = [];
+    const now = Date.now();
+    const chartId = now;
+    const songId = now + 1;
+    const illustrationId = now + 2;
+    chartFiles.push({ id: chartId, file: stored.resources.chart });
+    audioFiles.push({ id: songId, file: stored.resources.song });
+    imageFiles.push({
+      id: illustrationId,
+      file: stored.resources.illustration,
+      url: URL.createObjectURL(stored.resources.illustration),
+    });
+    assets = stored.assets.map((asset, i) => ({
+      id: now + 3 + i,
+      type: asset.type,
+      file: asset.file,
+      included: asset.included,
+    }));
+    const bundle: ChartBundle = {
+      id: now + 1000,
+      song: songId,
+      chart: chartId,
+      illustration: illustrationId,
+      metadata: { ...stored.metadata },
+      storedId: stored.id,
+      storedCreatedAt: stored.createdAt,
+      storedChecksum: stored.checksum,
+      scopedAssetFiles: new Set(stored.assets.map((asset) => asset.file)),
+    };
+    chartBundles.push(bundle);
+    chartBundles = chartBundles;
+    currentBundle = bundle;
+    selectedBundle = bundle.id;
+    selectedChart = chartId;
+    selectedSong = songId;
+    selectedIllustration = illustrationId;
+    done = true;
+    viewMode = 'chart';
   };
 
   const getUrl = (blob: Blob | undefined) => (blob ? URL.createObjectURL(blob) : null);
@@ -1605,10 +1931,13 @@
 
     const zipArchives = await downloadUrls(params.getAll('zip'));
     const regularFiles = await downloadUrls(params.getAll('file'));
-    for (const bundleFiles of await decompressZipArchives(zipArchives)) {
+    const decompressedFiles = (await decompressZipArchives(zipArchives)).flat();
+    // Same as processInputFiles: batchEntries must reflect extracted ZIP
+    // contents, not the archive blobs themselves.
+    batchEntries = [...decompressedFiles, ...regularFiles].map((file) => ({ file }));
+    for (const bundleFiles of [decompressedFiles, regularFiles]) {
       await handleFiles(bundleFiles);
     }
-    await handleFiles(regularFiles);
   };
 
   const configureWebviewWindow = (webview: WebviewWindow) => {
@@ -1648,6 +1977,8 @@
   };
 
   const start = async (config: Config) => {
+    // Play should start immediately. Storage writes belong to the explicit
+    // Save action or the import-resolution sync, not to normal playback.
     localStorage.setItem('player', JSON.stringify(config));
 
     const { resourcePack, metadata, preferences, resources, mediaOptions, ...rest } = config;
@@ -1808,6 +2139,52 @@
   </div>
 </dialog>
 
+<dialog id="duplicate-chart" class="modal" bind:this={duplicateModal}>
+  <div class="modal-box">
+    <h3 class="text-lg font-bold">{m['duplicate_import.title']()}</h3>
+    <p class="py-4">{m['duplicate_import.description']()}</p>
+    <div class="relative flex items-start">
+      <div class="flex items-center h-5 mt-1">
+        <input
+          id="remember-duplicate-choice"
+          name="remember-duplicate-choice"
+          type="checkbox"
+          class="form-checkbox transition border-gray-200 rounded text-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-base-100 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
+          bind:checked={duplicateModalMem}
+        />
+      </div>
+      <label for="remember-duplicate-choice" class="ms-3 transition">
+        <span class="block text-sm font-semibold text-gray-800 dark:text-neutral-300">
+          {m.remember_choice()}
+        </span>
+        <span class="block text-sm text-gray-600 dark:text-neutral-500">
+          {m.remember_choice_description()}
+        </span>
+      </label>
+    </div>
+    <div class="modal-action">
+      <form method="dialog" class="gap-3 flex justify-center">
+        <button
+          class="inline-flex justify-center items-center gap-x-3 text-center bg-gradient-to-tl from-blue-500 via-violet-500 to-fuchsia-500 dark:from-blue-700 dark:via-violet-700 dark:to-fuchsia-700 text-white text-sm font-medium rounded-md focus:outline-none py-3 px-4 transition-all duration-300 bg-size-200 bg-pos-0 hover:bg-pos-100"
+          onclick={() => {
+            chooseDuplicate('overwrite');
+          }}
+        >
+          {m['duplicate_import.overwrite']()}
+        </button>
+        <button
+          class="py-3 px-4 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-100 focus:outline-none focus:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-700 dark:text-white dark:hover:bg-neutral-700 dark:focus:bg-neutral-700 transition"
+          onclick={() => {
+            chooseDuplicate('load');
+          }}
+        >
+          {m['duplicate_import.load_stored']()}
+        </button>
+      </form>
+    </div>
+  </div>
+</dialog>
+
 <div class="max-w-2xl text-center mx-auto">
   <h1 class="block font-bold text-gray-800 text-4xl md:text-5xl lg:text-6xl dark:text-neutral-200">
     {m.app_title().split(' ').slice(0, -1).join(' ')}
@@ -1947,15 +2324,6 @@
   class:mt-0={showCollapse}
   class:opacity-0={!showCollapse}
 >
-  <label
-    class="absolute top-5 left-5 swap swap-rotate text-center transition opacity-0"
-    class:opacity-100={done}
-    class:pointer-events-none={!done}
-  >
-    <input type="checkbox" bind:checked={showRespack} />
-    <div class="swap-on">{m.switch_to_chart()}</div>
-    <div class="swap-off">{m.switch_to_respack()}</div>
-  </label>
   <div class="absolute top-4 right-4">
     <LanguageSwitcher />
   </div>
@@ -1963,12 +2331,48 @@
     class="collapse-content flex flex-col gap-4 items-center pt-0 transition-[padding] duration-300"
     class:pt-4={showCollapse}
   >
+    <div class="w-full flex justify-start">
+      <div class="join">
+        <button
+          class="btn btn-sm btn-outline join-item"
+          class:btn-active={viewMode === 'chart'}
+          disabled={chartBundles.length === 0}
+          aria-label={m.switch_to_chart()}
+          onclick={() => {
+            viewMode = 'chart';
+          }}
+        >
+          {m.switch_to_chart()}
+        </button>
+        <button
+          class="btn btn-sm btn-outline join-item"
+          class:btn-active={viewMode === 'storage'}
+          aria-label={m.switch_to_storage()}
+          onclick={() => {
+            viewMode = 'storage';
+          }}
+        >
+          {m.switch_to_storage()}
+        </button>
+        <button
+          class="btn btn-sm btn-outline join-item"
+          class:btn-active={viewMode === 'respack'}
+          aria-label={m.switch_to_respack()}
+          onclick={() => {
+            viewMode = 'respack';
+          }}
+        >
+          {m.switch_to_respack()}
+        </button>
+      </div>
+    </div>
     <div class="flex flex-col lg:flex-row">
       <label class="form-control w-full max-w-xs">
         <div class="label pt-0">
           <span class="label-text">{m.load_files()}</span>
         </div>
         <input
+          bind:this={fileInput}
           type="file"
           multiple
           accept={IS_ANDROID_OR_IOS || Capacitor.getPlatform() !== 'web'
@@ -1993,8 +2397,17 @@
             type="file"
             multiple
             class="file-input file-input-bordered w-full max-w-xs file:btn dark:file:btn-neutral file:no-animation border-gray-200 rounded-lg transition hover:border-blue-500 hover:ring-blue-500 focus:border-blue-500 focus:ring-blue-500 dark:border-neutral-700 dark:text-neutral-300 dark:focus:ring-neutral-600"
-            oninput={async () =>
-              await handleFiles(directoryInput.files ? Array.from(directoryInput.files) : null)}
+            oninput={async () => {
+              const dirFiles = directoryInput.files ? Array.from(directoryInput.files) : null;
+              if (!dirFiles || dirFiles.length === 0) return;
+              // webkitRelativePath carries the folder structure needed for
+              // grouping; file.name alone is just the basename here.
+              batchEntries = dirFiles.map((file) => ({
+                file,
+                relativePath: file.webkitRelativePath || undefined,
+              }));
+              await handleFiles(dirFiles);
+            }}
           />
         </label>
       {/if}
@@ -2034,7 +2447,43 @@
         ></div>
       </div>
     </div>
-    {#if !showRespack}
+    {#if viewMode === 'storage' || (viewMode === 'chart' && chartBundles.length === 0)}
+      <div class="w-full">
+        <ChartManager
+          summaries={storedChartSummaries}
+          onload={async (id: string) => {
+            try {
+              const stored = await loadStoredChart(id);
+              await loadChartIntoWorkingState(stored);
+            } catch (e) {
+              console.warn('Failed to load stored chart:', e);
+              notify(String(e), 'failure');
+            }
+          }}
+          onexport={async (id: string) => {
+            try {
+              const stored = await loadStoredChart(id);
+              await exportChart(stored);
+            } catch (e) {
+              console.warn('Failed to export stored chart:', e);
+              notify(String(e), 'failure');
+            }
+          }}
+          ondelete={async (id: string) => {
+            try {
+              await deleteStoredChart(id);
+              await refreshStoredSummaries();
+            } catch (e) {
+              console.warn('Failed to delete stored chart:', e);
+              notify(String(e), 'failure');
+            }
+          }}
+          onimport={() => {
+            fileInput?.click();
+          }}
+        />
+      </div>
+    {:else if viewMode === 'chart'}
       <div
         class="w-full flex flex-col md:flex-row gap-4 opacity-0 transition"
         class:opacity-100={done}
@@ -2086,6 +2535,10 @@
                           selectedSong = chartBundles[0].song;
                           selectedIllustration = chartBundles[0].illustration;
                         }
+                        if (chartBundles.length === 0) {
+                          currentBundle = undefined;
+                          viewMode = 'storage';
+                        }
                         if (chartBundles.every((b) => b.chart !== bundle.chart)) {
                           chartFiles = chartFiles.filter((file) => file.id !== bundle.chart);
                         }
@@ -2126,6 +2579,11 @@
                     },
                   );
                   if (!bundle) return;
+                  // A new bundle from the same batch shares the current
+                  // bundle's per-chart asset scoping.
+                  bundle.scopedAssetFiles = currentBundle?.scopedAssetFiles
+                    ? new Set(currentBundle.scopedAssetFiles)
+                    : undefined;
                   currentBundle = bundle;
                   selectedBundle = bundle.id;
                   selectedSong = bundle.song;
@@ -2225,7 +2683,7 @@
               </div>
             </div>
           {/if}
-          {#if assets.length > 0}
+          {#if bundleAssets().length > 0}
             <div class="flex flex-col">
               <div class="-m-1.5 p-1.5 inline-block align-middle">
                 <table class="table-fixed w-full divide-y divide-gray-200 dark:divide-neutral-700">
@@ -2258,7 +2716,7 @@
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-gray-200 dark:divide-neutral-700">
-                    {#each assets as asset}
+                    {#each bundleAssets() as asset}
                       <tr>
                         <td
                           class="px-3 py-3 text-ellipsis overflow-hidden whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200 transition"
@@ -2819,9 +3277,28 @@
             {/if}
           </div>
           <div class="flex gap-2">
-            <PreferencesModal bind:preferences class="w-1/2" />
+            <div>
+              <PreferencesModal bind:preferences class="w-full" />
+            </div>
             <button
-              class="w-1/2 inline-flex justify-center items-center gap-x-3 text-center bg-gradient-to-tl from-blue-500 via-violet-500 to-fuchsia-500 dark:from-blue-700 dark:via-violet-700 dark:to-fuchsia-700 text-white text-sm font-medium rounded-md focus:outline-none py-3 px-4 transition-all duration-300 bg-size-200 bg-pos-0 hover:bg-pos-100"
+              class="py-3 px-4 inline-flex justify-center items-center gap-x-2 text-center text-sm font-medium rounded-lg transition border border-gray-200 text-gray-500 hover:border-blue-500 hover:text-blue-500 focus:outline-none focus:border-blue-500 focus:text-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:border-neutral-700 dark:text-neutral-400 dark:hover:text-blue-500 dark:hover:border-blue-500 dark:focus:text-blue-500 dark:focus:border-blue-500"
+              aria-label={m.save()}
+              disabled={!currentBundle}
+              onclick={async () => {
+                if (!currentBundle) return;
+                try {
+                  await syncBundle(currentBundle);
+                } catch (e) {
+                  console.warn('Failed to save chart:', e);
+                  notify(String(e), 'failure');
+                }
+              }}
+            >
+              {m.save()}
+              <i class="fa-solid fa-floppy-disk"></i>
+            </button>
+            <button
+              class="flex-1 inline-flex justify-center items-center gap-x-3 text-center bg-gradient-to-tl from-blue-500 via-violet-500 to-fuchsia-500 dark:from-blue-700 dark:via-violet-700 dark:to-fuchsia-700 text-white text-sm font-medium rounded-md focus:outline-none py-3 px-4 transition-all duration-300 bg-size-200 bg-pos-0 hover:bg-pos-100"
               onclick={() => {
                 localStorage.setItem('preferences', JSON.stringify(preferences));
                 localStorage.setItem('toggles', JSON.stringify(toggles));
@@ -2842,7 +3319,7 @@
           </div>
         </div>
       </div>
-    {:else}
+    {:else if viewMode === 'respack'}
       <div class="w-full results">
         {#each resourcePacks as pack}
           <div

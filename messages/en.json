@@ -35,6 +35,7 @@
   "clipboard_no_url": "No URL found in clipboard.",
 
   "switch_to_chart": "Chart",
+  "switch_to_storage": "Storage",
   "switch_to_respack": "Respack",
 
   "processing_files": "Processing files",
@@ -47,6 +48,7 @@
   "converting": "Converting {name}",
   "saving_respack": "Saving resource pack",
   "loading_stored_respacks": "Loading stored resource packs",
+  "saving_chart": "Saving chart",
   "finished": "Finished",
 
   "processing_audio": "Processing audio",
@@ -79,7 +81,7 @@
   "proceed_with_browser": "Proceed with browser",
   "open_in_app": "Open in the app",
 
-  "edit_preferences": "Edit preferences",
+  "settings": "Settings",
   "preferences": "Preferences",
   "play_configuration": "Play configuration",
   "judgment_windows": "Judgment windows",
@@ -184,6 +186,9 @@
   "paused": "Paused",
   "restart": "Restart",
   "resume": "Resume",
+  "close": "Close",
+  "rotate_device": "Rotate your device",
+  "rotate_device_description": "For the best experience, rotate your device to landscape.",
 
   "warn_event_time_invalid": "Event end time is before start time: {start} → {end} ({source})",
 
@@ -212,6 +217,24 @@
   "new": "New",
   "delete": "Delete",
   "no_thumbnail": "No thumbnail",
+  "save": "Save",
+  "chart_saved": "Chart saved.",
+  "save_offset_chart": "Save offset-adjusted chart",
+
+  "chart_manager": {
+    "empty_state": "No charts yet.",
+    "load": "Load",
+    "export": "Export",
+    "delete_confirm": "Delete this chart?",
+    "no_illustration": "No illustration"
+  },
+
+  "duplicate_import": {
+    "title": "Duplicate chart detected",
+    "description": "A chart with identical content is already stored. What would you like to do?",
+    "overwrite": "Import & overwrite",
+    "load_stored": "Load stored version"
+  },
 
   "use_the_app": "Use the app?",
   "use_the_app_description": {
