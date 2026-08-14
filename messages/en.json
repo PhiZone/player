@@ -262,6 +262,7 @@
   "click_to_copy": "Click to copy",
   "copied": "Copied to clipboard",
   "rendering_saved": "Rendering saved to {path}.",
+  "exported_to": "Exported to {path}.",
   "enabled": "Enabled {name}.",
   "disabled": "Disabled {name}.",
   "debug_mode": "debug mode",

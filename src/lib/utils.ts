@@ -283,7 +283,7 @@ export const exportRespack = async (respack: ResourcePack<File>) => {
   zip.file('_META.json', JSON.stringify(metadata, null, 2));
   const blob = await zip.generateAsync({ type: 'blob' });
   const filename = ensafeFilename(respack.name) + '.zip';
-  triggerDownload(blob, filename, 'resourcePack');
+  return triggerDownload(blob, filename, 'resourcePack');
 };
 
 export const convertRespackToURL = (respack: ResourcePack<File>) => {
@@ -365,8 +365,10 @@ export const exportChart = async (chart: StoredChart) => {
   addFile(chart.resources.illustration);
   chart.assets.forEach((asset) => addFile(asset.file, asset.name));
   const blob = await zip.generateAsync({ type: 'blob' });
-  const filename = ensafeFilename(chart.metadata.title ?? 'chart') + '.zip';
-  triggerDownload(blob, filename, 'chart');
+  const filename =
+    ensafeFilename(`${chart.metadata.title ?? 'chart'} [${chart.metadata.level ?? 'unknown'}]`) +
+    '.zip';
+  return triggerDownload(blob, filename, 'chart');
 };
 
 export const updateMetadata = (metadata: MetadataEntry, chartMeta: RpeMeta) => {
@@ -414,12 +416,20 @@ export const fit = (
   return { width, height };
 };
 
-export const triggerDownload = (
+/**
+ * Trigger a download of `blob` as `name`.
+ *
+ * In a normal browser this clicks an `<a download>` anchor. Tauri webviews
+ * have no download manager, so that click is a silent no-op there; instead we
+ * show a native save dialog and write the file directly to disk. Returns the
+ * path the file was saved to (Tauri only), or `undefined` otherwise.
+ */
+export const triggerDownload = async (
   blob: Blob,
   name: string,
   purpose: 'adjustedOffset' | 'resourcePack' | 'chart',
   always = false,
-) => {
+): Promise<string | undefined> => {
   if (IS_IFRAME && purpose !== 'resourcePack' && purpose !== 'chart') {
     send({
       type: 'fileOutput',
@@ -428,7 +438,20 @@ export const triggerDownload = (
         file: new File([blob], name),
       },
     });
-    if (!always) return;
+    if (!always) return undefined;
+  }
+  if (IS_TAURI) {
+    const { save } = await import('@tauri-apps/plugin-dialog');
+    const extension = name.includes('.') ? name.split('.').pop()! : undefined;
+    const path = await save({
+      title: name,
+      defaultPath: name,
+      filters: extension ? [{ name: extension.toUpperCase(), extensions: [extension] }] : undefined,
+    });
+    if (!path) return undefined; // user cancelled the dialog
+    const { writeFile } = await import('@tauri-apps/plugin-fs');
+    await writeFile(path, new Uint8Array(await blob.arrayBuffer()));
+    return path;
   }
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -436,6 +459,7 @@ export const triggerDownload = (
   a.download = name;
   a.click();
   URL.revokeObjectURL(url);
+  return undefined;
 };
 
 export const getParams = (url?: string, loadFromStorage = true): Config | null => {

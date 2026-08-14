@@ -2463,7 +2463,8 @@
           onexport={async (id: string) => {
             try {
               const stored = await loadStoredChart(id);
-              await exportChart(stored);
+              const path = await exportChart(stored);
+              if (path) notify(m.exported_to({ path }), 'success');
             } catch (e) {
               console.warn('Failed to export stored chart:', e);
               notify(String(e), 'failure');
@@ -3373,11 +3374,17 @@
                 class="btn btn-sm btn-circle btn-outline btn-success"
                 aria-label={m.delete()}
                 onclick={async () => {
-                  await exportRespack(
-                    getTypeOfRespack(pack) === 'string'
-                      ? await importRespack(pack as ResourcePackWithId<string>)
-                      : (pack as ResourcePackWithId<File>),
-                  );
+                  try {
+                    const path = await exportRespack(
+                      getTypeOfRespack(pack) === 'string'
+                        ? await importRespack(pack as ResourcePackWithId<string>)
+                        : (pack as ResourcePackWithId<File>),
+                    );
+                    if (path) notify(m.exported_to({ path }), 'success');
+                  } catch (e) {
+                    console.warn('Failed to export resource pack:', e);
+                    notify(String(e), 'failure');
+                  }
                 }}
               >
                 <i class="fa-solid fa-file-export"></i>
