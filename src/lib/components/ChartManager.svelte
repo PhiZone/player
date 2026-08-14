@@ -1,17 +1,20 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import { m } from '$lib/paraglide/messages';
   import type { StoredChartSummary } from '$lib/types';
 
   interface Props {
     summaries: StoredChartSummary[];
     onload: (id: string) => void;
-    onexport: (id: string) => void;
+    onexport: (id: string, options?: { preserveSourceName?: boolean }) => void;
     ondelete: (id: string) => void;
     onimport: () => void;
   }
 
   let { summaries, onload, onexport, ondelete, onimport }: Props = $props();
+
+  /** Chart currently hovered; keyboard shortcuts act on it. */
+  let hoveredId = $state<string | null>(null);
 
   let thumbnails = new Map<string, string>();
   const getThumbnail = (summary: StoredChartSummary): string | undefined => {
@@ -24,7 +27,36 @@
     return url;
   };
 
+  /**
+   * Keyboard shortcuts for the hovered chart:
+   * `l` — load, `e` — export, `Shift+E` — export with original import name.
+   */
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (!hoveredId) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const target = e.target as HTMLElement | null;
+    if (
+      target &&
+      (target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.isContentEditable)
+    ) {
+      return;
+    }
+    if (e.key === 'l' || e.key === 'L') {
+      onload(hoveredId);
+    } else if (e.key === 'e' || e.key === 'E') {
+      onexport(hoveredId, { preserveSourceName: e.shiftKey });
+    }
+  };
+
+  onMount(() => {
+    window.addEventListener('keydown', onKeyDown);
+  });
+
   onDestroy(() => {
+    window.removeEventListener('keydown', onKeyDown);
     thumbnails.forEach((url) => URL.revokeObjectURL(url));
   });
 
@@ -59,7 +91,12 @@
     <div class="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4 justify-items-center">
       {#each summaries as summary (summary.id)}
         <div
-          class="card w-full max-w-xs h-[23rem] bg-base-100 overflow-hidden transition border-2 border-gray-200 dark:border-neutral-700 hover:shadow-lg"
+          role="group"
+          class="card w-full max-w-xs h-[23rem] bg-base-100 overflow-hidden transition border-2 hover:shadow-lg"
+          class:normal-border={hoveredId !== summary.id}
+          class:border-success={hoveredId === summary.id}
+          onmouseenter={() => (hoveredId = summary.id)}
+          onmouseleave={() => (hoveredId = null)}
         >
           <figure
             class="w-full h-40 shrink-0 flex justify-center items-center bg-neutral-200 dark:bg-neutral"
@@ -90,6 +127,7 @@
           <div class="absolute bottom-4 inset-x-4 flex flex-wrap justify-end gap-2">
             <button
               class="btn btn-sm rounded-full btn-outline btn-success uppercase"
+              title={`${m['chart_manager.load']()} (L)`}
               onclick={() => onload(summary.id)}
             >
               <i class="fa-solid fa-arrow-up-right-from-square"></i>
@@ -98,7 +136,7 @@
             <button
               class="btn btn-sm btn-circle btn-outline btn-success"
               aria-label={m['chart_manager.export']()}
-              title={m['chart_manager.export']()}
+              title={`${m['chart_manager.export']()} (E)`}
               onclick={() => onexport(summary.id)}
             >
               <i class="fa-solid fa-file-export"></i>
@@ -115,5 +153,14 @@
         </div>
       {/each}
     </div>
+    <p class="mt-3 text-center text-xs text-gray-500 dark:text-neutral-400">
+      {m['chart_manager.keyboard_hint']()}
+    </p>
   {/if}
 </div>
+
+<style lang="postcss">
+  .normal-border {
+    @apply border-gray-200 dark:border-neutral-700;
+  }
+</style>

@@ -33,6 +33,7 @@ interface StoredChartRecord {
   createdAt: number;
   updatedAt: number;
   checksum?: string;
+  sourceName?: string;
   metadata: Metadata;
   resources: { chart: StoredFile; song: StoredFile; illustration: StoredFile };
   assets: { name: string; type: number; file: StoredFile; included: boolean }[];
@@ -52,6 +53,7 @@ function packChart(chart: StoredChart): StoredChartRecord {
     createdAt: chart.createdAt,
     updatedAt: chart.updatedAt,
     checksum: chart.checksum,
+    sourceName: chart.sourceName,
     metadata: chart.metadata,
     resources: {
       chart: fileToStored(chart.resources.chart),
@@ -73,6 +75,7 @@ function unpackChart(record: StoredChartRecord): StoredChart {
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
     checksum: record.checksum,
+    sourceName: record.sourceName,
     metadata: record.metadata,
     resources: {
       chart: storedToFile(record.resources.chart),
@@ -94,6 +97,7 @@ function recordToSummary(record: StoredChartRecord): StoredChartSummary {
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
     checksum: record.checksum,
+    sourceName: record.sourceName,
     metadata: record.metadata,
     illustration: record.resources.illustration,
   };
@@ -225,7 +229,11 @@ export async function computeChartChecksum(chart: StoredChart): Promise<string> 
   const fileDigests = [
     ['chart', chart.resources.chart.name, await digestFile(chart.resources.chart)],
     ['song', chart.resources.song.name, await digestFile(chart.resources.song)],
-    ['illustration', chart.resources.illustration.name, await digestFile(chart.resources.illustration)],
+    [
+      'illustration',
+      chart.resources.illustration.name,
+      await digestFile(chart.resources.illustration),
+    ],
   ];
   const assets = [...chart.assets].sort((a, b) => {
     const nameCompare = a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });

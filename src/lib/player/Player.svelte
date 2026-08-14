@@ -540,6 +540,7 @@
         id: c.chartId ?? crypto.randomUUID(),
         createdAt: c.chartCreatedAt ?? Date.now(),
         updatedAt: Date.now(),
+        sourceName: c.sourceName,
         metadata: c.metadata,
         resources: {
           chart: new File([serializeChart(bakedOffset)], chartName, { type: 'application/json' }),

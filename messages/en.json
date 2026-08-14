@@ -227,6 +227,7 @@
     "empty_state": "No charts yet.",
     "load": "Load",
     "export": "Export",
+    "keyboard_hint": "Shortcuts: L load · E export · Shift+E export with original import name",
     "delete_confirm": "Delete this chart?",
     "no_illustration": "No illustration"
   },

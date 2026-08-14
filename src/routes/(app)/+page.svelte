@@ -135,6 +135,8 @@
     storedId?: string;
     storedCreatedAt?: number;
     storedChecksum?: string;
+    /** Original import file name (archive/folder imports only). */
+    sourceName?: string;
     /** Per-chart asset files scoped at import time (within-batch grouping). */
     scopedAssetFiles?: Set<File>;
   }
@@ -159,6 +161,12 @@
   let isProgrammaticImport = false;
   /** Raw files of the current import batch, used for within-batch grouping. */
   let batchEntries: ChartGroupInput[] = [];
+  /**
+   * Original import file name of the current batch (single archive or folder
+   * import). Set by the entry points that can know it; `undefined` for loose
+   * files, multi-archive batches, and programmatic imports.
+   */
+  let importSourceName: string | undefined;
 
   // Duplicate-import detection (checksum dedup).
   const DUPLICATE_CHOICE_KEY = 'duplicateImportChoice';
@@ -402,6 +410,8 @@
         isProgrammaticImport = true;
         try {
           showCollapse = true;
+          // Programmatic imports have no meaningful source file name.
+          importSourceName = undefined;
           const bundleFileMatrix: File[][] = [];
           let replacee: number | undefined = undefined;
           if (message.type.includes('Url')) {
@@ -664,6 +674,7 @@
       ),
       chartId: currentBundle?.storedId ?? undefined,
       chartCreatedAt: currentBundle?.storedCreatedAt ?? undefined,
+      sourceName: currentBundle?.sourceName,
       ...toggles,
       automate,
     };
@@ -819,6 +830,7 @@
   async function handleFilePaths<T>(paths: T[], handler: (path: T) => Promise<File>) {
     if (paths.length === 0) return;
     showCollapse = true;
+    importSourceName = undefined;
 
     let promises = await Promise.allSettled(
       paths.map(async (filePath) => {
@@ -834,15 +846,21 @@
 
     const regularFiles: File[] = [];
     const decompressedFiles: File[] = [];
+    const fulfilledFiles: File[] = [];
     for (const file of promises
       .filter((promise) => promise.status === 'fulfilled')
       .map((promise) => (promise as PromiseFulfilledResult<File>).value)) {
+      fulfilledFiles.push(file);
       try {
         decompressedFiles.push(...(await decompress(file)));
       } catch (e) {
         console.debug(`Cannot decompress ${file.name}`, e);
         regularFiles.push(file);
       }
+    }
+    // A single archive import keeps its original file name for re-export.
+    if (paths.length === 1 && fulfilledFiles.length === 1 && isZip(fulfilledFiles[0])) {
+      importSourceName = fulfilledFiles[0].name;
     }
     batchEntries = [...decompressedFiles, ...regularFiles].map((file) => ({ file }));
     for (const files of [decompressedFiles, regularFiles]) {
@@ -1055,6 +1073,7 @@
       song: songFile.id,
       chart: chartFile.id,
       illustration: illustrationFile.id,
+      sourceName: importSourceName,
       metadata: metadataEntry
         ? {
             title: overrideTitle ?? metadataEntry.name,
@@ -1419,6 +1438,19 @@
     const zipArchives = files.filter(isZip);
     const regularFiles = files.filter((file) => !isZip(file));
     const decompressedFiles = (await decompressZipArchives(zipArchives)).flat();
+    // Track the original import name: a single archive (file picker or drag
+    // & drop), or a dropped folder (all files share one top-level
+    // webkitRelativePath segment). Anything else has no single source name.
+    if (zipArchives.length === 1 && regularFiles.length === 0) {
+      importSourceName = zipArchives[0].name;
+    } else {
+      const folders = new Set(
+        regularFiles
+          .map((file) => file.webkitRelativePath?.split('/')[0])
+          .filter((segment): segment is string => Boolean(segment)),
+      );
+      importSourceName = folders.size === 1 ? [...folders][0] : undefined;
+    }
     // Grouping must see the *extracted* contents of any ZIPs, not the
     // archive blobs themselves, otherwise each chart's files can never be
     // told apart (and asset scoping falls back to "include everything").
@@ -1754,6 +1786,7 @@
       createdAt: bundle.storedCreatedAt ?? Date.now(),
       updatedAt: Date.now(),
       checksum: bundle.storedChecksum,
+      sourceName: bundle.sourceName,
       metadata: { ...bundle.metadata },
       resources: {
         chart: chartFile.file,
@@ -1875,6 +1908,7 @@
       storedId: stored.id,
       storedCreatedAt: stored.createdAt,
       storedChecksum: stored.checksum,
+      sourceName: stored.sourceName,
       scopedAssetFiles: new Set(stored.assets.map((asset) => asset.file)),
     };
     chartBundles.push(bundle);
@@ -1974,6 +2008,9 @@
 
     const zipArchives = await downloadUrls(params.getAll('zip'));
     const regularFiles = await downloadUrls(params.getAll('file'));
+    // A single zip URL import keeps its file name for re-export.
+    importSourceName =
+      zipArchives.length === 1 && regularFiles.length === 0 ? zipArchives[0].name : undefined;
     const decompressedFiles = (await decompressZipArchives(zipArchives)).flat();
     // Same as processInputFiles: batchEntries must reflect extracted ZIP
     // contents, not the archive blobs themselves.
@@ -2445,6 +2482,8 @@
               if (!dirFiles || dirFiles.length === 0) return;
               // webkitRelativePath carries the folder structure needed for
               // grouping; file.name alone is just the basename here.
+              // The top-level segment is the imported folder's name.
+              importSourceName = dirFiles[0]?.webkitRelativePath?.split('/')[0] || undefined;
               batchEntries = dirFiles.map((file) => ({
                 file,
                 relativePath: file.webkitRelativePath || undefined,
@@ -2503,10 +2542,10 @@
               notify(String(e), 'failure');
             }
           }}
-          onexport={async (id: string) => {
+          onexport={async (id: string, options?: { preserveSourceName?: boolean }) => {
             try {
               const stored = await loadStoredChart(id);
-              const path = await exportChart(stored);
+              const path = await exportChart(stored, options?.preserveSourceName);
               if (path) notify(m.exported_to({ path }), 'success');
             } catch (e) {
               console.warn('Failed to export stored chart:', e);

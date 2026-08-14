@@ -346,7 +346,7 @@ export const convertRespackToURL = (respack: ResourcePack<File>) => {
 };
 
 /** Re-zip a stored chart back into a .zip bundle for download. */
-export const exportChart = async (chart: StoredChart) => {
+export const exportChart = async (chart: StoredChart, preserveSourceName = false) => {
   const zip = new JSZip();
   const usedNames = new Set<string>();
   const addFile = (file: File, preferredName?: string): string => {
@@ -383,7 +383,16 @@ export const exportChart = async (chart: StoredChart) => {
   zip.file('info.txt', info);
 
   const blob = await zip.generateAsync({ type: 'blob' });
-  const filename = ensafeFilename(`${title ?? 'chart'} [${level ?? 'unknown'}]`) + '.zip';
+  let filename: string;
+  if (preserveSourceName && chart.sourceName) {
+    // Re-export under the original import file name (e.g. `chart.pez`), so
+    // the archive can round-trip back to its source; append .zip when the
+    // source name has no extension (folder imports).
+    const base = ensafeFilename(chart.sourceName);
+    filename = /\.[A-Za-z0-9]{1,5}$/.test(base) ? base : `${base}.zip`;
+  } else {
+    filename = ensafeFilename(`${title ?? 'chart'} [${level ?? 'unknown'}]`) + '.zip';
+  }
   return triggerDownload(blob, filename, 'chart');
 };
 
@@ -545,6 +554,7 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
   const chartId = p.get('chartId') ?? undefined;
   const chartCreatedAtRaw = p.get('chartCreatedAt');
   const chartCreatedAt = chartCreatedAtRaw ? parseFloat(chartCreatedAtRaw) : undefined;
+  const sourceName = p.get('sourceName') ?? undefined;
 
   let resourcePack = DEFAULT_RESOURCE_PACK as ResourcePack<string>;
   const respackParam = p.get('resourcePack');
@@ -619,6 +629,7 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
     automate,
     chartId,
     chartCreatedAt,
+    sourceName,
   };
 };
 

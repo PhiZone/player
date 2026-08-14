@@ -227,6 +227,7 @@
     "empty_state": "暂无谱面。",
     "load": "加载",
     "export": "导出",
+    "keyboard_hint": "快捷键：L 加载 · E 导出 · Shift+E 以原始导入文件名导出",
     "delete_confirm": "删除这个谱面？",
     "no_illustration": "无插图"
   },

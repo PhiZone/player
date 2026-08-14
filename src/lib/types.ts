@@ -18,6 +18,8 @@ export interface Config {
   chartId?: string;
   /** Original `createdAt` of the stored chart, so saves preserve it. */
   chartCreatedAt?: number;
+  /** Original import file name of the chart (archive/folder imports only). */
+  sourceName?: string;
 }
 
 export interface Resources {
@@ -103,6 +105,8 @@ export interface StoredChart {
   createdAt: number;
   updatedAt: number;
   checksum?: string;
+  /** Original import file name (archive/folder imports only). */
+  sourceName?: string;
   metadata: Metadata;
   resources: {
     chart: File;
@@ -123,6 +127,8 @@ export interface StoredChartSummary {
   createdAt: number;
   updatedAt: number;
   checksum?: string;
+  /** Original import file name (archive/folder imports only). */
+  sourceName?: string;
   metadata: Metadata;
   illustration?: {
     data: Blob;
