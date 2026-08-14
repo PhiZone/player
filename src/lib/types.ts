@@ -27,6 +27,10 @@ export interface Resources {
   assetNames: string[];
   assetTypes: number[];
   assets: string[];
+  /** Original file name of the song, when known (URLs hide it). */
+  songName?: string;
+  /** Original file name of the illustration, when known (URLs hide it). */
+  illustrationName?: string;
 }
 
 export interface Metadata {

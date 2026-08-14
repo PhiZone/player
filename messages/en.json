@@ -220,6 +220,8 @@
   "save": "Save",
   "chart_saved": "Chart saved.",
   "save_offset_chart": "Save offset-adjusted chart",
+  "offset_adjusted_saved": "Chart saved with the adjusted offset. It will be loaded when you return.",
+  "offset_adjusted_loaded": "Loaded {title} with your adjusted offset.",
 
   "chart_manager": {
     "empty_state": "No charts yet.",

@@ -162,6 +162,9 @@
 
   // Duplicate-import detection (checksum dedup).
   const DUPLICATE_CHOICE_KEY = 'duplicateImportChoice';
+  // Set by the player after saving an offset-adjusted chart; the landing page
+  // checks it on mount and via storage events to reload the saved chart.
+  const RELOAD_CHART_KEY = 'reloadChartId';
   let duplicateModal: HTMLDialogElement;
   let duplicateModalMem = false;
   let duplicateResolve: ((choice: 'overwrite' | 'load') => void) | null = null;
@@ -333,6 +336,9 @@
     });
     if (directoryInput) directoryInput.webkitdirectory = true;
 
+    addEventListener('storage', onStorageEvent);
+    unlistens.push(() => removeEventListener('storage', onStorageEvent));
+
     try {
       const storedPacks = await loadAllRespacks();
       if (storedPacks.length > 0) {
@@ -354,6 +360,10 @@
     }
 
     await init();
+
+    // The player may have saved an offset-adjusted chart (this window, or
+    // another window/tab) — reload it so reopening applies the new offset.
+    await reloadStoredChartFromFlag();
 
     addEventListener('message', async (e: MessageEvent<IncomingMessage>) => {
       const message = e.data;
@@ -630,11 +640,18 @@
       alert(m.no_bundle_available());
       throw new Error(m.no_bundle_available());
     }
+    const songFile = audioFiles.find((file) => file.id === currentBundle!.song)?.file;
+    const chartFile = chartFiles.find((file) => file.id === currentBundle!.chart)?.file;
+    const illustrationFile = imageFiles.find((file) => file.id === currentBundle!.illustration);
     return {
       resources: {
-        song: getUrl(audioFiles.find((file) => file.id === currentBundle!.song)?.file) ?? '',
-        chart: getUrl(chartFiles.find((file) => file.id === currentBundle!.chart)?.file) ?? '',
-        illustration: imageFiles.find((file) => file.id === currentBundle!.illustration)?.url ?? '',
+        song: getUrl(songFile) ?? '',
+        chart: getUrl(chartFile) ?? '',
+        illustration: illustrationFile?.url ?? '',
+        // The URLs are blob URLs that hide the original names; carry the
+        // names along so offset-adjusted saves keep them.
+        songName: songFile?.name,
+        illustrationName: illustrationFile?.file.name,
         assetNames: assetsIncluded.map((asset) => asset.file.name),
         assetTypes: assetsIncluded.map((asset) => asset.type),
         assets: assetsIncluded.map((asset) => getUrl(asset.file) ?? ''),
@@ -1869,6 +1886,32 @@
     selectedIllustration = illustrationId;
     done = true;
     viewMode = 'chart';
+  };
+
+  /**
+   * After the player saves an offset-adjusted chart (possibly in another
+   * window), reload it into the working state so reopening the chart applies
+   * the adjusted offset instead of the stale original.
+   */
+  const reloadStoredChartFromFlag = async () => {
+    const id = localStorage.getItem(RELOAD_CHART_KEY);
+    if (!id) return;
+    localStorage.removeItem(RELOAD_CHART_KEY);
+    try {
+      await refreshStoredSummaries();
+      const stored = await loadStoredChart(id);
+      await loadChartIntoWorkingState(stored);
+      notify(m.offset_adjusted_loaded({ title: stored.metadata.title ?? '' }), 'success');
+    } catch (e) {
+      console.warn('Failed to reload offset-adjusted chart:', e);
+    }
+  };
+
+  /** storage events fire only in *other* windows/tabs (e.g. Tauri player window). */
+  const onStorageEvent = (e: StorageEvent) => {
+    if (e.key === RELOAD_CHART_KEY && e.newValue) {
+      reloadStoredChartFromFlag();
+    }
   };
 
   const getUrl = (blob: Blob | undefined) => (blob ? URL.createObjectURL(blob) : null);

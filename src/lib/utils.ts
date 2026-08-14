@@ -467,6 +467,8 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
   const song = p.get('song');
   const chart = p.get('chart');
   const illustration = p.get('illustration');
+  const songName = p.get('songName') ?? undefined;
+  const illustrationName = p.get('illustrationName') ?? undefined;
   const assetNames = p
     .getAll('assetNames')
     .flatMap((v) => v.split(','))
@@ -548,6 +550,8 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
       song,
       chart,
       illustration,
+      songName,
+      illustrationName,
       assetNames,
       assetTypes,
       assets,

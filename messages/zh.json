@@ -220,6 +220,8 @@
   "save": "保存",
   "chart_saved": "谱面已保存。",
   "save_offset_chart": "保存调整偏移后的谱面",
+  "offset_adjusted_saved": "谱面已保存（已应用调整后的偏移）。返回后会自动加载。",
+  "offset_adjusted_loaded": "已加载「{title}」（已应用调整后的偏移）。",
 
   "chart_manager": {
     "empty_state": "暂无谱面。",

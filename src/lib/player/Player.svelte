@@ -13,7 +13,7 @@
   import { goto } from '$app/navigation';
   import start from './main';
   import { EventBus, setAutostartBlocked } from './EventBus';
-  import { GameStatus, type Config } from '$lib/types';
+  import { GameStatus, type Config, type StoredChart } from '$lib/types';
   import {
     clamp,
     getParams,
@@ -32,13 +32,18 @@
   import Regions from 'wavesurfer.js/dist/plugins/regions.esm.js';
   import { NOTE_PRIORITIES } from './constants';
   import { equal } from 'mathjs';
+  import mime from 'mime/lite';
   import { base } from '$app/paths';
   import { Capacitor } from '@capacitor/core';
   import StatsJS from 'stats-js';
   import { m } from '$lib/paraglide/messages';
   import { tauriInvoke } from '$lib/services/tauriIpc';
   import { pathSep, openPath } from '$lib/services/tauriFsBridge';
-  import { syncChart } from '$lib/services/chartStorage';
+  import {
+    computeChartChecksum,
+    loadAllChartSummaries,
+    syncChart,
+  } from '$lib/services/chartStorage';
 
   export let gameRef: GameReference;
   export let config: Config | null = null;
@@ -432,25 +437,71 @@
     }
   };
 
+  /**
+   * Recover the original name of a song/illustration file for storage.
+   *
+   * The config carries the import-time name when known (`resources.songName`
+   * / `resources.illustrationName`); otherwise fall back to the chart's own
+   * `META` file name. Never derive it from a blob URL — that yields the
+   * random UUID that re-exports would otherwise ship. When the chosen name
+   * has no extension, one is appended from the actual blob MIME type.
+   */
+  const resolveResourceName = (
+    preferred: string | undefined,
+    metaName: string | undefined,
+    blob: Blob,
+    fallback: string,
+  ) => {
+    const extensionFor = (type: string) => {
+      const overrides: Record<string, string> = { 'audio/ogg': 'ogg', 'audio/mp4': 'm4a' };
+      return overrides[type] ?? mime.getExtension(type) ?? undefined;
+    };
+    const base = (preferred || metaName)?.split(/[\\/]/).pop()?.trim();
+    if (base) {
+      if (/\.[A-Za-z0-9]{1,5}$/.test(base)) return base;
+      const ext = extensionFor(blob.type);
+      return ext ? `${base}.${ext}` : base;
+    }
+    const ext = extensionFor(blob.type);
+    return ext ? `${fallback}.${ext}` : fallback;
+  };
+
+  /**
+   * Serialize the current chart, optionally overriding the baked-in
+   * `META.offset` (the live scene keeps the displayed value either way).
+   */
+  const serializeChart = (bakedOffset?: number): string => {
+    const chart = gameRef.scene?.chart;
+    if (!chart) return '';
+    const displayedOffset = chart.META.offset;
+    if (bakedOffset !== undefined && bakedOffset !== displayedOffset) {
+      chart.META.offset = bakedOffset;
+    }
+    try {
+      return JSON.stringify(chart, (key, value) => {
+        if (
+          key === 'startBeat' ||
+          key === 'endBeat' ||
+          key === 'startTimeSec' ||
+          key === 'endTimeSec'
+        ) {
+          return undefined;
+        }
+        return value;
+      });
+    } finally {
+      chart.META.offset = displayedOffset;
+    }
+  };
+
   const saveOffsetAdjustedChart = async () => {
-    const content = JSON.stringify(gameRef.scene?.chart, (key, value) => {
-      if (
-        key === 'startBeat' ||
-        key === 'endBeat' ||
-        key === 'startTimeSec' ||
-        key === 'endTimeSec'
-      ) {
-        return undefined;
-      }
-      return value;
-    });
     const resources = config?.resources;
     const c = config;
-    if (!resources || !c) return;
+    if (!resources || !c || !gameRef.scene?.chart) return;
     // In an embedded iframe the parent site explicitly asks for the file.
     if (IS_IFRAME) {
       triggerDownload(
-        new Blob([content], { type: 'application/json' }),
+        new Blob([serializeChart()], { type: 'application/json' }),
         `${title} [${level}] (offset ${offset >= 0 ? '+' : '-'}${Math.abs(offset).toFixed(0)}).json`,
         'adjustedOffset',
       );
@@ -472,23 +523,53 @@
         })),
       );
       const chartName = `${(title ?? 'chart').replaceAll(/[\\/:*?"<>|]/g, '')} [${level ?? ''}].json`;
-      await syncChart({
+      const chart = gameRef.scene.chart;
+      const songName = resolveResourceName(c.resources.songName, chart.META.song, songBlob, 'song');
+      const illustrationName = resolveResourceName(
+        c.resources.illustrationName,
+        chart.META.background,
+        illustrationBlob,
+        'illustration',
+      );
+      // The offset helper calibrates the total audible offset, while normal
+      // playback adds the global chartOffset preference on top of the chart's
+      // baked-in META.offset. Store the value without the preference so that
+      // reopening the chart reproduces exactly what was calibrated.
+      const bakedOffset = chart.META.offset - (c.preferences.chartOffset ?? 0);
+      const stored: StoredChart = {
         id: c.chartId ?? crypto.randomUUID(),
         createdAt: c.chartCreatedAt ?? Date.now(),
         updatedAt: Date.now(),
         metadata: c.metadata,
         resources: {
-          chart: new File([content], chartName, { type: 'application/json' }),
-          song: new File([songBlob], resources.song.split('/').pop() ?? 'song'),
-          illustration: new File(
-            [illustrationBlob],
-            resources.illustration.split('/').pop() ?? 'illustration',
-          ),
+          chart: new File([serializeChart(bakedOffset)], chartName, { type: 'application/json' }),
+          song: new File([songBlob], songName, { type: songBlob.type }),
+          illustration: new File([illustrationBlob], illustrationName, {
+            type: illustrationBlob.type,
+          }),
         },
         assets: assetFiles,
-      });
+      };
+      stored.checksum = await computeChartChecksum(stored);
+      // Charts opened from a URL have no storage id; repeated saves of the
+      // same adjustment should update the existing record instead of piling
+      // up copies in storage.
+      if (!c.chartId) {
+        const existing = (await loadAllChartSummaries()).find(
+          (summary) => summary.checksum === stored.checksum,
+        );
+        if (existing) {
+          stored.id = existing.id;
+          stored.createdAt = existing.createdAt;
+        }
+      }
+      await syncChart(stored);
+      // Tell the landing page to reload this chart (it may be open in
+      // another window), so reopening it applies the adjusted offset
+      // instead of the stale original.
+      localStorage.setItem('reloadChartId', stored.id);
       isOffsetAdjustedChartExported = true;
-      notify(m.chart_saved(), 'success');
+      notify(m.offset_adjusted_saved(), 'success');
     } catch (e) {
       console.warn('Failed to save offset-adjusted chart:', e);
       notify(String(e), 'failure');
