@@ -349,7 +349,7 @@ export const convertRespackToURL = (respack: ResourcePack<File>) => {
 export const exportChart = async (chart: StoredChart) => {
   const zip = new JSZip();
   const usedNames = new Set<string>();
-  const addFile = (file: File, preferredName?: string) => {
+  const addFile = (file: File, preferredName?: string): string => {
     let name = preferredName ?? file.name;
     let i = 2;
     while (usedNames.has(name)) {
@@ -359,15 +359,31 @@ export const exportChart = async (chart: StoredChart) => {
     }
     usedNames.add(name);
     zip.file(name, file);
+    return name;
   };
-  addFile(chart.resources.chart);
-  addFile(chart.resources.song);
-  addFile(chart.resources.illustration);
+  const chartName = addFile(chart.resources.chart);
+  const songName = addFile(chart.resources.song);
+  const illustrationName = addFile(chart.resources.illustration);
   chart.assets.forEach((asset) => addFile(asset.file, asset.name));
+
+  // RPE metadata
+  const { title, composer, charter, level } = chart.metadata;
+  const info =
+    [
+      '#',
+      `Name: ${title?.trim() ?? ''}`,
+      `Path: ${new Date().getTime()}`,
+      `Song: ${songName}`,
+      `Picture: ${illustrationName}`,
+      `Chart: ${chartName}`,
+      `Level: ${level?.trim() ?? ''}`,
+      `Composer: ${composer?.trim() ?? ''}`,
+      `Charter: ${charter?.trim() ?? ''}`,
+    ].join('\n') + '\n';
+  zip.file('info.txt', info);
+
   const blob = await zip.generateAsync({ type: 'blob' });
-  const filename =
-    ensafeFilename(`${chart.metadata.title ?? 'chart'} [${chart.metadata.level ?? 'unknown'}]`) +
-    '.zip';
+  const filename = ensafeFilename(`${title ?? 'chart'} [${level ?? 'unknown'}]`) + '.zip';
   return triggerDownload(blob, filename, 'chart');
 };
 
