@@ -521,7 +521,7 @@
           }}
         >
           <option value={0}>{m.auto()}</option>
-          {#each Array.from({ length: 30 }, (_, index) => index + 1) as value}
+          {#each [...Array.from({ length: 30 }, (_, index) => index + 1), 256] as value}
             <option {value}>{value}</option>
           {/each}
         </select>
@@ -542,7 +542,7 @@
           }}
         >
           {#if aspectRatio1 > 0}
-            {#each Array.from({ length: aspectRatio1 }, (_, index) => index + 1).filter((number) => gcd(number, aspectRatio1) === 1) as value}
+            {#each [...Array.from({ length: aspectRatio1 }, (_, index) => index + 1).filter((number) => gcd(number, aspectRatio1) === 1), 175] as value}
               <option {value}>{value}</option>
             {/each}
           {:else}
