@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
+  import { confirm as confirmDialog } from '@tauri-apps/plugin-dialog';
   import { m } from '$lib/paraglide/messages';
+  import { IS_TAURI } from '$lib/utils';
   import type { StoredChartSummary } from '$lib/types';
 
   interface Props {
@@ -60,8 +62,19 @@
     thumbnails.forEach((url) => URL.revokeObjectURL(url));
   });
 
-  const confirmDelete = (summary: StoredChartSummary) => {
-    if (!window.confirm(m['chart_manager.delete_confirm']())) return;
+  /**
+   * Ask for delete confirmation. In Tauri the dialog plugin's injected shim
+   * replaces `window.confirm` with a call to the removed `dialog.confirm`
+   * command ("not allowed. Command not found"), so use the plugin's native
+   * `confirm()` — which is backed by the allowed `dialog.message` command —
+   * there instead.
+   */
+  const confirmDelete = async (summary: StoredChartSummary) => {
+    const message = m['chart_manager.delete_confirm']();
+    const confirmed = IS_TAURI
+      ? await confirmDialog(message, { kind: 'warning' })
+      : window.confirm(message);
+    if (!confirmed) return;
     ondelete(summary.id);
   };
 
