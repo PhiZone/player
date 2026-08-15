@@ -161,13 +161,6 @@
   let isProgrammaticImport = false;
   /** Raw files of the current import batch, used for within-batch grouping. */
   let batchEntries: ChartGroupInput[] = [];
-  /**
-   * Original import file name of the current batch (single archive or folder
-   * import). Set by the entry points that can know it; `undefined` for loose
-   * files, multi-archive batches, and programmatic imports.
-   */
-  let importSourceName: string | undefined;
-
   // Duplicate-import detection (checksum dedup).
   const DUPLICATE_CHOICE_KEY = 'duplicateImportChoice';
   // Set by the player after saving an offset-adjusted chart; the landing page
@@ -323,10 +316,7 @@
   /** Read a file from the backend filesystem and return it as a File object. */
   const filePathHandler = async (path: string): Promise<File> => {
     const data = await fsReadFile(path);
-    return new File(
-      [new Uint8Array(data)],
-      path.split('/').pop() ?? path.split('\\').pop() ?? path,
-    );
+    return new File([new Uint8Array(data)], path.split(/[\\/]/).pop() || path);
   };
 
   onMount(async () => {
@@ -410,8 +400,6 @@
         isProgrammaticImport = true;
         try {
           showCollapse = true;
-          // Programmatic imports have no meaningful source file name.
-          importSourceName = undefined;
           const bundleFileMatrix: File[][] = [];
           let replacee: number | undefined = undefined;
           if (message.type.includes('Url')) {
@@ -830,8 +818,6 @@
   async function handleFilePaths<T>(paths: T[], handler: (path: T) => Promise<File>) {
     if (paths.length === 0) return;
     showCollapse = true;
-    importSourceName = undefined;
-
     let promises = await Promise.allSettled(
       paths.map(async (filePath) => {
         return handler(filePath);
@@ -845,26 +831,22 @@
       });
 
     const regularFiles: File[] = [];
-    const decompressedFiles: File[] = [];
-    const fulfilledFiles: File[] = [];
+    const archiveBatches: { files: File[]; sourceName: string }[] = [];
     for (const file of promises
       .filter((promise) => promise.status === 'fulfilled')
       .map((promise) => (promise as PromiseFulfilledResult<File>).value)) {
-      fulfilledFiles.push(file);
       try {
-        decompressedFiles.push(...(await decompress(file)));
+        archiveBatches.push({ files: await decompress(file), sourceName: file.name });
       } catch (e) {
         console.debug(`Cannot decompress ${file.name}`, e);
         regularFiles.push(file);
       }
     }
-    // A single archive import keeps its original file name for re-export.
-    if (paths.length === 1 && fulfilledFiles.length === 1 && isZip(fulfilledFiles[0])) {
-      importSourceName = fulfilledFiles[0].name;
+    for (const batch of archiveBatches) {
+      await handleImportBatch(batch.files, batch.sourceName);
     }
-    batchEntries = [...decompressedFiles, ...regularFiles].map((file) => ({ file }));
-    for (const files of [decompressedFiles, regularFiles]) {
-      await handleFiles(files);
+    if (regularFiles.length > 0) {
+      await handleImportBatch(regularFiles);
     }
   }
 
@@ -881,7 +863,7 @@
   };
 
   const download = async (url: string) => {
-    const name = url.split('/').pop() ?? url.split('\\').pop() ?? url;
+    const name = url.split(/[\\/]/).pop() || url;
 
     progress = 0;
     progressSpeed = 0;
@@ -941,7 +923,7 @@
       }
 
       progressSpeed = -1;
-      return new File(chunks, url.split('/').pop() ?? url);
+      return new File(chunks, name);
     }
   };
 
@@ -1047,6 +1029,7 @@
     metadata?: Metadata,
     fallback: boolean = false,
     silent: boolean = true,
+    sourceName?: string,
   ): Promise<ChartBundle | undefined> => {
     songFile ??= audioFiles.find((file) => shareId(file, chartFile));
     if (songFile === undefined) {
@@ -1073,7 +1056,7 @@
       song: songFile.id,
       chart: chartFile.id,
       illustration: illustrationFile.id,
-      sourceName: importSourceName,
+      sourceName,
       metadata: metadataEntry
         ? {
             title: overrideTitle ?? metadataEntry.name,
@@ -1434,33 +1417,35 @@
     return await Promise.all(files.map(decompress));
   };
 
+  const handleImportBatch = async (
+    files: File[],
+    sourceName?: string,
+    replacee?: number,
+  ): Promise<void> => {
+    if (files.length === 0) return;
+    batchEntries = files.map((file) => ({
+      file,
+      relativePath: file.webkitRelativePath || undefined,
+    }));
+    await handleFiles(files, replacee, sourceName);
+  };
+
   const processInputFiles = async (files: File[]) => {
     const zipArchives = files.filter(isZip);
     const regularFiles = files.filter((file) => !isZip(file));
-    const decompressedFiles = (await decompressZipArchives(zipArchives)).flat();
-    // Track the original import name: a single archive (file picker or drag
-    // & drop), or a dropped folder (all files share one top-level
-    // webkitRelativePath segment). Anything else has no single source name.
-    if (zipArchives.length === 1 && regularFiles.length === 0) {
-      importSourceName = zipArchives[0].name;
-    } else {
-      const folders = new Set(
-        regularFiles
-          .map((file) => file.webkitRelativePath?.split('/')[0])
-          .filter((segment): segment is string => Boolean(segment)),
-      );
-      importSourceName = folders.size === 1 ? [...folders][0] : undefined;
+    for (const archive of zipArchives) {
+      await handleImportBatch(await decompress(archive), archive.name);
     }
-    // Grouping must see the *extracted* contents of any ZIPs, not the
-    // archive blobs themselves, otherwise each chart's files can never be
-    // told apart (and asset scoping falls back to "include everything").
-    batchEntries = [...decompressedFiles, ...regularFiles].map((file) => ({ file }));
-    for (const bundleFiles of [decompressedFiles, regularFiles]) {
-      await handleFiles(bundleFiles);
+    if (regularFiles.length > 0) {
+      await handleImportBatch(regularFiles);
     }
   };
 
-  const handleFiles = async (files: File[] | null, replacee?: number) => {
+  const handleFiles = async (
+    files: File[] | null,
+    replacee?: number,
+    sourceName?: string,
+  ) => {
     if (!files || files.length === 0) {
       return;
     }
@@ -1558,10 +1543,19 @@
             } catch (e) {
               console.debug('Chart is not a valid RPE JSON:', e);
             }
-            const bundle = await createBundle(chartFile, songFile, illustrationFile, {
-              id: asset.id,
-              ...metadata,
-            });
+            const bundle = await createBundle(
+              chartFile,
+              songFile,
+              illustrationFile,
+              {
+                id: asset.id,
+                ...metadata,
+              },
+              undefined,
+              false,
+              true,
+              sourceName,
+            );
             if (bundle) newlyResolvedBundles.push(bundle);
             bundlesResolved++;
             continue;
@@ -1654,6 +1648,8 @@
           metadata,
           undefined,
           true,
+          true,
+          sourceName,
         );
         if (bundle) newlyResolvedBundles.push(bundle);
       }
@@ -2008,15 +2004,11 @@
 
     const zipArchives = await downloadUrls(params.getAll('zip'));
     const regularFiles = await downloadUrls(params.getAll('file'));
-    // A single zip URL import keeps its file name for re-export.
-    importSourceName =
-      zipArchives.length === 1 && regularFiles.length === 0 ? zipArchives[0].name : undefined;
-    const decompressedFiles = (await decompressZipArchives(zipArchives)).flat();
-    // Same as processInputFiles: batchEntries must reflect extracted ZIP
-    // contents, not the archive blobs themselves.
-    batchEntries = [...decompressedFiles, ...regularFiles].map((file) => ({ file }));
-    for (const bundleFiles of [decompressedFiles, regularFiles]) {
-      await handleFiles(bundleFiles);
+    for (const archive of zipArchives) {
+      await handleImportBatch(await decompress(archive), archive.name);
+    }
+    if (regularFiles.length > 0) {
+      await handleImportBatch(regularFiles);
     }
   };
 
@@ -2480,15 +2472,8 @@
             oninput={async () => {
               const dirFiles = directoryInput.files ? Array.from(directoryInput.files) : null;
               if (!dirFiles || dirFiles.length === 0) return;
-              // webkitRelativePath carries the folder structure needed for
-              // grouping; file.name alone is just the basename here.
-              // The top-level segment is the imported folder's name.
-              importSourceName = dirFiles[0]?.webkitRelativePath?.split('/')[0] || undefined;
-              batchEntries = dirFiles.map((file) => ({
-                file,
-                relativePath: file.webkitRelativePath || undefined,
-              }));
-              await handleFiles(dirFiles);
+              const sourceName = dirFiles[0]?.webkitRelativePath?.split('/')[0] || undefined;
+              await handleImportBatch(dirFiles, sourceName);
             }}
           />
         </label>
