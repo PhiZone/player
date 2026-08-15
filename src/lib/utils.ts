@@ -388,7 +388,8 @@ export const exportChart = async (chart: StoredChart, preserveSourceName = false
     // Re-export under the original import file name (e.g. `chart.pez`), so
     // the archive can round-trip back to its source; append .zip when the
     // source name has no extension (folder imports).
-    const base = ensafeFilename(chart.sourceName);
+    const sourceBaseName = chart.sourceName.split(/[\\/]/).pop() || 'chart';
+    const base = ensafeFilename(sourceBaseName);
     filename = /\.[A-Za-z0-9]{1,5}$/.test(base) ? base : `${base}.zip`;
   } else {
     filename = ensafeFilename(`${title ?? 'chart'} [${level ?? 'unknown'}]`) + '.zip';
@@ -699,7 +700,7 @@ export const extractTgz = async (blob: Blob): Promise<File[]> => {
 export const isZip = (file: File) =>
   file.type === 'application/zip' ||
   file.type === 'application/x-zip-compressed' ||
-  file.name.toLowerCase().endsWith('.pez');
+  /\.(?:pez|zip)$/i.test(file.name);
 
 export const send = (message: OutgoingMessage) => parent.postMessage(message, '*');
 
