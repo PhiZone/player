@@ -1423,10 +1423,11 @@
     replacee?: number,
   ): Promise<void> => {
     if (files.length === 0) return;
-    batchEntries = files.map((file) => ({
-      file,
-      relativePath: file.webkitRelativePath || undefined,
-    }));
+    batchEntries = files.map((file) => {
+      const entry: ChartGroupInput = { file };
+      if (file.webkitRelativePath) entry.relativePath = file.webkitRelativePath;
+      return entry;
+    });
     await handleFiles(files, replacee, sourceName);
   };
 
