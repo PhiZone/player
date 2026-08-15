@@ -388,7 +388,7 @@ export const exportChart = async (chart: StoredChart, preserveSourceName = false
     // Re-export under the original import file name (e.g. `chart.pez`), so
     // the archive can round-trip back to its source; append .zip when the
     // source name has no extension (folder imports).
-    const sourceBaseName = chart.sourceName.split(/[\\/]/).pop() || chart.sourceName;
+    const sourceBaseName = chart.sourceName.split(/[\\/]/).pop() || 'chart';
     const base = ensafeFilename(sourceBaseName);
     filename = /\.[A-Za-z0-9]{1,5}$/.test(base) ? base : `${base}.zip`;
   } else {
