@@ -1441,11 +1441,7 @@
     }
   };
 
-  const handleFiles = async (
-    files: File[] | null,
-    replacee?: number,
-    sourceName?: string,
-  ) => {
+  const handleFiles = async (files: File[] | null, replacee?: number, sourceName?: string) => {
     if (!files || files.length === 0) {
       return;
     }
