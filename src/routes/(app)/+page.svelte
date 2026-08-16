@@ -1039,6 +1039,18 @@
       }
       songFile = audioFiles[0];
     }
+    // Short songs were re-encoded to WAV on import; give the song file the
+    // matching .wav name (song.mp3 → song.wav) so re-exported archives don't
+    // claim a format that differs from the actual content. Renaming happens
+    // here — after name-based resolution — rather than in `convertAudio`, so
+    // exact-name references (e.g. custom hit sounds) are unaffected.
+    if (songFile.file.type === 'audio/wav' && !songFile.file.name.toLowerCase().endsWith('.wav')) {
+      songFile.file = new File(
+        [songFile.file],
+        songFile.file.name.replace(/\.[^.]+$/, '') + '.wav',
+        { type: 'audio/wav' },
+      );
+    }
     illustrationFile ??= imageFiles.find((file) => shareId(file, chartFile));
     if (illustrationFile === undefined) {
       if (!fallback) {
@@ -1104,7 +1116,32 @@
     return bundle;
   };
 
+  /** Songs at least this long keep their original format — a WAV copy would
+   * balloon to roughly 10 MB per minute. */
+  const MAX_AUDIO_CONVERT_SECONDS = 270; // 4.5 min
+
+  const getAudioDuration = (file: File) =>
+    new Promise<number>((resolve) => {
+      const audio = new Audio();
+      audio.onloadedmetadata = () => {
+        const duration = audio.duration;
+        URL.revokeObjectURL(audio.src);
+        resolve(Number.isFinite(duration) ? duration : 0);
+      };
+      audio.onerror = () => {
+        URL.revokeObjectURL(audio.src);
+        resolve(0);
+      };
+      audio.src = URL.createObjectURL(file);
+    });
+
   const convertAudio = async (audio: File, normalizeVolume = true) => {
+    // Long songs are not converted: the WAV copy would be huge (an 11-min
+    // chart can reach ~200 MB) and the original extension must be preserved
+    // so re-exported archives don't carry a format/extension mismatch.
+    if ((await getAudioDuration(audio)) >= MAX_AUDIO_CONVERT_SECONDS) {
+      return audio;
+    }
     progress = 0;
     const ffmpeg = getFFmpeg();
     ffmpeg.on('progress', (p) => {
@@ -1157,6 +1194,10 @@
       const data = await ffmpeg.readFile(`output_${id}`);
       await ffmpeg.deleteFile(`input_${id}`);
       await ffmpeg.deleteFile(`output_${id}`);
+      // The name keeps its original extension here — the .wav rename happens
+      // in `createBundle` once this file is resolved as the chart's song
+      // (renaming earlier would break exact-name asset references such as
+      // custom hit sounds).
       return new File([(data as Uint8Array).buffer as ArrayBuffer], audio.name, {
         type: 'audio/wav',
       });
@@ -1768,12 +1809,62 @@
     return [];
   };
 
+  /**
+   * Write the bundle's editable metadata into the chart JSON's META (RPE
+   * schema in `src/lib/types.ts`): title → `name`, level → `level`, composer
+   * → `composer`, charter → `charter`, illustrator → `illustration`. The
+   * level type is not part of the RPE schema and is left untouched.
+   *
+   * Returns a new File when anything changed, `null` otherwise — untouched
+   * charts keep their exact bytes so checksums and import dedup stay stable.
+   * Fields absent from META are only added when given a non-empty value, so
+   * charts without them are not materialized on.
+   */
+  const rewriteChartMetadata = async (file: File, metadata: Metadata): Promise<File | null> => {
+    if (!file.name.toLowerCase().endsWith('.json')) return null;
+    let json: RpeJson;
+    try {
+      json = JSON.parse(await file.text());
+    } catch {
+      return null;
+    }
+    if (!json.META) return null;
+    const meta = json.META as unknown as Record<string, string | undefined>;
+    const fields: [string, string | null][] = [
+      ['name', metadata.title],
+      ['level', metadata.level],
+      ['composer', metadata.composer],
+      ['charter', metadata.charter],
+      ['illustration', metadata.illustrator],
+    ];
+    let changed = false;
+    for (const [key, value] of fields) {
+      const next = value ?? '';
+      if (meta[key] === undefined && next === '') continue;
+      if ((meta[key] ?? '') !== next) {
+        meta[key] = next;
+        changed = true;
+      }
+    }
+    if (!changed) return null;
+    return new File([JSON.stringify(json)], file.name, { type: file.type });
+  };
+
   /** Convert the current working state for `bundle` into a StoredChart. */
-  const buildStoredChartFromBundle = (bundle: ChartBundle): StoredChart | null => {
+  const buildStoredChartFromBundle = async (bundle: ChartBundle): Promise<StoredChart | null> => {
     const chartFile = chartFiles.find((file) => file.id === bundle.chart);
     const songFile = audioFiles.find((file) => file.id === bundle.song);
     const illustrationFile = imageFiles.find((file) => file.id === bundle.illustration);
     if (!chartFile || !songFile || !illustrationFile) return null;
+    // Persist metadata edits into the chart JSON itself — the chart's META is
+    // the copy re-imports and exports actually read. The working-state file is
+    // updated too, so playback and offset-adjusted saves carry the edits.
+    const rewritten = await rewriteChartMetadata(chartFile.file, bundle.metadata);
+    if (rewritten) {
+      chartFile.file = rewritten;
+      // The stored content changed; the old checksum no longer describes it.
+      bundle.storedChecksum = undefined;
+    }
     return {
       id: bundle.storedId ?? crypto.randomUUID(),
       createdAt: bundle.storedCreatedAt ?? Date.now(),
@@ -1800,7 +1891,7 @@
     bundle: ChartBundle,
     options: { computeChecksum?: boolean; silent?: boolean } = {},
   ) => {
-    const stored = buildStoredChartFromBundle(bundle);
+    const stored = await buildStoredChartFromBundle(bundle);
     if (!stored) return;
     // Always ensure a checksum exists — dedup compares against stored
     // checksums, so charts saved via Play/Save without one would never
@@ -1834,7 +1925,7 @@
       if (group) {
         bundle.scopedAssetFiles = new Set(group.chart.assets.map((asset) => asset.file));
       }
-      const stored = buildStoredChartFromBundle(bundle);
+      const stored = await buildStoredChartFromBundle(bundle);
       if (!stored) continue;
       // Dedup against the original import payload. `handleFiles` may replace
       // an audio File with a normalized WAV, so hashing `stored` here would
