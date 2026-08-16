@@ -45,6 +45,7 @@ export default [
       '**/package-lock.json',
       '**/yarn.lock',
       '**/.yarn',
+      'src/lib/paraglide/**',
     ],
   },
   ...compat.extends(
@@ -102,6 +103,13 @@ export default [
       parserOptions: {
         parser: '@typescript-eslint/parser',
       },
+    },
+  },
+  {
+    // shadcn-svelte generated components intentionally forward `...restProps`.
+    files: ['src/lib/components/ui/**/*.svelte'],
+    rules: {
+      'svelte/valid-compile': 'off',
     },
   },
 ];

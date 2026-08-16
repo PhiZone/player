@@ -1,6 +1,6 @@
 import { Cameras, GameObjects, Scene, Sound } from 'phaser';
 import { EventBus, isAutostartBlocked } from '../EventBus';
-import { inferLevelType, fit, send, getLines, IS_TAURI_LIKE } from '$lib/utils';
+import { inferLevelType, fit, send, getLines, IS_TAURI_LIKE, uuid } from '$lib/utils';
 import {
   processIllustration,
   loadJson,
@@ -269,7 +269,7 @@ export class Game extends Scene {
             : nameLower.endsWith('.woff')
               ? 'woff'
               : 'truetype';
-        const id = `font-${crypto.randomUUID()}`;
+        const id = `font-${uuid()}`;
         this.load.font(id, asset, fontType);
         this._fonts[name] = id;
       } else if (assetTypes[i] !== 6) console.log('Not supported:', name);

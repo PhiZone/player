@@ -25,6 +25,7 @@
     showPerformance,
     fromRichText,
     triggerDownload,
+    uuid,
   } from '$lib/utils';
   import { convertTime, findPredominantBpm, getTimeSec } from './utils';
   import WaveSurfer, { type WaveSurferOptions } from 'wavesurfer.js';
@@ -537,7 +538,7 @@
       // reopening the chart reproduces exactly what was calibrated.
       const bakedOffset = chart.META.offset - (c.preferences.chartOffset ?? 0);
       const stored: StoredChart = {
-        id: c.chartId ?? crypto.randomUUID(),
+        id: c.chartId ?? uuid(),
         createdAt: c.chartCreatedAt ?? Date.now(),
         updatedAt: Date.now(),
         sourceName: c.sourceName,
@@ -1059,6 +1060,7 @@
 <div id="player" class="w-full h-full"></div>
 
 <style lang="postcss">
+  @reference "tailwindcss";
   :global(canvas) {
     @apply touch-none;
   }

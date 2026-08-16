@@ -264,6 +264,8 @@
 
   "click_to_copy": "Click to copy",
   "copied": "Copied to clipboard",
+  "copy_failed": "Failed to copy to clipboard.",
+  "clipboard_unavailable": "Clipboard is not available in this browser.",
   "rendering_saved": "Rendering saved to {path}.",
   "exported_to": "Exported to {path}.",
   "enabled": "Enabled {name}.",
@@ -276,5 +278,41 @@
     "1": "Please update the app via TestFlight.",
     "2": "Click to go to the GitHub releases page."
   },
-  "version_check_failed": "Failed to contact GitHub to check for updates."
+  "version_check_failed": "Failed to contact GitHub to check for updates.",
+
+  "discover": "Discover",
+  "library": "Library",
+  "charts": "Charts",
+  "packs": "Packs",
+  "language": "Language",
+
+  "search": "Search",
+  "search_charts": "Search charts…",
+
+  "discover_placeholder_title": "Online charts are on their way",
+  "discover_placeholder_description": "Soon you'll be able to browse community charts and resource packs right here. This tab lights up once the PhiZone content API is ready.",
+  "discover_coming_soon": "Coming soon",
+
+  "import_title": "Import charts",
+  "import_description": "Add chart files (.pez, .zip, .pec…) or a whole folder to your library. You can also drag & drop them anywhere on this page.",
+  "import_charts": "Import",
+  "import_files": "Choose files",
+  "import_directory": "Choose folder",
+  "import_from_clipboard": "Paste from clipboard",
+
+  "library_empty_title": "Your library is empty",
+  "library_empty_description": "Import a chart to start playing, or wait for online charts to arrive.",
+  "browse_online": "Browse online",
+  "chart_count": "{count} charts",
+  "pack_count": "{count} packs",
+
+  "packs_empty_title": "No resource packs yet",
+  "packs_empty_description": "Resource packs change how the game looks and sounds. Import one to customize your experience.",
+
+  "play_options": "Play options",
+  "advanced": "Advanced",
+  "about": "About",
+  "about_description": "PhiZone Player is an open-source Phigros chart player, available on web, desktop and mobile.",
+  "about_version": "Version {version} ({commit})",
+  "commit_hash": "Commit"
 }

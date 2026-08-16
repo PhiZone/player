@@ -1,0 +1,616 @@
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import { fly } from 'svelte/transition';
+  import { Button } from '$lib/components/ui/button';
+  import { Input } from '$lib/components/ui/input';
+  import { Label } from '$lib/components/ui/label';
+  import { Separator } from '$lib/components/ui/separator';
+  import * as Select from '$lib/components/ui/select';
+  import * as Collapsible from '$lib/components/ui/collapsible';
+  import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+  import * as Table from '$lib/components/ui/table';
+  import { m } from '$lib/paraglide/messages';
+  import { IS_TAURI } from '$lib/utils';
+  import { confirm as confirmDialog } from '@tauri-apps/plugin-dialog';
+  import DifficultyBadge from '$lib/components/common/DifficultyBadge.svelte';
+  import AssetTypeSelect from './AssetTypeSelect.svelte';
+  import ArrowLeftIcon from '@lucide/svelte/icons/arrow-left';
+  import PlayIcon from '@lucide/svelte/icons/play';
+  import CirclePlayIcon from '@lucide/svelte/icons/circle-play';
+  import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
+  import SaveIcon from '@lucide/svelte/icons/save';
+  import FileDownIcon from '@lucide/svelte/icons/file-down';
+  import TrashIcon from '@lucide/svelte/icons/trash-2';
+  import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
+  import MusicIcon from '@lucide/svelte/icons/music';
+  import PenLineIcon from '@lucide/svelte/icons/pen-line';
+  import ImageIcon from '@lucide/svelte/icons/image';
+  import Gamepad2Icon from '@lucide/svelte/icons/gamepad-2';
+  import TimerIcon from '@lucide/svelte/icons/timer';
+  import RocketIcon from '@lucide/svelte/icons/rocket';
+  import SquareArrowOutUpRightIcon from '@lucide/svelte/icons/square-arrow-out-up-right';
+  import CheckIcon from '@lucide/svelte/icons/check';
+
+  const TYPE_NAMES = ['EZ', 'HD', 'IN', 'AT', 'SP'];
+
+  interface FileOption {
+    id: number;
+    name: string;
+  }
+  interface AssetRow {
+    id: number;
+    name: string;
+    type: number;
+    size: number;
+    included: boolean;
+  }
+  interface BundleView {
+    storedId?: string;
+    metadata: {
+      title: string | null;
+      composer: string | null;
+      illustrator: string | null;
+      charter: string | null;
+      levelType: number;
+      level: string | null;
+    };
+  }
+
+  let {
+    bundle,
+    illustrationUrl,
+    charts = [],
+    songs = [],
+    illustrations = [],
+    selectedChart = -1,
+    selectedSong = -1,
+    selectedIllustration = -1,
+    onSelectChart,
+    onSelectSong,
+    onSelectIllustration,
+    assets = [],
+    onAssetToggle,
+    onAssetType,
+    onAssetDelete,
+    toggles,
+    isWeb = false,
+    disableTitle = false,
+    disableLevel = false,
+    onClose,
+    onPlay,
+    onSave,
+    onExport,
+    onDelete,
+  }: {
+    bundle: BundleView;
+    illustrationUrl?: string;
+    charts?: FileOption[];
+    songs?: FileOption[];
+    illustrations?: FileOption[];
+    selectedChart?: number;
+    selectedSong?: number;
+    selectedIllustration?: number;
+    onSelectChart: (id: number) => void;
+    onSelectSong: (id: number) => void;
+    onSelectIllustration: (id: number) => void;
+    assets?: AssetRow[];
+    onAssetToggle: (asset: AssetRow) => void;
+    onAssetType: (asset: AssetRow, type: number) => void;
+    onAssetDelete: (asset: AssetRow) => void;
+    toggles: { newTab: boolean };
+    isWeb?: boolean;
+    disableTitle?: boolean;
+    disableLevel?: boolean;
+    onClose: () => void;
+    onPlay: (options: {
+      autoplay?: boolean;
+      practice?: boolean;
+      adjustOffset?: boolean;
+      autostart?: boolean;
+    }) => void;
+    onSave: (metadata: BundleView['metadata']) => void;
+    onExport: () => void;
+    onDelete: () => void;
+  } = $props();
+
+  let advancedOpen = $state(false);
+
+  // ── Local metadata edit state ────────────────────────────────────────
+  let edit = $state({
+    title: '',
+    composer: '',
+    illustrator: '',
+    charter: '',
+    levelType: 2,
+    level: '',
+  });
+  let editDirty = $state(false);
+
+  $effect(() => {
+    edit = {
+      title: bundle.metadata.title ?? '',
+      composer: bundle.metadata.composer ?? '',
+      illustrator: bundle.metadata.illustrator ?? '',
+      charter: bundle.metadata.charter ?? '',
+      levelType: bundle.metadata.levelType ?? 2,
+      level: bundle.metadata.level ?? '',
+    };
+    editDirty = false;
+    // Re-sync select mirrors when the bundle (or its file selection) changes.
+    levelTypeStr = String(bundle.metadata.levelType ?? 2);
+    chartIdStr = String(selectedChart);
+    songIdStr = String(selectedSong);
+    illustrationIdStr = String(selectedIllustration);
+  });
+
+  const save = () => {
+    onSave(edit);
+    editDirty = false;
+  };
+
+  /**
+   * Ask for delete confirmation. In Tauri the dialog plugin's injected shim
+   * replaces `window.confirm` with a call to the removed `dialog.confirm`
+   * command ("not allowed. Command not found"), so use the plugin's native
+   * `confirm()` — which is backed by the allowed `dialog.message` command —
+   * there instead.
+   */
+  const confirmDelete = async () => {
+    const message = m['chart_manager.delete_confirm']();
+    const confirmed = IS_TAURI
+      ? await confirmDialog(message, { kind: 'warning' })
+      : window.confirm(message);
+    if (!confirmed) return;
+    onDelete();
+  };
+
+  // ── Per-play option toggles (write-through mirrors) ──────────────────
+  // autostart is stateless UI: it resets whenever this page opens and is
+  // passed along with whichever play button is pressed.
+  let autostart = $state(false);
+  let newTab = $state(false);
+
+  let togglesSynced = false;
+  $effect(() => {
+    if (togglesSynced) return;
+    togglesSynced = true;
+    newTab = toggles.newTab;
+  });
+
+  $effect(() => {
+    toggles.newTab = newTab;
+  });
+
+  // One-click play actions: each button starts the game immediately with a
+  // preset of one-time options — autoplay plays on its own, practice plays
+  // without autoplay, and offset adjustment plays with autoplay.
+  const toggleAutostart = () => {
+    autostart = !autostart;
+  };
+  const toggleNewTab = () => {
+    newTab = !newTab;
+  };
+
+  // ── Select mirrors ───────────────────────────────────────────────────
+  let levelTypeStr = $state<string | undefined>(undefined);
+  let chartIdStr = $state<string | undefined>(undefined);
+  let songIdStr = $state<string | undefined>(undefined);
+  let illustrationIdStr = $state<string | undefined>(undefined);
+
+  $effect(() => {
+    if (levelTypeStr === undefined) return;
+    const v = Number(levelTypeStr);
+    if (v !== edit.levelType) {
+      edit.levelType = v;
+      editDirty = true;
+    }
+  });
+  $effect(() => {
+    if (chartIdStr === undefined) return;
+    const v = Number(chartIdStr);
+    if (v !== selectedChart) onSelectChart(v);
+  });
+  $effect(() => {
+    if (songIdStr === undefined) return;
+    const v = Number(songIdStr);
+    if (v !== selectedSong) onSelectSong(v);
+  });
+  $effect(() => {
+    if (illustrationIdStr === undefined) return;
+    const v = Number(illustrationIdStr);
+    if (v !== selectedIllustration) onSelectIllustration(v);
+  });
+
+  const humanizeFileSize = (size: number) => {
+    let i = size == 0 ? 0 : Math.min(Math.floor(Math.log(size) / Math.log(1024)), 4);
+    return (size / Math.pow(1024, i)).toFixed(2) + ' ' + ['B', 'KiB', 'MiB', 'GiB', 'TiB'][i];
+  };
+
+  // ── Page-level behavior ──────────────────────────────────────────────
+  onMount(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  });
+</script>
+
+<div
+  class="fixed inset-0 z-50 flex flex-col bg-background"
+  transition:fly={{ x: 48, duration: 220 }}
+  role="dialog"
+  aria-modal="true"
+  aria-label={edit.title || bundle.metadata.title}
+>
+  <!-- Header -->
+  <header
+    class="flex h-14 shrink-0 items-center gap-1 border-b bg-background/90 px-2 backdrop-blur-xl sm:gap-2 sm:px-4"
+  >
+    <Button variant="ghost" size="icon" aria-label={m.close()} onclick={onClose}>
+      <ArrowLeftIcon class="size-4" />
+    </Button>
+    <h1 class="min-w-0 truncate text-base font-semibold">{edit.title || bundle.metadata.title}</h1>
+    <div class="ms-auto flex shrink-0 items-center gap-1">
+      {#if editDirty}
+        <Button size="sm" onclick={save}>
+          <SaveIcon class="size-4" />
+          <span class="hidden sm:inline">{m.save()}</span>
+        </Button>
+      {/if}
+      <DropdownMenu.Root>
+        <DropdownMenu.Trigger>
+          <Button variant="outline" size="icon-sm" aria-label={m['chart_manager.export']()}>
+            <EllipsisIcon class="size-4" />
+          </Button>
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Content align="end">
+          <DropdownMenu.Item
+            disabled={!editDirty}
+            onSelect={(e) => {
+              save();
+              e.preventDefault();
+            }}
+          >
+            <SaveIcon class="size-4" />
+            {m.save()}
+          </DropdownMenu.Item>
+          <DropdownMenu.Item
+            disabled={!bundle.storedId}
+            onSelect={(e) => {
+              onExport();
+              e.preventDefault();
+            }}
+          >
+            <FileDownIcon class="size-4" />
+            {m['chart_manager.export']()}
+          </DropdownMenu.Item>
+          <DropdownMenu.Separator />
+          <DropdownMenu.Item
+            class="text-destructive focus:text-destructive"
+            onSelect={async (e) => {
+              await confirmDelete();
+              e.preventDefault();
+            }}
+          >
+            <TrashIcon class="size-4" />
+            {m.delete()}
+          </DropdownMenu.Item>
+        </DropdownMenu.Content>
+      </DropdownMenu.Root>
+    </div>
+  </header>
+
+  <!-- Content -->
+  <div class="min-h-0 flex-1 overflow-y-auto">
+    <div class="mx-auto w-full max-w-5xl px-3 py-4 sm:px-6 sm:py-6">
+      <div class="grid gap-5 md:grid-cols-[300px_1fr] md:gap-8">
+        <div
+          class="relative aspect-[16/10] overflow-hidden rounded-2xl bg-muted md:aspect-auto md:h-96 md:max-h-[55vh] md:self-start md:sticky md:top-24"
+        >
+          {#if illustrationUrl}
+            <img src={illustrationUrl} alt="" class="size-full object-cover" />
+          {:else}
+            <div class="flex size-full items-center justify-center text-muted-foreground">
+              <MusicIcon class="size-10 opacity-40" />
+            </div>
+          {/if}
+        </div>
+        <div class="flex flex-col gap-4">
+          <div class="space-y-1.5">
+            <div class="flex items-start justify-between gap-3">
+              <h2 class="text-2xl font-bold leading-tight">
+                {edit.title || bundle.metadata.title}
+              </h2>
+              <DifficultyBadge
+                levelType={bundle.metadata.levelType}
+                level={bundle.metadata.level}
+              />
+            </div>
+            <div class="flex flex-col gap-1 text-sm text-muted-foreground">
+              {#if bundle.metadata.composer}
+                <p class="flex items-center gap-2">
+                  <MusicIcon class="size-3.5 shrink-0" />
+                  <span class="truncate">{bundle.metadata.composer}</span>
+                </p>
+              {/if}
+              {#if bundle.metadata.charter}
+                <p class="flex items-center gap-2">
+                  <PenLineIcon class="size-3.5 shrink-0" />
+                  <span class="truncate">{bundle.metadata.charter}</span>
+                </p>
+              {/if}
+              {#if bundle.metadata.illustrator}
+                <p class="flex items-center gap-2">
+                  <ImageIcon class="size-3.5 shrink-0" />
+                  <span class="truncate">{bundle.metadata.illustrator}</span>
+                </p>
+              {/if}
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <Button
+              size="lg"
+              class="min-w-28 flex-1 gap-2"
+              onclick={() =>
+                onPlay({ autoplay: false, practice: false, adjustOffset: false, autostart })}
+            >
+              <PlayIcon class="size-4" />
+              {m.play()}
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              class="gap-2"
+              title={m.autoplay_description()}
+              onclick={() =>
+                onPlay({ autoplay: true, practice: false, adjustOffset: false, autostart })}
+            >
+              <CirclePlayIcon class="size-4" />
+              {m.autoplay()}
+            </Button>
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger>
+                <Button
+                  variant="outline"
+                  size="icon-lg"
+                  aria-label={m.play_options()}
+                  title={m.play_options()}
+                >
+                  <EllipsisIcon class="size-4" />
+                </Button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Content align="end">
+                <DropdownMenu.Item
+                  onSelect={(e) => {
+                    onPlay({ autoplay: false, practice: true, adjustOffset: false, autostart });
+                    e.preventDefault();
+                  }}
+                >
+                  <Gamepad2Icon class="size-4" />
+                  {m.practice()}
+                </DropdownMenu.Item>
+                <DropdownMenu.Item
+                  onSelect={(e) => {
+                    onPlay({ autoplay: true, practice: false, adjustOffset: true, autostart });
+                    e.preventDefault();
+                  }}
+                >
+                  <TimerIcon class="size-4" />
+                  {m.adjust_offset()}
+                </DropdownMenu.Item>
+                <DropdownMenu.Separator />
+                <DropdownMenu.Item
+                  onSelect={(e) => {
+                    toggleAutostart();
+                    e.preventDefault();
+                  }}
+                >
+                  <RocketIcon class="size-4" />
+                  {m.autostart()}
+                  {#if autostart}
+                    <CheckIcon class="ms-auto size-4 text-primary" />
+                  {/if}
+                </DropdownMenu.Item>
+                {#if isWeb}
+                  <DropdownMenu.Item
+                    onSelect={(e) => {
+                      toggleNewTab();
+                      e.preventDefault();
+                    }}
+                  >
+                    <SquareArrowOutUpRightIcon class="size-4" />
+                    {m.new_tab()}
+                    {#if newTab}
+                      <CheckIcon class="ms-auto size-4 text-primary" />
+                    {/if}
+                  </DropdownMenu.Item>
+                {/if}
+              </DropdownMenu.Content>
+            </DropdownMenu.Root>
+          </div>
+
+          <Collapsible.Root bind:open={advancedOpen}>
+            <Collapsible.Trigger
+              class="flex w-full items-center justify-between gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {m.advanced()}
+              <ChevronDownIcon
+                class="size-4 transition-transform {advancedOpen ? 'rotate-180' : ''}"
+              />
+            </Collapsible.Trigger>
+            <Collapsible.Content class="space-y-4 pt-2">
+              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div class="space-y-1 sm:col-span-2">
+                  <Label for="detail-title">{m['metadata.title']()}</Label>
+                  <Input
+                    id="detail-title"
+                    bind:value={edit.title}
+                    disabled={disableTitle}
+                    oninput={() => (editDirty = true)}
+                  />
+                </div>
+                <div class="space-y-1">
+                  <Label for="detail-composer">{m['metadata.composer']()}</Label>
+                  <Input
+                    id="detail-composer"
+                    bind:value={edit.composer}
+                    oninput={() => (editDirty = true)}
+                  />
+                </div>
+                <div class="space-y-1">
+                  <Label for="detail-illustrator">{m['metadata.illustrator']()}</Label>
+                  <Input
+                    id="detail-illustrator"
+                    bind:value={edit.illustrator}
+                    oninput={() => (editDirty = true)}
+                  />
+                </div>
+                <div class="space-y-1">
+                  <Label for="detail-charter">{m['metadata.charter']()}</Label>
+                  <Input
+                    id="detail-charter"
+                    bind:value={edit.charter}
+                    oninput={() => (editDirty = true)}
+                  />
+                </div>
+                <div class="space-y-1">
+                  <Label>{m['metadata.level_type']()}</Label>
+                  <Select.Root type="single" bind:value={levelTypeStr}>
+                    <Select.Trigger class="w-full">
+                      <span>{TYPE_NAMES[Number(levelTypeStr)] ?? ''}</span>
+                    </Select.Trigger>
+                    <Select.Content>
+                      {#each TYPE_NAMES as typeName, i}
+                        <Select.Item value={String(i)}>{typeName}</Select.Item>
+                      {/each}
+                    </Select.Content>
+                  </Select.Root>
+                </div>
+                <div class="space-y-1 sm:col-span-2">
+                  <Label for="detail-level">{m['metadata.level']()}</Label>
+                  <Input
+                    id="detail-level"
+                    bind:value={edit.level}
+                    disabled={disableLevel}
+                    oninput={() => (editDirty = true)}
+                  />
+                </div>
+              </div>
+
+              <Separator />
+
+              <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div class="space-y-1">
+                  <Label>{m.chart()}</Label>
+                  <Select.Root type="single" bind:value={chartIdStr}>
+                    <Select.Trigger class="w-full">
+                      <span class="truncate">
+                        {charts.find((c) => String(c.id) === chartIdStr)?.name ?? ''}
+                      </span>
+                    </Select.Trigger>
+                    <Select.Content>
+                      {#each charts as option (option.id)}
+                        <Select.Item value={String(option.id)}>{option.name}</Select.Item>
+                      {/each}
+                    </Select.Content>
+                  </Select.Root>
+                </div>
+                <div class="space-y-1">
+                  <Label>{m.song()}</Label>
+                  <Select.Root type="single" bind:value={songIdStr}>
+                    <Select.Trigger class="w-full">
+                      <span class="truncate">
+                        {songs.find((s) => String(s.id) === songIdStr)?.name ?? ''}
+                      </span>
+                    </Select.Trigger>
+                    <Select.Content>
+                      {#each songs as option (option.id)}
+                        <Select.Item value={String(option.id)}>{option.name}</Select.Item>
+                      {/each}
+                    </Select.Content>
+                  </Select.Root>
+                </div>
+                <div class="space-y-1">
+                  <Label>{m.illustration()}</Label>
+                  <Select.Root type="single" bind:value={illustrationIdStr}>
+                    <Select.Trigger class="w-full">
+                      <span class="truncate">
+                        {illustrations.find((i) => String(i.id) === illustrationIdStr)?.name ?? ''}
+                      </span>
+                    </Select.Trigger>
+                    <Select.Content>
+                      {#each illustrations as option (option.id)}
+                        <Select.Item value={String(option.id)}>{option.name}</Select.Item>
+                      {/each}
+                    </Select.Content>
+                  </Select.Root>
+                </div>
+              </div>
+
+              {#if assets.length > 0}
+                <div class="overflow-x-auto rounded-xl border">
+                  <Table.Root>
+                    <Table.Header>
+                      <Table.Row>
+                        <Table.Head>{m['asset.name']()}</Table.Head>
+                        <Table.Head class="hidden sm:table-cell">{m['asset.type']()}</Table.Head>
+                        <Table.Head class="hidden md:table-cell">{m['asset.size']()}</Table.Head>
+                        <Table.Head class="text-end">{m['asset.actions']()}</Table.Head>
+                      </Table.Row>
+                    </Table.Header>
+                    <Table.Body>
+                      {#each assets as asset (asset.id)}
+                        <Table.Row class={!asset.included ? 'opacity-50' : ''}>
+                          <Table.Cell class="max-w-40 truncate font-medium" title={asset.name}>
+                            {asset.name}
+                          </Table.Cell>
+                          <Table.Cell class="hidden sm:table-cell">
+                            <AssetTypeSelect
+                              value={asset.type}
+                              onchange={(v) => onAssetType(asset, v)}
+                              class="h-8 min-w-28"
+                            />
+                          </Table.Cell>
+                          <Table.Cell class="hidden tabular-nums md:table-cell">
+                            {humanizeFileSize(asset.size)}
+                          </Table.Cell>
+                          <Table.Cell class="text-end">
+                            <div class="flex items-center justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="xs"
+                                onclick={() => onAssetToggle(asset)}
+                              >
+                                {asset.included ? m['asset.exclude']() : m['asset.include']()}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon-xs"
+                                class="text-destructive"
+                                aria-label={m.delete()}
+                                onclick={() => onAssetDelete(asset)}
+                              >
+                                <TrashIcon class="size-3" />
+                              </Button>
+                            </div>
+                          </Table.Cell>
+                        </Table.Row>
+                      {/each}
+                    </Table.Body>
+                  </Table.Root>
+                </div>
+              {/if}
+            </Collapsible.Content>
+          </Collapsible.Root>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

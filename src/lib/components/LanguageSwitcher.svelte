@@ -1,58 +1,36 @@
 <script lang="ts">
   import { m } from '$lib/paraglide/messages';
   import { getLocale, locales, setLocale } from '$lib/paraglide/runtime';
-  import FancyButton from './FancyButton.svelte';
+  import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+  import { Button } from '$lib/components/ui/button';
+  import LanguagesIcon from '@lucide/svelte/icons/languages';
+  import CheckIcon from '@lucide/svelte/icons/check';
 
   let open = $state(false);
 </script>
 
-<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-<div
-  class="dropdown dropdown-end"
-  tabindex="0"
-  onblur={(event: FocusEvent) => {
-    // Only close if focus moves outside the dropdown
-    if (!(event.currentTarget as Node)?.contains(event.relatedTarget as Node)) {
-      open = false;
-    }
-  }}
->
-  {#snippet content()}
-    <div class="flex items-center gap-2">
-      <span>{m.name()}</span>
-      <i
-        class="fa-solid fa-chevron-down fa-xs transition-transform ease-out"
-        class:rotate-180={open}
-      ></i>
-    </div>
-  {/snippet}
-  <FancyButton
-    class="fa-solid fa-language fa-lg"
-    btnCls="gap-2"
-    {content}
-    callback={() => {
-      open = !open;
-    }}
-  />
-  {#if open}
-    <ul class="dropdown-content menu bg-base-300/80 rounded-box z-1 w-40 p-2 shadow-lg">
-      {#each locales as locale (locale)}
-        <li>
-          <button
-            class="justify-between btn btn-sm btn-ghost"
-            class:active={getLocale() === locale}
-            onclick={() => {
-              setLocale(locale);
-              open = false;
-            }}
-          >
-            {m.name(undefined, { locale })}
-            {#if getLocale() === locale}
-              <i class="fa-solid fa-check text-primary"></i>
-            {/if}
-          </button>
-        </li>
-      {/each}
-    </ul>
-  {/if}
-</div>
+<DropdownMenu.Root bind:open>
+  <DropdownMenu.Trigger>
+    <Button variant="ghost" size="icon" aria-label={m.language()}>
+      <LanguagesIcon class="size-4" />
+    </Button>
+  </DropdownMenu.Trigger>
+  <DropdownMenu.Content align="end">
+    {#each locales as locale (locale)}
+      <DropdownMenu.Item
+        onSelect={(e) => {
+          setLocale(locale);
+          open = false;
+          e.preventDefault();
+        }}
+      >
+        <span class="flex w-full items-center justify-between gap-6">
+          <span>{m.name(undefined, { locale })}</span>
+          {#if getLocale() === locale}
+            <CheckIcon class="size-4 text-primary" />
+          {/if}
+        </span>
+      </DropdownMenu.Item>
+    {/each}
+  </DropdownMenu.Content>
+</DropdownMenu.Root>

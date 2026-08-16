@@ -12,3 +12,7 @@ vite.config.ts.timestamp-*
 .vscode
 .leancloud
 build.sh
+/android/app/build
+/android/.gradle
+/ios/App/build
+/src-tauri/target

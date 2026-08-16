@@ -19,7 +19,7 @@
  */
 
 import type { Metadata, RpeJson, StoredChart } from '$lib/types';
-import { getLines, inferLevelType, isPec, readMetadataForChart } from '$lib/utils';
+import { getLines, inferLevelType, isPec, readMetadataForChart, uuid } from '$lib/utils';
 
 export interface ChartGroupInput {
   file: File;
@@ -256,7 +256,7 @@ export async function groupFilesIntoCharts(entries: ChartGroupInput[]): Promise<
 
       results.push({
         chart: {
-          id: crypto.randomUUID(),
+          id: uuid(),
           createdAt: Date.now(),
           updatedAt: Date.now(),
           metadata,

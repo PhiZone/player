@@ -91,6 +91,122 @@ export const clamp = (num: number, lower: number, upper: number) => {
   return Math.min(Math.max(num, lower), upper);
 };
 
+/**
+ * Generate a UUID v4 string. `crypto.randomUUID` is unavailable in some
+ * embedded webviews (e.g. the WKWebView behind iOS Microsoft Edge), so fall
+ * back to `crypto.getRandomValues` (and `Math.random` as a last resort).
+ */
+export const uuid = (): string => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  const bytes = new Uint8Array(16);
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    crypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < 16; i++) bytes[i] = Math.floor(Math.random() * 256);
+  }
+  bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
+  bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant 10
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+};
+
+const SHA256_K = new Uint32Array([
+  0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+  0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+  0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+  0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+  0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+  0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+  0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+  0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+]);
+
+/** Pure-JS SHA-256 (hex) — fallback for engines without `crypto.subtle`. */
+const sha256Fallback = (bytes: Uint8Array): string => {
+  const h = new Uint32Array([
+    0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
+  ]);
+  const w = new Uint32Array(64);
+  const length = bytes.length;
+  const bitLen = length * 8;
+  const paddedLen = (((length + 8) >> 6) + 1) * 64;
+  const padded = new Uint8Array(paddedLen);
+  padded.set(bytes);
+  padded[length] = 0x80;
+  const view = new DataView(padded.buffer);
+  view.setUint32(paddedLen - 8, Math.floor(bitLen / 0x100000000));
+  view.setUint32(paddedLen - 4, bitLen >>> 0);
+  for (let i = 0; i < paddedLen; i += 64) {
+    for (let j = 0; j < 16; j++) w[j] = view.getUint32(i + j * 4);
+    for (let j = 16; j < 64; j++) {
+      const s0 =
+        ((w[j - 15] >>> 7) | (w[j - 15] << 25)) ^
+        ((w[j - 15] >>> 18) | (w[j - 15] << 14)) ^
+        (w[j - 15] >>> 3);
+      const s1 =
+        ((w[j - 2] >>> 17) | (w[j - 2] << 15)) ^
+        ((w[j - 2] >>> 19) | (w[j - 2] << 13)) ^
+        (w[j - 2] >>> 10);
+      w[j] = (w[j - 16] + s0 + w[j - 7] + s1) | 0;
+    }
+    let a = h[0],
+      b = h[1],
+      c = h[2],
+      d = h[3],
+      e = h[4],
+      f = h[5],
+      g = h[6],
+      hh = h[7];
+    for (let j = 0; j < 64; j++) {
+      const s1 = ((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7));
+      const ch = (e & f) ^ (~e & g);
+      const temp1 = (hh + s1 + ch + SHA256_K[j] + w[j]) | 0;
+      const s0 = ((a >>> 2) | (a << 30)) ^ ((a >>> 13) | (a << 19)) ^ ((a >>> 22) | (a << 10));
+      const maj = (a & b) ^ (a & c) ^ (b & c);
+      const temp2 = (s0 + maj) | 0;
+      hh = g;
+      g = f;
+      f = e;
+      e = (d + temp1) | 0;
+      d = c;
+      c = b;
+      b = a;
+      a = (temp1 + temp2) | 0;
+    }
+    h[0] = (h[0] + a) | 0;
+    h[1] = (h[1] + b) | 0;
+    h[2] = (h[2] + c) | 0;
+    h[3] = (h[3] + d) | 0;
+    h[4] = (h[4] + e) | 0;
+    h[5] = (h[5] + f) | 0;
+    h[6] = (h[6] + g) | 0;
+    h[7] = (h[7] + hh) | 0;
+  }
+  return Array.from(h, (v) => (v >>> 0).toString(16).padStart(8, '0')).join('');
+};
+
+/**
+ * SHA-256 hex digest. Uses `crypto.subtle` when available and falls back to
+ * a pure-JS implementation otherwise (`crypto.subtle` requires a secure
+ * context and is absent from some webviews, e.g. older iOS WKWebView).
+ */
+export const sha256Hex = async (data: Uint8Array | string): Promise<string> => {
+  const bytes = typeof data === 'string' ? new TextEncoder().encode(data) : data;
+  if (typeof crypto !== 'undefined' && crypto.subtle?.digest) {
+    try {
+      const digest = await crypto.subtle.digest('SHA-256', bytes as BufferSource);
+      return Array.from(new Uint8Array(digest))
+        .map((byte) => byte.toString(16).padStart(2, '0'))
+        .join('');
+    } catch (e) {
+      console.warn('crypto.subtle.digest failed:', e);
+    }
+  }
+  return sha256Fallback(bytes);
+};
+
 export const haveSameKeys = (obj1: object, obj2: object): boolean => {
   const keys1 = Object.keys(obj1).sort();
   const keys2 = Object.keys(obj2).sort();
@@ -185,7 +301,7 @@ export const readMetadataForRespack = (text: string) => {
   try {
     const { id, ...rest } = JSON.parse(text) as ResourcePackWithId<string>;
     const result: ResourcePackWithId<string> = {
-      id: id || crypto.randomUUID(),
+      id: id || uuid(),
       ...rest,
     };
     return result;
@@ -570,7 +686,15 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
   if (!song || !chart || !illustration || assetNames.length < assets.length) {
     if (!loadFromStorage) return null;
     const storageItem = localStorage.getItem('player');
-    return storageItem ? JSON.parse(storageItem) : null;
+    if (!storageItem) return null;
+    const stored = JSON.parse(storageItem) as Partial<Config>;
+    // One-time play options must not be replayed from storage: they are
+    // single-play parameters and only meaningful when passed in the URL.
+    delete stored.autoplay;
+    delete stored.practice;
+    delete stored.adjustOffset;
+    delete stored.autostart;
+    return stored as Config;
   }
   return {
     resources: {
@@ -749,6 +873,37 @@ export const notify = (
     ?.forEach((e) => e.id.startsWith(id) && e.addEventListener('click', clickCallback));
 };
 
+/**
+ * Copy text to the clipboard, tolerating engines without the async
+ * Clipboard API (e.g. older iOS WKWebView). Falls back to a hidden
+ * textarea + `execCommand('copy')`; never throws.
+ */
+export const copyText = async (text: string): Promise<boolean> => {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch (e) {
+    console.warn('navigator.clipboard.writeText failed:', e);
+  }
+  try {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    const ok = document.execCommand('copy');
+    textarea.remove();
+    return ok;
+  } catch (e) {
+    console.warn('execCommand copy failed:', e);
+    return false;
+  }
+};
+
 export const alertError = (error?: Error, message?: string) => {
   const type = error === null ? 'null' : error === undefined ? 'undefined' : error.constructor.name;
   let message2 = String(error);
@@ -773,13 +928,31 @@ export const alertError = (error?: Error, message?: string) => {
       e.id.startsWith(id) &&
       e.addEventListener('click', async () => {
         const text = error?.stack ?? (error ? `${error.name}: ${error.message}` : errMessage);
-        if (Capacitor.getPlatform() === 'web') navigator.clipboard.writeText(text);
-        else await Clipboard.write({ string: text });
-        Notiflix.Notify.success(m.copied(), {
-          cssAnimationStyle: 'from-right',
-          opacity: 0.9,
-          borderRadius: '12px',
-        });
+        let ok = false;
+        if (Capacitor.getPlatform() === 'web') {
+          ok = await copyText(text);
+        } else {
+          try {
+            await Clipboard.write({ string: text });
+            ok = true;
+          } catch (e) {
+            console.warn('Clipboard.write failed:', e);
+          }
+        }
+        if (ok) {
+          Notiflix.Notify.success(m.copied(), {
+            cssAnimationStyle: 'from-right',
+            opacity: 0.9,
+            borderRadius: '12px',
+          });
+        } else {
+          // A plain (non-copyable) toast — never recurse into alertError.
+          Notiflix.Notify.warning(m.copy_failed(), {
+            cssAnimationStyle: 'from-right',
+            opacity: 0.9,
+            borderRadius: '12px',
+          });
+        }
       }),
   );
 };

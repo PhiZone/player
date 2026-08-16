@@ -7,6 +7,7 @@
  */
 
 import type { Metadata, StoredChart, StoredChartSummary } from '$lib/types';
+import { sha256Hex, uuid } from '$lib/utils';
 import { openDB } from './idb';
 import {
   deleteChartFromDisk,
@@ -206,7 +207,7 @@ export async function deleteChart(id: string): Promise<void> {
 export async function syncChart(chart: StoredChart): Promise<void> {
   const normalized: StoredChart = {
     ...chart,
-    id: chart.id || crypto.randomUUID(),
+    id: chart.id || uuid(),
     createdAt: chart.createdAt || Date.now(),
     updatedAt: Date.now(),
   };
@@ -219,12 +220,9 @@ export async function syncChart(chart: StoredChart): Promise<void> {
  * hash identically regardless of insertion order.
  */
 export async function computeChartChecksum(chart: StoredChart): Promise<string> {
-  const encoder = new TextEncoder();
   const digestFile = async (file: File) => {
     const bytes = new Uint8Array(await file.arrayBuffer());
-    return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)))
-      .map((byte) => byte.toString(16).padStart(2, '0'))
-      .join('');
+    return sha256Hex(bytes);
   };
   const fileDigests = [
     ['chart', chart.resources.chart.name, await digestFile(chart.resources.chart)],
@@ -242,9 +240,5 @@ export async function computeChartChecksum(chart: StoredChart): Promise<string> 
   for (const asset of assets) {
     fileDigests.push([asset.name, String(asset.type), await digestFile(asset.file)]);
   }
-  const canonical = encoder.encode(JSON.stringify(fileDigests));
-  const digest = await crypto.subtle.digest('SHA-256', canonical);
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('');
+  return sha256Hex(JSON.stringify(fileDigests));
 }

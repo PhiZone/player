@@ -6,7 +6,7 @@ import Worker from '../../workers/FrameSender?worker';
 import { mixAudio } from './audio';
 import { download, getTimeSec, urlToBase64 } from '../utils';
 import { base } from '$app/paths';
-import { ensafeFilename } from '$lib/utils';
+import { ensafeFilename, uuid } from '$lib/utils';
 import { tauriListen } from '$lib/services/tauriIpc';
 import {
   pathJoin,
@@ -59,7 +59,7 @@ export class Renderer {
     const width = canvas.width;
     const height = canvas.height;
 
-    this._tempDir = await pathJoin(await pathTempDir(), 'cn.phizone.player', crypto.randomUUID());
+    this._tempDir = await pathJoin(await pathTempDir(), 'cn.phizone.player', uuid());
     await fsMkdir(this._tempDir, { recursive: true });
     const videoFile = await pathJoin(this._tempDir, 'video-stream.mp4');
 

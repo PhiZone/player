@@ -181,7 +181,7 @@
     }
   },
 
-  "play": "播放",
+  "play": "游玩",
   "start": "开始",
   "paused": "已暂停",
   "restart": "重新开始",
@@ -264,6 +264,8 @@
 
   "click_to_copy": "点击复制",
   "copied": "已复制到剪贴板",
+  "copy_failed": "复制到剪贴板失败。",
+  "clipboard_unavailable": "当前浏览器不支持剪贴板。",
   "rendering_saved": "渲染已保存到 {path}。",
   "exported_to": "已导出到 {path}。",
   "enabled": "已启用{name}。",
@@ -276,5 +278,41 @@
     "1": "请通过 TestFlight 更新应用。",
     "2": "点击前往 GitHub 发布页面。"
   },
-  "version_check_failed": "联系 GitHub 检查更新失败。"
+  "version_check_failed": "联系 GitHub 检查更新失败。",
+
+  "discover": "发现",
+  "library": "曲库",
+  "charts": "谱面",
+  "packs": "资源包",
+  "language": "语言",
+
+  "search": "搜索",
+  "search_charts": "搜索谱面…",
+
+  "discover_placeholder_title": "在线谱面即将上线",
+  "discover_placeholder_description": "不久之后，您将可以在这里直接浏览社区的谱面与资源包。待 PhiZone 内容接口就绪后，本页将焕然一新。",
+  "discover_coming_soon": "敬请期待",
+
+  "import_title": "导入谱面",
+  "import_description": "将谱面文件（.pez、.zip、.pec 等）或整个文件夹添加到您的曲库。您也可以将文件拖放到本页面的任意位置。",
+  "import_charts": "导入",
+  "import_files": "选择文件",
+  "import_directory": "选择文件夹",
+  "import_from_clipboard": "从剪贴板粘贴",
+
+  "library_empty_title": "曲库空空如也",
+  "library_empty_description": "导入一份谱面开始游玩，或等待在线谱面功能上线。",
+  "browse_online": "浏览在线内容",
+  "chart_count": "{count} 首谱面",
+  "pack_count": "{count} 个资源包",
+
+  "packs_empty_title": "暂无资源包",
+  "packs_empty_description": "资源包可以改变游戏的外观与音效。导入一个资源包来定制您的游戏体验。",
+
+  "play_options": "播放选项",
+  "advanced": "高级",
+  "about": "关于",
+  "about_description": "PhiZone Player 是一款开源的 Phigros 谱面播放器，支持网页、桌面与移动端。",
+  "about_version": "版本 {version}（{commit}）",
+  "commit_hash": "提交哈希"
 }
