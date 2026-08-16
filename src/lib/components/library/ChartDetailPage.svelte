@@ -248,9 +248,32 @@
   aria-modal="true"
   aria-label={edit.title || bundle.metadata.title}
 >
+  <!-- Full-bleed illustration background (wide screens only): the
+       illustration covers the whole page and fades out toward the right,
+       leaving the content column readable. -->
+  <div aria-hidden="true" class="pointer-events-none absolute inset-0 hidden md:block">
+    {#if illustrationUrl}
+      <img src={illustrationUrl} alt="" class="size-full object-cover" />
+    {:else}
+      <div class="size-full bg-muted"></div>
+    {/if}
+    <!-- right fade: the illustration gives way to the content column -->
+    <div
+      class="absolute inset-0 bg-gradient-to-r from-background/5 via-background/55 to-background"
+    ></div>
+    <!-- bottom fade: keeps the action bar legible -->
+    <div
+      class="absolute inset-0 bg-gradient-to-t from-background via-background/35 to-transparent"
+    ></div>
+    <!-- top fade: keeps the header legible -->
+    <div
+      class="absolute inset-0 bg-gradient-to-b from-background/80 via-background/20 to-transparent"
+    ></div>
+  </div>
+
   <!-- Header -->
   <header
-    class="flex h-14 shrink-0 items-center gap-1 border-b bg-background/90 px-2 backdrop-blur-xl sm:gap-2 sm:px-4"
+    class="relative z-10 flex h-14 shrink-0 items-center gap-1 border-b bg-background/90 px-2 backdrop-blur-xl sm:gap-2 sm:px-4 md:border-transparent md:bg-transparent md:backdrop-blur-none"
   >
     <Button variant="ghost" size="icon" aria-label={m.close()} onclick={onClose}>
       <ArrowLeftIcon class="size-4" />
@@ -307,310 +330,314 @@
   </header>
 
   <!-- Content -->
-  <div class="min-h-0 flex-1 overflow-y-auto">
-    <div class="mx-auto w-full max-w-5xl px-3 py-4 sm:px-6 sm:py-6">
-      <div class="grid gap-5 md:grid-cols-[300px_1fr] md:gap-8">
-        <div
-          class="relative aspect-[16/10] overflow-hidden rounded-2xl bg-muted md:aspect-auto md:h-96 md:max-h-[55vh] md:self-start md:sticky md:top-24"
-        >
-          {#if illustrationUrl}
-            <img src={illustrationUrl} alt="" class="size-full object-cover" />
-          {:else}
-            <div class="flex size-full items-center justify-center text-muted-foreground">
-              <MusicIcon class="size-10 opacity-40" />
-            </div>
+  <div class="relative z-10 min-h-0 flex-1 overflow-y-auto">
+    <div
+      class="mx-auto flex min-h-full w-full max-w-5xl flex-col items-stretch gap-4 px-3 py-4 sm:px-6 sm:py-6 md:max-w-none md:items-end md:gap-5 md:px-12 md:py-8"
+    >
+      <!-- Illustration card (mobile only; wide screens use the full-bleed
+           background above) -->
+      <div
+        class="relative aspect-[16/10] w-full shrink-0 overflow-hidden rounded-2xl bg-muted md:hidden"
+      >
+        {#if illustrationUrl}
+          <img src={illustrationUrl} alt="" class="size-full object-cover" />
+        {:else}
+          <div class="flex size-full items-center justify-center text-muted-foreground">
+            <MusicIcon class="size-10 opacity-40" />
+          </div>
+        {/if}
+      </div>
+      <!-- Title, level, composer, charter, illustrator -->
+      <div class="w-full space-y-1.5 md:w-[min(28rem,42vw)] md:space-y-3">
+        <div class="flex items-start justify-between gap-3">
+          <h2
+            class="min-w-0 break-words text-2xl font-bold leading-tight md:text-5xl md:leading-[1.08]"
+          >
+            {edit.title || bundle.metadata.title}
+          </h2>
+          <DifficultyBadge
+            levelType={bundle.metadata.levelType}
+            level={bundle.metadata.level}
+            class="md:h-7 md:px-3.5 md:py-1 md:text-lg"
+          />
+        </div>
+        <div class="flex flex-col gap-1 text-sm text-muted-foreground md:gap-2 md:text-lg">
+          {#if bundle.metadata.composer}
+            <p class="flex items-center gap-2">
+              <MusicIcon class="size-3.5 shrink-0 md:size-5" />
+              <span class="truncate">{bundle.metadata.composer}</span>
+            </p>
+          {/if}
+          {#if bundle.metadata.charter}
+            <p class="flex items-center gap-2">
+              <PenLineIcon class="size-3.5 shrink-0 md:size-5" />
+              <span class="truncate">{bundle.metadata.charter}</span>
+            </p>
+          {/if}
+          {#if bundle.metadata.illustrator}
+            <p class="flex items-center gap-2">
+              <ImageIcon class="size-3.5 shrink-0 md:size-5" />
+              <span class="truncate">{bundle.metadata.illustrator}</span>
+            </p>
           {/if}
         </div>
-        <div class="flex flex-col gap-4">
-          <div class="space-y-1.5">
-            <div class="flex items-start justify-between gap-3">
-              <h2 class="text-2xl font-bold leading-tight">
-                {edit.title || bundle.metadata.title}
-              </h2>
-              <DifficultyBadge
-                levelType={bundle.metadata.levelType}
-                level={bundle.metadata.level}
-              />
-            </div>
-            <div class="flex flex-col gap-1 text-sm text-muted-foreground">
-              {#if bundle.metadata.composer}
-                <p class="flex items-center gap-2">
-                  <MusicIcon class="size-3.5 shrink-0" />
-                  <span class="truncate">{bundle.metadata.composer}</span>
-                </p>
-              {/if}
-              {#if bundle.metadata.charter}
-                <p class="flex items-center gap-2">
-                  <PenLineIcon class="size-3.5 shrink-0" />
-                  <span class="truncate">{bundle.metadata.charter}</span>
-                </p>
-              {/if}
-              {#if bundle.metadata.illustrator}
-                <p class="flex items-center gap-2">
-                  <ImageIcon class="size-3.5 shrink-0" />
-                  <span class="truncate">{bundle.metadata.illustrator}</span>
-                </p>
-              {/if}
-            </div>
-          </div>
-
-          <div class="flex flex-wrap items-center gap-2">
-            <Button
-              size="lg"
-              class="min-w-28 flex-1 gap-2"
-              onclick={() =>
-                onPlay({ autoplay: false, practice: false, adjustOffset: false, autostart })}
-            >
-              <PlayIcon class="size-4" />
-              {m.play()}
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              class="gap-2"
-              title={m.autoplay_description()}
-              onclick={() =>
-                onPlay({ autoplay: true, practice: false, adjustOffset: false, autostart })}
-            >
-              <CirclePlayIcon class="size-4" />
-              {m.autoplay()}
-            </Button>
-            <DropdownMenu.Root>
-              <DropdownMenu.Trigger>
-                <Button
-                  variant="outline"
-                  size="icon-lg"
-                  aria-label={m.play_options()}
-                  title={m.play_options()}
-                >
-                  <EllipsisIcon class="size-4" />
-                </Button>
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Content align="end">
-                <DropdownMenu.Item
-                  onSelect={(e) => {
-                    onPlay({ autoplay: false, practice: true, adjustOffset: false, autostart });
-                    e.preventDefault();
-                  }}
-                >
-                  <Gamepad2Icon class="size-4" />
-                  {m.practice()}
-                </DropdownMenu.Item>
-                <DropdownMenu.Item
-                  onSelect={(e) => {
-                    onPlay({ autoplay: true, practice: false, adjustOffset: true, autostart });
-                    e.preventDefault();
-                  }}
-                >
-                  <TimerIcon class="size-4" />
-                  {m.adjust_offset()}
-                </DropdownMenu.Item>
-                <DropdownMenu.Separator />
-                <DropdownMenu.Item
-                  onSelect={(e) => {
-                    toggleAutostart();
-                    e.preventDefault();
-                  }}
-                >
-                  <RocketIcon class="size-4" />
-                  {m.autostart()}
-                  {#if autostart}
-                    <CheckIcon class="ms-auto size-4 text-primary" />
-                  {/if}
-                </DropdownMenu.Item>
-                {#if isWeb}
-                  <DropdownMenu.Item
-                    onSelect={(e) => {
-                      toggleNewTab();
-                      e.preventDefault();
-                    }}
-                  >
-                    <SquareArrowOutUpRightIcon class="size-4" />
-                    {m.new_tab()}
-                    {#if newTab}
-                      <CheckIcon class="ms-auto size-4 text-primary" />
-                    {/if}
-                  </DropdownMenu.Item>
-                {/if}
-              </DropdownMenu.Content>
-            </DropdownMenu.Root>
-          </div>
-
-          <Collapsible.Root bind:open={advancedOpen}>
-            <Collapsible.Trigger
-              class="flex w-full items-center justify-between gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              {m.advanced()}
-              <ChevronDownIcon
-                class="size-4 transition-transform {advancedOpen ? 'rotate-180' : ''}"
-              />
-            </Collapsible.Trigger>
-            <Collapsible.Content class="space-y-4 pt-2">
-              <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div class="space-y-1 sm:col-span-2">
-                  <Label for="detail-title">{m['metadata.title']()}</Label>
-                  <Input
-                    id="detail-title"
-                    bind:value={edit.title}
-                    disabled={disableTitle}
-                    oninput={() => (editDirty = true)}
-                  />
-                </div>
-                <div class="space-y-1">
-                  <Label for="detail-composer">{m['metadata.composer']()}</Label>
-                  <Input
-                    id="detail-composer"
-                    bind:value={edit.composer}
-                    oninput={() => (editDirty = true)}
-                  />
-                </div>
-                <div class="space-y-1">
-                  <Label for="detail-illustrator">{m['metadata.illustrator']()}</Label>
-                  <Input
-                    id="detail-illustrator"
-                    bind:value={edit.illustrator}
-                    oninput={() => (editDirty = true)}
-                  />
-                </div>
-                <div class="space-y-1">
-                  <Label for="detail-charter">{m['metadata.charter']()}</Label>
-                  <Input
-                    id="detail-charter"
-                    bind:value={edit.charter}
-                    oninput={() => (editDirty = true)}
-                  />
-                </div>
-                <div class="space-y-1">
-                  <Label>{m['metadata.level_type']()}</Label>
-                  <Select.Root type="single" bind:value={levelTypeStr}>
-                    <Select.Trigger class="w-full">
-                      <span>{TYPE_NAMES[Number(levelTypeStr)] ?? ''}</span>
-                    </Select.Trigger>
-                    <Select.Content>
-                      {#each TYPE_NAMES as typeName, i}
-                        <Select.Item value={String(i)}>{typeName}</Select.Item>
-                      {/each}
-                    </Select.Content>
-                  </Select.Root>
-                </div>
-                <div class="space-y-1 sm:col-span-2">
-                  <Label for="detail-level">{m['metadata.level']()}</Label>
-                  <Input
-                    id="detail-level"
-                    bind:value={edit.level}
-                    disabled={disableLevel}
-                    oninput={() => (editDirty = true)}
-                  />
-                </div>
-              </div>
-
-              <Separator />
-
-              <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div class="space-y-1">
-                  <Label>{m.chart()}</Label>
-                  <Select.Root type="single" bind:value={chartIdStr}>
-                    <Select.Trigger class="w-full">
-                      <span class="truncate">
-                        {charts.find((c) => String(c.id) === chartIdStr)?.name ?? ''}
-                      </span>
-                    </Select.Trigger>
-                    <Select.Content>
-                      {#each charts as option (option.id)}
-                        <Select.Item value={String(option.id)}>{option.name}</Select.Item>
-                      {/each}
-                    </Select.Content>
-                  </Select.Root>
-                </div>
-                <div class="space-y-1">
-                  <Label>{m.song()}</Label>
-                  <Select.Root type="single" bind:value={songIdStr}>
-                    <Select.Trigger class="w-full">
-                      <span class="truncate">
-                        {songs.find((s) => String(s.id) === songIdStr)?.name ?? ''}
-                      </span>
-                    </Select.Trigger>
-                    <Select.Content>
-                      {#each songs as option (option.id)}
-                        <Select.Item value={String(option.id)}>{option.name}</Select.Item>
-                      {/each}
-                    </Select.Content>
-                  </Select.Root>
-                </div>
-                <div class="space-y-1">
-                  <Label>{m.illustration()}</Label>
-                  <Select.Root type="single" bind:value={illustrationIdStr}>
-                    <Select.Trigger class="w-full">
-                      <span class="truncate">
-                        {illustrations.find((i) => String(i.id) === illustrationIdStr)?.name ?? ''}
-                      </span>
-                    </Select.Trigger>
-                    <Select.Content>
-                      {#each illustrations as option (option.id)}
-                        <Select.Item value={String(option.id)}>{option.name}</Select.Item>
-                      {/each}
-                    </Select.Content>
-                  </Select.Root>
-                </div>
-              </div>
-
-              {#if assets.length > 0}
-                <div class="overflow-x-auto rounded-xl border">
-                  <Table.Root>
-                    <Table.Header>
-                      <Table.Row>
-                        <Table.Head>{m['asset.name']()}</Table.Head>
-                        <Table.Head class="hidden sm:table-cell">{m['asset.type']()}</Table.Head>
-                        <Table.Head class="hidden md:table-cell">{m['asset.size']()}</Table.Head>
-                        <Table.Head class="text-end">{m['asset.actions']()}</Table.Head>
-                      </Table.Row>
-                    </Table.Header>
-                    <Table.Body>
-                      {#each assets as asset (asset.id)}
-                        <Table.Row class={!asset.included ? 'opacity-50' : ''}>
-                          <Table.Cell class="max-w-40 truncate font-medium" title={asset.name}>
-                            {asset.name}
-                          </Table.Cell>
-                          <Table.Cell class="hidden sm:table-cell">
-                            <AssetTypeSelect
-                              value={asset.type}
-                              onchange={(v) => onAssetType(asset, v)}
-                              class="h-8 min-w-28"
-                            />
-                          </Table.Cell>
-                          <Table.Cell class="hidden tabular-nums md:table-cell">
-                            {humanizeFileSize(asset.size)}
-                          </Table.Cell>
-                          <Table.Cell class="text-end">
-                            <div class="flex items-center justify-end gap-1">
-                              <Button
-                                variant="ghost"
-                                size="xs"
-                                onclick={() => onAssetToggle(asset)}
-                              >
-                                {asset.included ? m['asset.exclude']() : m['asset.include']()}
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon-xs"
-                                class="text-destructive"
-                                aria-label={m.delete()}
-                                onclick={() => onAssetDelete(asset)}
-                              >
-                                <TrashIcon class="size-3" />
-                              </Button>
-                            </div>
-                          </Table.Cell>
-                        </Table.Row>
-                      {/each}
-                    </Table.Body>
-                  </Table.Root>
-                </div>
-              {/if}
-            </Collapsible.Content>
-          </Collapsible.Root>
-        </div>
       </div>
+
+      <!-- Action bar: inline on mobile; on wide screens it floats near
+               the bottom right and moves up when Advanced opens, leaving the
+               space below it for the collapse content. -->
+      <div
+        class="flex w-full flex-wrap items-center gap-2 md:order-3 md:sticky md:bottom-6 md:w-[min(28rem,42vw)] md:flex-nowrap md:gap-3 class:md:mt-auto={!advancedOpen}"
+      >
+        <Button
+          size="lg"
+          class="min-w-28 flex-1 gap-2 md:h-14 md:min-w-44 md:text-lg"
+          onclick={() =>
+            onPlay({ autoplay: false, practice: false, adjustOffset: false, autostart })}
+        >
+          <PlayIcon class="size-4 md:size-5" />
+          {m.play()}
+        </Button>
+        <Button
+          size="lg"
+          variant="outline"
+          class="gap-2 md:h-14 md:px-6 md:text-lg"
+          title={m.autoplay_description()}
+          onclick={() =>
+            onPlay({ autoplay: true, practice: false, adjustOffset: false, autostart })}
+        >
+          <CirclePlayIcon class="size-4 md:size-5" />
+          {m.autoplay()}
+        </Button>
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger>
+            <Button
+              variant="outline"
+              size="icon-lg"
+              class="md:size-14"
+              aria-label={m.play_options()}
+              title={m.play_options()}
+            >
+              <EllipsisIcon class="size-4 md:size-5" />
+            </Button>
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Content align="end">
+            <DropdownMenu.Item
+              onSelect={(e) => {
+                onPlay({ autoplay: false, practice: true, adjustOffset: false, autostart });
+                e.preventDefault();
+              }}
+            >
+              <Gamepad2Icon class="size-4" />
+              {m.practice()}
+            </DropdownMenu.Item>
+            <DropdownMenu.Item
+              onSelect={(e) => {
+                onPlay({ autoplay: true, practice: false, adjustOffset: true, autostart });
+                e.preventDefault();
+              }}
+            >
+              <TimerIcon class="size-4" />
+              {m.adjust_offset()}
+            </DropdownMenu.Item>
+            <DropdownMenu.Separator />
+            <DropdownMenu.Item
+              onSelect={(e) => {
+                toggleAutostart();
+                e.preventDefault();
+              }}
+            >
+              <RocketIcon class="size-4" />
+              {m.autostart()}
+              {#if autostart}
+                <CheckIcon class="ms-auto size-4 text-primary" />
+              {/if}
+            </DropdownMenu.Item>
+            {#if isWeb}
+              <DropdownMenu.Item
+                onSelect={(e) => {
+                  toggleNewTab();
+                  e.preventDefault();
+                }}
+              >
+                <SquareArrowOutUpRightIcon class="size-4" />
+                {m.new_tab()}
+                {#if newTab}
+                  <CheckIcon class="ms-auto size-4 text-primary" />
+                {/if}
+              </DropdownMenu.Item>
+            {/if}
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
+      </div>
+
+      <Collapsible.Root bind:open={advancedOpen} class="w-full md:order-2 md:w-[min(28rem,42vw)]">
+        <Collapsible.Trigger
+          class="flex w-full items-center justify-between gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          {m.advanced()}
+          <ChevronDownIcon class="size-4 transition-transform {advancedOpen ? 'rotate-180' : ''}" />
+        </Collapsible.Trigger>
+        <Collapsible.Content class="space-y-4 pt-2">
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div class="space-y-1 sm:col-span-2">
+              <Label for="detail-title">{m['metadata.title']()}</Label>
+              <Input
+                id="detail-title"
+                bind:value={edit.title}
+                disabled={disableTitle}
+                oninput={() => (editDirty = true)}
+              />
+            </div>
+            <div class="space-y-1">
+              <Label for="detail-composer">{m['metadata.composer']()}</Label>
+              <Input
+                id="detail-composer"
+                bind:value={edit.composer}
+                oninput={() => (editDirty = true)}
+              />
+            </div>
+            <div class="space-y-1">
+              <Label for="detail-illustrator">{m['metadata.illustrator']()}</Label>
+              <Input
+                id="detail-illustrator"
+                bind:value={edit.illustrator}
+                oninput={() => (editDirty = true)}
+              />
+            </div>
+            <div class="space-y-1">
+              <Label for="detail-charter">{m['metadata.charter']()}</Label>
+              <Input
+                id="detail-charter"
+                bind:value={edit.charter}
+                oninput={() => (editDirty = true)}
+              />
+            </div>
+            <div class="space-y-1">
+              <Label>{m['metadata.level_type']()}</Label>
+              <Select.Root type="single" bind:value={levelTypeStr}>
+                <Select.Trigger class="w-full">
+                  <span>{TYPE_NAMES[Number(levelTypeStr)] ?? ''}</span>
+                </Select.Trigger>
+                <Select.Content>
+                  {#each TYPE_NAMES as typeName, i}
+                    <Select.Item value={String(i)}>{typeName}</Select.Item>
+                  {/each}
+                </Select.Content>
+              </Select.Root>
+            </div>
+            <div class="space-y-1 sm:col-span-2">
+              <Label for="detail-level">{m['metadata.level']()}</Label>
+              <Input
+                id="detail-level"
+                bind:value={edit.level}
+                disabled={disableLevel}
+                oninput={() => (editDirty = true)}
+              />
+            </div>
+          </div>
+
+          <Separator />
+
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div class="space-y-1">
+              <Label>{m.chart()}</Label>
+              <Select.Root type="single" bind:value={chartIdStr}>
+                <Select.Trigger class="w-full">
+                  <span class="truncate">
+                    {charts.find((c) => String(c.id) === chartIdStr)?.name ?? ''}
+                  </span>
+                </Select.Trigger>
+                <Select.Content>
+                  {#each charts as option (option.id)}
+                    <Select.Item value={String(option.id)}>{option.name}</Select.Item>
+                  {/each}
+                </Select.Content>
+              </Select.Root>
+            </div>
+            <div class="space-y-1">
+              <Label>{m.song()}</Label>
+              <Select.Root type="single" bind:value={songIdStr}>
+                <Select.Trigger class="w-full">
+                  <span class="truncate">
+                    {songs.find((s) => String(s.id) === songIdStr)?.name ?? ''}
+                  </span>
+                </Select.Trigger>
+                <Select.Content>
+                  {#each songs as option (option.id)}
+                    <Select.Item value={String(option.id)}>{option.name}</Select.Item>
+                  {/each}
+                </Select.Content>
+              </Select.Root>
+            </div>
+            <div class="space-y-1">
+              <Label>{m.illustration()}</Label>
+              <Select.Root type="single" bind:value={illustrationIdStr}>
+                <Select.Trigger class="w-full">
+                  <span class="truncate">
+                    {illustrations.find((i) => String(i.id) === illustrationIdStr)?.name ?? ''}
+                  </span>
+                </Select.Trigger>
+                <Select.Content>
+                  {#each illustrations as option (option.id)}
+                    <Select.Item value={String(option.id)}>{option.name}</Select.Item>
+                  {/each}
+                </Select.Content>
+              </Select.Root>
+            </div>
+          </div>
+
+          {#if assets.length > 0}
+            <div class="overflow-x-auto rounded-xl border">
+              <Table.Root>
+                <Table.Header>
+                  <Table.Row>
+                    <Table.Head>{m['asset.name']()}</Table.Head>
+                    <Table.Head class="hidden sm:table-cell">{m['asset.type']()}</Table.Head>
+                    <Table.Head class="hidden md:table-cell">{m['asset.size']()}</Table.Head>
+                    <Table.Head class="text-end">{m['asset.actions']()}</Table.Head>
+                  </Table.Row>
+                </Table.Header>
+                <Table.Body>
+                  {#each assets as asset (asset.id)}
+                    <Table.Row class={!asset.included ? 'opacity-50' : ''}>
+                      <Table.Cell class="max-w-40 truncate font-medium" title={asset.name}>
+                        {asset.name}
+                      </Table.Cell>
+                      <Table.Cell class="hidden sm:table-cell">
+                        <AssetTypeSelect
+                          value={asset.type}
+                          onchange={(v) => onAssetType(asset, v)}
+                          class="h-8 min-w-28"
+                        />
+                      </Table.Cell>
+                      <Table.Cell class="hidden tabular-nums md:table-cell">
+                        {humanizeFileSize(asset.size)}
+                      </Table.Cell>
+                      <Table.Cell class="text-end">
+                        <div class="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="xs" onclick={() => onAssetToggle(asset)}>
+                            {asset.included ? m['asset.exclude']() : m['asset.include']()}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            class="text-destructive"
+                            aria-label={m.delete()}
+                            onclick={() => onAssetDelete(asset)}
+                          >
+                            <TrashIcon class="size-3" />
+                          </Button>
+                        </div>
+                      </Table.Cell>
+                    </Table.Row>
+                  {/each}
+                </Table.Body>
+              </Table.Root>
+            </div>
+          {/if}
+        </Collapsible.Content>
+      </Collapsible.Root>
     </div>
   </div>
 </div>

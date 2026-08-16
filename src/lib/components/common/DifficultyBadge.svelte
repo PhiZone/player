@@ -10,8 +10,15 @@
     4: 'border-sky-500/40 bg-sky-500/15 text-sky-400',
   };
 
-  let { levelType = 2, level = '' }: { levelType?: number | null; level?: string | null } =
-    $props();
+  let {
+    levelType = 2,
+    level = '',
+    class: className = '',
+  }: {
+    levelType?: number | null;
+    level?: string | null;
+    class?: string;
+  } = $props();
 
   const typeName = $derived(TYPE_NAMES[levelType ?? 2] ?? 'IN');
   const label = $derived(
@@ -21,7 +28,8 @@
 
 <Badge
   variant="outline"
-  class="shrink-0 border font-semibold tabular-nums {TYPE_STYLES[levelType ?? 2] ?? TYPE_STYLES[2]}"
+  class="shrink-0 border font-semibold tabular-nums {TYPE_STYLES[levelType ?? 2] ??
+    TYPE_STYLES[2]} {className}"
 >
   {label}
 </Badge>

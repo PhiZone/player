@@ -1769,6 +1769,17 @@
     assets = assets;
     chartBundles = chartBundles;
     done = true;
+    const focusImportedChart = (imported: ChartBundle) => {
+      // Jump straight into the imported chart's detail view — always the
+      // newly imported chart, not whatever was selected before.
+      currentBundle = imported;
+      applyMetadataOverrides(imported);
+      selectedBundle = imported.id;
+      selectedSong = imported.song;
+      selectedChart = imported.chart;
+      selectedIllustration = imported.illustration;
+      detailOpen = true;
+    };
     if (newlyResolvedBundles.length > 0 && shouldSaveImport()) {
       progressDetail = m.saving_chart();
       showProgress = true;
@@ -1776,11 +1787,16 @@
       // view: syncImportedCharts mutates the raw bundle objects, which is
       // not reactive, so rendering earlier would leave the asset list empty
       // until some later re-render (e.g. switching tabs).
-      await syncImportedCharts(newlyResolvedBundles);
-    }
-    if (newlyResolvedBundles.length > 0) {
-      // Jump straight into the imported chart's detail view.
-      detailOpen = true;
+      const loadedExisting = await syncImportedCharts(newlyResolvedBundles);
+      if (loadedExisting) {
+        // Duplicate resolved by loading the stored chart: its working state
+        // (including the current bundle) is already set up.
+        detailOpen = true;
+      } else {
+        focusImportedChart(newlyResolvedBundles[0]);
+      }
+    } else if (newlyResolvedBundles.length > 0) {
+      focusImportedChart(newlyResolvedBundles[0]);
     }
     declareFinished();
     send({
@@ -1967,8 +1983,10 @@
     if (!options.silent) notify(m.chart_saved(), 'success');
   };
 
-  /** Handle a freshly imported chart batch: dedup check + sync. */
-  const syncImportedCharts = async (bundles: ChartBundle[]) => {
+  /** Handle a freshly imported chart batch: dedup check + sync. Returns
+   * `true` when a duplicate was resolved by loading the stored chart (its
+   * working state is then already set up). */
+  const syncImportedCharts = async (bundles: ChartBundle[]): Promise<boolean> => {
     // Always run within-batch grouping so each chart's asset list is scoped
     // to files that actually belong to it (shareId match / explicit
     // reference / sole occupant of a single-chart batch) — never the whole
@@ -2017,6 +2035,7 @@
       await loadChartIntoWorkingState(loaded);
     }
     await refreshStoredSummaries();
+    return loadRequestedId !== null;
   };
 
   /** Replace the working state with a stored chart (Load action). */
