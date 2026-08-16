@@ -850,8 +850,13 @@
     }
   }
 
-  const shareId = (a: FileEntry, b: FileEntry) =>
-    a.file.name.split('.').slice(0, -1).join('.') === b.file.name.split('.').slice(0, -1).join('.');
+  /** Compare file stems, ignoring any path prefix (zip entries keep their
+   * folder in the file name, e.g. `videos/song.mp3` vs `song.mp3`). */
+  const shareId = (a: FileEntry, b: FileEntry) => {
+    const stem = (name: string) =>
+      (name.split(/[\\/]/).pop() ?? name).split('.').slice(0, -1).join('.');
+    return stem(a.file.name) === stem(b.file.name);
+  };
 
   const isIncluded = (name: string) =>
     !name.toLowerCase().startsWith('autosave') && name !== 'createTime.txt';
@@ -1562,18 +1567,40 @@
       {
         let metadata = readMetadataForChart(content);
         if (metadata) {
+          // Zip entries keep their folder in the file name, while metadata
+          // (info.txt / META) references basenames — fall back to matching
+          // the last path segment.
+          const baseNameOf = (name: string) => name.split(/[\\/]/).pop() ?? name;
           const chartFile =
             chartFiles.find(
               (file) => importedAssetIds.has(file.id) && file.file.name === metadata.chart,
-            ) ?? chartFiles.find((file) => file.file.name === metadata.chart);
+            ) ??
+            chartFiles.find((file) => file.file.name === metadata.chart) ??
+            chartFiles.find(
+              (file) =>
+                importedAssetIds.has(file.id) && baseNameOf(file.file.name) === metadata.chart,
+            ) ??
+            chartFiles.find((file) => baseNameOf(file.file.name) === metadata.chart);
           const songFile =
             audioFiles.find(
               (file) => importedAssetIds.has(file.id) && file.file.name === metadata.song,
-            ) ?? audioFiles.find((file) => file.file.name === metadata.song);
+            ) ??
+            audioFiles.find((file) => file.file.name === metadata.song) ??
+            audioFiles.find(
+              (file) =>
+                importedAssetIds.has(file.id) && baseNameOf(file.file.name) === metadata.song,
+            ) ??
+            audioFiles.find((file) => baseNameOf(file.file.name) === metadata.song);
           const illustrationFile =
             imageFiles.find(
               (file) => importedAssetIds.has(file.id) && file.file.name === metadata.picture,
-            ) ?? imageFiles.find((file) => file.file.name === metadata.picture);
+            ) ??
+            imageFiles.find((file) => file.file.name === metadata.picture) ??
+            imageFiles.find(
+              (file) =>
+                importedAssetIds.has(file.id) && baseNameOf(file.file.name) === metadata.picture,
+            ) ??
+            imageFiles.find((file) => baseNameOf(file.file.name) === metadata.picture);
           if (chartFile) {
             try {
               const chartMeta = (JSON.parse(await chartFile.file.text()) as RpeJson).META;
