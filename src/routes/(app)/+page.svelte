@@ -1738,15 +1738,19 @@
     assets = assets;
     chartBundles = chartBundles;
     done = true;
+    if (newlyResolvedBundles.length > 0 && shouldSaveImport()) {
+      progressDetail = m.saving_chart();
+      showProgress = true;
+      // Resolve asset scoping (and persist) BEFORE switching to the chart
+      // view: syncImportedCharts mutates the raw bundle objects, which is
+      // not reactive, so rendering earlier would leave the asset list empty
+      // until some later re-render (e.g. switching tabs).
+      await syncImportedCharts(newlyResolvedBundles);
+    }
     if (bundlesResolved > 0) {
       viewMode = 'chart';
     } else if (respacksResolved > 0) {
       viewMode = 'respack';
-    }
-    if (newlyResolvedBundles.length > 0 && shouldSaveImport()) {
-      progressDetail = m.saving_chart();
-      showProgress = true;
-      await syncImportedCharts(newlyResolvedBundles);
     }
     declareFinished();
     send({
