@@ -300,6 +300,17 @@ export const readMetadataForChart = (text?: string, chartMeta?: RpeMeta): Metada
 export const readMetadataForRespack = (text: string) => {
   try {
     const { id, ...rest } = JSON.parse(text) as ResourcePackWithId<string>;
+    // Only accept actual PhiZone resource-pack metadata
+    if (
+      typeof rest.name !== 'string' ||
+      !Array.isArray(rest.noteSkins) ||
+      !Array.isArray(rest.hitSounds) ||
+      !Array.isArray(rest.ending?.grades) ||
+      !Array.isArray(rest.ending?.music) ||
+      !Array.isArray(rest.fonts)
+    ) {
+      return null;
+    }
     const result: ResourcePackWithId<string> = {
       id: id || uuid(),
       ...rest,
@@ -313,7 +324,20 @@ export const readMetadataForRespack = (text: string) => {
 
 export const readMetadataForPhiraRespack = (text: string) => {
   try {
-    return YAML.parse(text) as PhiraResourcePack;
+    const metadata = YAML.parse(text) as PhiraResourcePack;
+    // Only accept actual Phira resource-pack metadata
+    const tuple = (value: unknown): value is [number, number] =>
+      Array.isArray(value) && value.length === 2 && value.every((v) => typeof v === 'number');
+    if (
+      typeof metadata.name !== 'string' ||
+      typeof metadata.author !== 'string' ||
+      !tuple(metadata.hitFx) ||
+      !tuple(metadata.holdAtlas) ||
+      !tuple(metadata.holdAtlasMH)
+    ) {
+      return null;
+    }
+    return metadata;
   } catch (e) {
     console.debug('Failed to parse Phira resource pack metadata:', e);
     return null;

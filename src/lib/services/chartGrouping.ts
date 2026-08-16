@@ -174,27 +174,49 @@ export async function groupFilesIntoCharts(entries: ChartGroupInput[]): Promise<
   if (flat.length > 0) partitioned.push(flat);
   for (const group of folderGroups.values()) partitioned.push(group);
 
+  // Classify each partition first, so that partitions without any chart
+  // (e.g. assets living in zip subfolders next to the chart) can donate
+  // their files to the batch's charts instead of being silently dropped.
+  const classified = await Promise.all(
+    partitioned.map(async (group) => {
+      const charts: ChartGroupInput[] = [];
+      let extra: ChartGroupInput | undefined;
+      const others: ChartGroupInput[] = [];
+      for (const entry of group) {
+        const basename = getBasename(entry).toLowerCase();
+        if (basename === 'extra.json') {
+          extra = entry;
+          continue;
+        }
+        if (await isChartFile(entry.file)) {
+          charts.push(entry);
+          continue;
+        }
+        others.push(entry);
+      }
+      return { charts, extra, others };
+    }),
+  );
+
+  const chartGroups = classified.filter((group) => group.charts.length > 0);
+  const totalCharts = chartGroups.reduce((sum, group) => sum + group.charts.length, 0);
+  const singleChart = totalCharts === 1;
+
+  // Files in chart-less partitions (e.g. `videos/` next to the chart folder).
+  const orphanEntries: ChartGroupInput[] = [];
+  for (const group of classified) {
+    if (group.charts.length > 0) continue;
+    if (group.extra) orphanEntries.push(group.extra);
+    orphanEntries.push(...group.others);
+  }
+  const orphanAudios = orphanEntries.filter((entry) => classifyFile(entry.file) === 1);
+  const orphanImages = orphanEntries.filter((entry) => classifyFile(entry.file) === 0);
+
   const results: GroupedChart[] = [];
   const assigned = new Set<ChartGroupInput>();
 
-  for (const group of partitioned) {
-    const charts: ChartGroupInput[] = [];
-    let extra: ChartGroupInput | undefined;
-    const others: ChartGroupInput[] = [];
-    for (const entry of group) {
-      const basename = getBasename(entry).toLowerCase();
-      if (basename === 'extra.json') {
-        extra = entry;
-        continue;
-      }
-      if (await isChartFile(entry.file)) {
-        charts.push(entry);
-        continue;
-      }
-      others.push(entry);
-    }
-    if (charts.length === 0) continue;
-
+  for (const group of chartGroups) {
+    const { charts, extra, others } = group;
     const multiChart = charts.length > 1;
     for (const chartEntry of charts) {
       const referenced = await getReferencedAssetNames(chartEntry.file, extra?.file);
@@ -203,8 +225,20 @@ export async function groupFilesIntoCharts(entries: ChartGroupInput[]): Promise<
 
       let song = audios.find((a) => shareId(getBasename(a), getBasename(chartEntry)));
       if (!song && !multiChart) song = audios[0];
+      // In a single-chart batch the song/illustration may live in a
+      // subfolder (e.g. `music/song.mp3`) — look among the orphan files too.
+      if (!song && singleChart) {
+        song =
+          orphanAudios.find((a) => shareId(getBasename(a), getBasename(chartEntry))) ??
+          orphanAudios[0];
+      }
       let illustration = images.find((i) => shareId(getBasename(i), getBasename(chartEntry)));
       if (!illustration && !multiChart) illustration = images[0];
+      if (!illustration && singleChart) {
+        illustration =
+          orphanImages.find((i) => shareId(getBasename(i), getBasename(chartEntry))) ??
+          orphanImages[0];
+      }
 
       const claimed = new Set<ChartGroupInput>();
       if (song) claimed.add(song);
@@ -231,6 +265,16 @@ export async function groupFilesIntoCharts(entries: ChartGroupInput[]): Promise<
             assetEntries.push(entry);
             claimed.add(entry);
           }
+        }
+      }
+      // Claim subfolder files: everything for a single-chart batch, only
+      // files the chart explicitly references when the batch has multiple
+      // charts.
+      for (const entry of orphanEntries) {
+        if (claimed.has(entry)) continue;
+        if (singleChart || isReferenced(getBasename(entry), referenced)) {
+          assetEntries.push(entry);
+          claimed.add(entry);
         }
       }
 
