@@ -293,6 +293,17 @@
   "discover_placeholder_description": "不久之后，您将可以在这里直接浏览社区的谱面与资源包。待 PhiZone 内容接口就绪后，本页将焕然一新。",
   "discover_coming_soon": "敬请期待",
 
+  "retry": "重试",
+  "toy_login": "使用 B站账号登录",
+  "toy_login_short": "登录",
+  "leaderboard": "排行榜",
+  "score": "分数",
+  "leaderboard_empty": "还没有成绩，等你来抢占第一！",
+  "leaderboard_error": "排行榜加载失败。",
+  "my_rank": "你的排名：{rank}",
+  "unranked": "尚未上榜",
+  "personal_best": "个人最佳",
+
   "import_title": "导入谱面",
   "import_description": "将谱面文件（.pez、.zip、.pec 等）或整个文件夹添加到您的曲库。您也可以将文件拖放到本页面的任意位置。",
   "import_charts": "导入",

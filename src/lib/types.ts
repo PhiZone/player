@@ -763,3 +763,10 @@ export interface PhiraResourcePack {
   colorPerfect?: number;
   colorGood?: number;
 }
+
+/** Logged-in user shown in the top bar. The data source is injected by the
+ * environment adapter (e.g. the bilibili Toy SDK), so this stays UI-only. */
+export interface ToyUser {
+  avatar: string;
+  nickname: string;
+}
