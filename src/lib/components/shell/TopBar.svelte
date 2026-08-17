@@ -2,6 +2,8 @@
   import { base } from '$app/paths';
   import { Button } from '$lib/components/ui/button';
   import LanguageSwitcher from '$lib/components/LanguageSwitcher.svelte';
+  import ToyUserBadge from './ToyUserBadge.svelte';
+  import type { ToyUserProfile } from '$lib/services/toy';
   import { m } from '$lib/paraglide/messages';
   import CompassIcon from '@lucide/svelte/icons/compass';
   import LibraryIcon from '@lucide/svelte/icons/library';
@@ -13,10 +15,18 @@
     tab = 'library',
     onSelectTab,
     onOpenSettings,
+    toyUser = null,
+    toyLoginRequired = false,
+    toyLoginLoading = false,
+    onToyLogin,
   }: {
     tab: AppTab;
     onSelectTab: (tab: AppTab) => void;
     onOpenSettings: () => void;
+    toyUser?: ToyUserProfile | null;
+    toyLoginRequired?: boolean;
+    toyLoginLoading?: boolean;
+    onToyLogin?: () => void;
   } = $props();
 </script>
 
@@ -54,6 +64,14 @@
       </Button>
     </nav>
     <div class="ms-auto flex items-center gap-1">
+      {#if onToyLogin}
+        <ToyUserBadge
+          user={toyUser}
+          loginRequired={toyLoginRequired}
+          loginLoading={toyLoginLoading}
+          onLogin={onToyLogin}
+        />
+      {/if}
       <LanguageSwitcher />
       <Button variant="ghost" size="icon" aria-label={m.settings()} onclick={onOpenSettings}>
         <SettingsIcon class="size-4" />

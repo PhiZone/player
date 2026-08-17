@@ -5,6 +5,8 @@
   import { Card } from '$lib/components/ui/card';
   import { m } from '$lib/paraglide/messages';
   import type { StoredChartSummary, ResourcePackWithId } from '$lib/types';
+  import { lookupChartStats, lookupPacksStats } from '$lib/services/onlineStats';
+  import type { ApiChartSummary, ApiPackSummary } from '$lib/services/libraryApi';
   import SongCard from './SongCard.svelte';
   import PackCard from './PackCard.svelte';
   import PlusIcon from '@lucide/svelte/icons/plus';
@@ -35,6 +37,26 @@
   } = $props();
 
   let segment = $state<'charts' | 'packs'>('charts');
+
+  // ── Online stats for local entries (matched by metadata, cached) ───────
+  let onlineCharts = $state<Map<string, ApiChartSummary>>(new Map());
+  let onlinePacks = $state<Map<string, ApiPackSummary>>(new Map());
+
+  $effect(() => {
+    const s = summaries;
+    const p = respacks;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const [charts, packs] = await Promise.all([lookupChartStats(s), lookupPacksStats(p)]);
+      if (cancelled) return;
+      onlineCharts = charts;
+      onlinePacks = packs;
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  });
 
   // ── Thumbnail object-URL caches ──────────────────────────────────────
   const chartThumbs = new Map<string, string>();
@@ -121,6 +143,7 @@
           <SongCard
             {summary}
             thumbnailUrl={getChartThumb(summary)}
+            downloadCount={onlineCharts.get(summary.id)?.downloadCount}
             onclick={() => onChartSelect(summary)}
           />
         {/each}
@@ -150,6 +173,7 @@
           author={pack.author}
           description={pack.description}
           thumbnailUrl={getPackThumb(pack)}
+          downloadCount={onlinePacks.get(pack.id)?.downloadCount}
           selected={selectedRespackId === pack.id}
           onSelect={() => onPackSelect(pack.id)}
           onexport={() => onPackExport(pack.id)}

@@ -12,6 +12,20 @@
   import { m } from '$lib/paraglide/messages';
   import { IS_TAURI } from '$lib/utils';
   import { confirm as confirmDialog } from '@tauri-apps/plugin-dialog';
+  import {
+    detectToyEnvironment,
+    padToyScore,
+    toyGetMyRank,
+    toyGetPersonalBest,
+    toyGetRankList,
+    type ToyBoard,
+    type ToyPersonalBest,
+  } from '$lib/services/toy';
+  import { findChartBoard } from '$lib/services/toyLeaderboards';
+  import ChartLeaderboard, {
+    type LeaderboardEntry,
+    type LeaderboardMyRank,
+  } from './ChartLeaderboard.svelte';
   import DifficultyBadge from '$lib/components/common/DifficultyBadge.svelte';
   import AssetTypeSelect from './AssetTypeSelect.svelte';
   import ArrowLeftIcon from '@lucide/svelte/icons/arrow-left';
@@ -30,6 +44,7 @@
   import RocketIcon from '@lucide/svelte/icons/rocket';
   import SquareArrowOutUpRightIcon from '@lucide/svelte/icons/square-arrow-out-up-right';
   import CheckIcon from '@lucide/svelte/icons/check';
+  import CrownIcon from '@lucide/svelte/icons/crown';
 
   const TYPE_NAMES = ['EZ', 'HD', 'IN', 'AT', 'SP'];
 
@@ -239,6 +254,48 @@
       window.removeEventListener('keydown', onKeyDown);
     };
   });
+
+  // ── Bilibili Toy: chart leaderboard + personal best ──────────────────
+  // Only the first three online charts (by creation date) own a leaderboard
+  // board; this chart's board is resolved by metadata match against them.
+  let toyEnabled = $state(false);
+  let chartBoard = $state<ToyBoard | null>(null);
+  let leaderboard = $state<LeaderboardEntry[] | null>(null);
+  let leaderboardError = $state(false);
+  let myRank = $state<LeaderboardMyRank | null>(null);
+  let personalBest = $state<ToyPersonalBest | null>(null);
+  let leaderboardOpen = $state(false);
+
+  onMount(async () => {
+    toyEnabled = await detectToyEnvironment();
+    if (!toyEnabled) return;
+    chartBoard = await findChartBoard({
+      title: bundle.metadata.title,
+      composer: bundle.metadata.composer,
+      levelType: bundle.metadata.levelType,
+      level: bundle.metadata.level,
+    });
+    if (chartBoard === null) return; // this chart has no leaderboard
+    void loadLeaderboard();
+    const chartKey = bundle.storedId;
+    if (chartKey) {
+      personalBest = await toyGetPersonalBest(chartKey);
+      myRank ??= await toyGetMyRank(chartBoard);
+    }
+  });
+
+  const loadLeaderboard = async () => {
+    if (chartBoard === null) return;
+    leaderboardError = false;
+    leaderboard = null;
+    const [entries, rank] = await Promise.all([
+      toyGetRankList(chartBoard, 20),
+      toyGetMyRank(chartBoard),
+    ]);
+    leaderboard = entries ?? [];
+    if (rank) myRank = rank;
+    leaderboardError = entries === null;
+  };
 </script>
 
 <div
@@ -387,7 +444,7 @@
                the bottom right and moves up when Advanced opens, leaving the
                space below it for the collapse content. -->
       <div
-        class="flex w-full flex-wrap items-center gap-2 md:order-3 md:sticky md:bottom-6 md:w-[min(28rem,42vw)] md:flex-nowrap md:gap-3 class:md:mt-auto={!advancedOpen}"
+        class="flex w-full flex-wrap items-center gap-2 md:order-5 md:sticky md:bottom-6 md:w-[min(28rem,42vw)] md:flex-nowrap md:gap-3 class:md:mt-auto={!advancedOpen}"
       >
         <Button
           size="lg"
@@ -638,6 +695,64 @@
           {/if}
         </Collapsible.Content>
       </Collapsible.Root>
+
+      <!-- Personal best (Bilibili Toy only): score + accuracy + rank,
+           right above the action buttons bar. -->
+      {#if toyEnabled && chartBoard !== null && (personalBest || (myRank?.ranked ?? false))}
+        <div class="w-full md:order-4 md:w-[min(28rem,42vw)]">
+          <div
+            class="flex items-center justify-between gap-3 rounded-xl border border-violet-500/30 bg-violet-500/10 px-4 py-2.5"
+          >
+            <span
+              class="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+            >
+              <CrownIcon class="size-3.5 text-amber-400" />
+              {m.personal_best()}
+            </span>
+            <span class="flex items-baseline gap-2">
+              {#if myRank?.ranked}
+                <span class="text-xs font-semibold text-violet-300">#{myRank.rank}</span>
+              {/if}
+              <span
+                class="font-mono text-lg font-bold tabular-nums tracking-widest text-foreground"
+              >
+                {padToyScore(personalBest?.score ?? myRank?.score ?? 0)}
+              </span>
+              {#if personalBest}
+                <span class="text-xs text-muted-foreground">
+                  {personalBest.accuracy.toFixed(2)}%
+                </span>
+              {/if}
+            </span>
+          </div>
+        </div>
+      {/if}
+
+      <!-- Chart leaderboard (Bilibili Toy only; the chart must own a board). -->
+      {#if toyEnabled && chartBoard !== null}
+        <Collapsible.Root
+          bind:open={leaderboardOpen}
+          class="w-full md:order-3 md:w-[min(28rem,42vw)]"
+        >
+          <Collapsible.Trigger
+            class="flex w-full items-center justify-between gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {m.leaderboard()}
+            <ChevronDownIcon
+              class="size-4 transition-transform {leaderboardOpen ? 'rotate-180' : ''}"
+            />
+          </Collapsible.Trigger>
+          <Collapsible.Content class="pt-2">
+            <ChartLeaderboard
+              entries={leaderboard ?? []}
+              {myRank}
+              loading={leaderboard === null && !leaderboardError}
+              error={leaderboardError}
+              onRetry={loadLeaderboard}
+            />
+          </Collapsible.Content>
+        </Collapsible.Root>
+      {/if}
     </div>
   </div>
 </div>

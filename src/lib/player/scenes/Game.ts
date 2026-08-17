@@ -1,6 +1,7 @@
 import { Cameras, GameObjects, Scene, Sound } from 'phaser';
 import { EventBus, isAutostartBlocked } from '../EventBus';
 import { inferLevelType, fit, send, getLines, IS_TAURI_LIKE, uuid } from '$lib/utils';
+import { submitToyChartScore } from '$lib/services/toyLeaderboards';
 import {
   processIllustration,
   loadJson,
@@ -539,6 +540,16 @@ export class Game extends Scene {
       this._resultsMusic,
       this._data.mediaOptions.resultsLoopsToRender,
     );
+    // In the bilibili Toy environment, report the finished play to the
+    // chart's leaderboard board and persist the personal best. Only the
+    // first three online charts own a board; autoplay/practice/render runs
+    // are not real performances and are skipped inside.
+    const stats = this.statistics.stats;
+    void submitToyChartScore(this._data.chartId, this._data.metadata, stats.score, stats.accuracy, {
+      autoplay: this._data.autoplay,
+      practice: this._data.practice,
+      render: this._data.render,
+    });
   }
 
   sortObjects() {

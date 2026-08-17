@@ -4,17 +4,20 @@
   import { Button } from '$lib/components/ui/button';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import { m } from '$lib/paraglide/messages';
+  import { formatCompactNumber } from '$lib/utils';
   import PaletteIcon from '@lucide/svelte/icons/palette';
   import CheckIcon from '@lucide/svelte/icons/check';
   import EllipsisIcon from '@lucide/svelte/icons/ellipsis';
   import FileDownIcon from '@lucide/svelte/icons/file-down';
   import TrashIcon from '@lucide/svelte/icons/trash-2';
+  import DownloadIcon from '@lucide/svelte/icons/download';
 
   let {
     name,
     author,
     description,
     thumbnailUrl,
+    downloadCount,
     selected,
     onSelect,
     onexport,
@@ -24,6 +27,7 @@
     author?: string;
     description?: string;
     thumbnailUrl?: string;
+    downloadCount?: number;
     selected: boolean;
     onSelect: () => void;
     onexport: () => void;
@@ -41,6 +45,15 @@
     {:else}
       <div class="flex size-full items-center justify-center text-muted-foreground">
         <PaletteIcon class="size-8 opacity-40" />
+      </div>
+    {/if}
+    {#if downloadCount !== undefined && downloadCount > 0}
+      <div
+        class="absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-background/80 px-2 py-0.5 text-xs backdrop-blur"
+        title={m.online_stats()}
+      >
+        <DownloadIcon class="size-3" />
+        {formatCompactNumber(downloadCount)}
       </div>
     {/if}
     {#if selected}

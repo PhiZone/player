@@ -1,16 +1,21 @@
 <script lang="ts">
   import { Card } from '$lib/components/ui/card';
   import type { StoredChartSummary } from '$lib/types';
+  import { m } from '$lib/paraglide/messages';
+  import { formatCompactNumber } from '$lib/utils';
   import DifficultyBadge from '$lib/components/common/DifficultyBadge.svelte';
   import MusicIcon from '@lucide/svelte/icons/music';
+  import DownloadIcon from '@lucide/svelte/icons/download';
 
   let {
     summary,
     thumbnailUrl,
+    downloadCount,
     onclick,
   }: {
     summary: StoredChartSummary;
     thumbnailUrl?: string;
+    downloadCount?: number;
     onclick: () => void;
   } = $props();
 </script>
@@ -30,6 +35,15 @@
       {:else}
         <div class="flex size-full items-center justify-center text-muted-foreground">
           <MusicIcon class="size-8 opacity-40" />
+        </div>
+      {/if}
+      {#if downloadCount !== undefined && downloadCount > 0}
+        <div
+          class="absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-background/80 px-2 py-0.5 text-xs backdrop-blur"
+          title={m.online_stats()}
+        >
+          <DownloadIcon class="size-3" />
+          {formatCompactNumber(downloadCount)}
         </div>
       {/if}
     </div>

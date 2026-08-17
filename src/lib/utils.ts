@@ -885,6 +885,17 @@ export const ensafeFilename = (filename: string) => {
     .replaceAll(/[#%&{}\\<>*?/$!'":@`|]/g, '');
 };
 
+/** Compact count formatting for download stats: 999, 1.2k, 3.4M. */
+export const formatCompactNumber = (n: number): string => {
+  if (n < 1000) return String(n);
+  if (n < 1_000_000) {
+    const k = n / 1000;
+    return `${k >= 100 ? Math.round(k) : k.toFixed(1).replace(/\.0$/, '')}k`;
+  }
+  const m = n / 1_000_000;
+  return `${m >= 100 ? Math.round(m) : m.toFixed(1).replace(/\.0$/, '')}M`;
+};
+
 export const notify = (
   message: string,
   type: 'info' | 'warning' | 'failure' | 'success' = 'info',

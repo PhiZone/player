@@ -29,6 +29,7 @@
   import {
     clamp,
     convertRespackToURL,
+    ensafeFilename,
     exportChart,
     exportRespack,
     extractTgz,
@@ -96,6 +97,7 @@
   import { convertHoldAtlas, getImageDimensions } from '$lib/converters/phira/respack';
   import { hexToRgba } from '$lib/player/utils';
   import { m } from '$lib/paraglide/messages';
+  import { detectToyEnvironment, toyGetUserProfile, type ToyUserProfile } from '$lib/services/toy';
   import {
     saveRespack,
     loadAllRespacks,
@@ -158,6 +160,12 @@
   let activeTab: 'discover' | 'library' = 'library';
   let settingsOpen = false;
   let importOpen = false;
+  // Bilibili Toy integration: logged-in user shown in the top bar. `toyUser`
+  // stays null until the platform grant exists; `toyLoginRequired` shows the
+  // login button (the first getUserProfile call must come from a gesture).
+  let toyUser: ToyUserProfile | null = null;
+  let toyLoginRequired = false;
+  let toyLoginLoading = false;
   let detailOpen = false;
   let clipboardModalOpen = false;
   let duplicateModalOpen = false;
@@ -370,6 +378,15 @@
     }
 
     await init();
+
+    // Bilibili Toy environment: ask for the user's profile (the platform
+    // shows its own consent dialog on first grant; a prior v2 grant is
+    // reused silently). If the call needs a user gesture, the top bar shows
+    // a login button instead.
+    if (await detectToyEnvironment()) {
+      toyUser = await toyGetUserProfile();
+      toyLoginRequired = toyUser === null;
+    }
 
     // The player may have saved an offset-adjusted chart (this window, or
     // another window/tab) — reload it so reopening applies the new offset.
@@ -2283,6 +2300,45 @@
     await processInputFiles(files);
   };
 
+  /**
+   * Install an online chart/pack from the Discover tab: download the counted
+   * archive URL, then run it through the normal import pipeline so it lands
+   * in the local library like any other import.
+   */
+  const handleInstallOnline = async (
+    kind: 'chart' | 'pack',
+    downloadUrl: string,
+    title: string,
+  ) => {
+    try {
+      const raw = await download(downloadUrl);
+      // The counted endpoint redirects to the OSS file, so the fetched file
+      // name is meaningless (e.g. "download"); rebuild the archive with a
+      // proper name and ZIP MIME type so import detection works.
+      const archive = new File(
+        [raw],
+        kind === 'chart' ? `${ensafeFilename(title)}.zip` : `${ensafeFilename(title)} pack.zip`,
+        { type: 'application/zip' },
+      );
+      await processInputFiles([archive]);
+      notify(m.installed({ title }), 'success');
+    } catch (e) {
+      console.warn('Failed to install online content:', e);
+      notify(m.install_failed({ title }), 'failure');
+    }
+  };
+
+  /** Bilibili Toy login: the profile consent dialog needs a user gesture. */
+  const handleToyLogin = async () => {
+    toyLoginLoading = true;
+    try {
+      toyUser = await toyGetUserProfile();
+      toyLoginRequired = toyUser === null;
+    } finally {
+      toyLoginLoading = false;
+    }
+  };
+
   const handleImportDirectory = async (fileList: FileList) => {
     importOpen = false;
     const dirFiles = Array.from(fileList);
@@ -2684,10 +2740,20 @@
 </Dialog.Root>
 
 <!-- App shell -->
-<AppShell tab={activeTab} {onSelectTab} onOpenSettings={() => (settingsOpen = true)}>
-  {#if activeTab === 'discover'}
-    <DiscoverView />
-  {:else}
+<AppShell
+  tab={activeTab}
+  {onSelectTab}
+  onOpenSettings={() => (settingsOpen = true)}
+  {toyUser}
+  {toyLoginRequired}
+  {toyLoginLoading}
+  onToyLogin={handleToyLogin}
+>
+  <!-- Both views stay mounted so each keeps its state across tab switches. -->
+  <div class:hidden={activeTab !== 'discover'}>
+    <DiscoverView onInstall={handleInstallOnline} />
+  </div>
+  <div class:hidden={activeTab !== 'library'}>
     <LibraryView
       summaries={storedChartSummaries}
       respacks={resourcePacks}
@@ -2699,7 +2765,7 @@
       onImport={() => (importOpen = true)}
       onBrowseOnline={() => onSelectTab('discover')}
     />
-  {/if}
+  </div>
 </AppShell>
 
 <ProgressOverlay {progress} {progressDetail} {progressSpeed} {showProgress} />
