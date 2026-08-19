@@ -26,7 +26,7 @@
     fromRichText,
     triggerDownload,
   } from '$lib/utils';
-  import { convertTime, findPredominantBpm, getTimeSec } from './utils';
+  import { convertTime } from './utils';
   import WaveSurfer, { type WaveSurferOptions } from 'wavesurfer.js';
   import Minimap from 'wavesurfer.js/dist/plugins/minimap.esm.js';
   import Regions from 'wavesurfer.js/dist/plugins/regions.esm.js';
@@ -72,6 +72,7 @@
   let status = GameStatus.LOADING;
   let duration = 0;
   let timeSec = 0;
+  let lastWaveformUpdate = -100;
 
   let title: string | null = config?.metadata.title ?? null;
   let level: string | null =
@@ -250,7 +251,7 @@
       }
 
       if (enableOffsetHelper) {
-        const predominantBpm = findPredominantBpm(scene.bpmList, duration);
+        const predominantBpm = scene.timeUtil.findPredominantBpm(duration);
         regions = Regions.create();
         wavesurferOptions = {
           container: waveformElement,
@@ -311,26 +312,35 @@
     }
 
     EventBus.on('update', (t: number) => {
-      if (t !== timeSec) {
-        if (IS_TAURI && !render && t < duration) {
-          import('@tauri-apps/api/webviewWindow').then(({ getCurrentWebviewWindow }) => {
-            import('@tauri-apps/api/window').then(({ ProgressBarStatus }) => {
-              getCurrentWebviewWindow().setProgressBar({
-                status:
-                  status === GameStatus.PLAYING
-                    ? ProgressBarStatus.Normal
-                    : ProgressBarStatus.Paused,
-                progress: Math.round((t * 100) / duration),
-              });
-            });
-          });
+      if (t === duration) {
+        if (timeSec !== t) {
+          wavesurfer?.setTime(t);
+          timeSec = t;
         }
-        wavesurfer?.setTime(t);
-        if (t === duration && enableOffsetHelper && !isOffsetAdjustedChartExported) {
+        if (enableOffsetHelper && !isOffsetAdjustedChartExported) {
           saveOffsetAdjustedChart();
         }
+        return;
       }
-      timeSec = t;
+      if (t !== timeSec && IS_TAURI && !render) {
+        import('@tauri-apps/api/webviewWindow').then(({ getCurrentWebviewWindow }) => {
+          import('@tauri-apps/api/window').then(({ ProgressBarStatus }) => {
+            getCurrentWebviewWindow().setProgressBar({
+              status:
+                status === GameStatus.PLAYING ? ProgressBarStatus.Normal : ProgressBarStatus.Paused,
+              progress: Math.round((t * 100) / duration),
+            });
+          });
+        });
+      }
+      const now = performance.now();
+      if (now - lastWaveformUpdate > 100) {
+        wavesurfer?.setTime(t);
+        lastWaveformUpdate = now;
+      }
+      if (Math.abs(t - timeSec) >= 0.1) {
+        timeSec = t;
+      }
     });
 
     EventBus.on('paused', (emittedBySpace: boolean) => {
@@ -406,7 +416,7 @@
   const updateMarkers = () => {
     if (regions && gameRef.scene) {
       regions.clearRegions();
-      const bpmList = gameRef.scene.bpmList;
+      const timeUtil = gameRef.scene.timeUtil;
       [...gameRef.scene.notes]
         .sort((a, b) =>
           a.note.type === b.note.type
@@ -415,10 +425,9 @@
         )
         .forEach((note) => {
           regions?.addRegion({
-            start: getTimeSec(bpmList, note.note.startBeat) + offset / 1000,
+            start: timeUtil.getTimeSec(note.note.startBeat) + offset / 1000,
             end:
-              getTimeSec(
-                bpmList,
+              timeUtil.getTimeSec(
                 note.note.type === 2 ? note.note.endBeat : note.note.startBeat + 1 / 64,
               ) +
               offset / 1000,

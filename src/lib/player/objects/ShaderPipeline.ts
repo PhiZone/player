@@ -422,6 +422,7 @@ class VariableAnimator {
     this._events = events;
     processEvents(
       this._events,
+      this._shader.scene.timeUtil,
       undefined,
       undefined,
       `Var ${name}, Shader ${this._shader.scene.metadata.title}`,
@@ -458,7 +459,7 @@ class VariableAnimator {
       while (this._cur < this._events.length - 1 && beat > this._events[this._cur + 1].startBeat) {
         this._cur++;
       }
-      return getEventValue(this._events[this._cur], beat, this._shader.scene.bpmList);
+      return getEventValue(this._events[this._cur], this._shader.scene.timeUtil.getTimeSec(beat));
     } else {
       return undefined;
     }

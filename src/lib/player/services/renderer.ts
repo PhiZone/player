@@ -4,7 +4,7 @@ import { combineStreams, convertAudio, finishVideo, setupVideo } from './ffmpeg/
 import type { Game } from '../scenes/Game';
 import Worker from '../../workers/FrameSender?worker';
 import { mixAudio } from './audio';
-import { download, getTimeSec, urlToBase64 } from '../utils';
+import { download, urlToBase64 } from '../utils';
 import { base } from '$app/paths';
 import { ensafeFilename } from '$lib/utils';
 import { tauriListen } from '$lib/services/tauriIpc';
@@ -246,7 +246,7 @@ export class Renderer {
           }
           timestamps.push({
             sound,
-            time: getTimeSec(this._scene.bpmList, note.startBeat) + 1 + this._scene.offset / 1000,
+            time: this._scene.timeUtil.getTimeSec(note.startBeat) + 1 + this._scene.offset / 1000,
             volume: this._scene.preferences.hitSoundVolume,
           });
         }

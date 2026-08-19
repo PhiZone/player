@@ -12,7 +12,6 @@ import { PlainNote } from './PlainNote';
 import {
   getIntegral,
   getLineColor,
-  getTimeSec,
   getEventValue,
   processEvents,
   rgbToHex,
@@ -37,9 +36,7 @@ export class Line {
   private _noteContainers: Record<number, GameObjects.Container> = {};
   private _noteMask: GameObjects.Rectangle | null = null;
   private _notes: (PlainNote | LongNote)[] = [];
-  private _notesByVisualStart: (PlainNote | LongNote)[] = [];
-  private _activeNotes: (PlainNote | LongNote)[] = [];
-  private _visualNoteIndex: number = 0;
+  private _noteCullBound: number = Infinity;
   private _hasAttach: boolean = false;
   private _hasCustomTexture: boolean = false;
   private _hasAnimatedTexture: boolean = false;
@@ -149,20 +146,35 @@ export class Line {
     scene.registerNode(this._line, `line-${num}`);
 
     this._data.eventLayers.forEach((layer, i) => {
-      processEvents(layer?.alphaEvents, i, this._index);
-      processEvents(layer?.moveXEvents, i, this._index);
-      processEvents(layer?.moveYEvents, i, this._index);
-      processEvents(layer?.rotateEvents, i, this._index);
-      processEvents(layer?.speedEvents, i, this._index);
+      processEvents(layer?.alphaEvents, this._scene.timeUtil, i, this._index);
+      processEvents(layer?.moveXEvents, this._scene.timeUtil, i, this._index);
+      processEvents(layer?.moveYEvents, this._scene.timeUtil, i, this._index);
+      processEvents(layer?.rotateEvents, this._scene.timeUtil, i, this._index);
+      processEvents(layer?.speedEvents, this._scene.timeUtil, i, this._index);
     });
 
     if (this._data.extended) {
-      processEvents(this._data.extended.colorEvents, 'Extended', this._index);
-      processEvents(this._data.extended.gifEvents, 'Extended', this._index);
-      processEvents(this._data.extended.inclineEvents, 'Extended', this._index);
-      processEvents(this._data.extended.scaleXEvents, 'Extended', this._index);
-      processEvents(this._data.extended.scaleYEvents, 'Extended', this._index);
-      processEvents(this._data.extended.textEvents, 'Extended', this._index);
+      processEvents(this._data.extended.colorEvents, this._scene.timeUtil, 'Extended', this._index);
+      processEvents(this._data.extended.gifEvents, this._scene.timeUtil, 'Extended', this._index);
+      processEvents(
+        this._data.extended.inclineEvents,
+        this._scene.timeUtil,
+        'Extended',
+        this._index,
+      );
+      processEvents(
+        this._data.extended.scaleXEvents,
+        this._scene.timeUtil,
+        'Extended',
+        this._index,
+      );
+      processEvents(
+        this._data.extended.scaleYEvents,
+        this._scene.timeUtil,
+        'Extended',
+        this._index,
+      );
+      processEvents(this._data.extended.textEvents, this._scene.timeUtil, 'Extended', this._index);
     }
 
     processControlNodes(this._data.alphaControl);
@@ -219,43 +231,42 @@ export class Line {
       }
     }
 
-    this._notesByVisualStart = [...this._notes].sort(
-      (a, b) => this.getNoteVisualStartTime(a) - this.getNoteVisualStartTime(b),
-    );
+    // calculateHeight() uses the same incremental event cursors as playback.
+    // Do not leave those cursors at the last note's position when the first
+    // frame is rendered (or after a seek); playback must rebuild them from 0.
+    this.resetEventState();
   }
 
   update(beat: number, songTime: number, gameTime: number, forceFullNoteUpdate: boolean = false) {
     if (gameTime == this._lastUpdate) return;
     this._lastUpdate = gameTime;
-    this._parent?.update(beat, songTime, gameTime);
-    this.handleEventLayers(beat);
+    if (forceFullNoteUpdate) this.resetEventState();
+    this._parent?.update(beat, songTime, gameTime, forceFullNoteUpdate);
+    const lineBeat = beat / this._data.bpmfactor;
+    const timeSec = this._scene.timeUtil.getTimeSec(lineBeat);
+    this.handleEventLayers(lineBeat, timeSec);
     this.updateParams();
+    this._noteCullBound =
+      this._scene.sys.canvas.height +
+      (this._scene.sys.canvas.width / 2) * Math.abs(Math.sin(this._line.rotation));
     if (forceFullNoteUpdate) {
-      this.resetActiveNoteWindow();
       this._notes.forEach((note) => {
-        note.update(beat / this._data.bpmfactor, songTime, this._height);
+        note.update(lineBeat, songTime, this._height);
       });
       return;
     }
-    this.updateActiveNotes(beat / this._data.bpmfactor, songTime);
+    this.updateVisibleNotes(lineBeat, songTime);
   }
 
-  updateActiveNotes(beat: number, songTime: number) {
-    while (
-      this._visualNoteIndex < this._notesByVisualStart.length &&
-      this.getNoteVisualStartTime(this._notesByVisualStart[this._visualNoteIndex]) <= songTime
-    ) {
-      const note = this._notesByVisualStart[this._visualNoteIndex++];
-      if (this.getNoteVisualEndTime(note) >= songTime) {
-        this._activeNotes.push(note);
-      }
-    }
-
-    for (let i = this._activeNotes.length - 1; i >= 0; i--) {
-      const note = this._activeNotes[i];
-      if (this.getNoteVisualEndTime(note) < songTime) {
+  updateVisibleNotes(beat: number, songTime: number) {
+    for (const note of this._notes) {
+      if (
+        songTime < note.hitTime - note.note.visibleTime ||
+        songTime >
+          (note instanceof LongNote ? note.endHitTime : note.hitTime) + VISUAL_END_GRACE_SEC ||
+        !this.isNoteInCullArea(note)
+      ) {
         note.setVisible(false);
-        this._activeNotes.splice(i, 1);
         continue;
       }
       note.update(beat, songTime, this._height);
@@ -263,18 +274,56 @@ export class Line {
   }
 
   resetActiveNoteWindow() {
-    this._visualNoteIndex = 0;
-    this._activeNotes = [];
+    // Kept for Game's seek reset path. Note eligibility is now derived from
+    // absolute time, so there is no cursor or active-note list to rebuild.
   }
 
-  private getNoteVisualStartTime(note: PlainNote | LongNote) {
-    return note.hitTime - note.note.visibleTime;
+  private resetEventState() {
+    this._curX = [];
+    this._curY = [];
+    this._curRot = [];
+    this._curAlpha = [];
+    this._curSpeed = [];
+    this._lastHeight = [];
+    this._curColor = [];
+    this._curGif = [];
+    this._curIncline = [];
+    this._curScaleX = [];
+    this._curScaleY = [];
+    this._curText = [];
   }
 
-  private getNoteVisualEndTime(note: PlainNote | LongNote) {
-    return (
-      (note.note.type === 2 ? (note as LongNote).endHitTime : note.hitTime) + VISUAL_END_GRACE_SEC
-    );
+  private isNoteInCullArea(note: PlainNote | LongNote) {
+    const scale = (this._scene.sys.canvas.height * 2) / 15;
+    const offsetScale = this._scene.sys.canvas.height / 900;
+    const yModifier = note.note.above === 1 ? -1 : 1;
+    const speed = note.note.speed;
+    const lineY = this._line.y;
+    const cosRotation = Math.cos(this._line.rotation);
+    const centerY = this._scene.sys.canvas.height / 2;
+    const worldY = (targetHeight: number) => {
+      const distance =
+        (targetHeight - this._height) * speed * scale + note.note.yOffset * offsetScale;
+      return lineY + yModifier * distance * cosRotation;
+    };
+    const inArea = (targetHeight: number) =>
+      Math.abs(worldY(targetHeight) - centerY) <= this._noteCullBound;
+
+    if (note instanceof LongNote) {
+      // Once a hold reaches the judgment line, its endpoints can both be
+      // outside the viewport while its body is still crossing the line. Keep
+      // updating it for the complete judgment interval in that case.
+      if (this._scene.timeSec >= note.hitTime && this._scene.timeSec <= note.endHitTime) {
+        return true;
+      }
+
+      const headY = worldY(note.headTargetHeight);
+      const tailY = worldY(note.tailTargetHeight);
+      const minY = Math.min(headY, tailY);
+      const maxY = Math.max(headY, tailY);
+      return maxY >= centerY - this._noteCullBound && minY <= centerY + this._noteCullBound;
+    }
+    return inArea(note.targetHeight);
   }
 
   destroy() {
@@ -453,29 +502,25 @@ export class Line {
     return container;
   }
 
-  handleEventLayers(beat: number) {
-    ({
-      alpha: this._opacity,
-      x: this._x,
-      y: this._y,
-      rotation: this._rotation,
-      height: this._height,
-    } = this._data.eventLayers.reduce(
-      (acc, _, i) => {
-        const { alpha, x, y, rotation, height } = this.handleEventLayer(
-          beat / this._data.bpmfactor,
-          i,
-        );
-        return {
-          alpha: acc.alpha + (alpha ?? 0),
-          x: acc.x + (x ?? 0),
-          y: acc.y + (y ?? 0),
-          rotation: acc.rotation + (rotation ?? 0),
-          height: acc.height + height,
-        };
-      },
-      { alpha: 0, x: 0, y: 0, rotation: 0, height: 0 },
-    ));
+  handleEventLayers(beat: number, timeSec: number) {
+    let alpha = 0;
+    let x = 0;
+    let y = 0;
+    let rotation = 0;
+    let height = 0;
+    for (let i = 0; i < this._data.eventLayers.length; i++) {
+      const layer = this.handleEventLayer(beat, i, timeSec);
+      if (layer.alpha !== undefined) alpha += layer.alpha;
+      if (layer.x !== undefined) x += layer.x;
+      if (layer.y !== undefined) y += layer.y;
+      if (layer.rotation !== undefined) rotation += layer.rotation;
+      height += layer.height;
+    }
+    this._opacity = alpha;
+    this._x = x;
+    this._y = y;
+    this._rotation = rotation;
+    this._height = height;
     ({
       color: this._color,
       gif: this._gif,
@@ -484,7 +529,7 @@ export class Line {
       scaleY: this._scaleY,
       text: this._text,
       font: this._font,
-    } = this.handleExtendedEventLayer(beat / this._data.bpmfactor, 0));
+    } = this.handleExtendedEventLayer(beat, 0, timeSec));
   }
 
   handleSpeed(
@@ -493,6 +538,7 @@ export class Line {
     events: SpeedEvent[] | null | undefined,
     cur: number[],
     lastHeight: number[],
+    timeSec: number,
   ) {
     while (cur.length < layerIndex + 1) cur.push(0);
     while (lastHeight.length < layerIndex + 1) lastHeight.push(0);
@@ -503,26 +549,18 @@ export class Line {
       }
       while (cur[layerIndex] < events.length - 1 && beat > events[cur[layerIndex] + 1].startBeat) {
         lastHeight[layerIndex] +=
-          getIntegral(events[cur[layerIndex]], this._scene.bpmList, this._integrateSpeedEasings) +
+          getIntegral(events[cur[layerIndex]], this._integrateSpeedEasings) +
           events[cur[layerIndex]].end *
-            (getTimeSec(this._scene.bpmList, events[cur[layerIndex] + 1].startBeat) -
-              getTimeSec(this._scene.bpmList, events[cur[layerIndex]].endBeat));
+            (events[cur[layerIndex] + 1].startTimeSec! - events[cur[layerIndex]].endTimeSec!);
         cur[layerIndex]++;
       }
       let height = lastHeight[layerIndex];
       if (beat <= events[cur[layerIndex]].endBeat) {
-        height += getIntegral(
-          events[cur[layerIndex]],
-          this._scene.bpmList,
-          this._integrateSpeedEasings,
-          beat,
-        );
+        height += getIntegral(events[cur[layerIndex]], this._integrateSpeedEasings, beat, timeSec);
       } else {
         height +=
-          getIntegral(events[cur[layerIndex]], this._scene.bpmList, this._integrateSpeedEasings) +
-          events[cur[layerIndex]].end *
-            (getTimeSec(this._scene.bpmList, beat) -
-              getTimeSec(this._scene.bpmList, events[cur[layerIndex]].endBeat));
+          getIntegral(events[cur[layerIndex]], this._integrateSpeedEasings) +
+          events[cur[layerIndex]].end * (timeSec - events[cur[layerIndex]].endTimeSec!);
       }
       return height;
     } else {
@@ -535,6 +573,7 @@ export class Line {
     layerIndex: number,
     events: (Event | ColorEvent | GifEvent | TextEvent)[] | null | undefined,
     cur: number[],
+    timeSec: number,
     fillInBetween = true,
   ) {
     while (cur.length < layerIndex + 1) {
@@ -553,7 +592,7 @@ export class Line {
       ) {
         return undefined;
       }
-      return getEventValue(events[cur[layerIndex]], beat, this._scene.bpmList);
+      return getEventValue(events[cur[layerIndex]], timeSec);
     } else {
       return undefined;
     }
@@ -562,6 +601,7 @@ export class Line {
   handleEventLayer(
     beat: number,
     layerIndex: number,
+    timeSec: number,
   ): {
     alpha: number | undefined;
     x: number | undefined;
@@ -574,12 +614,16 @@ export class Line {
       return { alpha: undefined, x: undefined, y: undefined, rotation: undefined, height: 0 };
 
     return {
-      alpha: this.handleEvent(beat, layerIndex, layer.alphaEvents, this._curAlpha) as
+      alpha: this.handleEvent(beat, layerIndex, layer.alphaEvents, this._curAlpha, timeSec) as
         | number
         | undefined,
-      x: this.handleEvent(beat, layerIndex, layer.moveXEvents, this._curX) as number | undefined,
-      y: this.handleEvent(beat, layerIndex, layer.moveYEvents, this._curY) as number | undefined,
-      rotation: this.handleEvent(beat, layerIndex, layer.rotateEvents, this._curRot) as
+      x: this.handleEvent(beat, layerIndex, layer.moveXEvents, this._curX, timeSec) as
+        | number
+        | undefined,
+      y: this.handleEvent(beat, layerIndex, layer.moveYEvents, this._curY, timeSec) as
+        | number
+        | undefined,
+      rotation: this.handleEvent(beat, layerIndex, layer.rotateEvents, this._curRot, timeSec) as
         | number
         | undefined,
       height: this.handleSpeed(
@@ -588,6 +632,7 @@ export class Line {
         layer.speedEvents,
         this._curSpeed,
         this._lastHeight,
+        timeSec,
       ),
     };
   }
@@ -595,6 +640,7 @@ export class Line {
   handleExtendedEventLayer(
     beat: number,
     layerIndex: number,
+    timeSec: number,
   ): {
     color: number[] | undefined;
     gif: number | undefined;
@@ -616,27 +662,39 @@ export class Line {
         font: undefined,
       };
 
-    const text = this.handleEvent(beat, layerIndex, extended.textEvents, this._curText) as
+    const text = this.handleEvent(beat, layerIndex, extended.textEvents, this._curText, timeSec) as
       | string
       | undefined;
     const font = extended.textEvents?.[this._curText[layerIndex]]?.font;
 
     return {
-      color: this.handleEvent(beat, layerIndex, extended.colorEvents, this._curColor) as
+      color: this.handleEvent(beat, layerIndex, extended.colorEvents, this._curColor, timeSec) as
         | number[]
         | undefined,
-      gif: this.handleEvent(beat, layerIndex, extended.gifEvents, this._curGif, false) as
+      gif: this.handleEvent(beat, layerIndex, extended.gifEvents, this._curGif, timeSec, false) as
         | number
         | undefined,
-      incline: this.handleEvent(beat, layerIndex, extended.inclineEvents, this._curIncline) as
-        | number
-        | undefined,
-      scaleX: this.handleEvent(beat, layerIndex, extended.scaleXEvents, this._curScaleX) as
-        | number
-        | undefined,
-      scaleY: this.handleEvent(beat, layerIndex, extended.scaleYEvents, this._curScaleY) as
-        | number
-        | undefined,
+      incline: this.handleEvent(
+        beat,
+        layerIndex,
+        extended.inclineEvents,
+        this._curIncline,
+        timeSec,
+      ) as number | undefined,
+      scaleX: this.handleEvent(
+        beat,
+        layerIndex,
+        extended.scaleXEvents,
+        this._curScaleX,
+        timeSec,
+      ) as number | undefined,
+      scaleY: this.handleEvent(
+        beat,
+        layerIndex,
+        extended.scaleYEvents,
+        this._curScaleY,
+        timeSec,
+      ) as number | undefined,
       text,
       font,
     };
@@ -657,9 +715,11 @@ export class Line {
   }
 
   calculateHeight(beat: number) {
+    const timeSec = this._scene.timeUtil.getTimeSec(beat);
     return this._data.eventLayers.reduce(
       (acc, layer, i) =>
-        acc + this.handleSpeed(beat, i, layer?.speedEvents, this._curSpeed, this._lastHeight),
+        acc +
+        this.handleSpeed(beat, i, layer?.speedEvents, this._curSpeed, this._lastHeight, timeSec),
       0,
     );
   }

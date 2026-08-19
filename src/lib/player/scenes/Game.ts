@@ -2,6 +2,7 @@ import { Cameras, GameObjects, Scene, Sound } from 'phaser';
 import { EventBus, isAutostartBlocked } from '../EventBus';
 import { inferLevelType, fit, send, getLines, IS_TAURI_LIKE } from '$lib/utils';
 import {
+  TimeUtil,
   processIllustration,
   loadJson,
   toBeats,
@@ -80,6 +81,7 @@ export class Game extends Scene {
   private _level: string | null;
   private _offset: number;
   private _bpmList: Bpm[];
+  public readonly timeUtil: TimeUtil;
   private _numberOfNotes: number;
   private _autoplay = false;
   private _practice = false;
@@ -689,6 +691,7 @@ export class Game extends Scene {
     this._offset =
       chart.META.offset + (this._adjustOffset ? 0 : this._data.preferences.chartOffset);
     this._bpmList = chart.BPMList;
+    (this as { timeUtil: TimeUtil }).timeUtil = new TimeUtil(this._bpmList);
 
     if (!this._title) this._title = chart.META.name;
     if (!this._composer) this._composer = chart.META.composer;

@@ -692,6 +692,7 @@ export const processEvents = (
     | (Event | SpeedEvent | ColorEvent | GifEvent | TextEvent | VariableEvent)[]
     | null
     | undefined,
+  timeUtil: TimeUtil,
   layerIndex?: number | string,
   lineIndex?: number,
   source?: string,
@@ -709,6 +710,8 @@ export const processEvents = (
       );
       event.endBeat = event.startBeat;
     }
+    event.startTimeSec = timeUtil.getTimeSec(event.startBeat);
+    event.endTimeSec = timeUtil.getTimeSec(event.endBeat);
   });
   events?.sort((a, b) => a.startBeat - b.startBeat);
 };
@@ -915,19 +918,21 @@ export const calculateValue = (
 
 export const getEventValue = (
   event: Event | SpeedEvent | ColorEvent | TextEvent | GifEvent | VariableEvent,
-  beat: number,
-  bpmList: Bpm[],
+  timeSec: number,
 ) => {
-  const startSec = getTimeSec(bpmList, event.startBeat);
-  const progressedSec = getTimeSec(bpmList, beat) - startSec;
-  const lengthSec = getTimeSec(bpmList, event.endBeat) - startSec;
-  return _getEventValue(event, progressedSec / lengthSec);
+  const startSec = event.startTimeSec!;
+  const lengthSec = event.endTimeSec! - startSec;
+  return _getEventValue(event, (timeSec - startSec) / lengthSec);
 };
 
 const _getEventValue = (
   event: Event | SpeedEvent | ColorEvent | TextEvent | GifEvent | VariableEvent,
   x: number,
 ) => {
+  const cx = !x ? 0 : clamp(x, 0, 1);
+  if (('easingType' in event ? event.easingType : 0) === 0) {
+    return calculateValue(event.start, event.end, cx);
+  }
   const progress = easing(
     'easingType' in event ? event.easingType : 0,
     'bezier' in event && event.bezier === 1 ? event.bezierPoints : undefined,
@@ -954,15 +959,16 @@ export const integrate = (
 
 export const getIntegral = (
   event: SpeedEvent | undefined,
-  bpmList: Bpm[],
   integrateEasings: boolean,
   beat: number | undefined = undefined,
+  timeSec: number | undefined = undefined,
 ): number => {
   if (!event) return 0;
-  if (beat === undefined || beat >= event.endBeat) beat = event.endBeat;
-  const startSec = getTimeSec(bpmList, event.startBeat);
-  const progressedSec = getTimeSec(bpmList, beat) - startSec;
-  const lengthSec = getTimeSec(bpmList, event.endBeat) - startSec;
+  const full = beat === undefined || beat >= event.endBeat;
+  const startSec = event.startTimeSec!;
+  const endSec = event.endTimeSec!;
+  const progressedSec = (full ? endSec : timeSec!) - startSec;
+  const lengthSec = endSec - startSec;
   const x = progressedSec / lengthSec;
   if (!('easingType' in event) || event.easingType <= 1) {
     return ((event.start + (_getEventValue(event, x) as number)) * progressedSec) / 2;
@@ -980,7 +986,6 @@ export const getIntegral = (
     );
   } else {
     const integral = calculateEasingIntegral(event.easingType, x, easingLeft, easingRight);
-    const lengthSec = getTimeSec(bpmList, event.endBeat) - startSec;
     return event.start * progressedSec + (event.end - event.start) * integral * lengthSec;
   }
 };
@@ -992,39 +997,61 @@ export const getJudgmentPosition = (input: PointerTap | PointerDrag, line: Line)
   return vector;
 };
 
-export const getTimeSec = (bpmList: Bpm[], beat: number): number => {
-  let bpm = bpmList.findLast((bpm) => bpm.startBeat <= beat);
-  if (!bpm) bpm = bpmList[0];
-  return bpm.startTimeSec + ((beat - bpm.startBeat) / bpm.bpm) * 60;
-};
+export class TimeUtil {
+  private readonly _bpmList: Bpm[];
+  private readonly _timeSecCache = new Map<number, number>();
 
-export const getBeat = (bpmList: Bpm[], timeSec: number): number => {
-  const curBpm = bpmList.find((bpm) => bpm.startTimeSec <= timeSec) ?? bpmList[0];
-  return curBpm.startBeat + ((timeSec - curBpm.startTimeSec) / 60) * curBpm.bpm;
-};
-
-export function findPredominantBpm(bpmList: Bpm[], endTimeSec: number) {
-  const bpmDurations: Map<number, number> = new Map();
-
-  for (let i = 0; i < bpmList.length; i++) {
-    const currentBpm = bpmList[i];
-    const startTime = currentBpm.startTimeSec;
-    const endTime = i + 1 < bpmList.length ? bpmList[i + 1].startTimeSec : endTimeSec;
-
-    bpmDurations.set(currentBpm.bpm, (bpmDurations.get(currentBpm.bpm) || 0) + endTime - startTime);
+  constructor(bpmList: Bpm[]) {
+    this._bpmList = bpmList;
   }
 
-  let predominantBpm = { bpm: 0, duration: 0 };
-  for (const [bpm, duration] of bpmDurations) {
-    if (
-      duration > predominantBpm.duration ||
-      (duration === predominantBpm.duration && bpm > predominantBpm.bpm)
-    ) {
-      predominantBpm = { bpm, duration };
+  getTimeSec(beat: number): number {
+    const cached = this._timeSecCache.get(beat);
+    if (cached !== undefined) return cached;
+    let bpm: Bpm | undefined;
+    for (let i = this._bpmList.length - 1; i >= 0; i--) {
+      if (this._bpmList[i].startBeat <= beat) {
+        bpm = this._bpmList[i];
+        break;
+      }
     }
+    bpm ??= this._bpmList[0];
+    const sec = bpm.startTimeSec + ((beat - bpm.startBeat) / bpm.bpm) * 60;
+    this._timeSecCache.set(beat, sec);
+    return sec;
   }
 
-  return predominantBpm.bpm;
+  getBeat(timeSec: number): number {
+    const curBpm = this._bpmList.find((bpm) => bpm.startTimeSec <= timeSec) ?? this._bpmList[0];
+    return curBpm.startBeat + ((timeSec - curBpm.startTimeSec) / 60) * curBpm.bpm;
+  }
+
+  findPredominantBpm(endTimeSec: number) {
+    const bpmDurations: Map<number, number> = new Map();
+
+    for (let i = 0; i < this._bpmList.length; i++) {
+      const currentBpm = this._bpmList[i];
+      const startTime = currentBpm.startTimeSec;
+      const endTime = i + 1 < this._bpmList.length ? this._bpmList[i + 1].startTimeSec : endTimeSec;
+
+      bpmDurations.set(
+        currentBpm.bpm,
+        (bpmDurations.get(currentBpm.bpm) || 0) + endTime - startTime,
+      );
+    }
+
+    let predominantBpm = { bpm: 0, duration: 0 };
+    for (const [bpm, duration] of bpmDurations) {
+      if (
+        duration > predominantBpm.duration ||
+        (duration === predominantBpm.duration && bpm > predominantBpm.bpm)
+      ) {
+        predominantBpm = { bpm, duration };
+      }
+    }
+
+    return predominantBpm.bpm;
+  }
 }
 
 export const findHighlightMoments = (notes: { startTime: [number, number, number] }[]) => {

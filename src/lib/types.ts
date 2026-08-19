@@ -238,6 +238,8 @@ export interface TextEvent {
   end: string;
   endTime: [number, number, number];
   endBeat: number;
+  endTimeSec?: number;
+  startTimeSec?: number;
   font?: string;
   linkgroup: number;
   start: string;
@@ -254,6 +256,8 @@ export interface ColorEvent {
   end: [number, number, number];
   endTime: [number, number, number];
   endBeat: number;
+  endTimeSec?: number;
+  startTimeSec?: number;
   linkgroup: number;
   start: [number, number, number];
   startTime: [number, number, number];
@@ -265,6 +269,8 @@ export interface GifEvent {
   end: number;
   endTime: [number, number, number];
   endBeat: number;
+  endTimeSec?: number;
+  startTimeSec?: number;
   linkgroup: number;
   start: number;
   startTime: [number, number, number];
@@ -286,10 +292,12 @@ export interface SpeedEvent {
   end: number;
   endTime: [number, number, number];
   endBeat: number;
+  endTimeSec?: number;
   linkgroup: number;
   start: number;
   startTime: [number, number, number];
   startBeat: number;
+  startTimeSec?: number;
 }
 
 export interface Event {
@@ -301,10 +309,12 @@ export interface Event {
   end: number;
   endTime: [number, number, number];
   endBeat: number;
+  endTimeSec?: number;
   linkgroup: number;
   start: number;
   startTime: [number, number, number];
   startBeat: number;
+  startTimeSec?: number;
 }
 
 export interface AlphaControl {
@@ -466,6 +476,8 @@ interface BaseVariableEvent {
   startBeat: number;
   endTime: [number, number, number];
   endBeat: number;
+  endTimeSec?: number;
+  startTimeSec?: number;
   easingType: number;
 }
 

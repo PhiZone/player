@@ -40,7 +40,7 @@ export class JudgmentHandler {
           this._scene.beat > note.note.endBeat)
       ) {
         this._judgingHolds.splice(i, 1);
-        return;
+        continue;
       }
       if (beat - beatLastExecuted >= 0.5 && this._scene.status === GameStatus.PLAYING) {
         this.createHitEffects(note.tempJudgmentType, note);
@@ -52,19 +52,23 @@ export class JudgmentHandler {
   hit(type: JudgmentType, delta: number, note: PlainNote) {
     delta /= this._scene.timeScale;
     const deltaAbs = Math.abs(delta);
-    if (this._scene.status === GameStatus.PLAYING && (!this._scene.autoplay || deltaAbs < 0.1)) {
-      if (isPerfectOrGood(type)) {
-        this.createHitsound(note);
-        this.createHitEffects(type, note);
-      } else if (type === JudgmentType.BAD) {
-        note.setTint(getJudgmentColor(type).hex);
-        this._scene.tweens.add({
-          targets: note,
-          alpha: 0,
-          easing: 'Cubic.easeIn',
-          duration: 500,
-        });
+    try {
+      if (this._scene.status === GameStatus.PLAYING && (!this._scene.autoplay || deltaAbs < 0.1)) {
+        if (isPerfectOrGood(type)) {
+          this.createHitsound(note);
+          this.createHitEffects(type, note);
+        } else if (type === JudgmentType.BAD) {
+          note.setTint(getJudgmentColor(type).hex);
+          this._scene.tweens.add({
+            targets: note,
+            alpha: 0,
+            easing: 'Cubic.easeIn',
+            duration: 500,
+          });
+        }
       }
+    } catch (e) {
+      console.error('Failed to play hit effects', e);
     }
     this.judge(
       type,
@@ -143,14 +147,18 @@ export class JudgmentHandler {
   hold(type: JudgmentType, delta: number, note: LongNote) {
     delta /= this._scene.timeScale;
     const beat = this._scene.beat;
-    if (
-      this._scene.status === GameStatus.PLAYING &&
-      (!this._scene.autoplay || Math.abs(delta) < 1e-1)
-    ) {
-      this.createHitsound(note);
-      this.createHitEffects(type, note);
-      this._judgingHolds.push({ note, beatLastExecuted: beat });
-      this._judgmentDeltas.push({ delta, beat });
+    try {
+      if (
+        this._scene.status === GameStatus.PLAYING &&
+        (!this._scene.autoplay || Math.abs(delta) < 1e-1)
+      ) {
+        this.createHitsound(note);
+        this.createHitEffects(type, note);
+        this._judgingHolds.push({ note, beatLastExecuted: beat });
+        this._judgmentDeltas.push({ delta, beat });
+      }
+    } catch (e) {
+      console.error('Failed to play hold effects', e);
     }
     note.setTempJudgment(type, beat);
   }

@@ -10,7 +10,7 @@ import {
   type YControl,
 } from '$lib/types';
 import { clamp, isDebug } from '$lib/utils';
-import { calculateValue, ControlTypes, easing, getTimeSec, rgbToHex } from '../utils';
+import { calculateValue, ControlTypes, easing, rgbToHex } from '../utils';
 import type { Game } from '../scenes/Game';
 import type { Line } from './Line';
 import { NOTE_BASE_SIZE, NOTE_PRIORITIES } from '../constants';
@@ -23,6 +23,7 @@ export class PlainNote extends SkewImage {
   private _xModifier: 1 | -1 = 1;
   private _yModifier: 1 | -1;
   private _hitTime: number;
+  public readonly visualEndTime: number;
   private _targetHeight: number = 0;
 
   private _alpha: number = 1;
@@ -51,7 +52,8 @@ export class PlainNote extends SkewImage {
     this._index = index;
     this._data = data;
     this._yModifier = data.above === 1 ? -1 : 1;
-    this._hitTime = getTimeSec(scene.bpmList, data.startBeat);
+    this._hitTime = scene.timeUtil.getTimeSec(data.startBeat);
+    this.visualEndTime = this._hitTime + 1;
     this.resize();
     this._alpha = data.alpha / 255;
     this.setAlpha(this._alpha);
@@ -68,6 +70,8 @@ export class PlainNote extends SkewImage {
     if (isDebug()) {
       this._debug = new GameObjects.Container(scene);
     }
+
+    this.setVisible(false);
   }
 
   update(beat: number, songTime: number, height: number) {
@@ -80,6 +84,24 @@ export class PlainNote extends SkewImage {
     if (this._line.opacity < 0) {
       if (this._line.opacity === -2 && (dist * this._data.above === 1 ? -1 : 1) > 0) visible = true;
       else visible = false;
+    }
+
+    if (this._beatJudged && beat < this._beatJudged) {
+      this._scene.judgment.unjudge(this);
+    }
+    if (this._data.isFake && beat >= this._data.startBeat) {
+      if (this._judgmentType !== JudgmentType.PASSED) {
+        this._judgmentType = JudgmentType.PASSED;
+        this._beatJudged = beat;
+        this.setVisible(false);
+      }
+    }
+    if (this._judgmentType === JudgmentType.UNJUDGED) {
+      this.setVisible(
+        visible &&
+          songTime >= this._hitTime - this._data.visibleTime &&
+          (dist * this._data.speed >= 0 || !this._line.data.isCover),
+      );
     }
 
     this.setX(
@@ -105,29 +127,11 @@ export class PlainNote extends SkewImage {
         this.getControlValue(chartDist, ControlTypes.ALPHA, this._line.data.alphaControl)) /
       255;
     this.resize(chartDist);
-    if (this._beatJudged && beat < this._beatJudged) {
-      this._scene.judgment.unjudge(this);
-    }
     if (this._judgmentType !== JudgmentType.BAD) {
       this.setY(
         this._yModifier *
           dist *
           this.getControlValue(chartDist, ControlTypes.Y, this._line.data.yControl),
-      );
-    }
-    if (beat >= this._data.startBeat) {
-      if (this._data.isFake) {
-        if (this._judgmentType !== JudgmentType.PASSED) {
-          this._judgmentType = JudgmentType.PASSED;
-          this._beatJudged = beat;
-          this.setVisible(false);
-        }
-      }
-    } else if (this._judgmentType === JudgmentType.UNJUDGED) {
-      this.setVisible(
-        visible &&
-          songTime >= this._hitTime - this._data.visibleTime &&
-          (dist * this._data.speed >= 0 || !this._line.data.isCover),
       );
     }
 
@@ -233,13 +237,14 @@ export class PlainNote extends SkewImage {
       current = control[0];
     }
     next = control.at(this._controlIndex[type].index + 1) ?? current;
-    return calculateValue(
-      current[this._controlIndex[type].type as keyof (typeof control)[number]],
-      next[this._controlIndex[type].type as keyof (typeof control)[number]],
-      next.x === current.x
-        ? 0
-        : 1 - easing(current.easing, undefined, (next.x - x) / (next.x - current.x)),
-    ) as number;
+    const curVal = current[this._controlIndex[type].type as keyof (typeof control)[number]];
+    const nextVal = next[this._controlIndex[type].type as keyof (typeof control)[number]];
+    if (next.x === current.x) return curVal as number;
+    const raw = (next.x - x) / (next.x - current.x);
+    if (current.easing === 0) {
+      return calculateValue(curVal, nextVal, 1 - clamp(raw, 0, 1)) as number;
+    }
+    return calculateValue(curVal, nextVal, 1 - easing(current.easing, undefined, raw)) as number;
   }
 
   reset() {
@@ -322,6 +327,10 @@ export class PlainNote extends SkewImage {
 
   public get note() {
     return this._data;
+  }
+
+  public get targetHeight() {
+    return this._targetHeight;
   }
 
   public get floor() {
