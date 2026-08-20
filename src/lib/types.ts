@@ -298,6 +298,14 @@ export interface SpeedEvent {
   startTime: [number, number, number];
   startBeat: number;
   startTimeSec?: number;
+  /**
+   * Precomputed per-frame constants for the (non-integrated) speed integral.
+   * Filled in by `processEvents` — see `getIntegral`.
+   */
+  __df0?: number;
+  __df1?: number;
+  __k?: number;
+  __b?: number;
 }
 
 export interface Event {

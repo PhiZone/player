@@ -1,7 +1,7 @@
 import { GameObjects } from 'phaser';
 import { GameStatus, JudgmentType, type Note } from '$lib/types';
 import type { Game } from '../scenes/Game';
-import type { Line } from './Line';
+import type { Line, LineFrameCtx } from './Line';
 import { rgbToHex } from '../utils';
 import {
   HOLD_BODY_TOLERANCE,
@@ -39,6 +39,9 @@ export class LongNote extends GameObjects.Container {
   private _isTapped: boolean = false;
   private _consumeTap: boolean = true;
 
+  /** Precomputed base scale (pixels per note-size unit × skin size factor). */
+  private _noteScaleBase: number;
+
   private _debug: GameObjects.Container | undefined = undefined;
 
   constructor(scene: Game, data: Note, index: number, highlight: boolean = false) {
@@ -59,6 +62,8 @@ export class LongNote extends GameObjects.Container {
     this._head.setOrigin(0.5, isCompact ? 0.5 : 0);
     this._body.setOrigin(0.5, 1);
     this._tail.setOrigin(0.5, isCompact ? 0.5 : 1);
+    this._noteScaleBase =
+      (989 / scene.skinSize) * scene.p(NOTE_BASE_SIZE * scene.preferences.noteSize);
     this.resize();
     this.setAlpha(data.alpha / 255);
     if (data.tint) {
@@ -88,18 +93,20 @@ export class LongNote extends GameObjects.Container {
     this._tail.setVisible(false);
   }
 
-  update(beat: number, songTime: number, height: number) {
+  update(beat: number, songTime: number, height: number, ctx?: LineFrameCtx) {
     // Line-level culling may hide the container. Restore the container before
     // evaluating the individual head/body/tail visibility for this frame.
     super.setVisible(true);
-    const yOffset = this._scene.o(this._data.yOffset);
-    let headDist = this._scene.d((this._targetHeadHeight - height) * this._data.speed) + yOffset;
-    const tailDist = this._scene.d((this._targetTailHeight - height) * this._data.speed) + yOffset;
+    const ox = ctx?.ox ?? this._scene.sys.canvas.height / 900;
+    const dScale = ctx?.dScale ?? (this._scene.sys.canvas.height * 2) / 15;
+    const yOffset = ox * this._data.yOffset;
+    let headDist = dScale * ((this._targetHeadHeight - height) * this._data.speed) + yOffset;
+    const tailDist = dScale * ((this._targetTailHeight - height) * this._data.speed) + yOffset;
 
+    const lineOpacity = ctx?.lineOpacity ?? this._line.opacity;
     let visible = true;
-    if (this._line.opacity < 0) {
-      if (this._line.opacity === -2 && (headDist * this._data.above === 1 ? -1 : 1) > 0)
-        visible = true;
+    if (lineOpacity < 0) {
+      if (lineOpacity === -2 && (headDist * this._data.above === 1 ? -1 : 1) > 0) visible = true;
       else visible = false;
     }
 
@@ -118,7 +125,7 @@ export class LongNote extends GameObjects.Container {
         visible &&
           songTime >= this._hitTime - this._data.visibleTime &&
           (headDist * this._data.speed >= 0 ||
-            !this._line.data.isCover ||
+            !(ctx?.isCover ?? this._line.data.isCover) ||
             (this._isKeepHead && beat <= this._data.endBeat)),
       );
     }
@@ -129,7 +136,7 @@ export class LongNote extends GameObjects.Container {
       const vis =
         visible &&
         songTime >= this._hitTime - this._data.visibleTime &&
-        (tailDist * this._data.speed >= 0 || !this._line.data.isCover);
+        (tailDist * this._data.speed >= 0 || !(ctx?.isCover ?? this._line.data.isCover));
       this._body.setVisible(vis);
       this._tail.setVisible(vis);
     }
@@ -142,13 +149,12 @@ export class LongNote extends GameObjects.Container {
     this.setX(this._scene.p(this._xModifier * this._data.positionX));
     this.resize();
     this._head.setY(this._yModifier * headDist);
-    this._body.setY(this._yModifier * (this._line.data.isCover ? Math.max(0, headDist) : headDist));
+    const isCover = ctx?.isCover ?? this._line.data.isCover;
+    this._body.setY(this._yModifier * (isCover ? Math.max(0, headDist) : headDist));
     this._tail.setY(this._yModifier * tailDist);
     const bodyHeight =
       -this._yModifier *
-      (this._line.data.isCover
-        ? Math.max(0, tailDist - Math.max(0, headDist))
-        : Math.max(0, tailDist - headDist));
+      (isCover ? Math.max(0, tailDist - Math.max(0, headDist)) : Math.max(0, tailDist - headDist));
     if (this._isBodyRepeat) this._body.height = bodyHeight;
     else this._body.scaleY = bodyHeight / this._bodyHeight;
 
@@ -239,18 +245,16 @@ export class LongNote extends GameObjects.Container {
   }
 
   resize() {
-    const scale =
-      (989 / this._scene.skinSize) *
-      this._scene.p(NOTE_BASE_SIZE * this._scene.preferences.noteSize);
-    this._head.setScale(this._data.size * scale, -this._yModifier * scale);
+    const base = this._noteScaleBase;
+    this._head.setScale(this._data.size * base, -this._yModifier * base);
     if (this._isBodyRepeat) {
       this._body.scaleX = this._data.size;
-      this._body.width = scale * this._bodyWidth;
-      (this._body as GameObjects.TileSprite).setTileScale(this._data.size * scale, scale);
+      this._body.width = base * this._bodyWidth;
+      (this._body as GameObjects.TileSprite).setTileScale(this._data.size * base, base);
     } else {
-      this._body.setScale(this._data.size * scale, scale);
+      this._body.setScale(this._data.size * base, base);
     }
-    this._tail.setScale(this._data.size * scale, -this._yModifier * scale);
+    this._tail.setScale(this._data.size * base, -this._yModifier * base);
   }
 
   reset() {

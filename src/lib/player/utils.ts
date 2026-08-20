@@ -712,6 +712,24 @@ export const processEvents = (
     }
     event.startTimeSec = timeUtil.getTimeSec(event.startBeat);
     event.endTimeSec = timeUtil.getTimeSec(event.endBeat);
+
+    // Precompute the per-frame constants for the non-integrated speed branch
+    // of getIntegral. Previously these were recomputed (with object allocations
+    // via sanitizeEasingParams) on every frame for every speed event.
+    if ('easingType' in event && event.easingType > 1) {
+      const speed = event as SpeedEvent;
+      const easingLeft = 'easingLeft' in speed ? speed.easingLeft : 0;
+      const easingRight = 'easingRight' in speed ? speed.easingRight : 1;
+      const df0 = derivative(speed.easingType, 0, easingLeft, easingRight);
+      const df1 = derivative(speed.easingType, 1, easingLeft, easingRight);
+      const denom = df1 - df0;
+      speed.__df0 = df0;
+      speed.__df1 = df1;
+      if (denom !== 0) {
+        speed.__k = (speed.end - speed.start) / denom;
+        speed.__b = speed.start - speed.__k * df0;
+      }
+    }
   });
   events?.sort((a, b) => a.startBeat - b.startBeat);
 };
@@ -807,17 +825,34 @@ export const easing = (
   easingRight: number = 1,
 ): number => {
   const useBezier = bezierPoints && bezierPoints.length >= 4;
-  const bezierFunc = useBezier
-    ? bezier(...(bezierPoints.slice(0, 4) as [number, number, number, number]))
-    : undefined;
-  const p = sanitizeEasingParams(type, x, easingLeft, easingRight);
-  const func = bezierFunc ?? EASINGS[p.type - 1];
-  return calculateEasingValue(
-    func,
-    p.x,
-    useBezier ? 0 : p.easingLeft,
-    useBezier ? 1 : p.easingRight,
-  );
+  const bezierFunc = useBezier ? getBezierEasing(bezierPoints) : undefined;
+  // Inlined sanitizeEasingParams — avoid the per-call object allocation.
+  const t = type > 0 && type <= EASINGS.length ? type : 1;
+  const ex = !x ? 0 : clamp(x, 0, 1);
+  let l = !easingLeft || easingLeft >= easingRight ? 0 : clamp(easingLeft, 0, 1);
+  let r = !easingRight || easingLeft >= easingRight ? 1 : clamp(easingRight, 0, 1);
+  if (useBezier) {
+    l = 0;
+    r = 1;
+  }
+  const func = bezierFunc ?? EASINGS[t - 1];
+  return calculateEasingValue(func, ex, l, r);
+};
+
+/**
+ * Cache of bezier-easing functions keyed by their control points. The previous
+ * implementation constructed a fresh `bezier(...)` function on every call,
+ * which is hot (per event per frame) and showed up prominently in profiles.
+ */
+const bezierFuncCache = new Map<string, (x: number) => number>();
+const getBezierEasing = (points: number[]) => {
+  const key = points.join(',');
+  let cached = bezierFuncCache.get(key);
+  if (!cached) {
+    cached = bezier(...(points.slice(0, 4) as [number, number, number, number]));
+    bezierFuncCache.set(key, cached);
+  }
+  return cached;
 };
 
 export const derivative = (
@@ -976,10 +1011,23 @@ export const getIntegral = (
   const easingLeft = 'easingLeft' in event ? event.easingLeft : 0;
   const easingRight = 'easingRight' in event ? event.easingRight : 1;
   if (!integrateEasings) {
-    const df0 = derivative(event.easingType, 0, easingLeft, easingRight);
-    const df1 = derivative(event.easingType, 1, easingLeft, easingRight);
-    const k = (event.end - event.start) / (df1 - df0);
-    const b = event.start - k * df0;
+    // Precomputed in processEvents, fall back to computing on demand
+    let df0 = event.__df0;
+    let df1 = event.__df1;
+    let k = event.__k;
+    let b = event.__b;
+    if (df0 === undefined || df1 === undefined || k === undefined || b === undefined) {
+      df0 = derivative(event.easingType, 0, easingLeft, easingRight);
+      df1 = derivative(event.easingType, 1, easingLeft, easingRight);
+      const denom = df1 - df0;
+      if (denom === 0) {
+        k = 0;
+        b = (event.start + event.end) / 2;
+      } else {
+        k = (event.end - event.start) / denom;
+        b = event.start - k * df0;
+      }
+    }
     return (
       (integrate(event.easingType, x, k, b, easingLeft, easingRight) * lengthSec) /
       (event.endBeat - event.startBeat)

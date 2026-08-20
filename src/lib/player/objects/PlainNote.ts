@@ -12,8 +12,14 @@ import {
 import { clamp, isDebug } from '$lib/utils';
 import { calculateValue, ControlTypes, easing, rgbToHex } from '../utils';
 import type { Game } from '../scenes/Game';
-import type { Line } from './Line';
+import type { Line, LineFrameCtx } from './Line';
 import { NOTE_BASE_SIZE, NOTE_PRIORITIES } from '../constants';
+
+/**
+ * Property name of the value field for each control type, indexed by
+ * ControlTypes (ALPHA=0, POS=1, SIZE=2, SKEW=3, Y=4).
+ */
+const CONTROL_VALUE_KEYS = ['alpha', 'pos', 'size', 'skew', 'y'];
 
 export class PlainNote extends SkewImage {
   private _scene: Game;
@@ -35,13 +41,15 @@ export class PlainNote extends SkewImage {
   private _isTapped: boolean = false;
   private _consumeTap: boolean = true;
 
-  private _controlIndex: { type: string; index: number }[] = [
-    { type: 'alpha', index: 0 },
-    { type: 'pos', index: 0 },
-    { type: 'size', index: 0 },
-    { type: 'skew', index: 0 },
-    { type: 'y', index: 0 },
-  ];
+  /**
+   * Control-lookup cursor: one index per control type. Indices track the last
+   * control node that applied for the previously evaluated chart distance, so
+   * the per-frame scan is O(1) (a few node hops) instead of O(n).
+   */
+  private _controlIndex: number[] = [0, 0, 0, 0, 0];
+
+  /** Precomputed base scale (pixels per note-size unit × skin size factor). */
+  private _noteScaleBase: number;
 
   private _debug: GameObjects.Container | undefined = undefined;
 
@@ -54,6 +62,8 @@ export class PlainNote extends SkewImage {
     this._yModifier = data.above === 1 ? -1 : 1;
     this._hitTime = scene.timeUtil.getTimeSec(data.startBeat);
     this.visualEndTime = this._hitTime + 1;
+    this._noteScaleBase =
+      (989 / scene.skinSize) * scene.p(NOTE_BASE_SIZE * scene.preferences.noteSize);
     this.resize();
     this._alpha = data.alpha / 255;
     this.setAlpha(this._alpha);
@@ -74,15 +84,18 @@ export class PlainNote extends SkewImage {
     this.setVisible(false);
   }
 
-  update(beat: number, songTime: number, height: number) {
+  update(beat: number, songTime: number, height: number, ctx?: LineFrameCtx) {
+    const px = ctx?.px ?? this._scene.sys.canvas.width / 1350;
+    const ox = ctx?.ox ?? this._scene.sys.canvas.height / 900;
+    const dScale = ctx?.dScale ?? (this._scene.sys.canvas.height * 2) / 15;
     const dist =
-      this._scene.d((this._targetHeight - height) * this._data.speed) +
-      this._scene.o(this._data.yOffset);
+      dScale * ((this._targetHeight - height) * this._data.speed) + ox * this._data.yOffset;
     const chartDist = (dist / this._scene.sys.canvas.height) * 900;
 
+    const lineOpacity = ctx?.lineOpacity ?? this._line.opacity;
     let visible = true;
-    if (this._line.opacity < 0) {
-      if (this._line.opacity === -2 && (dist * this._data.above === 1 ? -1 : 1) > 0) visible = true;
+    if (lineOpacity < 0) {
+      if (lineOpacity === -2 && (dist * this._data.above === 1 ? -1 : 1) > 0) visible = true;
       else visible = false;
     }
 
@@ -100,38 +113,51 @@ export class PlainNote extends SkewImage {
       this.setVisible(
         visible &&
           songTime >= this._hitTime - this._data.visibleTime &&
-          (dist * this._data.speed >= 0 || !this._line.data.isCover),
+          (dist * this._data.speed >= 0 || !(ctx?.isCover ?? this._line.data.isCover)),
       );
     }
 
+    const xMod = this._xModifier;
+    const posX = this._data.positionX;
+    const incline = ctx?.lineIncline ?? this._line.incline;
     this.setX(
-      this._scene.p(
-        this._xModifier *
-          this._data.positionX *
-          this.getControlValue(chartDist, ControlTypes.POS, this._line.data.posControl) +
-          Math.tan(
-            ((this._xModifier * this._data.positionX) / 675) *
-              -(this._line.incline ?? 0) *
-              (Math.PI / 180),
-          ) *
+      px *
+        (xMod *
+          posX *
+          this.getControlValue(
             chartDist,
-      ),
+            ControlTypes.POS,
+            ctx?.posControl ?? this._line.data.posControl,
+          ) +
+          Math.tan(((xMod * posX) / 675) * -(incline ?? 0) * (Math.PI / 180)) * chartDist),
     );
     this.applySkewX(
-      -this._xModifier *
-        this._data.positionX *
-        this.getControlValue(chartDist, ControlTypes.SKEW, this._line.data.skewControl),
+      -xMod *
+        posX *
+        this.getControlValue(
+          chartDist,
+          ControlTypes.SKEW,
+          ctx?.skewControl ?? this._line.data.skewControl,
+        ),
     );
     this._alpha =
       (this._data.alpha *
-        this.getControlValue(chartDist, ControlTypes.ALPHA, this._line.data.alphaControl)) /
+        this.getControlValue(
+          chartDist,
+          ControlTypes.ALPHA,
+          ctx?.alphaControl ?? this._line.data.alphaControl,
+        )) /
       255;
     this.resize(chartDist);
     if (this._judgmentType !== JudgmentType.BAD) {
       this.setY(
         this._yModifier *
           dist *
-          this.getControlValue(chartDist, ControlTypes.Y, this._line.data.yControl),
+          this.getControlValue(
+            chartDist,
+            ControlTypes.Y,
+            ctx?.yControl ?? this._line.data.yControl,
+          ),
       );
     }
 
@@ -208,13 +234,11 @@ export class PlainNote extends SkewImage {
   }
 
   resize(chartDist: number | undefined = undefined) {
-    const scale =
-      (989 / this._scene.skinSize) *
-      this._scene.p(NOTE_BASE_SIZE * this._scene.preferences.noteSize);
     const control = chartDist
       ? this.getControlValue(chartDist, ControlTypes.SIZE, this._line.data.sizeControl)
       : 1;
-    this.setScale(this._data.size * control * scale, -this._yModifier * control * scale);
+    const scale = this._data.size * control * this._noteScaleBase;
+    this.setScale(scale, -this._yModifier * control * this._noteScaleBase);
   }
 
   getControlValue(
@@ -222,24 +246,33 @@ export class PlainNote extends SkewImage {
     type: number,
     control: AlphaControl[] | PosControl[] | SizeControl[] | SkewControl[] | YControl[],
   ): number {
-    let next = control.at(this._controlIndex[type].index + 1);
-    while (next && next.x >= x) {
-      this._controlIndex[type].index++;
-      next = control.at(this._controlIndex[type].index + 1);
+    const len = control.length;
+    if (len === 0) return 1;
+    // Control nodes are sorted by descending `x` (processControlNodes). The
+    // cursor tracks the last control node that applied for the previous chart
+    // distance; walk forward while the next node is still at/right of our
+    // distance, and back up if we overshot. Equivalent to the previous
+    // `Array.at()`-based cursor, but without per-call allocations.
+    let index = this._controlIndex[type];
+    if (index >= len) index = len - 1;
+    while (index + 1 < len && control[index + 1].x >= x) {
+      index++;
     }
-    let current = control.at(this._controlIndex[type].index);
-    while (current && current.x < x) {
-      this._controlIndex[type].index--;
-      current = control.at(this._controlIndex[type].index);
+    while (index > 0 && control[index].x < x) {
+      index--;
     }
-    if (!current) {
-      this._controlIndex[type].index = 0;
-      current = control[0];
-    }
-    next = control.at(this._controlIndex[type].index + 1) ?? current;
-    const curVal = current[this._controlIndex[type].type as keyof (typeof control)[number]];
-    const nextVal = next[this._controlIndex[type].type as keyof (typeof control)[number]];
-    if (next.x === current.x) return curVal as number;
+    this._controlIndex[type] = index;
+
+    const current = control[index] as unknown as {
+      x: number;
+      easing: number;
+      [key: string]: number | undefined;
+    };
+    const next = (control[index + 1] ?? current) as unknown as typeof current;
+    const key = CONTROL_VALUE_KEYS[type];
+    const curVal = current[key] as number;
+    const nextVal = next[key] as number;
+    if (next.x === current.x) return curVal;
     const raw = (next.x - x) / (next.x - current.x);
     if (current.easing === 0) {
       return calculateValue(curVal, nextVal, 1 - clamp(raw, 0, 1)) as number;

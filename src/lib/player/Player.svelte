@@ -492,7 +492,14 @@
           key === 'startBeat' ||
           key === 'endBeat' ||
           key === 'startTimeSec' ||
-          key === 'endTimeSec'
+          key === 'endTimeSec' ||
+          // Runtime-only precomputed speed-easing constants (see processEvents
+          // in player/utils.ts). They are derived from the chart and must never
+          // be persisted into an exported chart.
+          key === '__df0' ||
+          key === '__df1' ||
+          key === '__k' ||
+          key === '__b'
         ) {
           return undefined;
         }

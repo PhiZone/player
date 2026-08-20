@@ -1,11 +1,16 @@
 import { GameObjects, Math as PhaserMath } from 'phaser';
 import {
+  type AlphaControl,
   type ColorEvent,
   type Event,
   type GifEvent,
   type JudgeLine,
+  type PosControl,
+  type SizeControl,
+  type SkewControl,
   type SpeedEvent,
   type TextEvent,
+  type YControl,
 } from '$lib/types';
 import { LongNote } from './LongNote';
 import { PlainNote } from './PlainNote';
@@ -25,7 +30,32 @@ import { dot } from 'mathjs';
 import type { Video } from './Video';
 import { isDebug } from '$lib/utils';
 
-const VISUAL_END_GRACE_SEC = 1;
+/**
+ * Per-frame values shared between a line and its notes.
+ * Reused (not re-allocated) each frame to keep the hot path allocation-free.
+ */
+export interface LineFrameCtx {
+  px: number; // canvas.width / 1350
+  ox: number; // canvas.height / 900
+  dScale: number; // canvas.height * 2 / 15
+  cullBound: number;
+  lineOpacity: number;
+  lineIncline: number | undefined;
+  isCover: boolean;
+  alphaControl: AlphaControl[];
+  posControl: PosControl[];
+  sizeControl: SizeControl[];
+  skewControl: SkewControl[];
+  yControl: YControl[];
+}
+
+const EMPTY_CTRL: [AlphaControl[], PosControl[], SizeControl[], SkewControl[], YControl[]] = [
+  [],
+  [],
+  [],
+  [],
+  [],
+];
 
 export class Line {
   private _scene: Game;
@@ -34,9 +64,11 @@ export class Line {
   private _line: GameObjects.Image | GameObjects.Sprite | GameObjects.Text;
   private _parent: Line | null = null;
   private _noteContainers: Record<number, GameObjects.Container> = {};
+  private _noteContainersArr: GameObjects.Container[] = [];
   private _noteMask: GameObjects.Rectangle | null = null;
   private _notes: (PlainNote | LongNote)[] = [];
   private _noteCullBound: number = Infinity;
+  private _noteWindowCursor: number = 0;
   private _hasAttach: boolean = false;
   private _hasCustomTexture: boolean = false;
   private _hasAnimatedTexture: boolean = false;
@@ -48,19 +80,24 @@ export class Line {
   private _rotateWithParent: boolean = false;
   private _integrateSpeedEasings: boolean = false;
 
-  private _curX = [];
-  private _curY = [];
-  private _curRot = [];
-  private _curAlpha = [];
-  private _curSpeed = [];
-  private _lastHeight = [];
+  private _curX: number[] = [];
+  private _curY: number[] = [];
+  private _curRot: number[] = [];
+  private _curAlpha: number[] = [];
+  private _curSpeed: number[] = [];
+  private _lastHeight: number[] = [];
 
-  private _curColor = [];
-  private _curGif = [];
-  private _curIncline = [];
-  private _curScaleX = [];
-  private _curScaleY = [];
-  private _curText = [];
+  private _curColor: number[] = [];
+  private _curGif: number[] = [];
+  private _curIncline: number[] = [];
+  private _curScaleX: number[] = [];
+  private _curScaleY: number[] = [];
+  private _curText: number[] = [];
+
+  private _ctrlCache = new Map<
+    number,
+    [AlphaControl[], PosControl[], SizeControl[], SkewControl[], YControl[]]
+  >();
 
   private _opacity: number = 0;
   private _x: number = 0;
@@ -84,6 +121,24 @@ export class Line {
 
   private _debug: GameObjects.Container | undefined = undefined;
   private _selfDebug: GameObjects.Container | undefined = undefined;
+
+  private _posX: number = 0;
+  private _posY: number = 0;
+
+  private _frameCtx: LineFrameCtx = {
+    px: 0,
+    ox: 0,
+    dScale: 0,
+    cullBound: 0,
+    lineOpacity: 0,
+    lineIncline: undefined,
+    isCover: false,
+    alphaControl: [],
+    posControl: [],
+    sizeControl: [],
+    skewControl: [],
+    yControl: [],
+  };
 
   constructor(
     scene: Game,
@@ -182,6 +237,15 @@ export class Line {
     processControlNodes(this._data.sizeControl);
     processControlNodes(this._data.skewControl);
     processControlNodes(this._data.yControl);
+    // Cache per-frame control arrays so the hot note-update path doesn't
+    // re-look-up and re-bind them on every note every frame.
+    this._ctrlCache.set(num, [
+      this._data.alphaControl ?? [],
+      this._data.posControl ?? [],
+      this._data.sizeControl ?? [],
+      this._data.skewControl ?? [],
+      this._data.yControl ?? [],
+    ]);
 
     if (isDebug()) {
       this._debug = this.createContainer(Infinity);
@@ -258,24 +322,63 @@ export class Line {
     this.updateVisibleNotes(lineBeat, songTime);
   }
 
+  /**
+   * Advances the note window cursor past notes whose visual window has fully
+   * elapsed. The notes are sorted by start beat; `visualEndTime` is at least
+   * one second after the note's (hold) end, so any note whose end has passed
+   * can never become visible again. The remainder of the loop still guards
+   * against the (rare) non-monotonic long-note interleaving case with an
+   * explicit expiry check, so this only skips the already-passed prefix.
+   */
+  private advanceNoteCursor(songTime: number) {
+    const notes = this._notes;
+    let i = this._noteWindowCursor;
+    while (i < notes.length && notes[i].visualEndTime <= songTime) {
+      notes[i].setVisible(false);
+      i++;
+    }
+    this._noteWindowCursor = i;
+  }
+
   updateVisibleNotes(beat: number, songTime: number) {
-    for (const note of this._notes) {
-      if (
-        songTime < note.hitTime - note.note.visibleTime ||
-        songTime >
-          (note instanceof LongNote ? note.endHitTime : note.hitTime) + VISUAL_END_GRACE_SEC ||
-        !this.isNoteInCullArea(note)
-      ) {
+    this.advanceNoteCursor(songTime);
+    const ctx = this._frameCtx;
+    ctx.px = this._scene.sys.canvas.width / 1350;
+    ctx.ox = this._scene.sys.canvas.height / 900;
+    ctx.dScale = (this._scene.sys.canvas.height * 2) / 15;
+    ctx.cullBound = this._noteCullBound;
+    ctx.lineOpacity = this._opacity;
+    ctx.lineIncline = this._incline;
+    ctx.isCover = !!this._data.isCover;
+    const ctrl = this._ctrlCache.get(this._index);
+    ctx.alphaControl = ctrl?.[0] ?? EMPTY_CTRL[0];
+    ctx.posControl = ctrl?.[1] ?? EMPTY_CTRL[1];
+    ctx.sizeControl = ctrl?.[2] ?? EMPTY_CTRL[2];
+    ctx.skewControl = ctrl?.[3] ?? EMPTY_CTRL[3];
+    ctx.yControl = ctrl?.[4] ?? EMPTY_CTRL[4];
+    const notes = this._notes;
+    for (let i = this._noteWindowCursor; i < notes.length; i++) {
+      const note = notes[i];
+      // Expiry guard for the (rare) non-monotonic long-note interleaving case
+      // that the cursor could not skip; mirrors the old explicit time check.
+      if (note.visualEndTime <= songTime) {
         note.setVisible(false);
         continue;
       }
-      note.update(beat, songTime, this._height);
+      if (songTime < note.hitTime - note.note.visibleTime || !this.isNoteInCullArea(note)) {
+        note.setVisible(false);
+        continue;
+      }
+      note.update(beat, songTime, this._height, ctx);
     }
   }
 
   resetActiveNoteWindow() {
     // Kept for Game's seek reset path. Note eligibility is now derived from
-    // absolute time, so there is no cursor or active-note list to rebuild.
+    // absolute time, so there is no cursor or active-note list to rebuild —
+    // only the visual-window cursor needs rewinding to the start.
+    this._noteWindowCursor = 0;
+    this._lastUpdate = -Infinity;
   }
 
   private resetEventState() {
@@ -301,13 +404,9 @@ export class Line {
     const lineY = this._line.y;
     const cosRotation = Math.cos(this._line.rotation);
     const centerY = this._scene.sys.canvas.height / 2;
-    const worldY = (targetHeight: number) => {
-      const distance =
-        (targetHeight - this._height) * speed * scale + note.note.yOffset * offsetScale;
-      return lineY + yModifier * distance * cosRotation;
-    };
-    const inArea = (targetHeight: number) =>
-      Math.abs(worldY(targetHeight) - centerY) <= this._noteCullBound;
+    const cullBound = this._noteCullBound;
+    const height = this._height;
+    const yOffset = note.note.yOffset;
 
     if (note instanceof LongNote) {
       // Once a hold reaches the judgment line, its endpoints can both be
@@ -317,19 +416,32 @@ export class Line {
         return true;
       }
 
-      const headY = worldY(note.headTargetHeight);
-      const tailY = worldY(note.tailTargetHeight);
+      const headY =
+        lineY +
+        yModifier *
+          ((note.headTargetHeight - height) * speed * scale + yOffset * offsetScale) *
+          cosRotation;
+      const tailY =
+        lineY +
+        yModifier *
+          ((note.tailTargetHeight - height) * speed * scale + yOffset * offsetScale) *
+          cosRotation;
       const minY = Math.min(headY, tailY);
       const maxY = Math.max(headY, tailY);
-      return maxY >= centerY - this._noteCullBound && minY <= centerY + this._noteCullBound;
+      return maxY >= centerY - cullBound && minY <= centerY + cullBound;
     }
-    return inArea(note.targetHeight);
+    const y =
+      lineY +
+      yModifier *
+        ((note.targetHeight - height) * speed * scale + yOffset * offsetScale) *
+        cosRotation;
+    return Math.abs(y - centerY) <= cullBound;
   }
 
   destroy() {
     this._line.destroy();
     this._noteMask?.destroy();
-    Object.values(this._noteContainers).forEach((container) => {
+    this._noteContainersArr.forEach((container) => {
       container.destroy();
     });
     this._notes.forEach((note) => {
@@ -338,6 +450,10 @@ export class Line {
   }
 
   updateParams() {
+    // NOTE: scale/alpha/tint are applied unconditionally (no dirty-cache).
+    // The `in()`/`out()` tweens write `alpha` directly on the line elements,
+    // bypassing updateParams, so a dirty-cache would wrongly skip re-applying
+    // the chart-computed alpha and leave transparent lines opaque.
     this._line.setScale(
       (this._hasText ? this._scene.p(50) / this._textScale : this._scene.p(1)) *
         (this._scaleX ?? 1),
@@ -372,14 +488,16 @@ export class Line {
     this._line.setPosition(x, y);
     this._line.setRotation(rotation);
     this._line.setAlpha(this._opacity / 255);
-    Object.values(this._noteContainers).forEach((obj) => {
+    const containers = this._noteContainersArr;
+    for (let i = 0; i < containers.length; i++) {
+      const obj = containers[i];
       obj.setPosition(x, y);
       obj.setRotation(rotation);
       if (this._data.scaleOnNotes === 1) {
         obj.setScale(this._scaleX ?? 1, 1);
       }
-    });
-    this.updateMask();
+    }
+    if (this._noteMask !== null) this.updateMask();
     this.updateAttachments();
 
     if (this._selfDebug) {
@@ -394,6 +512,9 @@ export class Line {
   }
 
   updateAttachments() {
+    // Fast path: no UI or video attachments on this line — nothing to do.
+    // (The common case for high-note-count stress charts.)
+    if (!this._hasAttach && this._attachedVideos.length === 0) return;
     const params = {
       x: this._line.x - this._scene.sys.canvas.width / 2,
       y: this._line.y - this._scene.sys.canvas.height / 2,
@@ -480,9 +601,9 @@ export class Line {
       x = newX;
       y = newY;
     }
-    x += halfScreenWidth;
-    y += halfScreenHeight;
-    return { x, y };
+    this._posX = x + halfScreenWidth;
+    this._posY = y + halfScreenHeight;
+    return { x: this._posX, y: this._posY };
   }
 
   getRotation() {
@@ -498,6 +619,7 @@ export class Line {
     const container = new GameObjects.Container(this._scene);
     container.setDepth(depth);
     this._noteContainers[depth] = container;
+    this._noteContainersArr.push(container);
     this._scene.registerNode(container, `line-${this._index}-cont-${depth}`);
     return container;
   }
@@ -508,28 +630,113 @@ export class Line {
     let y = 0;
     let rotation = 0;
     let height = 0;
-    for (let i = 0; i < this._data.eventLayers.length; i++) {
-      const layer = this.handleEventLayer(beat, i, timeSec);
-      if (layer.alpha !== undefined) alpha += layer.alpha;
-      if (layer.x !== undefined) x += layer.x;
-      if (layer.y !== undefined) y += layer.y;
-      if (layer.rotation !== undefined) rotation += layer.rotation;
-      height += layer.height;
+    // Zero-fill cursor arrays up front so the per-layer handleEvent calls don't
+    // each re-check `while (cur.length < layerIndex + 1) cur.push(0)`.
+    const data = this._data;
+    const layerCount = data.eventLayers.length;
+    const curAlpha = this._curAlpha;
+    const curX = this._curX;
+    const curY = this._curY;
+    const curRot = this._curRot;
+    const curSpeed = this._curSpeed;
+    const curHeight = this._lastHeight;
+    for (let i = curAlpha.length; i <= layerCount; i++) {
+      curAlpha.push(0);
+      curX.push(0);
+      curY.push(0);
+      curRot.push(0);
+      curSpeed.push(0);
+      curHeight.push(0);
+    }
+    for (let i = 0; i < layerCount; i++) {
+      const layer = data.eventLayers[i];
+      if (!layer) continue;
+      const a = this.handleEvent(beat, i, layer.alphaEvents, curAlpha, timeSec) as
+        | number
+        | undefined;
+      const ex = this.handleEvent(beat, i, layer.moveXEvents, curX, timeSec) as number | undefined;
+      const ey = this.handleEvent(beat, i, layer.moveYEvents, curY, timeSec) as number | undefined;
+      const er = this.handleEvent(beat, i, layer.rotateEvents, curRot, timeSec) as
+        | number
+        | undefined;
+      const h = this.handleSpeed(beat, i, layer.speedEvents, curSpeed, curHeight, timeSec);
+      if (a !== undefined) alpha += a;
+      if (ex !== undefined) x += ex;
+      if (ey !== undefined) y += ey;
+      if (er !== undefined) rotation += er;
+      height += h;
     }
     this._opacity = alpha;
     this._x = x;
     this._y = y;
     this._rotation = rotation;
     this._height = height;
-    ({
-      color: this._color,
-      gif: this._gif,
-      incline: this._incline,
-      scaleX: this._scaleX,
-      scaleY: this._scaleY,
-      text: this._text,
-      font: this._font,
-    } = this.handleExtendedEventLayer(beat, 0, timeSec));
+    this.handleExtendedEvent(beat, 0, timeSec);
+  }
+
+  /**
+   * In-place variant of handleExtendedEventLayer that writes into the line's
+   * state fields directly — avoiding a per-layer allocation of the result
+   * object. `handleEventLayers` calls this once per frame with layerIndex 0.
+   */
+  handleExtendedEvent(beat: number, layerIndex: number, timeSec: number) {
+    const extended = this._data.extended;
+    if (extended) {
+      const text = this.handleEvent(
+        beat,
+        layerIndex,
+        extended.textEvents,
+        this._curText,
+        timeSec,
+      ) as string | undefined;
+      const font = extended.textEvents?.[this._curText[layerIndex]]?.font;
+      this._color = this.handleEvent(
+        beat,
+        layerIndex,
+        extended.colorEvents,
+        this._curColor,
+        timeSec,
+      ) as number[] | undefined;
+      this._gif = this.handleEvent(
+        beat,
+        layerIndex,
+        extended.gifEvents,
+        this._curGif,
+        timeSec,
+        false,
+      ) as number | undefined;
+      this._incline = this.handleEvent(
+        beat,
+        layerIndex,
+        extended.inclineEvents,
+        this._curIncline,
+        timeSec,
+      ) as number | undefined;
+      this._scaleX = this.handleEvent(
+        beat,
+        layerIndex,
+        extended.scaleXEvents,
+        this._curScaleX,
+        timeSec,
+      ) as number | undefined;
+      this._scaleY = this.handleEvent(
+        beat,
+        layerIndex,
+        extended.scaleYEvents,
+        this._curScaleY,
+        timeSec,
+      ) as number | undefined;
+      this._text = text;
+      this._font = font;
+    } else {
+      this._color = undefined;
+      this._gif = undefined;
+      this._incline = undefined;
+      this._scaleX = undefined;
+      this._scaleY = undefined;
+      this._text = undefined;
+      this._font = undefined;
+    }
   }
 
   handleSpeed(
@@ -596,108 +803,6 @@ export class Line {
     } else {
       return undefined;
     }
-  }
-
-  handleEventLayer(
-    beat: number,
-    layerIndex: number,
-    timeSec: number,
-  ): {
-    alpha: number | undefined;
-    x: number | undefined;
-    y: number | undefined;
-    rotation: number | undefined;
-    height: number;
-  } {
-    const layer = this._data.eventLayers[layerIndex];
-    if (!layer)
-      return { alpha: undefined, x: undefined, y: undefined, rotation: undefined, height: 0 };
-
-    return {
-      alpha: this.handleEvent(beat, layerIndex, layer.alphaEvents, this._curAlpha, timeSec) as
-        | number
-        | undefined,
-      x: this.handleEvent(beat, layerIndex, layer.moveXEvents, this._curX, timeSec) as
-        | number
-        | undefined,
-      y: this.handleEvent(beat, layerIndex, layer.moveYEvents, this._curY, timeSec) as
-        | number
-        | undefined,
-      rotation: this.handleEvent(beat, layerIndex, layer.rotateEvents, this._curRot, timeSec) as
-        | number
-        | undefined,
-      height: this.handleSpeed(
-        beat,
-        layerIndex,
-        layer.speedEvents,
-        this._curSpeed,
-        this._lastHeight,
-        timeSec,
-      ),
-    };
-  }
-
-  handleExtendedEventLayer(
-    beat: number,
-    layerIndex: number,
-    timeSec: number,
-  ): {
-    color: number[] | undefined;
-    gif: number | undefined;
-    incline: number | undefined;
-    scaleX: number | undefined;
-    scaleY: number | undefined;
-    text: string | undefined;
-    font: string | undefined;
-  } {
-    const extended = this._data.extended;
-    if (!extended)
-      return {
-        color: undefined,
-        gif: undefined,
-        incline: undefined,
-        scaleX: undefined,
-        scaleY: undefined,
-        text: undefined,
-        font: undefined,
-      };
-
-    const text = this.handleEvent(beat, layerIndex, extended.textEvents, this._curText, timeSec) as
-      | string
-      | undefined;
-    const font = extended.textEvents?.[this._curText[layerIndex]]?.font;
-
-    return {
-      color: this.handleEvent(beat, layerIndex, extended.colorEvents, this._curColor, timeSec) as
-        | number[]
-        | undefined,
-      gif: this.handleEvent(beat, layerIndex, extended.gifEvents, this._curGif, timeSec, false) as
-        | number
-        | undefined,
-      incline: this.handleEvent(
-        beat,
-        layerIndex,
-        extended.inclineEvents,
-        this._curIncline,
-        timeSec,
-      ) as number | undefined,
-      scaleX: this.handleEvent(
-        beat,
-        layerIndex,
-        extended.scaleXEvents,
-        this._curScaleX,
-        timeSec,
-      ) as number | undefined,
-      scaleY: this.handleEvent(
-        beat,
-        layerIndex,
-        extended.scaleYEvents,
-        this._curScaleY,
-        timeSec,
-      ) as number | undefined,
-      text,
-      font,
-    };
   }
 
   updateMask() {
@@ -794,7 +899,7 @@ export class Line {
   }
 
   public get elements() {
-    return [this._line, ...Object.values(this._noteContainers)];
+    return [this._line, ...this._noteContainersArr];
   }
 
   public get index() {
@@ -808,7 +913,7 @@ export class Line {
   setVisible(visible: boolean) {
     [
       !this._hasAttach || this._data.appearanceOnAttach ? this._line : undefined,
-      ...Object.values(this._noteContainers),
+      ...this._noteContainersArr,
     ].forEach((obj) => {
       obj?.setVisible(visible);
     });
