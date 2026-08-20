@@ -13,6 +13,7 @@ package-lock.json
 yarn.lock
 .yarn
 
+project.inlang
 src/lib/paraglide
 
 android/app/build
