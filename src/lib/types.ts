@@ -229,7 +229,23 @@ export interface Extended {
   textEvents?: TextEvent[];
 }
 
-export interface TextEvent {
+/**
+ * Precomputed per-event constants for fast eased evaluation, filled in by
+ * `processEvents` (see `getEventValue`). Mirrors what the runtime `easing()`
+ * helper would compute on every call otherwise.
+ */
+export interface EasedEventFields {
+  /** Resolved easing function (built-in or cached bezier). */
+  __f?: (x: number) => number;
+  /** Sanitized easing sub-range applied by the event. */
+  __l?: number;
+  __r?: number;
+  /** Pre-evaluated easing at both range ends: `__f(__l)` and `__f(__r)`. */
+  __ps?: number;
+  __pe?: number;
+}
+
+export interface TextEvent extends EasedEventFields {
   bezier: number;
   bezierPoints: number[];
   easingLeft: number;
@@ -247,7 +263,7 @@ export interface TextEvent {
   startBeat: number;
 }
 
-export interface ColorEvent {
+export interface ColorEvent extends EasedEventFields {
   bezier: number;
   bezierPoints: number[];
   easingLeft: number;
@@ -264,7 +280,7 @@ export interface ColorEvent {
   startBeat: number;
 }
 
-export interface GifEvent {
+export interface GifEvent extends EasedEventFields {
   easingType: number;
   end: number;
   endTime: [number, number, number];
@@ -285,7 +301,7 @@ export interface EventLayer {
   speedEvents?: SpeedEvent[] | null;
 }
 
-export interface SpeedEvent {
+export interface SpeedEvent extends EasedEventFields {
   easingLeft: number;
   easingRight: number;
   easingType: number;
@@ -308,7 +324,7 @@ export interface SpeedEvent {
   __b?: number;
 }
 
-export interface Event {
+export interface Event extends EasedEventFields {
   bezier: number;
   bezierPoints: number[];
   easingLeft: number;
@@ -479,7 +495,7 @@ interface VectorVariableEvent extends BaseVariableEvent {
   end: number[];
 }
 
-interface BaseVariableEvent {
+interface BaseVariableEvent extends EasedEventFields {
   startTime: [number, number, number];
   startBeat: number;
   endTime: [number, number, number];

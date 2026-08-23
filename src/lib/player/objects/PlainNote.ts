@@ -22,6 +22,9 @@ import { NOTE_BASE_SIZE, NOTE_PRIORITIES } from '../constants';
 const CONTROL_VALUE_KEYS = ['alpha', 'pos', 'size', 'skew', 'y'];
 
 export class PlainNote extends SkewImage {
+  /** Type tag used by the line's culling hot path (avoids `instanceof`). */
+  readonly isHold = false as const;
+
   private _scene: Game;
   private _index: number;
   private _data: Note;
@@ -88,9 +91,10 @@ export class PlainNote extends SkewImage {
     const px = ctx?.px ?? this._scene.sys.canvas.width / 1350;
     const ox = ctx?.ox ?? this._scene.sys.canvas.height / 900;
     const dScale = ctx?.dScale ?? (this._scene.sys.canvas.height * 2) / 15;
+    const invHeight900 = ctx ? ctx.invHeight900 : 900 / this._scene.sys.canvas.height;
     const dist =
       dScale * ((this._targetHeight - height) * this._data.speed) + ox * this._data.yOffset;
-    const chartDist = (dist / this._scene.sys.canvas.height) * 900;
+    const chartDist = dist * invHeight900;
 
     const lineOpacity = ctx?.lineOpacity ?? this._line.opacity;
     let visible = true;
@@ -110,16 +114,21 @@ export class PlainNote extends SkewImage {
       }
     }
     if (this._judgmentType === JudgmentType.UNJUDGED) {
-      this.setVisible(
+      const targetVisible =
         visible &&
-          songTime >= this._hitTime - this._data.visibleTime &&
-          (dist * this._data.speed >= 0 || !(ctx?.isCover ?? this._line.data.isCover)),
-      );
+        songTime >= this._hitTime - this._data.visibleTime &&
+        (dist * this._data.speed >= 0 || !(ctx?.isCover ?? this._line.data.isCover));
+      if (this.visible !== targetVisible) super.setVisible(targetVisible);
     }
 
     const xMod = this._xModifier;
     const posX = this._data.positionX;
     const incline = ctx?.lineIncline ?? this._line.incline;
+    // The incline term vanishes when there is no incline event on the line
+    // (the common case); skip the tan() entirely instead of evaluating it.
+    const inclineOffset = incline
+      ? Math.tan(((xMod * posX) / 675) * -incline * (Math.PI / 180)) * chartDist
+      : 0;
     this.setX(
       px *
         (xMod *
@@ -129,7 +138,7 @@ export class PlainNote extends SkewImage {
             ControlTypes.POS,
             ctx?.posControl ?? this._line.data.posControl,
           ) +
-          Math.tan(((xMod * posX) / 675) * -(incline ?? 0) * (Math.PI / 180)) * chartDist),
+          inclineOffset),
     );
     this.applySkewX(
       -xMod *

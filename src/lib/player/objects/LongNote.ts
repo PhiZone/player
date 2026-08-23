@@ -12,6 +12,9 @@ import {
 import { isDebug } from '$lib/utils';
 
 export class LongNote extends GameObjects.Container {
+  /** Type tag used by the line's culling hot path (avoids `instanceof`). */
+  readonly isHold = true as const;
+
   private _scene: Game;
   private _index: number;
   private _data: Note;
@@ -36,6 +39,7 @@ export class LongNote extends GameObjects.Container {
   private _beatTempJudged: number | undefined = undefined;
   private _isInJudgeWindow: boolean = false;
   private _lastInputBeat: number = 0;
+  private _lastInputTimeSec: number = 0;
   private _isTapped: boolean = false;
   private _consumeTap: boolean = true;
 
@@ -64,7 +68,6 @@ export class LongNote extends GameObjects.Container {
     this._tail.setOrigin(0.5, isCompact ? 0.5 : 1);
     this._noteScaleBase =
       (989 / scene.skinSize) * scene.p(NOTE_BASE_SIZE * scene.preferences.noteSize);
-    this.resize();
     this.setAlpha(data.alpha / 255);
     if (data.tint) {
       this.setTint(rgbToHex(data.tint));
@@ -88,6 +91,12 @@ export class LongNote extends GameObjects.Container {
       this._debug = new GameObjects.Container(scene);
     }
 
+    // Static appearance: the note's scale never changes during playback
+    // (holds have no size controls), so apply it once here instead of every
+    // frame. Requires _bodyWidth/_bodyHeight to be assigned first.
+    this.resize();
+    this.setX(this._scene.p(this._xModifier * data.positionX));
+
     this._head.setVisible(false);
     this._body.setVisible(false);
     this._tail.setVisible(false);
@@ -96,7 +105,7 @@ export class LongNote extends GameObjects.Container {
   update(beat: number, songTime: number, height: number, ctx?: LineFrameCtx) {
     // Line-level culling may hide the container. Restore the container before
     // evaluating the individual head/body/tail visibility for this frame.
-    super.setVisible(true);
+    if (!this.visible) super.setVisible(true);
     const ox = ctx?.ox ?? this._scene.sys.canvas.height / 900;
     const dScale = ctx?.dScale ?? (this._scene.sys.canvas.height * 2) / 15;
     const yOffset = ox * this._data.yOffset;
@@ -117,39 +126,38 @@ export class LongNote extends GameObjects.Container {
       this.resetTemp();
     }
 
+    let headVisible: boolean;
     if (beat > this._data.startBeat) {
-      this._head.setVisible(this._isKeepHead && beat <= this._data.endBeat);
+      headVisible = this._isKeepHead && beat <= this._data.endBeat;
       headDist = yOffset;
     } else {
-      this._head.setVisible(
-        visible &&
-          songTime >= this._hitTime - this._data.visibleTime &&
-          (headDist * this._data.speed >= 0 ||
-            !(ctx?.isCover ?? this._line.data.isCover) ||
-            (this._isKeepHead && beat <= this._data.endBeat)),
-      );
-    }
-    if (beat > this._data.endBeat) {
-      this._body.setVisible(false);
-      this._tail.setVisible(false);
-    } else {
-      const vis =
+      headVisible =
         visible &&
         songTime >= this._hitTime - this._data.visibleTime &&
-        (tailDist * this._data.speed >= 0 || !(ctx?.isCover ?? this._line.data.isCover));
-      this._body.setVisible(vis);
-      this._tail.setVisible(vis);
+        (headDist * this._data.speed >= 0 ||
+          !(ctx?.isCover ?? this._line.data.isCover) ||
+          (this._isKeepHead && beat <= this._data.endBeat));
     }
+    if (this._head.visible !== headVisible) this._head.setVisible(headVisible);
     if (this._data.isFake) {
       if (this._judgmentType !== JudgmentType.PASSED && beat >= this._data.endBeat)
         this._judgmentType = JudgmentType.PASSED;
       this._beatJudged = beat;
     }
-
-    this.setX(this._scene.p(this._xModifier * this._data.positionX));
-    this.resize();
-    this._head.setY(this._yModifier * headDist);
     const isCover = ctx?.isCover ?? this._line.data.isCover;
+    if (beat > this._data.endBeat) {
+      if (this._body.visible) this._body.setVisible(false);
+      if (this._tail.visible) this._tail.setVisible(false);
+    } else {
+      const vis =
+        visible &&
+        songTime >= this._hitTime - this._data.visibleTime &&
+        (tailDist * this._data.speed >= 0 || !isCover);
+      if (this._body.visible !== vis) this._body.setVisible(vis);
+      if (this._tail.visible !== vis) this._tail.setVisible(vis);
+    }
+
+    this._head.setY(this._yModifier * headDist);
     this._body.setY(this._yModifier * (isCover ? Math.max(0, headDist) : headDist));
     this._tail.setY(this._yModifier * tailDist);
     const bodyHeight =
@@ -199,14 +207,16 @@ export class LongNote extends GameObjects.Container {
         this._isTapped = false;
       }
     } else if (this._judgmentType === JudgmentType.UNJUDGED) {
+      // `beat` is the line-local beat (already scaled by bpmfactor); its
+      // converted seconds are line-local too, so cache them consistently.
+      const lineTimeSec = this._scene.timeUtil.getTimeSec(beat);
       if (!this._scene.autoplay) {
         const input = this._scene.keyboard?.findDrag(this) || this._scene.pointer?.findDrag(this);
         if (input) {
           this._lastInputBeat = beat;
+          this._lastInputTimeSec = lineTimeSec;
         } else if (
-          this._scene.timeUtil.getTimeSec(beat) -
-            this._scene.timeUtil.getTimeSec(this._lastInputBeat) >
-            HOLD_BODY_TOLERANCE / 1000 ||
+          lineTimeSec - this._lastInputTimeSec > HOLD_BODY_TOLERANCE / 1000 ||
           this._scene.status === GameStatus.SEEKING
         ) {
           // this.setTint(0xff0000);
@@ -214,11 +224,8 @@ export class LongNote extends GameObjects.Container {
           return;
         }
       }
-      if (
-        this._scene.timeUtil.getTimeSec(this._data.endBeat) -
-          this._scene.timeUtil.getTimeSec(beat) <
-        HOLD_TAIL_TOLERANCE / 1000
-      ) {
+      // The hold end time was converted once in the constructor.
+      if (this._endTime - lineTimeSec < HOLD_TAIL_TOLERANCE / 1000) {
         this._scene.judgment.judge(this._tempJudgmentType, this);
       }
     }

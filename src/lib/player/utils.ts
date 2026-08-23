@@ -717,18 +717,50 @@ export const processEvents = (
     // of getIntegral. Previously these were recomputed (with object allocations
     // via sanitizeEasingParams) on every frame for every speed event.
     if ('easingType' in event && event.easingType > 1) {
-      const speed = event as SpeedEvent;
-      const easingLeft = 'easingLeft' in speed ? speed.easingLeft : 0;
-      const easingRight = 'easingRight' in speed ? speed.easingRight : 1;
-      const df0 = derivative(speed.easingType, 0, easingLeft, easingRight);
-      const df1 = derivative(speed.easingType, 1, easingLeft, easingRight);
+      const easedEvent = event as SpeedEvent & Event;
+      const easingLeft = 'easingLeft' in event ? (event.easingLeft as number) : 0;
+      const easingRight = 'easingRight' in event ? (event.easingRight as number) : 1;
+
+      const speed = easedEvent;
+      let df0 = speed.__df0;
+      let df1 = speed.__df1;
+      if (df0 === undefined || df1 === undefined) {
+        df0 = derivative(easedEvent.easingType, 0, easingLeft, easingRight);
+        df1 = derivative(easedEvent.easingType, 1, easingLeft, easingRight);
+        speed.__df0 = df0;
+        speed.__df1 = df1;
+      }
       const denom = df1 - df0;
-      speed.__df0 = df0;
-      speed.__df1 = df1;
       if (denom !== 0) {
         speed.__k = (speed.end - speed.start) / denom;
         speed.__b = speed.start - speed.__k * df0;
       }
+
+      // Precompute the eased-evaluation constants shared by getEventValue:
+      // the resolved easing function, its sanitized sub-range, and the
+      // function values at both range ends. The hot path previously
+      // re-resolved all of these (including two redundant func() evaluations)
+      // on every frame.
+      const useBezier =
+        'bezier' in easedEvent &&
+        easedEvent.bezier === 1 &&
+        !!easedEvent.bezierPoints &&
+        easedEvent.bezierPoints.length >= 4;
+      const f = useBezier
+        ? getBezierEasing(easedEvent.bezierPoints)
+        : EASINGS[
+            (easedEvent.easingType > 0 && easedEvent.easingType <= EASINGS.length
+              ? easedEvent.easingType
+              : 1) - 1
+          ];
+      const l = useBezier || !easingLeft || easingLeft >= easingRight ? 0 : clamp(easingLeft, 0, 1);
+      const r =
+        useBezier || !easingRight || easingLeft >= easingRight ? 1 : clamp(easingRight, 0, 1);
+      easedEvent.__f = f;
+      easedEvent.__l = l;
+      easedEvent.__r = r;
+      easedEvent.__ps = f(l);
+      easedEvent.__pe = f(r);
     }
   });
   events?.sort((a, b) => a.startBeat - b.startBeat);
@@ -964,17 +996,39 @@ const _getEventValue = (
   event: Event | SpeedEvent | ColorEvent | TextEvent | GifEvent | VariableEvent,
   x: number,
 ) => {
-  const cx = !x ? 0 : clamp(x, 0, 1);
-  if (('easingType' in event ? event.easingType : 0) === 0) {
-    return calculateValue(event.start, event.end, cx);
+  const easingType = 'easingType' in event ? event.easingType : 0;
+  if (easingType === 0) {
+    // Linear (no easing): interpolate directly. Fast-path the numeric case —
+    // by far the most common — instead of going through calculateValue's
+    // array/string type dispatch.
+    const cx = !x ? 0 : clamp(x, 0, 1);
+    const s = event.start;
+    const e = event.end;
+    if (typeof s === 'number' && typeof e === 'number') return s + (e - s) * cx;
+    return calculateValue(s, e, cx);
   }
-  const progress = easing(
-    'easingType' in event ? event.easingType : 0,
-    'bezier' in event && event.bezier === 1 ? event.bezierPoints : undefined,
-    x,
-    'easingLeft' in event ? event.easingLeft : 0,
-    'easingRight' in event ? event.easingRight : 1,
-  );
+  let progress: number;
+  if (easingType === 1 && (!('bezier' in event) || event.bezier !== 1)) {
+    // Identity easing: the normalized result collapses to the raw clamped
+    // position regardless of the sub-range (the range cancels out), so no
+    // function call is needed.
+    progress = !x ? 0 : clamp(x, 0, 1);
+  } else if (event.__f && event.__ps !== undefined && event.__pe !== undefined) {
+    // Precomputed eased evaluation (see processEvents). Only one easing
+    // function call per frame; both endpoint values are cached constants.
+    const f = event.__f;
+    const cx = !x ? 0 : clamp(x, 0, 1);
+    progress =
+      (f(event.__l! + (event.__r! - event.__l!) * cx) - event.__ps) / (event.__pe - event.__ps);
+  } else {
+    progress = easing(
+      easingType,
+      'bezier' in event && event.bezier === 1 ? event.bezierPoints : undefined,
+      x,
+      'easingLeft' in event ? event.easingLeft : 0,
+      'easingRight' in event ? event.easingRight : 1,
+    );
+  }
   if (progress === 0) return event.start;
   if (progress === 1) return event.end;
   return calculateValue(event.start, event.end, progress);
@@ -1028,10 +1082,26 @@ export const getIntegral = (
         b = event.start - k * df0;
       }
     }
-    return (
-      (integrate(event.easingType, x, k, b, easingLeft, easingRight) * lengthSec) /
-      (event.endBeat - event.startBeat)
-    );
+    // Fast evaluation of `integrate(...)` using the precomputed easing
+    // function/range/endpoints instead of re-sanitizing every call.
+    const px = !x ? 0 : clamp(x, 0, 1);
+    const f = event.__f;
+    const l = event.__l;
+    const r = event.__r;
+    let easedAtX: number;
+    if (
+      f &&
+      event.__ps !== undefined &&
+      event.__pe !== undefined &&
+      l !== undefined &&
+      r !== undefined
+    ) {
+      easedAtX = (f(l + (r - l) * px) - event.__ps) / (event.__pe - event.__ps);
+    } else {
+      const p = sanitizeEasingParams(event.easingType, px, easingLeft, easingRight);
+      easedAtX = calculateEasingValue(EASINGS[p.type - 1], p.x, p.easingLeft, p.easingRight);
+    }
+    return ((easedAtX * k + b * px) * lengthSec) / (event.endBeat - event.startBeat);
   } else {
     const integral = calculateEasingIntegral(event.easingType, x, easingLeft, easingRight);
     return event.start * progressedSec + (event.end - event.start) * integral * lengthSec;
@@ -1047,26 +1117,28 @@ export const getJudgmentPosition = (input: PointerTap | PointerDrag, line: Line)
 
 export class TimeUtil {
   private readonly _bpmList: Bpm[];
-  private readonly _timeSecCache = new Map<number, number>();
+  /**
+   * Monotonic cursor into the BPM list. Playback calls `getTimeSec` with
+   * continuously-varying beats, so a full list scan (or an unbounded memo Map,
+   * which previously leaked one entry per line per frame) is unnecessary: a
+   * forward-advancing cursor with a rewind fallback handles both playback and
+   * seeks in amortized O(1).
+   */
+  private _cursor: number = 0;
 
   constructor(bpmList: Bpm[]) {
     this._bpmList = bpmList;
   }
 
   getTimeSec(beat: number): number {
-    const cached = this._timeSecCache.get(beat);
-    if (cached !== undefined) return cached;
-    let bpm: Bpm | undefined;
-    for (let i = this._bpmList.length - 1; i >= 0; i--) {
-      if (this._bpmList[i].startBeat <= beat) {
-        bpm = this._bpmList[i];
-        break;
-      }
-    }
-    bpm ??= this._bpmList[0];
-    const sec = bpm.startTimeSec + ((beat - bpm.startBeat) / bpm.bpm) * 60;
-    this._timeSecCache.set(beat, sec);
-    return sec;
+    const list = this._bpmList;
+    let i = this._cursor;
+    if (i >= list.length) i = list.length - 1;
+    if (list[i].startBeat > beat) i = 0;
+    while (i < list.length - 1 && list[i + 1].startBeat <= beat) i++;
+    this._cursor = i;
+    const bpm = list[i];
+    return bpm.startTimeSec + ((beat - bpm.startBeat) / bpm.bpm) * 60;
   }
 
   getBeat(timeSec: number): number {

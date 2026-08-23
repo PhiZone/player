@@ -47,6 +47,16 @@ export interface LineFrameCtx {
   sizeControl: SizeControl[];
   skewControl: SkewControl[];
   yControl: YControl[];
+  /** 900 / canvas.height — converts pixel distance back to chart units. */
+  invHeight900: number;
+  /** Math.cos(line.rotation) for the current frame. */
+  cosRotation: number;
+  /** World Y of the judge line for the current frame. */
+  lineY: number;
+  /** canvas.height / 2. */
+  centerY: number;
+  /** Song time for the current frame (equals the `songTime` argument). */
+  timeSec: number;
 }
 
 const EMPTY_CTRL: [AlphaControl[], PosControl[], SizeControl[], SkewControl[], YControl[]] = [
@@ -56,6 +66,32 @@ const EMPTY_CTRL: [AlphaControl[], PosControl[], SizeControl[], SkewControl[], Y
   [],
   [],
 ];
+
+/**
+ * Hot per-frame evaluation of one numeric event list (alpha/moveX/moveY/
+ * rotate) for a single layer. Advances the layer's event cursor in amortized
+ * O(1) and returns the interpolated value, or 0 when the list is empty
+ * (equivalent to the previous `undefined` skip in the caller's sum).
+ */
+const evalEvents = (
+  events: Event[] | null | undefined,
+  cur: number[],
+  idx: number,
+  beat: number,
+  timeSec: number,
+): number => {
+  if (!events || events.length === 0) return 0;
+  const last = events.length - 1;
+  let ci = cur[idx];
+  if (ci > last) ci = last;
+  if (ci > 0 && beat <= events[ci].startBeat) ci = 0;
+  while (ci < last && beat > events[ci + 1].startBeat) ci++;
+  cur[idx] = ci;
+  const value = getEventValue(events[ci], timeSec);
+  // Numeric event lists normally always yield numbers; the type check simply
+  // preserves the previous behavior of skipping undefined results.
+  return typeof value === 'number' ? value : 0;
+};
 
 export class Line {
   private _scene: Game;
@@ -69,6 +105,13 @@ export class Line {
   private _notes: (PlainNote | LongNote)[] = [];
   private _noteCullBound: number = Infinity;
   private _noteWindowCursor: number = 0;
+  /**
+   * Per-note visual-window start times (`hitTime - visibleTime`), used to
+   * binary-search the first not-yet-visible note each frame. Built once when
+   * the line's notes are complete; left null when the starts are not sorted
+   * ascending (rare), in which case the scan falls back to a full walk.
+   */
+  private _noteWindowStarts: number[] | null = null;
   private _hasAttach: boolean = false;
   private _hasCustomTexture: boolean = false;
   private _hasAnimatedTexture: boolean = false;
@@ -138,6 +181,11 @@ export class Line {
     sizeControl: [],
     skewControl: [],
     yControl: [],
+    invHeight900: 0,
+    cosRotation: 1,
+    lineY: 0,
+    centerY: 0,
+    timeSec: 0,
   };
 
   constructor(
@@ -299,6 +347,23 @@ export class Line {
     // Do not leave those cursors at the last note's position when the first
     // frame is rendered (or after a seek); playback must rebuild them from 0.
     this.resetEventState();
+    this.buildNoteWindowIndex();
+  }
+
+  private buildNoteWindowIndex() {
+    const notes = this._notes;
+    const starts = new Array<number>(notes.length);
+    let sorted = true;
+    for (let i = 0; i < notes.length; i++) {
+      const note = notes[i];
+      const start = note.hitTime - note.note.visibleTime;
+      // NaN (missing visibleTime) or decreasing starts disqualify the fast
+      // binary-search bound; the scan then falls back to per-note checks,
+      // which reproduce the legacy behavior exactly.
+      if (!Number.isFinite(start) || (i > 0 && start < starts[i - 1])) sorted = false;
+      starts[i] = start;
+    }
+    this._noteWindowStarts = sorted ? starts : null;
   }
 
   update(beat: number, songTime: number, gameTime: number, forceFullNoteUpdate: boolean = false) {
@@ -334,7 +399,7 @@ export class Line {
     const notes = this._notes;
     let i = this._noteWindowCursor;
     while (i < notes.length && notes[i].visualEndTime <= songTime) {
-      notes[i].setVisible(false);
+      if (notes[i].visible) notes[i].setVisible(false);
       i++;
     }
     this._noteWindowCursor = i;
@@ -342,34 +407,73 @@ export class Line {
 
   updateVisibleNotes(beat: number, songTime: number) {
     this.advanceNoteCursor(songTime);
+    const notes = this._notes;
+    // Upper bound: first note whose visual window has not started yet. Notes
+    // beyond it are guaranteed invisible this frame, so the previous
+    // full-walk-to-end (which touched every future note of every line, every
+    // frame) collapses to a binary search plus only the active window.
+    let end = notes.length;
+    const starts = this._noteWindowStarts;
+    if (starts !== null) {
+      let lo = this._noteWindowCursor;
+      let hi = end;
+      while (lo < hi) {
+        const mid = (lo + hi) >>> 1;
+        if (starts[mid] <= songTime) lo = mid + 1;
+        else hi = mid;
+      }
+      end = lo;
+    }
     const ctx = this._frameCtx;
-    ctx.px = this._scene.sys.canvas.width / 1350;
-    ctx.ox = this._scene.sys.canvas.height / 900;
-    ctx.dScale = (this._scene.sys.canvas.height * 2) / 15;
+    const canvasHeight = this._scene.sys.canvas.height;
+    const canvasWidth = this._scene.sys.canvas.width;
+    ctx.px = canvasWidth / 1350;
+    ctx.ox = canvasHeight / 900;
+    ctx.dScale = (canvasHeight * 2) / 15;
+    ctx.invHeight900 = 900 / canvasHeight;
     ctx.cullBound = this._noteCullBound;
     ctx.lineOpacity = this._opacity;
     ctx.lineIncline = this._incline;
     ctx.isCover = !!this._data.isCover;
+    ctx.cosRotation = Math.cos(this._line.rotation);
+    ctx.lineY = this._line.y;
+    ctx.centerY = canvasHeight / 2;
+    ctx.timeSec = songTime;
     const ctrl = this._ctrlCache.get(this._index);
     ctx.alphaControl = ctrl?.[0] ?? EMPTY_CTRL[0];
     ctx.posControl = ctrl?.[1] ?? EMPTY_CTRL[1];
     ctx.sizeControl = ctrl?.[2] ?? EMPTY_CTRL[2];
     ctx.skewControl = ctrl?.[3] ?? EMPTY_CTRL[3];
     ctx.yControl = ctrl?.[4] ?? EMPTY_CTRL[4];
-    const notes = this._notes;
-    for (let i = this._noteWindowCursor; i < notes.length; i++) {
-      const note = notes[i];
-      // Expiry guard for the (rare) non-monotonic long-note interleaving case
-      // that the cursor could not skip; mirrors the old explicit time check.
-      if (note.visualEndTime <= songTime) {
-        note.setVisible(false);
-        continue;
+    if (starts !== null) {
+      for (let i = this._noteWindowCursor; i < end; i++) {
+        const note = notes[i];
+        // Expiry guard for the (rare) non-monotonic long-note interleaving
+        // case that neither cursor could skip.
+        if (note.visualEndTime <= songTime) {
+          if (note.visible) note.setVisible(false);
+          continue;
+        }
+        if (!this.isNoteInCullArea(note, ctx)) {
+          if (note.visible) note.setVisible(false);
+          continue;
+        }
+        note.update(beat, songTime, this._height, ctx);
       }
-      if (songTime < note.hitTime - note.note.visibleTime || !this.isNoteInCullArea(note)) {
-        note.setVisible(false);
-        continue;
+    } else {
+      // Unsorted window starts (rare): fall back to explicit per-note checks.
+      for (let i = this._noteWindowCursor; i < notes.length; i++) {
+        const note = notes[i];
+        if (
+          note.visualEndTime <= songTime ||
+          songTime < note.hitTime - note.note.visibleTime ||
+          !this.isNoteInCullArea(note, ctx)
+        ) {
+          if (note.visible) note.setVisible(false);
+          continue;
+        }
+        note.update(beat, songTime, this._height, ctx);
       }
-      note.update(beat, songTime, this._height, ctx);
     }
   }
 
@@ -396,35 +500,36 @@ export class Line {
     this._curText = [];
   }
 
-  private isNoteInCullArea(note: PlainNote | LongNote) {
-    const scale = (this._scene.sys.canvas.height * 2) / 15;
-    const offsetScale = this._scene.sys.canvas.height / 900;
+  private isNoteInCullArea(note: PlainNote | LongNote, ctx: LineFrameCtx) {
+    // All frame-constant values (trig, scales, bounds) are hoisted into the
+    // per-line ctx; previously this recomputed them for every note, every
+    // frame, which profiled as one of the hottest functions in the game.
     const yModifier = note.note.above === 1 ? -1 : 1;
     const speed = note.note.speed;
-    const lineY = this._line.y;
-    const cosRotation = Math.cos(this._line.rotation);
-    const centerY = this._scene.sys.canvas.height / 2;
-    const cullBound = this._noteCullBound;
+    const lineY = ctx.lineY;
+    const cosRotation = ctx.cosRotation;
+    const centerY = ctx.centerY;
+    const cullBound = ctx.cullBound;
     const height = this._height;
     const yOffset = note.note.yOffset;
 
-    if (note instanceof LongNote) {
+    if (note.isHold) {
       // Once a hold reaches the judgment line, its endpoints can both be
       // outside the viewport while its body is still crossing the line. Keep
       // updating it for the complete judgment interval in that case.
-      if (this._scene.timeSec >= note.hitTime && this._scene.timeSec <= note.endHitTime) {
+      if (ctx.timeSec >= note.hitTime && ctx.timeSec <= note.endHitTime) {
         return true;
       }
 
       const headY =
         lineY +
         yModifier *
-          ((note.headTargetHeight - height) * speed * scale + yOffset * offsetScale) *
+          ((note.headTargetHeight - height) * speed * ctx.dScale + yOffset * ctx.ox) *
           cosRotation;
       const tailY =
         lineY +
         yModifier *
-          ((note.tailTargetHeight - height) * speed * scale + yOffset * offsetScale) *
+          ((note.tailTargetHeight - height) * speed * ctx.dScale + yOffset * ctx.ox) *
           cosRotation;
       const minY = Math.min(headY, tailY);
       const maxY = Math.max(headY, tailY);
@@ -433,7 +538,7 @@ export class Line {
     const y =
       lineY +
       yModifier *
-        ((note.targetHeight - height) * speed * scale + yOffset * offsetScale) *
+        ((note.targetHeight - height) * speed * ctx.dScale + yOffset * ctx.ox) *
         cosRotation;
     return Math.abs(y - centerY) <= cullBound;
   }
@@ -450,20 +555,22 @@ export class Line {
   }
 
   updateParams() {
-    // NOTE: scale/alpha/tint are applied unconditionally (no dirty-cache).
-    // The `in()`/`out()` tweens write `alpha` directly on the line elements,
-    // bypassing updateParams, so a dirty-cache would wrongly skip re-applying
-    // the chart-computed alpha and leave transparent lines opaque.
-    this._line.setScale(
-      (this._hasText ? this._scene.p(50) / this._textScale : this._scene.p(1)) *
-        (this._scaleX ?? 1),
-      this._hasCustomTexture
-        ? (this._hasText ? this._scene.p(50) / this._textScale : this._scene.p(1)) *
-            (this._scaleY ?? 1)
-        : this._scene.o(1) * this._scene.preferences.lineThickness * (this._scaleY ?? 1.35),
-    );
+    const line = this._line;
+    const baseScale = this._hasText ? this._scene.p(50) / this._textScale : this._scene.p(1);
+    const scaleX = baseScale * (this._scaleX ?? 1);
+    const scaleY = this._hasCustomTexture
+      ? baseScale * (this._scaleY ?? 1)
+      : this._scene.o(1) * this._scene.preferences.lineThickness * (this._scaleY ?? 1.35);
+    // NOTE: every property below is compared against its live value before
+    // being written, so static lines skip the setter entirely (each of which
+    // dirties transform/render state in Phaser). The alpha comparison also
+    // keeps the in()/out() tweens working: they write `alpha` directly
+    // between our writes, which makes the live value diverge from ours and
+    // forces a re-apply — exactly the behavior the previous unconditional
+    // write produced.
+    if (line.scaleX !== scaleX || line.scaleY !== scaleY) line.setScale(scaleX, scaleY);
     if (this._hasText) {
-      const textObj = this._line as GameObjects.Text;
+      const textObj = line as GameObjects.Text;
       textObj.setText(this._text ?? '');
       const fontFamily = this._scene.getFont(this._font);
       if (this._appliedFont !== fontFamily) {
@@ -472,7 +579,7 @@ export class Line {
       }
     }
     if (this._hasAnimatedTexture) {
-      const sprite = this._line as GameObjects.Sprite;
+      const sprite = line as GameObjects.Sprite;
       if (this._gif !== undefined && this._gif >= 0 && this._gif <= 1) {
         sprite.anims.pause();
         sprite.anims.setProgress(this._gif);
@@ -480,21 +587,26 @@ export class Line {
         sprite.anims.resume();
       }
     }
-    if (this._color !== undefined) this._line.setTint(rgbToHex(this._color));
+    let tint: number | undefined;
+    if (this._color !== undefined) tint = rgbToHex(this._color);
     else if (!this._hasCustomTexture && (!this._hasAttach || this._data.appearanceOnAttach === 2))
-      this._line.setTint(getLineColor(this._scene));
-    const { x, y } = this.getPosition();
+      tint = getLineColor(this._scene);
+    if (tint !== undefined && line.tint !== tint) line.setTint(tint);
+    this.getPosition();
     const rotation = this.getRotation();
-    this._line.setPosition(x, y);
-    this._line.setRotation(rotation);
-    this._line.setAlpha(this._opacity / 255);
+    if (line.x !== this._posX || line.y !== this._posY) line.setPosition(this._posX, this._posY);
+    if (line.rotation !== rotation) line.setRotation(rotation);
+    const targetAlpha = this._opacity / 255;
+    if (line.alpha !== targetAlpha) line.setAlpha(targetAlpha);
+    const x = this._posX;
+    const y = this._posY;
     const containers = this._noteContainersArr;
     for (let i = 0; i < containers.length; i++) {
       const obj = containers[i];
-      obj.setPosition(x, y);
-      obj.setRotation(rotation);
+      if (obj.x !== x || obj.y !== y) obj.setPosition(x, y);
+      if (obj.rotation !== rotation) obj.setRotation(rotation);
       if (this._data.scaleOnNotes === 1) {
-        obj.setScale(this._scaleX ?? 1, 1);
+        if (obj.scaleX !== (this._scaleX ?? 1)) obj.setScale(this._scaleX ?? 1, 1);
       }
     }
     if (this._noteMask !== null) this.updateMask();
@@ -586,24 +698,27 @@ export class Line {
     });
   }
 
+  /**
+   * Computes the line's world position for the current frame and stores it in
+   * `_posX`/`_posY` (previously allocated a fresh `{x, y}` per call, which
+   * ran once per line per frame).
+   */
   getPosition() {
     const halfScreenWidth = this._scene.sys.canvas.width / 2;
     const halfScreenHeight = this._scene.sys.canvas.height / 2;
-    let x = this._scene.p(this._xModifier * this._x);
-    let y = this._scene.o(-this._yModifier * this._y);
+    const x = this._scene.p(this._xModifier * this._x);
+    const y = this._scene.o(-this._yModifier * this._y);
     if (this._parent !== null) {
       const parentX = this._parent.x - halfScreenWidth;
       const parentY = this._parent.y - halfScreenHeight;
-      const newX =
-        parentX + x * Math.cos(this._parent.rotation) - y * Math.sin(this._parent.rotation);
-      const newY =
-        parentY + y * Math.cos(this._parent.rotation) + x * Math.sin(this._parent.rotation);
-      x = newX;
-      y = newY;
+      const cos = Math.cos(this._parent.rotation);
+      const sin = Math.sin(this._parent.rotation);
+      this._posX = parentX + x * cos - y * sin + halfScreenWidth;
+      this._posY = parentY + y * cos + x * sin + halfScreenHeight;
+      return;
     }
     this._posX = x + halfScreenWidth;
     this._posY = y + halfScreenHeight;
-    return { x: this._posX, y: this._posY };
   }
 
   getRotation() {
@@ -630,10 +745,11 @@ export class Line {
     let y = 0;
     let rotation = 0;
     let height = 0;
-    // Zero-fill cursor arrays up front so the per-layer handleEvent calls don't
-    // each re-check `while (cur.length < layerIndex + 1) cur.push(0)`.
+    // Zero-fill cursor arrays up front so the per-layer event evaluations
+    // don't each re-check `while (cur.length < layerIndex + 1) cur.push(0)`.
     const data = this._data;
-    const layerCount = data.eventLayers.length;
+    const layers = data.eventLayers;
+    const layerCount = layers.length;
     const curAlpha = this._curAlpha;
     const curX = this._curX;
     const curY = this._curY;
@@ -649,22 +765,13 @@ export class Line {
       curHeight.push(0);
     }
     for (let i = 0; i < layerCount; i++) {
-      const layer = data.eventLayers[i];
+      const layer = layers[i];
       if (!layer) continue;
-      const a = this.handleEvent(beat, i, layer.alphaEvents, curAlpha, timeSec) as
-        | number
-        | undefined;
-      const ex = this.handleEvent(beat, i, layer.moveXEvents, curX, timeSec) as number | undefined;
-      const ey = this.handleEvent(beat, i, layer.moveYEvents, curY, timeSec) as number | undefined;
-      const er = this.handleEvent(beat, i, layer.rotateEvents, curRot, timeSec) as
-        | number
-        | undefined;
-      const h = this.handleSpeed(beat, i, layer.speedEvents, curSpeed, curHeight, timeSec);
-      if (a !== undefined) alpha += a;
-      if (ex !== undefined) x += ex;
-      if (ey !== undefined) y += ey;
-      if (er !== undefined) rotation += er;
-      height += h;
+      alpha += evalEvents(layer.alphaEvents, curAlpha, i, beat, timeSec);
+      x += evalEvents(layer.moveXEvents, curX, i, beat, timeSec);
+      y += evalEvents(layer.moveYEvents, curY, i, beat, timeSec);
+      rotation += evalEvents(layer.rotateEvents, curRot, i, beat, timeSec);
+      height += this.handleSpeed(beat, i, layer.speedEvents, curSpeed, curHeight, timeSec);
     }
     this._opacity = alpha;
     this._x = x;
