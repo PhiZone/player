@@ -160,8 +160,6 @@ export class Line {
 
   private _attachedVideos: Video[] = [];
 
-  private _judgeWindow: (PlainNote | LongNote)[] = [];
-
   private _debug: GameObjects.Container | undefined = undefined;
   private _selfDebug: GameObjects.Container | undefined = undefined;
 
@@ -942,14 +940,6 @@ export class Line {
     container.add(note);
   }
 
-  addToJudgeWindow(note: PlainNote | LongNote) {
-    this._judgeWindow.push(note);
-  }
-
-  removeFromJudgeWindow(note: PlainNote | LongNote) {
-    this._judgeWindow = this._judgeWindow.filter((n) => n !== note);
-  }
-
   setParent(parent: Line) {
     this._parent = parent;
   }
@@ -999,10 +989,6 @@ export class Line {
 
   public get incline() {
     return this._incline;
-  }
-
-  public get judgeWindow() {
-    return this._judgeWindow;
   }
 
   public get elements() {

@@ -544,7 +544,7 @@ export const getParams = (url?: string, loadFromStorage = true): Config | null =
   const chartFlipping = parseInt(p.get('chartFlipping') ?? '0');
   const chartOffset = parseInt(p.get('chartOffset') ?? '0');
   const fcApIndicator = ['1', 'true'].some((v) => v == (p.get('fcApIndicator') ?? '1'));
-  const goodJudgment = parseInt(p.get('goodJudgment') ?? '160');
+  const goodJudgment = parseInt(p.get('goodJudgment') ?? '180');
   const hitSoundVolume = parseFloat(p.get('hitSoundVolume') ?? '0.75');
   const lineThickness = parseFloat(p.get('lineThickness') ?? '1');
   const musicVolume = parseFloat(p.get('musicVolume') ?? '1');

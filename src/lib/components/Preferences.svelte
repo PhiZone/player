@@ -1,5 +1,10 @@
 <script lang="ts">
   import type { Preferences } from '$lib/types';
+  import {
+    BAD_EXTRA,
+    DEFAULT_GOOD_JUDGMENT_MS,
+    DEFAULT_PERFECT_JUDGMENT_MS,
+  } from '$lib/player/constants';
   import { m } from '$lib/paraglide/messages';
 
   interface $$Props {
@@ -14,7 +19,12 @@
   const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
 
   const calculateRksFactor = (perfectJudgment: number, goodJudgment: number) => {
-    var x = 0.8 * perfectJudgment + 0.225 * goodJudgment;
+    // Anchored so that the default judgment windows (80/180 ms) yield
+    // exactly an RKS factor of 1.0.
+    var x =
+      0.8 * perfectJudgment +
+      0.225 * goodJudgment -
+      (0.8 * DEFAULT_PERFECT_JUDGMENT_MS + 0.225 * DEFAULT_GOOD_JUDGMENT_MS - 100);
 
     if (x > 150) {
       return 0;
@@ -28,7 +38,7 @@
 
   let aspectRatio1 = preferences.aspectRatio ? preferences.aspectRatio[0] : 0;
   let aspectRatio2 = preferences.aspectRatio ? preferences.aspectRatio[1] : 0;
-  $: badJudgment = preferences.goodJudgment * 1.125;
+  $: badJudgment = preferences.goodJudgment + BAD_EXTRA * 1000;
   $: rksFactor = calculateRksFactor(preferences.perfectJudgment, preferences.goodJudgment);
 
   let modal: HTMLDialogElement;

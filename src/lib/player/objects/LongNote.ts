@@ -1,14 +1,9 @@
 import { GameObjects } from 'phaser';
-import { GameStatus, JudgmentType, type Note } from '$lib/types';
+import { JudgmentType, type Note } from '$lib/types';
 import type { Game } from '../scenes/Game';
 import type { Line, LineFrameCtx } from './Line';
 import { rgbToHex } from '../utils';
-import {
-  HOLD_BODY_TOLERANCE,
-  HOLD_TAIL_TOLERANCE,
-  NOTE_BASE_SIZE,
-  NOTE_PRIORITIES,
-} from '../constants';
+import { HOLD_SAFE_FRAMES, NOTE_BASE_SIZE, NOTE_PRIORITIES } from '../constants';
 import { isDebug } from '$lib/utils';
 
 export class LongNote extends GameObjects.Container {
@@ -37,11 +32,22 @@ export class LongNote extends GameObjects.Container {
   private _beatJudged: number | undefined = undefined;
   private _tempJudgmentType: JudgmentType = JudgmentType.UNJUDGED;
   private _beatTempJudged: number | undefined = undefined;
-  private _isInJudgeWindow: boolean = false;
-  private _lastInputBeat: number = 0;
-  private _lastInputTimeSec: number = 0;
-  private _isTapped: boolean = false;
-  private _consumeTap: boolean = true;
+
+  // ======================================================================
+  // Official-judgment control state (managed by JudgmentHandler).
+  // ======================================================================
+  /** 点击匹配 marker (isJudged): set by click matching on the hold head. */
+  clickMatched = false;
+  /** Head has been hit (Perfect/Good), distinct from the isJudged marker. */
+  holdHeadHit = false;
+  /** Whether the head was hit as a Perfect. */
+  holdHeadPerfect = false;
+  /** The hold's final judgment has been given. */
+  holdJudgeOver = false;
+  /** Transient miss flag of the middle section. */
+  holdMissed = false;
+  /** Remaining lift-protection charges (抬手保护). */
+  holdSafeFrames = HOLD_SAFE_FRAMES;
 
   /** Precomputed base scale (pixels per note-size unit × skin size factor). */
   private _noteScaleBase: number;
@@ -174,63 +180,6 @@ export class LongNote extends GameObjects.Container {
     }
   }
 
-  updateJudgment(beat: number, songTime: number) {
-    beat /= this._line.data.bpmfactor;
-    if (this._tempJudgmentType === JudgmentType.UNJUDGED) {
-      const deltaSec = songTime - this._hitTime;
-      const delta = deltaSec * 1000;
-      const { perfectJudgment, goodJudgment } = this._scene.preferences;
-      if (beat >= this._data.startBeat) {
-        if (this._scene.autoplay) {
-          this._scene.judgment.hold(JudgmentType.PERFECT, deltaSec, this);
-          return;
-        }
-        if (delta > goodJudgment) {
-          this._scene.judgment.judge(JudgmentType.MISS, this);
-          return;
-        }
-      }
-      if (delta >= -goodJudgment && delta <= goodJudgment) {
-        if (!this._isInJudgeWindow) {
-          this._line.addToJudgeWindow(this);
-          this._isInJudgeWindow = true;
-        }
-        if (!this._isTapped) return;
-        if (delta < -perfectJudgment) {
-          this._scene.judgment.hold(JudgmentType.GOOD_EARLY, deltaSec, this);
-        } else if (delta <= perfectJudgment) {
-          this._scene.judgment.hold(JudgmentType.PERFECT, deltaSec, this);
-        } else {
-          this._scene.judgment.hold(JudgmentType.GOOD_LATE, deltaSec, this);
-        }
-        this._lastInputBeat = beat;
-        this._isTapped = false;
-      }
-    } else if (this._judgmentType === JudgmentType.UNJUDGED) {
-      // `beat` is the line-local beat (already scaled by bpmfactor); its
-      // converted seconds are line-local too, so cache them consistently.
-      const lineTimeSec = this._scene.timeUtil.getTimeSec(beat);
-      if (!this._scene.autoplay) {
-        const input = this._scene.keyboard?.findDrag(this) || this._scene.pointer?.findDrag(this);
-        if (input) {
-          this._lastInputBeat = beat;
-          this._lastInputTimeSec = lineTimeSec;
-        } else if (
-          lineTimeSec - this._lastInputTimeSec > HOLD_BODY_TOLERANCE / 1000 ||
-          this._scene.status === GameStatus.SEEKING
-        ) {
-          // this.setTint(0xff0000);
-          this._scene.judgment.judge(JudgmentType.MISS, this);
-          return;
-        }
-      }
-      // The hold end time was converted once in the constructor.
-      if (this._endTime - lineTimeSec < HOLD_TAIL_TOLERANCE / 1000) {
-        this._scene.judgment.judge(this._tempJudgmentType, this);
-      }
-    }
-  }
-
   setTint(tint: number | undefined) {
     this._head.setTint(tint);
     this._body.setTint(tint);
@@ -329,31 +278,27 @@ export class LongNote extends GameObjects.Container {
     return this._endTime;
   }
 
-  public get isTapped() {
-    return this._isTapped;
-  }
-
-  public set isTapped(isTapped: boolean) {
-    this._isTapped = isTapped;
-  }
-
   public get tempJudgmentType() {
     return this._tempJudgmentType;
-  }
-
-  setTempJudgment(type: JudgmentType, beat: number) {
-    this._tempJudgmentType = type;
-    this._beatTempJudged = beat;
-    this._line.removeFromJudgeWindow(this);
-    this._isInJudgeWindow = false;
   }
 
   public get beatTempJudged() {
     return this._beatTempJudged;
   }
 
-  public get consumeTap() {
-    return this._consumeTap;
+  setTempJudgment(type: JudgmentType, beat: number) {
+    this._tempJudgmentType = type;
+    this._beatTempJudged = beat;
+  }
+
+  /** Clears the official-judgment control state (seek/restart). */
+  resetControl() {
+    this.clickMatched = false;
+    this.holdHeadHit = false;
+    this.holdHeadPerfect = false;
+    this.holdJudgeOver = false;
+    this.holdMissed = false;
+    this.holdSafeFrames = HOLD_SAFE_FRAMES;
   }
 
   public get zIndex() {

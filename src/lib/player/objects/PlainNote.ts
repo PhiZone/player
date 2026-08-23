@@ -39,10 +39,16 @@ export class PlainNote extends SkewImage {
 
   private _judgmentType: JudgmentType = JudgmentType.UNJUDGED;
   private _beatJudged: number | undefined = undefined;
-  private _isInJudgeWindow: boolean = false;
-  private _pendingPerfect: boolean = false;
-  private _isTapped: boolean = false;
-  private _consumeTap: boolean = true;
+
+  // ======================================================================
+  // Official-judgment control state (managed by JudgmentHandler).
+  // ======================================================================
+  /** 点击匹配 marker (isJudged): set by click matching; blocks re-matching. */
+  clickMatched = false;
+  /** 红键匹配 marker (isJudgedForFlick): set by flick matching only. */
+  flickMatched = false;
+  /** DragControl proximity marker: a held finger was within range. */
+  dragMarked = false;
 
   /**
    * Control-lookup cursor: one index per control type. Indices track the last
@@ -177,62 +183,6 @@ export class PlainNote extends SkewImage {
     }
   }
 
-  updateJudgment(beat: number, songTime: number) {
-    beat /= this._line.data.bpmfactor;
-    if (this._judgmentType === JudgmentType.UNJUDGED) {
-      const deltaSec = songTime - this._hitTime;
-      const delta = deltaSec * 1000;
-      const { perfectJudgment, goodJudgment } = this._scene.preferences;
-      const badJudgment = goodJudgment * 1.125;
-      const progress = clamp(delta / goodJudgment, 0, 1);
-      this.setAlpha(this._alpha * (1 - progress));
-      if (beat >= this._data.startBeat) {
-        if (this._scene.autoplay || this._pendingPerfect) {
-          this._scene.judgment.hit(JudgmentType.PERFECT, deltaSec, this);
-          this._pendingPerfect = false;
-          return;
-        }
-        if (progress === 1) {
-          this._scene.judgment.judge(JudgmentType.MISS, this);
-          return;
-        }
-      }
-      this._consumeTap = beat <= this._data.startBeat || this._data.type !== 4;
-      const isTap = this._data.type === 1;
-      const isFlick = this._data.type === 3;
-      if (!this._pendingPerfect && Math.abs(delta) <= (isTap ? badJudgment : goodJudgment)) {
-        if (!this._isInJudgeWindow) {
-          this._line.addToJudgeWindow(this);
-          this._isInJudgeWindow = true;
-        }
-        if (isTap && !this._isTapped) return;
-        this._isTapped = false;
-        if (
-          !this._scene.keyboard?.findDrag(this, isFlick) &&
-          !this._scene.pointer?.findDrag(this, isFlick)
-        )
-          return;
-        if (isTap && delta < -goodJudgment) {
-          this._scene.judgment.hit(JudgmentType.BAD, deltaSec, this);
-        } else if (delta < -perfectJudgment) {
-          if (isTap) this._scene.judgment.hit(JudgmentType.GOOD_EARLY, deltaSec, this);
-          else this._pendingPerfect = true;
-        } else if (delta <= perfectJudgment) {
-          if (isTap || delta >= 0) this._scene.judgment.hit(JudgmentType.PERFECT, deltaSec, this);
-          else this._pendingPerfect = true;
-        } else if (delta <= goodJudgment) {
-          this._scene.judgment.hit(
-            isTap ? JudgmentType.GOOD_LATE : JudgmentType.PERFECT,
-            deltaSec,
-            this,
-          );
-        } else {
-          this._scene.judgment.hit(JudgmentType.BAD, deltaSec, this);
-        }
-      }
-    }
-  }
-
   setHeight(height: number) {
     this._targetHeight = height;
   }
@@ -299,6 +249,13 @@ export class PlainNote extends SkewImage {
     }
   }
 
+  /** Clears the official-judgment control state (seek/restart). */
+  resetControl() {
+    this.clickMatched = false;
+    this.flickMatched = false;
+    this.dragMarked = false;
+  }
+
   public get judgmentPosition() {
     const y = this._yModifier * this._scene.o(this._data.yOffset);
     return {
@@ -314,9 +271,14 @@ export class PlainNote extends SkewImage {
   setJudgment(type: JudgmentType, beat: number) {
     this._judgmentType = type;
     this._beatJudged = beat;
-    this._line.removeFromJudgeWindow(this);
-    this._isInJudgeWindow = false;
   }
+
+  /** Taps have no temp-judgment stage; present for handler symmetry. */
+  get beatTempJudged() {
+    return undefined;
+  }
+
+  resetTemp() {}
 
   public get beatJudged() {
     return this._beatJudged;
@@ -324,18 +286,6 @@ export class PlainNote extends SkewImage {
 
   public get hitTime() {
     return this._hitTime;
-  }
-
-  public get isTapped() {
-    return this._isTapped;
-  }
-
-  public set isTapped(isTapped: boolean) {
-    this._isTapped = isTapped;
-  }
-
-  public get consumeTap() {
-    return this._consumeTap;
   }
 
   public get zIndex() {
