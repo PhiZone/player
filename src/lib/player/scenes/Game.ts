@@ -549,6 +549,11 @@ export class Game extends Scene {
     this._isSeeking = true;
     this._clock.setSeek(value);
     this.resetActiveNoteWindows(this.beat);
+    if (!this._render) {
+      // Apply immediately what resuming would judge for the skipped span, so
+      // score/combo show the state at the target position while paused.
+      this._judgmentHandler?.resolveUpTo(this.timeSec);
+    }
     this.statistics?.snapDisplay();
     this._videos?.forEach((video) => video.setSeek(value));
   }

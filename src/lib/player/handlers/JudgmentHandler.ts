@@ -881,6 +881,28 @@ export class JudgmentHandler {
   }
 
   /**
+   * Fast-forwards the control pipeline to `nowTime`, applying every judgment
+   * playback would have produced by that moment — autoplay resolves reached
+   * notes as Perfect, manual play misses untouched ones — so statistics
+   * already reflect a seek target right after the seek instead of only after
+   * resuming. Silent while paused: effects, hitsounds and std-dev deltas
+   * stay reserved for genuinely judged input. Notes beyond the control
+   * horizon remain pending as live controls for normal playback.
+   */
+  resolveUpTo(nowTime: number) {
+    this._wuPx = this._scene.sys.canvas.height / 10;
+    this._pxPerUnit = this._scene.p(1);
+    this.activateControls(nowTime);
+    for (let i = this._controls.length - 1; i >= 0; i--) {
+      const note = this._controls[i];
+      if (this.judgeControl(note, nowTime)) {
+        this._controls[i] = this._controls[this._controls.length - 1];
+        this._controls.pop();
+      }
+    }
+  }
+
+  /**
    * Full rewind/reset of the judgment state (seek or restart): rebuilds the
    * slicing cursors, drops all live controls, un-judges notes whose judgment
    * lies ahead of the new time, and clears gesture queues.
