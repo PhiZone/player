@@ -229,7 +229,34 @@ export interface Extended {
   textEvents?: TextEvent[];
 }
 
-export interface TextEvent {
+/**
+ * Precomputed per-event constants for fast eased evaluation, filled in by
+ * `processEvents` (see `getEventValue`). Mirrors what the runtime `easing()`
+ * helper would compute on every call otherwise.
+ */
+export interface EasedEventFields {
+  /** Resolved easing function (built-in or cached bezier). */
+  __f?: (x: number) => number;
+  /** Sanitized easing sub-range applied by the event. */
+  __l?: number;
+  __r?: number;
+  /** Pre-evaluated easing at both range ends: `__f(__l)` and `__f(__r)`. */
+  __ps?: number;
+  __pe?: number;
+  /**
+   * Lazily built lookup table of `__f` sampled uniformly over `__l..__r`
+   * (see evalEvents). Turns per-frame easing closure calls into a lerp.
+   */
+  __lut?: Float32Array;
+  /**
+   * Lazily built lookup table of the easing's cumulative integral over
+   * `__l..__r` (see getIntegral) for speed events on integrateSpeedEasings
+   * charts — same rationale: one lerp instead of the integral closure.
+   */
+  __ilut?: Float32Array;
+}
+
+export interface TextEvent extends EasedEventFields {
   bezier: number;
   bezierPoints: number[];
   easingLeft: number;
@@ -238,6 +265,8 @@ export interface TextEvent {
   end: string;
   endTime: [number, number, number];
   endBeat: number;
+  endTimeSec?: number;
+  startTimeSec?: number;
   font?: string;
   linkgroup: number;
   start: string;
@@ -245,7 +274,7 @@ export interface TextEvent {
   startBeat: number;
 }
 
-export interface ColorEvent {
+export interface ColorEvent extends EasedEventFields {
   bezier: number;
   bezierPoints: number[];
   easingLeft: number;
@@ -254,17 +283,21 @@ export interface ColorEvent {
   end: [number, number, number];
   endTime: [number, number, number];
   endBeat: number;
+  endTimeSec?: number;
+  startTimeSec?: number;
   linkgroup: number;
   start: [number, number, number];
   startTime: [number, number, number];
   startBeat: number;
 }
 
-export interface GifEvent {
+export interface GifEvent extends EasedEventFields {
   easingType: number;
   end: number;
   endTime: [number, number, number];
   endBeat: number;
+  endTimeSec?: number;
+  startTimeSec?: number;
   linkgroup: number;
   start: number;
   startTime: [number, number, number];
@@ -279,20 +312,30 @@ export interface EventLayer {
   speedEvents?: SpeedEvent[] | null;
 }
 
-export interface SpeedEvent {
+export interface SpeedEvent extends EasedEventFields {
   easingLeft: number;
   easingRight: number;
   easingType: number;
   end: number;
   endTime: [number, number, number];
   endBeat: number;
+  endTimeSec?: number;
   linkgroup: number;
   start: number;
   startTime: [number, number, number];
   startBeat: number;
+  startTimeSec?: number;
+  /**
+   * Precomputed per-frame constants for the (non-integrated) speed integral.
+   * Filled in by `processEvents` — see `getIntegral`.
+   */
+  __df0?: number;
+  __df1?: number;
+  __k?: number;
+  __b?: number;
 }
 
-export interface Event {
+export interface Event extends EasedEventFields {
   bezier: number;
   bezierPoints: number[];
   easingLeft: number;
@@ -301,10 +344,12 @@ export interface Event {
   end: number;
   endTime: [number, number, number];
   endBeat: number;
+  endTimeSec?: number;
   linkgroup: number;
   start: number;
   startTime: [number, number, number];
   startBeat: number;
+  startTimeSec?: number;
 }
 
 export interface AlphaControl {
@@ -461,11 +506,13 @@ interface VectorVariableEvent extends BaseVariableEvent {
   end: number[];
 }
 
-interface BaseVariableEvent {
+interface BaseVariableEvent extends EasedEventFields {
   startTime: [number, number, number];
   startBeat: number;
   endTime: [number, number, number];
   endBeat: number;
+  endTimeSec?: number;
+  startTimeSec?: number;
   easingType: number;
 }
 

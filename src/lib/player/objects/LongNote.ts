@@ -1,17 +1,15 @@
 import { GameObjects } from 'phaser';
-import { GameStatus, JudgmentType, type Note } from '$lib/types';
+import { JudgmentType, type Note } from '$lib/types';
 import type { Game } from '../scenes/Game';
-import type { Line } from './Line';
-import { getTimeSec, rgbToHex } from '../utils';
-import {
-  HOLD_BODY_TOLERANCE,
-  HOLD_TAIL_TOLERANCE,
-  NOTE_BASE_SIZE,
-  NOTE_PRIORITIES,
-} from '../constants';
+import type { Line, LineFrameCtx } from './Line';
+import { rgbToHex } from '../utils';
+import { HOLD_SAFE_FRAMES, NOTE_BASE_SIZE, NOTE_PRIORITIES } from '../constants';
 import { isDebug } from '$lib/utils';
 
 export class LongNote extends GameObjects.Container {
+  /** Type tag used by the line's culling hot path (avoids `instanceof`). */
+  readonly isHold = true as const;
+
   private _scene: Game;
   private _index: number;
   private _data: Note;
@@ -27,16 +25,32 @@ export class LongNote extends GameObjects.Container {
   private _bodyHeight: number;
   private _hitTime: number;
   private _endTime: number;
+  public readonly visualEndTime: number;
   private _targetHeadHeight: number = 0;
   private _targetTailHeight: number = 0;
   private _judgmentType: JudgmentType = JudgmentType.UNJUDGED;
   private _beatJudged: number | undefined = undefined;
   private _tempJudgmentType: JudgmentType = JudgmentType.UNJUDGED;
   private _beatTempJudged: number | undefined = undefined;
-  private _isInJudgeWindow: boolean = false;
-  private _lastInputBeat: number = 0;
-  private _isTapped: boolean = false;
-  private _consumeTap: boolean = true;
+
+  // ======================================================================
+  // Official-judgment control state (managed by JudgmentHandler).
+  // ======================================================================
+  /** 点击匹配 marker (isJudged): set by click matching on the hold head. */
+  clickMatched = false;
+  /** Head has been hit (Perfect/Good), distinct from the isJudged marker. */
+  holdHeadHit = false;
+  /** Whether the head was hit as a Perfect. */
+  holdHeadPerfect = false;
+  /** The hold's final judgment has been given. */
+  holdJudgeOver = false;
+  /** Transient miss flag of the middle section. */
+  holdMissed = false;
+  /** Remaining lift-protection charges (抬手保护). */
+  holdSafeFrames = HOLD_SAFE_FRAMES;
+
+  /** Precomputed base scale (pixels per note-size unit × skin size factor). */
+  private _noteScaleBase: number;
 
   private _debug: GameObjects.Container | undefined = undefined;
 
@@ -58,13 +72,15 @@ export class LongNote extends GameObjects.Container {
     this._head.setOrigin(0.5, isCompact ? 0.5 : 0);
     this._body.setOrigin(0.5, 1);
     this._tail.setOrigin(0.5, isCompact ? 0.5 : 1);
-    this.resize();
+    this._noteScaleBase =
+      (989 / scene.skinSize) * scene.p(NOTE_BASE_SIZE * scene.preferences.noteSize);
     this.setAlpha(data.alpha / 255);
     if (data.tint) {
       this.setTint(rgbToHex(data.tint));
     }
-    this._hitTime = getTimeSec(scene.bpmList, data.startBeat);
-    this._endTime = getTimeSec(scene.bpmList, data.endBeat);
+    this._hitTime = scene.timeUtil.getTimeSec(data.startBeat);
+    this._endTime = scene.timeUtil.getTimeSec(data.endBeat);
+    this.visualEndTime = this._endTime + 1;
     const bodyTexture = this._body.texture.getSourceImage();
     this._bodyWidth = bodyTexture.width;
     this._bodyHeight = bodyTexture.height;
@@ -80,130 +96,87 @@ export class LongNote extends GameObjects.Container {
     if (isDebug()) {
       this._debug = new GameObjects.Container(scene);
     }
+
+    // Static appearance: the note's scale never changes during playback
+    // (holds have no size controls), so apply it once here instead of every
+    // frame. Requires _bodyWidth/_bodyHeight to be assigned first.
+    this.resize();
+    this.setX(this._scene.p(this._xModifier * data.positionX));
+
+    this._head.setVisible(false);
+    this._body.setVisible(false);
+    this._tail.setVisible(false);
   }
 
-  update(beat: number, songTime: number, height: number) {
-    this.setX(this._scene.p(this._xModifier * this._data.positionX));
-    this.resize();
+  update(beat: number, songTime: number, height: number, ctx?: LineFrameCtx) {
+    // Line-level culling may hide the container. Restore the container before
+    // evaluating the individual head/body/tail visibility for this frame.
+    if (!this.visible) super.setVisible(true);
+    const ox = ctx?.ox ?? this._scene.sys.canvas.height / 900;
+    const dScale = ctx?.dScale ?? (this._scene.sys.canvas.height * 2) / 15;
+    const yOffset = ox * this._data.yOffset;
+    let headDist = dScale * ((this._targetHeadHeight - height) * this._data.speed) + yOffset;
+    const tailDist = dScale * ((this._targetTailHeight - height) * this._data.speed) + yOffset;
+
+    const lineOpacity = ctx?.lineOpacity ?? this._line.opacity;
+    let visible = true;
+    if (lineOpacity < 0) {
+      if (lineOpacity === -2 && (headDist * this._data.above === 1 ? -1 : 1) > 0) visible = true;
+      else visible = false;
+    }
+
     if (this._beatJudged && beat < this._beatJudged) {
       this._scene.judgment.unjudge(this);
     }
     if (this._beatTempJudged && beat < this._beatTempJudged) {
       this.resetTemp();
     }
-    const yOffset = this._scene.o(this._data.yOffset);
-    let headDist = this._scene.d((this._targetHeadHeight - height) * this._data.speed) + yOffset;
-    const tailDist = this._scene.d((this._targetTailHeight - height) * this._data.speed) + yOffset;
 
-    let visible = true;
-    if (this._line.opacity < 0) {
-      if (this._line.opacity === -2 && (headDist * this._data.above === 1 ? -1 : 1) > 0)
-        visible = true;
-      else visible = false;
-    }
-
+    let headVisible: boolean;
     if (beat > this._data.startBeat) {
-      this._head.setVisible(this._isKeepHead && beat <= this._data.endBeat);
+      headVisible = this._isKeepHead && beat <= this._data.endBeat;
       headDist = yOffset;
     } else {
-      this._head.setVisible(
-        visible &&
-          songTime >= this._hitTime - this._data.visibleTime &&
-          (headDist * this._data.speed >= 0 ||
-            !this._line.data.isCover ||
-            (this._isKeepHead && beat <= this._data.endBeat)),
-      );
-    }
-    if (beat > this._data.endBeat) {
-      this._body.setVisible(false);
-      this._tail.setVisible(false);
-    } else {
-      const vis =
+      headVisible =
         visible &&
         songTime >= this._hitTime - this._data.visibleTime &&
-        (tailDist * this._data.speed >= 0 || !this._line.data.isCover);
-      this._body.setVisible(vis);
-      this._tail.setVisible(vis);
+        (headDist * this._data.speed >= 0 ||
+          !(ctx?.isCover ?? this._line.data.isCover) ||
+          (this._isKeepHead && beat <= this._data.endBeat));
     }
-    this._head.setY(this._yModifier * headDist);
-    this._body.setY(this._yModifier * (this._line.data.isCover ? Math.max(0, headDist) : headDist));
-    this._tail.setY(this._yModifier * tailDist);
-    const bodyHeight =
-      -this._yModifier *
-      (this._line.data.isCover
-        ? Math.max(0, tailDist - Math.max(0, headDist))
-        : Math.max(0, tailDist - headDist));
-    if (this._isBodyRepeat) this._body.height = bodyHeight;
-    else this._body.scaleY = bodyHeight / this._bodyHeight;
+    if (this._head.visible !== headVisible) this._head.setVisible(headVisible);
     if (this._data.isFake) {
       if (this._judgmentType !== JudgmentType.PASSED && beat >= this._data.endBeat)
         this._judgmentType = JudgmentType.PASSED;
       this._beatJudged = beat;
     }
+    const isCover = ctx?.isCover ?? this._line.data.isCover;
+    if (beat > this._data.endBeat) {
+      if (this._body.visible) this._body.setVisible(false);
+      if (this._tail.visible) this._tail.setVisible(false);
+    } else {
+      const vis =
+        visible &&
+        songTime >= this._hitTime - this._data.visibleTime &&
+        (tailDist * this._data.speed >= 0 || !isCover);
+      if (this._body.visible !== vis) this._body.setVisible(vis);
+      if (this._tail.visible !== vis) this._tail.setVisible(vis);
+    }
+
+    this._head.setY(this._yModifier * headDist);
+    this._body.setY(this._yModifier * (isCover ? Math.max(0, headDist) : headDist));
+    this._tail.setY(this._yModifier * tailDist);
+    const bodyHeight =
+      -this._yModifier *
+      (isCover ? Math.max(0, tailDist - Math.max(0, headDist)) : Math.max(0, tailDist - headDist));
+    if (this._isBodyRepeat) this._body.height = bodyHeight;
+    else this._body.scaleY = bodyHeight / this._bodyHeight;
 
     if (this._debug) {
       this._debug.setX(this.x);
       this._debug.setY(this.floor);
       this._debug.setRotation(this.rotation);
       this._debug.setScale(this._scene.p(1.4 * NOTE_BASE_SIZE));
-    }
-  }
-
-  updateJudgment(beat: number, songTime: number) {
-    beat /= this._line.data.bpmfactor;
-    if (this._tempJudgmentType === JudgmentType.UNJUDGED) {
-      const deltaSec = songTime - this._hitTime;
-      const delta = deltaSec * 1000;
-      const { perfectJudgment, goodJudgment } = this._scene.preferences;
-      if (beat >= this._data.startBeat) {
-        if (this._scene.autoplay) {
-          this._scene.judgment.hold(JudgmentType.PERFECT, deltaSec, this);
-          return;
-        }
-        if (delta > goodJudgment) {
-          this._scene.judgment.judge(JudgmentType.MISS, this);
-          return;
-        }
-      }
-      if (delta >= -goodJudgment && delta <= goodJudgment) {
-        if (!this._isInJudgeWindow) {
-          this._line.addToJudgeWindow(this);
-          this._isInJudgeWindow = true;
-        }
-        if (!this._isTapped) return;
-        if (delta < -perfectJudgment) {
-          this._scene.judgment.hold(JudgmentType.GOOD_EARLY, deltaSec, this);
-        } else if (delta <= perfectJudgment) {
-          this._scene.judgment.hold(JudgmentType.PERFECT, deltaSec, this);
-        } else {
-          this._scene.judgment.hold(JudgmentType.GOOD_LATE, deltaSec, this);
-        }
-        this._lastInputBeat = beat;
-        this._isTapped = false;
-      }
-    } else if (this._judgmentType === JudgmentType.UNJUDGED) {
-      if (!this._scene.autoplay) {
-        const input = this._scene.keyboard?.findDrag(this) || this._scene.pointer?.findDrag(this);
-        if (input) {
-          this._lastInputBeat = beat;
-        } else if (
-          getTimeSec(this._scene.bpmList, beat) -
-            getTimeSec(this._scene.bpmList, this._lastInputBeat) >
-            HOLD_BODY_TOLERANCE / 1000 ||
-          this._scene.status === GameStatus.SEEKING
-        ) {
-          // this.setTint(0xff0000);
-          this._scene.judgment.judge(JudgmentType.MISS, this);
-          return;
-        }
-      }
-      if (
-        getTimeSec(this._scene.bpmList, this._data.endBeat) -
-          getTimeSec(this._scene.bpmList, beat) <
-        HOLD_TAIL_TOLERANCE / 1000
-      ) {
-        this._scene.judgment.judge(this._tempJudgmentType, this);
-      }
     }
   }
 
@@ -228,18 +201,16 @@ export class LongNote extends GameObjects.Container {
   }
 
   resize() {
-    const scale =
-      (989 / this._scene.skinSize) *
-      this._scene.p(NOTE_BASE_SIZE * this._scene.preferences.noteSize);
-    this._head.setScale(this._data.size * scale, -this._yModifier * scale);
+    const base = this._noteScaleBase;
+    this._head.setScale(this._data.size * base, -this._yModifier * base);
     if (this._isBodyRepeat) {
       this._body.scaleX = this._data.size;
-      this._body.width = scale * this._bodyWidth;
-      (this._body as GameObjects.TileSprite).setTileScale(this._data.size * scale, scale);
+      this._body.width = base * this._bodyWidth;
+      (this._body as GameObjects.TileSprite).setTileScale(this._data.size * base, base);
     } else {
-      this._body.setScale(this._data.size * scale, scale);
+      this._body.setScale(this._data.size * base, base);
     }
-    this._tail.setScale(this._data.size * scale, -this._yModifier * scale);
+    this._tail.setScale(this._data.size * base, -this._yModifier * base);
   }
 
   reset() {
@@ -307,31 +278,27 @@ export class LongNote extends GameObjects.Container {
     return this._endTime;
   }
 
-  public get isTapped() {
-    return this._isTapped;
-  }
-
-  public set isTapped(isTapped: boolean) {
-    this._isTapped = isTapped;
-  }
-
   public get tempJudgmentType() {
     return this._tempJudgmentType;
-  }
-
-  setTempJudgment(type: JudgmentType, beat: number) {
-    this._tempJudgmentType = type;
-    this._beatTempJudged = beat;
-    this._line.removeFromJudgeWindow(this);
-    this._isInJudgeWindow = false;
   }
 
   public get beatTempJudged() {
     return this._beatTempJudged;
   }
 
-  public get consumeTap() {
-    return this._consumeTap;
+  setTempJudgment(type: JudgmentType, beat: number) {
+    this._tempJudgmentType = type;
+    this._beatTempJudged = beat;
+  }
+
+  /** Clears the official-judgment control state (seek/restart). */
+  resetControl() {
+    this.clickMatched = false;
+    this.holdHeadHit = false;
+    this.holdHeadPerfect = false;
+    this.holdJudgeOver = false;
+    this.holdMissed = false;
+    this.holdSafeFrames = HOLD_SAFE_FRAMES;
   }
 
   public get zIndex() {
@@ -365,6 +332,14 @@ export class LongNote extends GameObjects.Container {
 
   public get note() {
     return this._data;
+  }
+
+  public get headTargetHeight() {
+    return this._targetHeadHeight;
+  }
+
+  public get tailTargetHeight() {
+    return this._targetTailHeight;
   }
 
   public get floor() {

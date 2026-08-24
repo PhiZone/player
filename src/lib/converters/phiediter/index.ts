@@ -1,4 +1,4 @@
-import { beatToArray, getEventValue } from '$lib/player/utils';
+import { TimeUtil, beatToArray, getEventValue } from '$lib/player/utils';
 import type {
   RpeJson,
   RpeMeta,
@@ -313,6 +313,7 @@ const PhiEditer = (chartRaw: string, meta: Omit<RpeMeta, 'offset'>): RpeJson => 
 
   // Parse advanced alpha events
   for (const id in lineList) {
+    const timeUtil = new TimeUtil(result.BPMList);
     const line = lineList[id];
     const alphaEvents = line.eventLayers[0]!.alphaEvents!;
 
@@ -329,7 +330,7 @@ const PhiEditer = (chartRaw: string, meta: Omit<RpeMeta, 'offset'>): RpeJson => 
           if (note.startBeat < event.startBeat) continue;
           if (note.startBeat > event.endBeat) break;
 
-          const currentValue = getEventValue(event, note.startBeat, result.BPMList) as
+          const currentValue = getEventValue(event, timeUtil.getTimeSec(note.startBeat)) as
             | number
             | undefined;
           if (!currentValue || currentValue >= -100) break;

@@ -16,6 +16,12 @@ export class StatisticsHandler {
   private _comboRecords: (number | undefined)[];
 
   private _judgment: JudgmentHandler;
+  /**
+   * Statistics are recomputed lazily (once per displayed frame at most) so
+   * that mass judgment events — seek catch-up, rewind sweeps, end flush —
+   * cost a single updateStats pass instead of one per note.
+   */
+  private _statsDirty = false;
 
   constructor(scene: Game) {
     this._scene = scene;
@@ -37,6 +43,26 @@ export class StatisticsHandler {
     this._displayScore += displayScoreDiff * Math.min(delta / 50, 1);
     const displayStdDevDiff = this._stdDev - this._displayStdDev;
     this._displayStdDev += displayStdDevDiff * Math.min(delta / 50, 1);
+    if (this._statsDirty) {
+      this.updateStats();
+      this._statsDirty = false;
+    }
+  }
+
+  /**
+   * Recomputes statistics immediately and snaps the displayed values to them.
+   * Called on seek so the HUD reflects the state at the target position right
+   * away instead of easing from stale pre-seek values (which lingers while
+   * paused since no judgments run to converge the smoothing).
+   */
+  snapDisplay() {
+    if (this._scene.numberOfNotes === 0) return;
+    if (this._statsDirty) {
+      this.updateStats();
+      this._statsDirty = false;
+    }
+    this._displayScore = this._score;
+    this._displayStdDev = this._stdDev;
   }
 
   updateRecords(rewind = false) {
@@ -53,7 +79,7 @@ export class StatisticsHandler {
         this._judgment.judgmentCount === 0 ? 0 : this._maxCombo[this._judgment.judgmentCount - 1],
       );
     }
-    this.updateStats();
+    this._statsDirty = true;
   }
 
   updateStats() {

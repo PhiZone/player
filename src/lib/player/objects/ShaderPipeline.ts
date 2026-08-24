@@ -180,6 +180,12 @@ export class ShaderFilter extends Filters.Controller {
   private _targetsCollected: boolean = false;
   private _isLoaded: boolean = false;
   private _uniforms: Record<string, number | number[]> = {};
+  /**
+   * Runtime-computed variable values (shader-source defaults and range
+   * corrections). Kept apart from `data.vars` so the chart object stays
+   * pristine for export; every read merges both, runtime winning.
+   */
+  private _runtimeVars: Record<string, number | number[] | string> = {};
   private _extraTextures: Renderer.WebGL.Wrappers.WebGLTextureWrapper[] = [];
   private _renderNodeName: string;
 
@@ -219,22 +225,23 @@ export class ShaderFilter extends Filters.Controller {
       const name = uniform[2];
       const value = uniform[3];
 
-      if (!this._data.vars) this._data.vars = {};
-      if (Object.prototype.hasOwnProperty.call(this._data.vars, name)) return;
+      if (this._data.vars && Object.prototype.hasOwnProperty.call(this._data.vars, name)) {
+        return;
+      }
 
       switch (type) {
         case 'float': {
-          this._data.vars[name] = parseFloat(value);
+          this._runtimeVars[name] = parseFloat(value);
           break;
         }
         case 'vec2':
         case 'vec3':
         case 'vec4': {
-          this._data.vars[name] = value.split(',').map((v) => parseFloat(v.trim()));
+          this._runtimeVars[name] = value.split(',').map((v) => parseFloat(v.trim()));
           break;
         }
         case 'sampler2D': {
-          this._data.vars[name] = value;
+          this._runtimeVars[name] = value;
           break;
         }
         default: {
@@ -243,18 +250,16 @@ export class ShaderFilter extends Filters.Controller {
       }
     });
 
-    if (this._data.vars) {
-      const vars = this._data.vars;
-      Object.entries(vars).forEach(([key, value]) => {
-        if (Array.isArray(value)) {
-          if (typeof value[0] === 'number') {
-            vars[key] = this.correctRange(key, value as number[]);
-          } else {
-            this._animators.push(new VariableAnimator(this, key, value as AnimatedVariable));
-          }
+    const vars = { ...this._data.vars, ...this._runtimeVars };
+    Object.entries(vars).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        if (typeof value[0] === 'number') {
+          this._runtimeVars[key] = this.correctRange(key, value as number[]);
+        } else {
+          this._animators.push(new VariableAnimator(this, key, value as AnimatedVariable));
         }
-      });
-    }
+      }
+    });
 
     try {
       this.boot();
@@ -264,9 +269,10 @@ export class ShaderFilter extends Filters.Controller {
   }
 
   boot(): void {
-    if (this._data.vars) {
+    const vars = { ...this._data.vars, ...this._runtimeVars };
+    {
       let textureSlot = 1;
-      Object.entries(this._data.vars).forEach(([key, value]) => {
+      Object.entries(vars).forEach(([key, value]) => {
         if (typeof value === 'number' || (Array.isArray(value) && typeof value[0] === 'number')) {
           this.setUniformValue(key, value, 0);
         } else if (typeof value === 'string') {
@@ -422,6 +428,7 @@ class VariableAnimator {
     this._events = events;
     processEvents(
       this._events,
+      this._shader.scene.timeUtil,
       undefined,
       undefined,
       `Var ${name}, Shader ${this._shader.scene.metadata.title}`,
@@ -458,7 +465,7 @@ class VariableAnimator {
       while (this._cur < this._events.length - 1 && beat > this._events[this._cur + 1].startBeat) {
         this._cur++;
       }
-      return getEventValue(this._events[this._cur], beat, this._shader.scene.bpmList);
+      return getEventValue(this._events[this._cur], this._shader.scene.timeUtil.getTimeSec(beat));
     } else {
       return undefined;
     }

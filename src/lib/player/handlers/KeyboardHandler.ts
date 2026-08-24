@@ -1,9 +1,12 @@
-import type { Game } from '../scenes/Game';
 import { GameStatus } from '$lib/types';
-import type { PlainNote } from '../objects/PlainNote';
-import type { LongNote } from '../objects/LongNote';
+import type { Game } from '../scenes/Game';
 import { KEYBOARD_INPUT_REGEX } from '../constants';
 
+/**
+ * Keyboard input adapter. Key presses become click + flick gestures on the
+ * judgment handler's positionless "virtual finger"; any held key also counts
+ * as a held finger for hold bodies and drag proximity.
+ */
 export class KeyboardHandler {
   private _scene: Game;
   private _increment: number = 5;
@@ -25,12 +28,13 @@ export class KeyboardHandler {
     this._scene.input.keyboard?.on('keyup', this.handleUp, this);
   }
 
-  findDrag(_note: PlainNote | LongNote, _requireVelocity: boolean = false) {
+  get hasKeysDown() {
     return this._keysDown.size > 0;
   }
 
   reset() {
     this._keysDown.clear();
+    if (this._scene.judgment) this._scene.judgment.keyUp();
   }
 
   handleDown(e: KeyboardEvent) {
@@ -42,8 +46,7 @@ export class KeyboardHandler {
     }
     if (this._scene.autoplay || this._scene.status !== GameStatus.PLAYING) return;
     this._keysDown.add(e.key);
-    console.debug('+', e.key, this._keysDown);
-    this._scene.judgment.judgeTap();
+    this._scene.judgment.keyDown();
   }
 
   handleUp(e: KeyboardEvent) {
@@ -55,7 +58,7 @@ export class KeyboardHandler {
     }
     if (this._scene.autoplay || this._scene.status !== GameStatus.PLAYING) return;
     this._keysDown.delete(e.key);
-    console.debug('-', e.key, this._keysDown);
+    this._scene.judgment.keyUp();
   }
 
   handleSpaceDown() {

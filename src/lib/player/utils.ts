@@ -692,6 +692,7 @@ export const processEvents = (
     | (Event | SpeedEvent | ColorEvent | GifEvent | TextEvent | VariableEvent)[]
     | null
     | undefined,
+  timeUtil: TimeUtil,
   layerIndex?: number | string,
   lineIndex?: number,
   source?: string,
@@ -708,6 +709,67 @@ export const processEvents = (
         }),
       );
       event.endBeat = event.startBeat;
+    }
+    event.startTimeSec = timeUtil.getTimeSec(event.startBeat);
+    event.endTimeSec = timeUtil.getTimeSec(event.endBeat);
+
+    // Precompute the per-frame constants for the non-integrated speed branch
+    // of getIntegral. Previously these were recomputed (with object allocations
+    // via sanitizeEasingParams) on every frame for every speed event.
+    if ('easingType' in event && event.easingType > 1) {
+      const easedEvent = event as SpeedEvent & Event;
+      const easingLeft = 'easingLeft' in event ? (event.easingLeft as number) : 0;
+      const easingRight = 'easingRight' in event ? (event.easingRight as number) : 1;
+
+      const speed = easedEvent;
+      let df0 = speed.__df0;
+      let df1 = speed.__df1;
+      if (df0 === undefined || df1 === undefined) {
+        df0 = derivative(easedEvent.easingType, 0, easingLeft, easingRight);
+        df1 = derivative(easedEvent.easingType, 1, easingLeft, easingRight);
+        speed.__df0 = df0;
+        speed.__df1 = df1;
+      }
+      const denom = df1 - df0;
+      if (denom !== 0) {
+        speed.__k = (speed.end - speed.start) / denom;
+        speed.__b = speed.start - speed.__k * df0;
+      }
+
+      // Precompute the eased-evaluation constants shared by getEventValue:
+      // the resolved easing function, its sanitized sub-range, and the
+      // function values at both range ends. The hot path previously
+      // re-resolved all of these (including two redundant func() evaluations)
+      // on every frame.
+      const useBezier =
+        'bezier' in easedEvent &&
+        easedEvent.bezier === 1 &&
+        !!easedEvent.bezierPoints &&
+        easedEvent.bezierPoints.length >= 4;
+      const f = useBezier
+        ? getBezierEasing(easedEvent.bezierPoints)
+        : EASINGS[
+            (easedEvent.easingType > 0 && easedEvent.easingType <= EASINGS.length
+              ? easedEvent.easingType
+              : 1) - 1
+          ];
+      const l = useBezier || !easingLeft || easingLeft >= easingRight ? 0 : clamp(easingLeft, 0, 1);
+      const r =
+        useBezier || !easingRight || easingLeft >= easingRight ? 1 : clamp(easingRight, 0, 1);
+      easedEvent.__f = f;
+      easedEvent.__l = l;
+      easedEvent.__r = r;
+      easedEvent.__ps = f(l);
+      easedEvent.__pe = f(r);
+      // Eagerly sample the easing once at load. Frame-animation charts touch
+      // thousands of short-lived segments per second of playback; building a
+      // table lazily on first use costs more samples than the segment's whole
+      // lifetime ever reads back, while an eager 256-point table turns every
+      // subsequent frame's evaluation into a single lerp.
+      const EVENT_LUT_N = 256;
+      const lut = new Float32Array(EVENT_LUT_N + 1);
+      for (let i = 0; i <= EVENT_LUT_N; i++) lut[i] = f(l + (r - l) * (i / EVENT_LUT_N));
+      easedEvent.__lut = lut;
     }
   });
   events?.sort((a, b) => a.startBeat - b.startBeat);
@@ -804,17 +866,34 @@ export const easing = (
   easingRight: number = 1,
 ): number => {
   const useBezier = bezierPoints && bezierPoints.length >= 4;
-  const bezierFunc = useBezier
-    ? bezier(...(bezierPoints.slice(0, 4) as [number, number, number, number]))
-    : undefined;
-  const p = sanitizeEasingParams(type, x, easingLeft, easingRight);
-  const func = bezierFunc ?? EASINGS[p.type - 1];
-  return calculateEasingValue(
-    func,
-    p.x,
-    useBezier ? 0 : p.easingLeft,
-    useBezier ? 1 : p.easingRight,
-  );
+  const bezierFunc = useBezier ? getBezierEasing(bezierPoints) : undefined;
+  // Inlined sanitizeEasingParams — avoid the per-call object allocation.
+  const t = type > 0 && type <= EASINGS.length ? type : 1;
+  const ex = !x ? 0 : clamp(x, 0, 1);
+  let l = !easingLeft || easingLeft >= easingRight ? 0 : clamp(easingLeft, 0, 1);
+  let r = !easingRight || easingLeft >= easingRight ? 1 : clamp(easingRight, 0, 1);
+  if (useBezier) {
+    l = 0;
+    r = 1;
+  }
+  const func = bezierFunc ?? EASINGS[t - 1];
+  return calculateEasingValue(func, ex, l, r);
+};
+
+/**
+ * Cache of bezier-easing functions keyed by their control points. The previous
+ * implementation constructed a fresh `bezier(...)` function on every call,
+ * which is hot (per event per frame) and showed up prominently in profiles.
+ */
+const bezierFuncCache = new Map<string, (x: number) => number>();
+const getBezierEasing = (points: number[]) => {
+  const key = points.join(',');
+  let cached = bezierFuncCache.get(key);
+  if (!cached) {
+    cached = bezier(...(points.slice(0, 4) as [number, number, number, number]));
+    bezierFuncCache.set(key, cached);
+  }
+  return cached;
 };
 
 export const derivative = (
@@ -915,26 +994,50 @@ export const calculateValue = (
 
 export const getEventValue = (
   event: Event | SpeedEvent | ColorEvent | TextEvent | GifEvent | VariableEvent,
-  beat: number,
-  bpmList: Bpm[],
+  timeSec: number,
 ) => {
-  const startSec = getTimeSec(bpmList, event.startBeat);
-  const progressedSec = getTimeSec(bpmList, beat) - startSec;
-  const lengthSec = getTimeSec(bpmList, event.endBeat) - startSec;
-  return _getEventValue(event, progressedSec / lengthSec);
+  const startSec = event.startTimeSec!;
+  const lengthSec = event.endTimeSec! - startSec;
+  return _getEventValue(event, (timeSec - startSec) / lengthSec);
 };
 
 const _getEventValue = (
   event: Event | SpeedEvent | ColorEvent | TextEvent | GifEvent | VariableEvent,
   x: number,
 ) => {
-  const progress = easing(
-    'easingType' in event ? event.easingType : 0,
-    'bezier' in event && event.bezier === 1 ? event.bezierPoints : undefined,
-    x,
-    'easingLeft' in event ? event.easingLeft : 0,
-    'easingRight' in event ? event.easingRight : 1,
-  );
+  const easingType = 'easingType' in event ? event.easingType : 0;
+  if (easingType === 0) {
+    // Linear (no easing): interpolate directly. Fast-path the numeric case —
+    // by far the most common — instead of going through calculateValue's
+    // array/string type dispatch.
+    const cx = !x ? 0 : clamp(x, 0, 1);
+    const s = event.start;
+    const e = event.end;
+    if (typeof s === 'number' && typeof e === 'number') return s + (e - s) * cx;
+    return calculateValue(s, e, cx);
+  }
+  let progress: number;
+  if (easingType === 1 && (!('bezier' in event) || event.bezier !== 1)) {
+    // Identity easing: the normalized result collapses to the raw clamped
+    // position regardless of the sub-range (the range cancels out), so no
+    // function call is needed.
+    progress = !x ? 0 : clamp(x, 0, 1);
+  } else if (event.__f && event.__ps !== undefined && event.__pe !== undefined) {
+    // Precomputed eased evaluation (see processEvents). Only one easing
+    // function call per frame; both endpoint values are cached constants.
+    const f = event.__f;
+    const cx = !x ? 0 : clamp(x, 0, 1);
+    progress =
+      (f(event.__l! + (event.__r! - event.__l!) * cx) - event.__ps) / (event.__pe - event.__ps);
+  } else {
+    progress = easing(
+      easingType,
+      'bezier' in event && event.bezier === 1 ? event.bezierPoints : undefined,
+      x,
+      'easingLeft' in event ? event.easingLeft : 0,
+      'easingRight' in event ? event.easingRight : 1,
+    );
+  }
   if (progress === 0) return event.start;
   if (progress === 1) return event.end;
   return calculateValue(event.start, event.end, progress);
@@ -954,15 +1057,16 @@ export const integrate = (
 
 export const getIntegral = (
   event: SpeedEvent | undefined,
-  bpmList: Bpm[],
   integrateEasings: boolean,
   beat: number | undefined = undefined,
+  timeSec: number | undefined = undefined,
 ): number => {
   if (!event) return 0;
-  if (beat === undefined || beat >= event.endBeat) beat = event.endBeat;
-  const startSec = getTimeSec(bpmList, event.startBeat);
-  const progressedSec = getTimeSec(bpmList, beat) - startSec;
-  const lengthSec = getTimeSec(bpmList, event.endBeat) - startSec;
+  const full = beat === undefined || beat >= event.endBeat;
+  const startSec = event.startTimeSec!;
+  const endSec = event.endTimeSec!;
+  const progressedSec = (full ? endSec : timeSec!) - startSec;
+  const lengthSec = endSec - startSec;
   const x = progressedSec / lengthSec;
   if (!('easingType' in event) || event.easingType <= 1) {
     return ((event.start + (_getEventValue(event, x) as number)) * progressedSec) / 2;
@@ -970,17 +1074,66 @@ export const getIntegral = (
   const easingLeft = 'easingLeft' in event ? event.easingLeft : 0;
   const easingRight = 'easingRight' in event ? event.easingRight : 1;
   if (!integrateEasings) {
-    const df0 = derivative(event.easingType, 0, easingLeft, easingRight);
-    const df1 = derivative(event.easingType, 1, easingLeft, easingRight);
-    const k = (event.end - event.start) / (df1 - df0);
-    const b = event.start - k * df0;
-    return (
-      (integrate(event.easingType, x, k, b, easingLeft, easingRight) * lengthSec) /
-      (event.endBeat - event.startBeat)
-    );
+    // Precomputed in processEvents, fall back to computing on demand
+    let df0 = event.__df0;
+    let df1 = event.__df1;
+    let k = event.__k;
+    let b = event.__b;
+    if (df0 === undefined || df1 === undefined || k === undefined || b === undefined) {
+      df0 = derivative(event.easingType, 0, easingLeft, easingRight);
+      df1 = derivative(event.easingType, 1, easingLeft, easingRight);
+      const denom = df1 - df0;
+      if (denom === 0) {
+        k = 0;
+        b = (event.start + event.end) / 2;
+      } else {
+        k = (event.end - event.start) / denom;
+        b = event.start - k * df0;
+      }
+    }
+    // Fast evaluation of `integrate(...)` using the precomputed easing
+    // function/range/endpoints instead of re-sanitizing every call.
+    const px = !x ? 0 : clamp(x, 0, 1);
+    const f = event.__f;
+    const l = event.__l;
+    const r = event.__r;
+    let easedAtX: number;
+    if (
+      f &&
+      event.__ps !== undefined &&
+      event.__pe !== undefined &&
+      l !== undefined &&
+      r !== undefined
+    ) {
+      easedAtX = (f(l + (r - l) * px) - event.__ps) / (event.__pe - event.__ps);
+    } else {
+      const p = sanitizeEasingParams(event.easingType, px, easingLeft, easingRight);
+      easedAtX = calculateEasingValue(EASINGS[p.type - 1], p.x, p.easingLeft, p.easingRight);
+    }
+    return ((easedAtX * k + b * px) * lengthSec) / (event.endBeat - event.startBeat);
   } else {
-    const integral = calculateEasingIntegral(event.easingType, x, easingLeft, easingRight);
-    const lengthSec = getTimeSec(bpmList, event.endBeat) - startSec;
+    // The easing-integral closures are by far the heaviest per-frame call on
+    // speed-driven lines. Each speed segment lives long enough to amortize a
+    // lazily built table of the cumulative integral, reducing every later
+    // frame to a lerp.
+    let ilut = event.__ilut;
+    if (ilut === undefined) {
+      const SPEED_ILUT_N = 128;
+      ilut = new Float32Array(SPEED_ILUT_N + 1);
+      for (let i = 0; i <= SPEED_ILUT_N; i++) {
+        ilut[i] = calculateEasingIntegral(
+          event.easingType,
+          i / SPEED_ILUT_N,
+          easingLeft,
+          easingRight,
+        );
+      }
+      event.__ilut = ilut;
+    }
+    const px = !x ? 0 : clamp(x, 0, 1);
+    const tt = px * 128;
+    const i0 = tt | 0;
+    const integral = i0 >= 128 ? ilut[i0] : ilut[i0] + (ilut[i0 + 1] - ilut[i0]) * (tt - i0);
     return event.start * progressedSec + (event.end - event.start) * integral * lengthSec;
   }
 };
@@ -992,39 +1145,63 @@ export const getJudgmentPosition = (input: PointerTap | PointerDrag, line: Line)
   return vector;
 };
 
-export const getTimeSec = (bpmList: Bpm[], beat: number): number => {
-  let bpm = bpmList.findLast((bpm) => bpm.startBeat <= beat);
-  if (!bpm) bpm = bpmList[0];
-  return bpm.startTimeSec + ((beat - bpm.startBeat) / bpm.bpm) * 60;
-};
+export class TimeUtil {
+  private readonly _bpmList: Bpm[];
+  /**
+   * Monotonic cursor into the BPM list. Playback calls `getTimeSec` with
+   * continuously-varying beats, so a full list scan (or an unbounded memo Map,
+   * which previously leaked one entry per line per frame) is unnecessary: a
+   * forward-advancing cursor with a rewind fallback handles both playback and
+   * seeks in amortized O(1).
+   */
+  private _cursor: number = 0;
 
-export const getBeat = (bpmList: Bpm[], timeSec: number): number => {
-  const curBpm = bpmList.find((bpm) => bpm.startTimeSec <= timeSec) ?? bpmList[0];
-  return curBpm.startBeat + ((timeSec - curBpm.startTimeSec) / 60) * curBpm.bpm;
-};
-
-export function findPredominantBpm(bpmList: Bpm[], endTimeSec: number) {
-  const bpmDurations: Map<number, number> = new Map();
-
-  for (let i = 0; i < bpmList.length; i++) {
-    const currentBpm = bpmList[i];
-    const startTime = currentBpm.startTimeSec;
-    const endTime = i + 1 < bpmList.length ? bpmList[i + 1].startTimeSec : endTimeSec;
-
-    bpmDurations.set(currentBpm.bpm, (bpmDurations.get(currentBpm.bpm) || 0) + endTime - startTime);
+  constructor(bpmList: Bpm[]) {
+    this._bpmList = bpmList;
   }
 
-  let predominantBpm = { bpm: 0, duration: 0 };
-  for (const [bpm, duration] of bpmDurations) {
-    if (
-      duration > predominantBpm.duration ||
-      (duration === predominantBpm.duration && bpm > predominantBpm.bpm)
-    ) {
-      predominantBpm = { bpm, duration };
+  getTimeSec(beat: number): number {
+    const list = this._bpmList;
+    let i = this._cursor;
+    if (i >= list.length) i = list.length - 1;
+    if (list[i].startBeat > beat) i = 0;
+    while (i < list.length - 1 && list[i + 1].startBeat <= beat) i++;
+    this._cursor = i;
+    const bpm = list[i];
+    return bpm.startTimeSec + ((beat - bpm.startBeat) / bpm.bpm) * 60;
+  }
+
+  getBeat(timeSec: number): number {
+    const curBpm = this._bpmList.find((bpm) => bpm.startTimeSec <= timeSec) ?? this._bpmList[0];
+    return curBpm.startBeat + ((timeSec - curBpm.startTimeSec) / 60) * curBpm.bpm;
+  }
+
+  findPredominantBpm(endTimeSec: number) {
+    const bpmDurations: Map<number, number> = new Map();
+
+    for (let i = 0; i < this._bpmList.length; i++) {
+      const currentBpm = this._bpmList[i];
+      const startTime = currentBpm.startTimeSec;
+      const endTime = i + 1 < this._bpmList.length ? this._bpmList[i + 1].startTimeSec : endTimeSec;
+
+      bpmDurations.set(
+        currentBpm.bpm,
+        (bpmDurations.get(currentBpm.bpm) || 0) + endTime - startTime,
+      );
     }
-  }
 
-  return predominantBpm.bpm;
+    let predominantBpm = { bpm: 0, duration: 0 };
+    for (const [bpm, duration] of bpmDurations) {
+      if (
+        duration > predominantBpm.duration ||
+        (duration === predominantBpm.duration && bpm > predominantBpm.bpm)
+      ) {
+        predominantBpm = { bpm, duration };
+      }
+    }
+
+    return predominantBpm.bpm;
+  }
 }
 
 export const findHighlightMoments = (notes: { startTime: [number, number, number] }[]) => {
