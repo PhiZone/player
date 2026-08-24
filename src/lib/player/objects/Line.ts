@@ -524,6 +524,17 @@ export class Line {
     this._lastSongTime = NaN;
   }
 
+  /**
+   * Forces the next update pass to run even if beat and song time are
+   * unchanged. Used while the in() entrance tween is driving element alphas
+   * directly: updateParams must keep re-applying each line's evaluated
+   * opacity against the tween's writes, exactly like the pre-skip behavior.
+   */
+  invalidate() {
+    this._lastLineBeat = NaN;
+    this._lastSongTime = NaN;
+  }
+
   private resetEventState() {
     this._curX = [];
     this._curY = [];

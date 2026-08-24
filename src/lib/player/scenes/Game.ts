@@ -107,6 +107,14 @@ export class Game extends Scene {
   private _visible: boolean = true;
   private _timeout: NodeJS.Timeout;
   private _isSeeking: boolean = false;
+  /** Entrance transition tween; while alive, line passes must not be skipped. */
+  private _inTween: Phaser.Tweens.Tween | null = null;
+  /**
+   * Whether the clock has started playing for the current entrance. Until it
+   * does, beat and song time stay static, so line passes would be skipped
+   * and nothing would correct the alphas the in() tween leaves behind.
+   */
+  private _clockStarted: boolean = false;
   private _timeScale: number = 1;
   private _lastProgressUpdate: number | undefined;
 
@@ -402,11 +410,21 @@ export class Game extends Scene {
     targets.forEach((target) => {
       target.alpha = 0;
     });
-    this.tweens.add({
+    // While this tween drives element alphas directly, per-line update passes
+    // must keep running so updateParams re-applies each line's evaluated
+    // opacity between the tween's writes. Forcing continues until the clock
+    // actually starts (not merely until the tween completes — both take 1s,
+    // and whichever finishes first would otherwise strand lines at the
+    // tween's final alpha of 1 on a still-static clock).
+    this._clockStarted = false;
+    this._inTween = this.tweens.add({
       targets,
       alpha: 1,
       duration: 1000,
       ease: 'Sine.easeOut',
+    });
+    this._inTween.once('complete', () => {
+      this._inTween = null;
     });
   }
 
@@ -435,6 +453,7 @@ export class Game extends Scene {
     this.in();
     if (!this._render)
       this._timeout = setTimeout(() => {
+        this._clockStarted = true;
         this._clock.play();
       }, 1000 / this.tweens.timeScale);
     this._status = GameStatus.PLAYING;
@@ -505,6 +524,7 @@ export class Game extends Scene {
     this.in();
     if (!this._render)
       this._timeout = setTimeout(() => {
+        this._clockStarted = true;
         this._clock.play();
       }, 1000 / this.tweens.timeScale);
     this._status = GameStatus.PLAYING;
@@ -629,6 +649,7 @@ export class Game extends Scene {
       this._lastChartSongTime === undefined ||
       songTime + 0.05 < this._lastChartSongTime;
     if (forceFullNoteUpdate) this.resetActiveNoteWindows(beat);
+    if (this._inTween || !this._clockStarted) this._lines.forEach((line) => line.invalidate());
     this._lines.forEach((line) => line.update(beat, songTime, gameTime, forceFullNoteUpdate));
     this._lastChartSongTime = songTime;
     this._shaders?.forEach((shader) => {
