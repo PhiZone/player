@@ -416,7 +416,13 @@ export class JudgmentHandler {
     const list = this._notesByTime;
     const horizon = now + Math.max(this.windows().B, this.flickRange());
     while (this._controlCursor < list.length && list[this._controlCursor].hitTime <= horizon) {
-      this._controls.push(list[this._controlCursor++]);
+      const note = list[this._controlCursor++];
+      // Notes that already carry a final judgment (kept across a seek or a
+      // partial rewind) have terminated their control lifecycle and must
+      // never re-enter it — otherwise a seek would double-judge them.
+      if (note.judgmentType === JudgmentType.UNJUDGED) {
+        this._controls.push(note);
+      }
     }
   }
 
