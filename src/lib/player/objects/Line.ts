@@ -690,6 +690,12 @@ export class Line {
     if (line.x !== this._posX || line.y !== this._posY) line.setPosition(this._posX, this._posY);
     if (line.rotation !== rotation) line.setRotation(rotation);
     const targetAlpha = this._opacity / 255;
+    // Fully transparent lines are excluded from the render list entirely —
+    // event-heavy charts keep the vast majority of their lines at opacity 0
+    // at any moment, and Phaser otherwise still traverses and builds commands
+    // for every one of them each frame.
+    const visible = targetAlpha > 0;
+    if (line.visible !== visible) line.setVisible(visible);
     if (line.alpha !== targetAlpha) line.setAlpha(targetAlpha);
     const x = this._posX;
     const y = this._posY;
