@@ -67,6 +67,9 @@ const EMPTY_CTRL: [AlphaControl[], PosControl[], SizeControl[], SkewControl[], Y
   [],
 ];
 
+/** Resolution of the per-segment easing LUT used by evalEvents. */
+const EVAL_LUT_N = 1024;
+
 /**
  * Hot per-frame evaluation of one numeric event list (alpha/moveX/moveY/
  * rotate) for a single layer. Advances the layer's event cursor in amortized
@@ -110,7 +113,39 @@ const evalEvents = (
     }
     return post[idx];
   }
-  const value = getEventValue(events[ci], timeSec);
+  // Active segment. Dispatch inline instead of through getEventValue — this
+  // runs for every interior list on every frame, and event-heavy charts keep
+  // most lists interior throughout playback.
+  const ev = events[ci];
+  let x = (timeSec - ev.startTimeSec!) / (ev.endTimeSec! - ev.startTimeSec!);
+  x = x < 0 ? 0 : x > 1 ? 1 : x;
+  const easingType = ev.easingType;
+  if (easingType === 1 && ev.bezier !== 1) {
+    // Identity ease: the value is a direct lerp of the endpoints.
+    return ev.start + (ev.end - ev.start) * x;
+  }
+  if (easingType > 1) {
+    // Eased segment: sample the (precomputed) easing through a lazily built
+    // LUT instead of calling the easing closure per frame.
+    let lut = ev.__lut;
+    if (lut === undefined && ev.__f !== undefined && ev.__ps !== undefined) {
+      lut = new Float32Array(EVAL_LUT_N + 1);
+      const l = ev.__l!;
+      const r = ev.__r!;
+      const f = ev.__f;
+      for (let i = 0; i <= EVAL_LUT_N; i++) lut[i] = f!(l + (r - l) * (i / EVAL_LUT_N));
+      ev.__lut = lut;
+    }
+    if (lut !== undefined && ev.__pe !== ev.__ps) {
+      const t = x * EVAL_LUT_N;
+      const i0 = t | 0;
+      const f0 = lut[i0];
+      const raw = i0 >= EVAL_LUT_N ? f0 : f0 + (lut[i0 + 1] - f0) * (t - i0);
+      const progress = (raw - ev.__ps!) / (ev.__pe! - ev.__ps!);
+      return ev.start + (ev.end - ev.start) * progress;
+    }
+  }
+  const value = getEventValue(ev, timeSec);
   // Numeric event lists normally always yield numbers; the type check simply
   // preserves the previous behavior of skipping undefined results.
   return typeof value === 'number' ? value : 0;

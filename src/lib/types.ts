@@ -243,6 +243,11 @@ export interface EasedEventFields {
   /** Pre-evaluated easing at both range ends: `__f(__l)` and `__f(__r)`. */
   __ps?: number;
   __pe?: number;
+  /**
+   * Lazily built lookup table of `__f` sampled uniformly over `__l..__r`
+   * (see evalEvents). Turns per-frame easing closure calls into a lerp.
+   */
+  __lut?: Float32Array;
 }
 
 export interface TextEvent extends EasedEventFields {
