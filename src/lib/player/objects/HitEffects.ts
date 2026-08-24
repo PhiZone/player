@@ -133,7 +133,8 @@ export class HitParticleLayer {
         continue;
       }
       const t = p.age / 800;
-      const posT = t < 0.5 ? 16 * t * t * t * t * t : 1 - Math.pow(-2 * t + 2, 5) / 2;
+      // 'Quint' resolves to Quintic.easeOut in Phaser's EaseMap.
+      const posT = 1 - Math.pow(1 - t, 5);
       p.obj.setPosition(p.x0 + (p.tx - p.x0) * posT, p.y0 + (p.ty - p.y0) * posT);
       const sT =
         p.age < 300 ? 1 - Math.pow(1 - p.age / 300, 3) : 1 - Math.pow((p.age - 300) / 500, 3);
