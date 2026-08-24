@@ -248,6 +248,12 @@ export interface EasedEventFields {
    * (see evalEvents). Turns per-frame easing closure calls into a lerp.
    */
   __lut?: Float32Array;
+  /**
+   * Lazily built lookup table of the easing's cumulative integral over
+   * `__l..__r` (see getIntegral) for speed events on integrateSpeedEasings
+   * charts — same rationale: one lerp instead of the integral closure.
+   */
+  __ilut?: Float32Array;
 }
 
 export interface TextEvent extends EasedEventFields {

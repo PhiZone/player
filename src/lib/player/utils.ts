@@ -1112,7 +1112,28 @@ export const getIntegral = (
     }
     return ((easedAtX * k + b * px) * lengthSec) / (event.endBeat - event.startBeat);
   } else {
-    const integral = calculateEasingIntegral(event.easingType, x, easingLeft, easingRight);
+    // The easing-integral closures are by far the heaviest per-frame call on
+    // speed-driven lines. Each speed segment lives long enough to amortize a
+    // lazily built table of the cumulative integral, reducing every later
+    // frame to a lerp.
+    let ilut = event.__ilut;
+    if (ilut === undefined) {
+      const SPEED_ILUT_N = 128;
+      ilut = new Float32Array(SPEED_ILUT_N + 1);
+      for (let i = 0; i <= SPEED_ILUT_N; i++) {
+        ilut[i] = calculateEasingIntegral(
+          event.easingType,
+          i / SPEED_ILUT_N,
+          easingLeft,
+          easingRight,
+        );
+      }
+      event.__ilut = ilut;
+    }
+    const px = !x ? 0 : clamp(x, 0, 1);
+    const tt = px * 128;
+    const i0 = tt | 0;
+    const integral = i0 >= 128 ? ilut[i0] : ilut[i0] + (ilut[i0 + 1] - ilut[i0]) * (tt - i0);
     return event.start * progressedSec + (event.end - event.start) * integral * lengthSec;
   }
 };

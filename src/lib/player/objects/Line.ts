@@ -485,6 +485,10 @@ export class Line {
         else hi = mid;
       }
       end = lo;
+      // No candidate notes this frame — skip the entire per-line ctx setup
+      // (trig, scales, control lookups), which otherwise runs for all 741
+      // lines every frame even though most have nothing in window.
+      if (end <= this._noteWindowCursor) return;
     }
     const ctx = this._frameCtx;
     const canvasHeight = this._scene.sys.canvas.height;
