@@ -76,6 +76,8 @@ const EMPTY_CTRL: [AlphaControl[], PosControl[], SizeControl[], SkewControl[], Y
 const evalEvents = (
   events: Event[] | null | undefined,
   cur: number[],
+  pre: number[],
+  post: number[],
   idx: number,
   beat: number,
   timeSec: number,
@@ -87,6 +89,27 @@ const evalEvents = (
   if (ci > 0 && beat <= events[ci].startBeat) ci = 0;
   while (ci < last && beat > events[ci + 1].startBeat) ci++;
   cur[idx] = ci;
+  // Boundary fast paths: a list whose active span lies wholly ahead of or
+  // behind the current beat evaluates to a time-independent constant (the
+  // start of its first / end of its last event), so interpolate nothing and
+  // reuse the cached value until a rewind invalidates the cursor state.
+  // Most lists on event-heavy charts sit outside their span at any moment,
+  // so this removes nearly all per-frame interpolation work.
+  if (beat < events[0].startBeat) {
+    if (Number.isNaN(pre[idx])) {
+      const raw = getEventValue(events[0], timeSec);
+      pre[idx] = typeof raw === 'number' ? raw : 0;
+    }
+    return pre[idx];
+  }
+  const endBeat = events[last].endBeat;
+  if (endBeat !== undefined && beat >= endBeat) {
+    if (Number.isNaN(post[idx])) {
+      const raw = getEventValue(events[last], timeSec);
+      post[idx] = typeof raw === 'number' ? raw : 0;
+    }
+    return post[idx];
+  }
   const value = getEventValue(events[ci], timeSec);
   // Numeric event lists normally always yield numbers; the type check simply
   // preserves the previous behavior of skipping undefined results.
@@ -130,6 +153,16 @@ export class Line {
   private _curSpeed: number[] = [];
   private _lastHeight: number[] = [];
 
+  /** Per-list cached values before the first / after the last event. */
+  private _preX: number[] = [];
+  private _postX: number[] = [];
+  private _preY: number[] = [];
+  private _postY: number[] = [];
+  private _preRot: number[] = [];
+  private _postRot: number[] = [];
+  private _preAlpha: number[] = [];
+  private _postAlpha: number[] = [];
+
   private _curColor: number[] = [];
   private _curGif: number[] = [];
   private _curIncline: number[] = [];
@@ -156,7 +189,9 @@ export class Line {
   private _font: string | undefined = undefined;
   private _appliedFont: string | undefined = undefined;
   private _height: number = 0;
-  private _lastUpdate: number = -Infinity;
+  /** Line-space beat and song time of the last processed update pass. */
+  private _lastLineBeat: number = NaN;
+  private _lastSongTime: number = NaN;
 
   private _attachedVideos: Video[] = [];
 
@@ -365,11 +400,16 @@ export class Line {
   }
 
   update(beat: number, songTime: number, gameTime: number, forceFullNoteUpdate: boolean = false) {
-    if (gameTime == this._lastUpdate) return;
-    this._lastUpdate = gameTime;
+    const lineBeat = beat / this._data.bpmfactor;
+    // Skip the whole pass when nothing observable changed — most importantly
+    // while paused, where the previous per-frame guard (gameTime) still
+    // advanced and forced a full recomputation of identical values.
+    if (!forceFullNoteUpdate && lineBeat === this._lastLineBeat && songTime === this._lastSongTime)
+      return;
+    this._lastLineBeat = lineBeat;
+    this._lastSongTime = songTime;
     if (forceFullNoteUpdate) this.resetEventState();
     this._parent?.update(beat, songTime, gameTime, forceFullNoteUpdate);
-    const lineBeat = beat / this._data.bpmfactor;
     const timeSec = this._scene.timeUtil.getTimeSec(lineBeat);
     this.handleEventLayers(lineBeat, timeSec);
     this.updateParams();
@@ -480,7 +520,8 @@ export class Line {
     // absolute time, so there is no cursor or active-note list to rebuild —
     // only the visual-window cursor needs rewinding to the start.
     this._noteWindowCursor = 0;
-    this._lastUpdate = -Infinity;
+    this._lastLineBeat = NaN;
+    this._lastSongTime = NaN;
   }
 
   private resetEventState() {
@@ -490,6 +531,14 @@ export class Line {
     this._curAlpha = [];
     this._curSpeed = [];
     this._lastHeight = [];
+    this._preX = [];
+    this._postX = [];
+    this._preY = [];
+    this._postY = [];
+    this._preRot = [];
+    this._postRot = [];
+    this._preAlpha = [];
+    this._postAlpha = [];
     this._curColor = [];
     this._curGif = [];
     this._curIncline = [];
@@ -754,21 +803,37 @@ export class Line {
     const curRot = this._curRot;
     const curSpeed = this._curSpeed;
     const curHeight = this._lastHeight;
+    const preAlpha = this._preAlpha;
+    const postAlpha = this._postAlpha;
+    const preX = this._preX;
+    const postX = this._postX;
+    const preY = this._preY;
+    const postY = this._postY;
+    const preRot = this._preRot;
+    const postRot = this._postRot;
     for (let i = curAlpha.length; i <= layerCount; i++) {
       curAlpha.push(0);
+      preAlpha.push(NaN);
+      postAlpha.push(NaN);
       curX.push(0);
+      preX.push(NaN);
+      postX.push(NaN);
       curY.push(0);
+      preY.push(NaN);
+      postY.push(NaN);
       curRot.push(0);
+      preRot.push(NaN);
+      postRot.push(NaN);
       curSpeed.push(0);
       curHeight.push(0);
     }
     for (let i = 0; i < layerCount; i++) {
       const layer = layers[i];
       if (!layer) continue;
-      alpha += evalEvents(layer.alphaEvents, curAlpha, i, beat, timeSec);
-      x += evalEvents(layer.moveXEvents, curX, i, beat, timeSec);
-      y += evalEvents(layer.moveYEvents, curY, i, beat, timeSec);
-      rotation += evalEvents(layer.rotateEvents, curRot, i, beat, timeSec);
+      alpha += evalEvents(layer.alphaEvents, curAlpha, preAlpha, postAlpha, i, beat, timeSec);
+      x += evalEvents(layer.moveXEvents, curX, preX, postX, i, beat, timeSec);
+      y += evalEvents(layer.moveYEvents, curY, preY, postY, i, beat, timeSec);
+      rotation += evalEvents(layer.rotateEvents, curRot, preRot, postRot, i, beat, timeSec);
       height += this.handleSpeed(beat, i, layer.speedEvents, curSpeed, curHeight, timeSec);
     }
     this._opacity = alpha;
