@@ -1,5 +1,5 @@
 import { GameObjects } from 'phaser';
-import { HitEffects } from '../objects/HitEffects';
+import { HitEffects, HitParticleLayer } from '../objects/HitEffects';
 import type { Line } from '../objects/Line';
 import type { LongNote } from '../objects/LongNote';
 import type { PlainNote } from '../objects/PlainNote';
@@ -81,6 +81,7 @@ export class JudgmentHandler {
   private _judgmentCount: number = 0;
   private _judgmentDeltas: { delta: number; beat: number }[] = [];
   private _hitEffectsContainers: Record<number, GameObjects.Container> = {};
+  private _hitParticleLayers: Record<number, HitParticleLayer> = {};
   private _judgingHolds: { note: LongNote; beatLastExecuted: number }[] = [];
 
   /** All judgeable notes, sorted ascending by hit time. */
@@ -764,13 +765,28 @@ export class JudgmentHandler {
     container.setDepth(depth);
     this._hitEffectsContainers[depth] = container;
     this._scene.registerNode(container, `hiteffects-${depth}`);
+    const layer = new HitParticleLayer(
+      this._scene,
+      container,
+      this._scene.respack.hitEffects.particle,
+    );
+    this._hitParticleLayers[depth] = layer;
     return container;
+  }
+
+  /** Advances hit particles; runs even while paused, like the tweens did. */
+  tickHitParticles(delta: number) {
+    for (const depth in this._hitParticleLayers) this._hitParticleLayers[depth].tick(delta);
   }
 
   createHitEffects(type: JudgmentType, note: PlainNote | LongNote) {
     const { x, y } = note.judgmentPosition;
-    this._hitEffectsContainers[note.note.zIndexHitEffects ?? 7].add(
-      new HitEffects(this._scene, x, y, type).hit(rgbToHex(note.note.tintHitEffects)),
+    const depth = note.note.zIndexHitEffects ?? 7;
+    this._hitEffectsContainers[depth].add(
+      new HitEffects(this._scene, x, y, type).hit(
+        rgbToHex(note.note.tintHitEffects),
+        this._hitParticleLayers[depth],
+      ),
     );
   }
 

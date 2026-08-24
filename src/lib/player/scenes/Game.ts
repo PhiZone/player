@@ -600,6 +600,7 @@ export class Game extends Scene {
       this._clock.update();
     }
     if (this._resultsUI) this._resultsUI.update();
+    this._judgmentHandler?.tickHitParticles(delta);
     const status = this._status;
     if (this._isSeeking) this._status = GameStatus.SEEKING;
     if (this._visible) {
