@@ -548,6 +548,8 @@ export class Game extends Scene {
   setSeek(value: number) {
     this._isSeeking = true;
     this._clock.setSeek(value);
+    this.resetActiveNoteWindows(this.beat);
+    this.statistics?.snapDisplay();
     this._videos?.forEach((video) => video.setSeek(value));
   }
 

@@ -49,6 +49,22 @@ export class StatisticsHandler {
     }
   }
 
+  /**
+   * Recomputes statistics immediately and snaps the displayed values to them.
+   * Called on seek so the HUD reflects the state at the target position right
+   * away instead of easing from stale pre-seek values (which lingers while
+   * paused since no judgments run to converge the smoothing).
+   */
+  snapDisplay() {
+    if (this._scene.numberOfNotes === 0) return;
+    if (this._statsDirty) {
+      this.updateStats();
+      this._statsDirty = false;
+    }
+    this._displayScore = this._score;
+    this._displayStdDev = this._stdDev;
+  }
+
   updateRecords(rewind = false) {
     if (rewind) {
       this._combo = this._comboRecords[this._judgment.judgmentCount] ?? 0;

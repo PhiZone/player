@@ -50,6 +50,10 @@ export class Clock {
   setSeek(time: number) {
     this._sound.setSeek(time);
     this.sync();
+    // Flush immediately so clock.seek reflects the target position within the
+    // same tick — otherwise beat-dependent work triggered by the seek (note
+    // window resets, judgment rewind) would run against the previous position.
+    this.update();
   }
 
   setRate(rate: number) {
