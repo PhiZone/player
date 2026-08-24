@@ -442,7 +442,11 @@ We use [Sentry](https://sentry.io/) and [Google Analytics](https://analytics.goo
 
 ## Stargazers over time
 
-[![Stargazers over time](https://starchart.cc/PhiZone/player.svg?variant=adaptive)](https://starchart.cc/PhiZone/player)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/star-history/star-history-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset=".github/assets/star-history/star-history-light.svg">
+  <img alt="Stargazers over time" src=".github/assets/star-history/star-history.png">
+</picture>
 
 &copy; PhiZone.
 
