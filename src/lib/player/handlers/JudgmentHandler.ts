@@ -99,6 +99,8 @@ export class JudgmentHandler {
   private _controlCursor = 0;
   /** Notes whose scoring control is still alive. */
   private _controls: (PlainNote | LongNote)[] = [];
+  /** Set while resetWindow mass-invalidates judgments (defers statistics). */
+  private _bulkRewinding = false;
 
   // Cached unit conversions, refreshed once per frame.
   private _wuPx = 1;
@@ -440,7 +442,15 @@ export class JudgmentHandler {
   /** ClickControl.Judge — 蓝键. */
   private judgeTapControl(note: PlainNote, dt: number): boolean {
     const { P, G } = this.windows();
-    if (this._scene.autoplay && !note.clickMatched && dt <= 0) note.clickMatched = true;
+    if (this._scene.autoplay) {
+      // Autoplay guarantees every reached note a Perfect exactly once, even
+      // when a seek or high time scale jumps it past its entire window.
+      if (dt <= 0) {
+        this.hit(JudgmentType.PERFECT, -dt, note);
+        return true;
+      }
+      return false;
+    }
     if (!note.clickMatched) {
       if (dt < -G) {
         this.judge(JudgmentType.MISS, note);
@@ -507,8 +517,16 @@ export class JudgmentHandler {
 
     // 长条头部
     if (!note.holdHeadHit && !note.holdMissed) {
-      if (this._scene.autoplay && !note.clickMatched && dt <= 0) note.clickMatched = true;
-      if (!note.clickMatched) {
+      if (this._scene.autoplay) {
+        // Same completeness guarantee as taps: force a Perfect head hit the
+        // first frame at/past the head, however late the control activated.
+        if (dt <= 0) {
+          note.holdHeadHit = true;
+          note.holdHeadPerfect = true;
+          note.clickMatched = true;
+          this.onHoldHead(note, JudgmentType.PERFECT, -dt);
+        }
+      } else if (!note.clickMatched) {
         if (dt < -G) {
           this.judge(JudgmentType.MISS, note);
           note.holdMissed = true;
@@ -580,7 +598,10 @@ export class JudgmentHandler {
   private onHoldHead(note: LongNote, type: JudgmentType, delta: number) {
     const beat = this._scene.beat;
     try {
-      if (this._scene.status === GameStatus.PLAYING) {
+      if (
+        this._scene.status === GameStatus.PLAYING &&
+        (!this._scene.autoplay || Math.abs(delta / this._scene.timeScale) < 1e-1)
+      ) {
         this.createHitsound(note);
         this.createHitEffects(type, note);
         this._judgingHolds.push({ note, beatLastExecuted: beat });
@@ -725,9 +746,11 @@ export class JudgmentHandler {
         break;
     }
     this.countJudgments();
-    this._scene.statistics.updateRecords(true);
     note.reset();
     note.resetControl();
+    if (!this._bulkRewinding) {
+      this._scene.statistics.updateRecords(true);
+    }
   }
 
   createHitEffectsContainer(depth: number) {
@@ -766,6 +789,92 @@ export class JudgmentHandler {
   }
 
   /**
+   * Terminates every still-live control at the moment playback ends, so a
+   * hold crossing the audio end (or any note caught mid-window) always
+   * receives its final judgment and the totals add up.
+   *
+   * Autoplay resolves every reached note as Perfect; manual play scores
+   * matched notes by their state and misses reached-but-unresolved ones.
+   * Notes beyond the end time were never reachable and stay unjudged.
+   */
+  flush(nowTime: number) {
+    const autoplay = this._scene.autoplay;
+    for (let i = this._controls.length - 1; i >= 0; i--) {
+      const note = this._controls[i];
+      const reached = note.hitTime <= nowTime;
+      if (note.isHold) {
+        if (note.holdJudgeOver) continue;
+        if (!reached) continue;
+        if (autoplay && !note.holdHeadHit) {
+          note.holdHeadHit = true;
+          note.holdHeadPerfect = true;
+          note.clickMatched = true;
+        }
+        if (note.holdHeadHit && !note.holdMissed) {
+          const final =
+            note.tempJudgmentType === JudgmentType.UNJUDGED
+              ? note.holdHeadPerfect
+                ? JudgmentType.PERFECT
+                : JudgmentType.GOOD_LATE
+              : note.tempJudgmentType;
+          this.judge(final, note);
+        } else {
+          this.judge(JudgmentType.MISS, note);
+        }
+        note.holdJudgeOver = true;
+        continue;
+      }
+      const dt = note.hitTime - nowTime;
+      switch (note.note.type) {
+        case 1: {
+          if (!reached) break;
+          if (autoplay || note.clickMatched) {
+            if (autoplay) {
+              this.judge(JudgmentType.PERFECT, note);
+            } else {
+              const absDt = Math.abs(dt);
+              const { P, G } = this.windows();
+              this.judge(
+                absDt < P
+                  ? JudgmentType.PERFECT
+                  : absDt < G
+                    ? dt < 0
+                      ? JudgmentType.GOOD_EARLY
+                      : JudgmentType.GOOD_LATE
+                    : JudgmentType.BAD,
+                note,
+              );
+            }
+          } else {
+            this.judge(JudgmentType.MISS, note);
+          }
+          break;
+        }
+        case 3: {
+          if (!reached) break;
+          if (note.flickMatched || autoplay) {
+            this.judge(JudgmentType.PERFECT, note);
+          } else {
+            this.judge(JudgmentType.MISS, note);
+          }
+          break;
+        }
+        case 4: {
+          if (!reached) break;
+          if (note.dragMarked || autoplay) {
+            this.judge(JudgmentType.PERFECT, note);
+          } else {
+            this.judge(JudgmentType.MISS, note);
+          }
+          break;
+        }
+      }
+    }
+    this._controls.length = 0;
+    this._judgingHolds.length = 0;
+  }
+
+  /**
    * Full rewind/reset of the judgment state (seek or restart): rebuilds the
    * slicing cursors, drops all live controls, un-judges notes whose judgment
    * lies ahead of the new time, and clears gesture queues.
@@ -787,14 +896,29 @@ export class JudgmentHandler {
         finger.prevY = finger.y;
       }
     }
-    for (const note of this._notesByTime) {
-      if (note.beatJudged !== undefined && beat < note.beatJudged) {
-        this.unjudge(note);
-      } else if (note.beatTempJudged !== undefined && beat < note.beatTempJudged) {
-        note.resetTemp();
+    this._bulkRewinding = true;
+    try {
+      for (const note of this._notesByTime) {
+        let invalidated = false;
+        if (note.beatJudged !== undefined && beat < note.beatJudged) {
+          this.unjudge(note);
+          invalidated = true;
+        } else if (note.beatTempJudged !== undefined && beat < note.beatTempJudged) {
+          note.resetTemp();
+          invalidated = true;
+        }
+        // Control flags are cleared only for notes that are unjudged after
+        // the rewind; already-scored notes keep them so the matchers can
+        // never re-match a scored note through the over-late interval quirk.
+        if (invalidated || note.judgmentType === JudgmentType.UNJUDGED) {
+          note.resetControl();
+        }
       }
-      note.resetControl();
+    } finally {
+      this._bulkRewinding = false;
     }
+    this.rewindDeltas(beat);
+    this._scene.statistics.updateRecords(true);
   }
 
   public get perfect() {

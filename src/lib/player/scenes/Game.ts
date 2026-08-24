@@ -519,6 +519,9 @@ export class Game extends Scene {
 
   end() {
     if (this._status === GameStatus.ERROR) return;
+    // Terminate every live control so totals add up even when notes were
+    // caught mid-window (holds crossing the audio end, etc.).
+    this._judgmentHandler?.flush(this._song.duration);
     this._status = GameStatus.FINISHED;
     this.out(() => {
       this.resetShadersAndVideos();

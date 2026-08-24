@@ -16,6 +16,12 @@ export class StatisticsHandler {
   private _comboRecords: (number | undefined)[];
 
   private _judgment: JudgmentHandler;
+  /**
+   * Statistics are recomputed lazily (once per displayed frame at most) so
+   * that mass judgment events — seek catch-up, rewind sweeps, end flush —
+   * cost a single updateStats pass instead of one per note.
+   */
+  private _statsDirty = false;
 
   constructor(scene: Game) {
     this._scene = scene;
@@ -37,6 +43,10 @@ export class StatisticsHandler {
     this._displayScore += displayScoreDiff * Math.min(delta / 50, 1);
     const displayStdDevDiff = this._stdDev - this._displayStdDev;
     this._displayStdDev += displayStdDevDiff * Math.min(delta / 50, 1);
+    if (this._statsDirty) {
+      this.updateStats();
+      this._statsDirty = false;
+    }
   }
 
   updateRecords(rewind = false) {
@@ -53,7 +63,7 @@ export class StatisticsHandler {
         this._judgment.judgmentCount === 0 ? 0 : this._maxCombo[this._judgment.judgmentCount - 1],
       );
     }
-    this.updateStats();
+    this._statsDirty = true;
   }
 
   updateStats() {
