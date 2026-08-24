@@ -67,9 +67,6 @@ const EMPTY_CTRL: [AlphaControl[], PosControl[], SizeControl[], SkewControl[], Y
   [],
 ];
 
-/** Resolution of the per-segment easing LUT used by evalEvents. */
-const EVAL_LUT_N = 1024;
-
 /**
  * Hot per-frame evaluation of one numeric event list (alpha/moveX/moveY/
  * rotate) for a single layer. Advances the layer's event cursor in amortized
@@ -125,22 +122,14 @@ const evalEvents = (
     return ev.start + (ev.end - ev.start) * x;
   }
   if (easingType > 1) {
-    // Eased segment: sample the (precomputed) easing through a lazily built
-    // LUT instead of calling the easing closure per frame.
-    let lut = ev.__lut;
-    if (lut === undefined && ev.__f !== undefined && ev.__ps !== undefined) {
-      lut = new Float32Array(EVAL_LUT_N + 1);
-      const l = ev.__l!;
-      const r = ev.__r!;
-      const f = ev.__f;
-      for (let i = 0; i <= EVAL_LUT_N; i++) lut[i] = f!(l + (r - l) * (i / EVAL_LUT_N));
-      ev.__lut = lut;
-    }
+    // Eased segment: sample the (load-time) easing table instead of calling
+    // the easing closure per frame.
+    const lut = ev.__lut;
     if (lut !== undefined && ev.__pe !== ev.__ps) {
-      const t = x * EVAL_LUT_N;
+      const t = x * (lut.length - 1);
       const i0 = t | 0;
       const f0 = lut[i0];
-      const raw = i0 >= EVAL_LUT_N ? f0 : f0 + (lut[i0 + 1] - f0) * (t - i0);
+      const raw = i0 >= lut.length - 1 ? f0 : f0 + (lut[i0 + 1] - f0) * (t - i0);
       const progress = (raw - ev.__ps!) / (ev.__pe! - ev.__ps!);
       return ev.start + (ev.end - ev.start) * progress;
     }

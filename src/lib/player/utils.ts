@@ -764,8 +764,9 @@ export const processEvents = (
       // Eagerly sample the easing once at load. Frame-animation charts touch
       // thousands of short-lived segments per second of playback; building a
       // table lazily on first use costs more samples than the segment's whole
-      // lifetime ever reads back, while an eager 64-point table turns every
+      // lifetime ever reads back, while an eager 256-point table turns every
       // subsequent frame's evaluation into a single lerp.
+      const EVENT_LUT_N = 256;
       const lut = new Float32Array(EVENT_LUT_N + 1);
       for (let i = 0; i <= EVENT_LUT_N; i++) lut[i] = f(l + (r - l) * (i / EVENT_LUT_N));
       easedEvent.__lut = lut;
