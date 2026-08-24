@@ -493,13 +493,11 @@
           key === 'endBeat' ||
           key === 'startTimeSec' ||
           key === 'endTimeSec' ||
-          // Runtime-only precomputed speed-easing constants (see processEvents
-          // in player/utils.ts). They are derived from the chart and must never
-          // be persisted into an exported chart.
-          key === '__df0' ||
-          key === '__df1' ||
-          key === '__k' ||
-          key === '__b'
+          // Runtime-only precomputed fields (see processEvents in
+          // player/utils.ts): eased-evaluation constants, sample tables and
+          // speed-integral tables. They are derived from the chart at load
+          // time and must never be persisted into an exported chart.
+          key.startsWith('__')
         ) {
           return undefined;
         }
