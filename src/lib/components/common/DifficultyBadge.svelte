@@ -28,8 +28,8 @@
 
 <Badge
   variant="outline"
-  class="shrink-0 border font-semibold tabular-nums {TYPE_STYLES[levelType ?? 2] ??
+  class="min-w-0 max-w-full shrink border font-semibold tabular-nums {TYPE_STYLES[levelType ?? 2] ??
     TYPE_STYLES[2]} {className}"
 >
-  {label}
+  <span class="truncate">{label}</span>
 </Badge>

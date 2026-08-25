@@ -42,7 +42,11 @@
         <h3 class="truncate text-sm font-semibold" title={summary.metadata.title ?? undefined}>
           {summary.metadata.title ?? ''}
         </h3>
-        <DifficultyBadge levelType={summary.metadata.levelType} level={summary.metadata.level} />
+        <DifficultyBadge
+          levelType={summary.metadata.levelType}
+          level={summary.metadata.level}
+          class="max-w-[60%]"
+        />
       </div>
       <p
         class="truncate text-xs text-muted-foreground"
