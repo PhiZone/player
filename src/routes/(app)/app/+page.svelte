@@ -18,6 +18,7 @@
   import { onMount } from 'svelte';
   import * as Dialog from '$lib/components/ui/dialog';
   import { IS_ANDROID_OR_IOS, IS_TAURI_LIKE } from '$lib/utils';
+  import { riseIn, staggerDelay } from '$lib/motion';
 
   export let data;
 
@@ -131,7 +132,7 @@
   </header>
 
   <main class="flex flex-1 flex-col items-center justify-center gap-8 py-12 text-center">
-    <div class="space-y-3">
+    <div class="space-y-3" in:riseIn={{ y: 16, duration: 340 }}>
       <Badge variant="outline" class="border-violet-500/40 text-violet-400">
         v{VERSION}
       </Badge>
@@ -142,30 +143,32 @@
     </div>
 
     <div class="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {#each distributions as data}
-        <Card
-          size="sm"
-          class="group h-full transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10"
-        >
-          <a
-            href={data.href}
-            target="_blank"
-            rel="noreferrer"
-            class="flex h-full flex-col gap-3 p-5"
+      {#each distributions as data, i}
+        <div class="h-full" in:riseIn={{ y: 16, delay: staggerDelay(i, 60) }}>
+          <Card
+            size="sm"
+            class="group h-full transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10"
           >
-            <div class="flex items-start justify-between gap-3">
-              <data.icon class="size-8 {data.accent}" />
-              <DownloadIcon
-                class="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
-              />
-            </div>
-            <div class="space-y-1 text-start">
-              <h2 class="text-lg font-bold">{data.title}</h2>
-              <p class="text-xs font-medium text-muted-foreground">{data.subtitle}</p>
-              <p class="text-sm text-muted-foreground">{data.description}</p>
-            </div>
-          </a>
-        </Card>
+            <a
+              href={data.href}
+              target="_blank"
+              rel="noreferrer"
+              class="flex h-full flex-col gap-3 p-5"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <data.icon class="size-8 {data.accent}" />
+                <DownloadIcon
+                  class="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
+                />
+              </div>
+              <div class="space-y-1 text-start">
+                <h2 class="text-lg font-bold">{data.title}</h2>
+                <p class="text-xs font-medium text-muted-foreground">{data.subtitle}</p>
+                <p class="text-sm text-muted-foreground">{data.description}</p>
+              </div>
+            </a>
+          </Card>
+        </div>
       {/each}
     </div>
 

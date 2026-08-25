@@ -1,7 +1,7 @@
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn-svelte/tailwind.css";
-@import "@fontsource-variable/inter";
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn-svelte/tailwind.css';
+@import '@fontsource-variable/inter';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -81,8 +81,7 @@
 }
 
 @theme inline {
-  --font-sans: 'Outfit', 'Inter Variable', 'Noto Sans SC', ui-sans-serif, system-ui,
-    sans-serif;
+  --font-sans: 'Outfit', 'Inter Variable', 'Noto Sans SC', ui-sans-serif, system-ui, sans-serif;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -156,5 +155,18 @@
   }
   html {
     @apply font-sans;
+  }
+
+  /* Respect the OS reduced-motion preference for all CSS-driven
+     animations/transitions (Svelte transitions handle this in JS). */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }

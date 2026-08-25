@@ -61,6 +61,7 @@
   import LibraryView from '$lib/components/library/LibraryView.svelte';
   import ChartDetailPage from '$lib/components/library/ChartDetailPage.svelte';
   import ImportDialog from '$lib/components/import/ImportDialog.svelte';
+  import { slideFade } from '$lib/motion';
   import SettingsSheet from '$lib/components/settings/SettingsSheet.svelte';
   import { goto } from '$app/navigation';
   import { Capacitor } from '@capacitor/core';
@@ -2274,8 +2275,15 @@
 
   // ── App-shell handlers ───────────────────────────────────────────────
 
+  // Direction of the last tab change, feeding the view transition
+  // (discover sits left of library: switching forward slides from the right).
+  let tabDirection = 0;
   const onSelectTab = (tab: 'discover' | 'library') => {
-    activeTab = tab;
+    if (tab !== activeTab) {
+      const order = { discover: 0, library: 1 };
+      tabDirection = Math.sign(order[tab] - order[activeTab]);
+      activeTab = tab;
+    }
   };
 
   const handleImportFiles = async (files: File[]) => {
@@ -2510,7 +2518,10 @@
     class:opacity-0={!isDragging}
   >
     <div class="flex h-full w-full items-center justify-center rounded-xl bg-black/50">
-      <div class="flex flex-col items-center gap-4 text-white">
+      <div
+        class="flex flex-col items-center gap-4 text-white transition-transform duration-200 ease-out"
+        class:scale-90={!isDragging}
+      >
         <i class="fa-solid fa-file-import fa-4x"></i>
         <span class="text-2xl font-semibold">{m.drop_files_here()}</span>
       </div>
@@ -2685,21 +2696,25 @@
 
 <!-- App shell -->
 <AppShell tab={activeTab} {onSelectTab} onOpenSettings={() => (settingsOpen = true)}>
-  {#if activeTab === 'discover'}
-    <DiscoverView />
-  {:else}
-    <LibraryView
-      summaries={storedChartSummaries}
-      respacks={resourcePacks}
-      selectedRespackId={selectedResourcePack}
-      onChartSelect={openChartDetail}
-      onPackSelect={selectRespack}
-      onPackExport={exportRespackHandler}
-      onPackDelete={deleteRespackHandler}
-      onImport={() => (importOpen = true)}
-      onBrowseOnline={() => onSelectTab('discover')}
-    />
-  {/if}
+  {#key activeTab}
+    <div in:slideFade={{ direction: tabDirection }}>
+      {#if activeTab === 'discover'}
+        <DiscoverView />
+      {:else}
+        <LibraryView
+          summaries={storedChartSummaries}
+          respacks={resourcePacks}
+          selectedRespackId={selectedResourcePack}
+          onChartSelect={openChartDetail}
+          onPackSelect={selectRespack}
+          onPackExport={exportRespackHandler}
+          onPackDelete={deleteRespackHandler}
+          onImport={() => (importOpen = true)}
+          onBrowseOnline={() => onSelectTab('discover')}
+        />
+      {/if}
+    </div>
+  {/key}
 </AppShell>
 
 <ProgressOverlay {progress} {progressDetail} {progressSpeed} {showProgress} />

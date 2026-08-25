@@ -2,6 +2,7 @@
   import { Button } from '$lib/components/ui/button';
   import { m } from '$lib/paraglide/messages';
   import type { ToyUser } from '$lib/types';
+  import { popIn } from '$lib/motion';
   import UserRoundIcon from '@lucide/svelte/icons/user-round';
   import LoaderCircleIcon from '@lucide/svelte/icons/loader-circle';
 
@@ -20,6 +21,7 @@
 
 {#if user}
   <div
+    in:popIn
     class="flex items-center gap-1.5 rounded-full border border-border/60 bg-background/60 py-0.5 pe-3 ps-0.5"
     title={user.nickname}
   >
@@ -38,13 +40,15 @@
     <span class="hidden max-w-28 truncate text-xs font-medium sm:inline">{user.nickname}</span>
   </div>
 {:else if loginRequired}
-  <Button variant="outline" size="sm" class="gap-1.5" onclick={onLogin} disabled={loginLoading}>
-    {#if loginLoading}
-      <LoaderCircleIcon class="size-3.5 animate-spin" />
-    {:else}
-      <UserRoundIcon class="size-3.5" />
-    {/if}
-    <span class="hidden sm:inline">{m.toy_login()}</span>
-    <span class="sm:hidden">{m.toy_login_short()}</span>
-  </Button>
+  <div in:popIn>
+    <Button variant="outline" size="sm" class="gap-1.5" onclick={onLogin} disabled={loginLoading}>
+      {#if loginLoading}
+        <LoaderCircleIcon class="size-3.5 animate-spin" />
+      {:else}
+        <UserRoundIcon class="size-3.5" />
+      {/if}
+      <span class="hidden sm:inline">{m.toy_login()}</span>
+      <span class="sm:hidden">{m.toy_login_short()}</span>
+    </Button>
+  </div>
 {/if}

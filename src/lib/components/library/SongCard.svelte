@@ -1,21 +1,25 @@
 <script lang="ts">
   import { Card } from '$lib/components/ui/card';
   import type { StoredChartSummary } from '$lib/types';
+  import { riseIn } from '$lib/motion';
   import DifficultyBadge from '$lib/components/common/DifficultyBadge.svelte';
   import MusicIcon from '@lucide/svelte/icons/music';
 
   let {
     summary,
     thumbnailUrl,
+    enterDelay = 0,
     onclick,
   }: {
     summary: StoredChartSummary;
     thumbnailUrl?: string;
+    /** Stagger delay for the grid entrance animation (ms). */
+    enterDelay?: number;
     onclick: () => void;
   } = $props();
 </script>
 
-<button type="button" class="group text-start" {onclick}>
+<button type="button" class="group text-start" {onclick} in:riseIn={{ y: 16, delay: enterDelay }}>
   <Card
     size="sm"
     class="h-full rounded-xl transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-primary/50 group-hover:shadow-lg group-hover:shadow-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

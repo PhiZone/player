@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { cubicIn, cubicOut } from 'svelte/easing';
   import { fly } from 'svelte/transition';
+  import { popIn, riseIn } from '$lib/motion';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
@@ -243,7 +245,8 @@
 
 <div
   class="fixed inset-0 z-50 flex flex-col bg-background"
-  transition:fly={{ x: 48, duration: 220 }}
+  in:fly={{ x: 96, duration: 280, easing: cubicOut }}
+  out:fly={{ x: 64, duration: 200, easing: cubicIn }}
   role="dialog"
   aria-modal="true"
   aria-label={edit.title || bundle.metadata.title}
@@ -281,10 +284,12 @@
     <h1 class="min-w-0 truncate text-base font-semibold">{edit.title || bundle.metadata.title}</h1>
     <div class="ms-auto flex shrink-0 items-center gap-1">
       {#if editDirty}
-        <Button size="sm" onclick={save}>
-          <SaveIcon class="size-4" />
-          <span class="hidden sm:inline">{m.save()}</span>
-        </Button>
+        <div in:popIn>
+          <Button size="sm" onclick={save}>
+            <SaveIcon class="size-4" />
+            <span class="hidden sm:inline">{m.save()}</span>
+          </Button>
+        </div>
       {/if}
       <DropdownMenu.Root>
         <DropdownMenu.Trigger>
@@ -330,7 +335,10 @@
   </header>
 
   <!-- Content -->
-  <div class="relative z-10 min-h-0 flex-1 overflow-y-auto">
+  <div
+    class="relative z-10 min-h-0 flex-1 overflow-y-auto"
+    in:riseIn={{ y: 14, delay: 100, duration: 280 }}
+  >
     <div
       class="mx-auto flex min-h-full w-full max-w-5xl flex-col items-stretch gap-4 px-3 py-4 sm:px-6 sm:py-6 md:max-w-none md:items-end md:gap-5 md:px-12 md:py-8"
     >
