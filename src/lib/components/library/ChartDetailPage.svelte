@@ -356,7 +356,7 @@
         {/if}
       </div>
       <!-- Title, level, composer, charter, illustrator -->
-      <div class="w-full space-y-1.5 md:w-[min(28rem,42vw)] md:space-y-3">
+      <div class="w-full space-y-1.5 md:w-[min(36rem,48vw)] md:space-y-3">
         <div class="flex items-start justify-between gap-3">
           <h2
             class="min-w-0 break-words text-2xl font-bold leading-tight md:text-5xl md:leading-[1.08]"
@@ -397,11 +397,11 @@
                fades whatever scrolls beneath it so the collapse content
                never visually overflows the bar. -->
       <div
-        class="relative w-full md:order-3 md:sticky md:bottom-0 md:z-10 md:w-[min(28rem,42vw)] md:pb-6 class:md:mt-auto={!advancedOpen}"
+        class="relative w-full md:order-3 md:sticky md:bottom-0 md:z-10 md:w-[min(36rem,48vw)] md:pb-6 class:md:mt-auto={!advancedOpen}"
       >
         <div
           aria-hidden="true"
-          class="pointer-events-none absolute inset-x-0 bottom-0 hidden h-40 bg-gradient-to-t from-background from-50% via-background/85 via-75% to-transparent md:block"
+          class="pointer-events-none absolute inset-x-0 bottom-0 hidden h-24 bg-gradient-to-t from-background from-30% to-transparent md:block"
         ></div>
         <div class="relative flex w-full flex-wrap items-center gap-2 md:flex-nowrap md:gap-3">
           <Button
@@ -487,7 +487,7 @@
         </div>
       </div>
 
-      <Collapsible.Root bind:open={advancedOpen} class="w-full md:order-2 md:w-[min(28rem,42vw)]">
+      <Collapsible.Root bind:open={advancedOpen} class="w-full md:order-2 md:w-[min(36rem,48vw)]">
         <Collapsible.Trigger
           class="flex w-full items-center justify-between gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
