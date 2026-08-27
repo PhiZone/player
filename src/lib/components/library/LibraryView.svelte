@@ -7,6 +7,7 @@
   import type { StoredChartSummary, ResourcePackWithId } from '$lib/types';
   import { lookupChartStats, lookupPacksStats } from '$lib/services/onlineStats';
   import type { ApiChartSummary, ApiPackSummary } from '$lib/services/libraryApi';
+  import { slideFade, staggerDelay } from '$lib/motion';
   import SongCard from './SongCard.svelte';
   import PackCard from './PackCard.svelte';
   import PlusIcon from '@lucide/svelte/icons/plus';
@@ -58,6 +59,17 @@
     };
   });
 
+  // Direction of the last segment change for the view transition
+  // (charts sits left of packs). Updated synchronously with `segment`
+  // so the intro reads the correct direction; 0 = plain fade.
+  let segmentDirection = $state(0);
+  const changeSegment = (value: string) => {
+    if (value !== segment) {
+      segmentDirection = value === 'packs' ? 1 : -1;
+      segment = value as 'charts' | 'packs';
+    }
+  };
+
   // ── Thumbnail object-URL caches ──────────────────────────────────────
   const chartThumbs = new Map<string, string>();
   const getChartThumb = (summary: StoredChartSummary): string | undefined => {
@@ -94,7 +106,7 @@
 
 <div class="flex flex-col gap-4">
   <div class="flex flex-wrap items-center justify-between gap-3">
-    <Tabs.Root bind:value={segment}>
+    <Tabs.Root value={segment} onValueChange={changeSegment}>
       <Tabs.List>
         <Tabs.Trigger value="charts">
           {m.charts()}
@@ -112,74 +124,82 @@
     </Button>
   </div>
 
-  {#if segment === 'charts'}
-    {#if summaries.length === 0}
-      <Card
-        class="mx-auto flex max-w-md flex-col items-center gap-4 border-dashed p-10 text-center"
-      >
-        <div
-          class="flex size-14 items-center justify-center rounded-2xl border border-border bg-muted/50 text-muted-foreground"
+  {#key segment}
+    <div in:slideFade={{ direction: segmentDirection }}>
+      {#if segment === 'charts'}
+        {#if summaries.length === 0}
+          <Card
+            class="mx-auto flex max-w-md flex-col items-center gap-4 border-dashed p-10 text-center"
+          >
+            <div
+              class="flex size-14 items-center justify-center rounded-2xl border border-border bg-muted/50 text-muted-foreground"
+            >
+              <MusicIcon class="size-6" />
+            </div>
+            <div class="space-y-1">
+              <h2 class="text-lg font-semibold">{m.library_empty_title()}</h2>
+              <p class="text-sm text-muted-foreground">{m.library_empty_description()}</p>
+            </div>
+            <div class="flex flex-wrap justify-center gap-2">
+              <Button onclick={onImport}>
+                <PlusIcon class="size-4" />
+                {m.import_charts()}
+              </Button>
+              <Button variant="outline" onclick={onBrowseOnline}>
+                <CompassIcon class="size-4" />
+                {m.browse_online()}
+              </Button>
+            </div>
+          </Card>
+        {:else}
+          <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {#each summaries as summary, i (summary.id)}
+              <SongCard
+                {summary}
+                thumbnailUrl={getChartThumb(summary)}
+                downloadCount={onlineCharts.get(summary.id)?.downloadCount}
+                enterDelay={staggerDelay(i)}
+                onclick={() => onChartSelect(summary)}
+              />
+            {/each}
+          </div>
+        {/if}
+      {:else if respacks.length === 0}
+        <Card
+          class="mx-auto flex max-w-md flex-col items-center gap-4 border-dashed p-10 text-center"
         >
-          <MusicIcon class="size-6" />
-        </div>
-        <div class="space-y-1">
-          <h2 class="text-lg font-semibold">{m.library_empty_title()}</h2>
-          <p class="text-sm text-muted-foreground">{m.library_empty_description()}</p>
-        </div>
-        <div class="flex flex-wrap justify-center gap-2">
+          <div
+            class="flex size-14 items-center justify-center rounded-2xl border border-border bg-muted/50 text-muted-foreground"
+          >
+            <PaletteIcon class="size-6" />
+          </div>
+          <div class="space-y-1">
+            <h2 class="text-lg font-semibold">{m.packs_empty_title()}</h2>
+            <p class="text-sm text-muted-foreground">{m.packs_empty_description()}</p>
+          </div>
           <Button onclick={onImport}>
             <PlusIcon class="size-4" />
             {m.import_charts()}
           </Button>
-          <Button variant="outline" onclick={onBrowseOnline}>
-            <CompassIcon class="size-4" />
-            {m.browse_online()}
-          </Button>
+        </Card>
+      {:else}
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {#each respacks as pack, i (pack.id)}
+            <PackCard
+              name={pack.name}
+              author={pack.author}
+              description={pack.description}
+              thumbnailUrl={getPackThumb(pack)}
+              downloadCount={onlinePacks.get(pack.id)?.downloadCount}
+              selected={selectedRespackId === pack.id}
+              enterDelay={staggerDelay(i)}
+              onSelect={() => onPackSelect(pack.id)}
+              onexport={() => onPackExport(pack.id)}
+              ondelete={() => onPackDelete(pack.id)}
+            />
+          {/each}
         </div>
-      </Card>
-    {:else}
-      <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-        {#each summaries as summary (summary.id)}
-          <SongCard
-            {summary}
-            thumbnailUrl={getChartThumb(summary)}
-            downloadCount={onlineCharts.get(summary.id)?.downloadCount}
-            onclick={() => onChartSelect(summary)}
-          />
-        {/each}
-      </div>
-    {/if}
-  {:else if respacks.length === 0}
-    <Card class="mx-auto flex max-w-md flex-col items-center gap-4 border-dashed p-10 text-center">
-      <div
-        class="flex size-14 items-center justify-center rounded-2xl border border-border bg-muted/50 text-muted-foreground"
-      >
-        <PaletteIcon class="size-6" />
-      </div>
-      <div class="space-y-1">
-        <h2 class="text-lg font-semibold">{m.packs_empty_title()}</h2>
-        <p class="text-sm text-muted-foreground">{m.packs_empty_description()}</p>
-      </div>
-      <Button onclick={onImport}>
-        <PlusIcon class="size-4" />
-        {m.import_charts()}
-      </Button>
-    </Card>
-  {:else}
-    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {#each respacks as pack (pack.id)}
-        <PackCard
-          name={pack.name}
-          author={pack.author}
-          description={pack.description}
-          thumbnailUrl={getPackThumb(pack)}
-          downloadCount={onlinePacks.get(pack.id)?.downloadCount}
-          selected={selectedRespackId === pack.id}
-          onSelect={() => onPackSelect(pack.id)}
-          onexport={() => onPackExport(pack.id)}
-          ondelete={() => onPackDelete(pack.id)}
-        />
-      {/each}
+      {/if}
     </div>
-  {/if}
+  {/key}
 </div>

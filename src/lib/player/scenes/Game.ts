@@ -3,6 +3,7 @@ import { EventBus, isAutostartBlocked } from '../EventBus';
 import { inferLevelType, fit, send, getLines, IS_TAURI_LIKE, uuid } from '$lib/utils';
 import { submitToyChartScore } from '$lib/services/toyLeaderboards';
 import {
+  TimeUtil,
   processIllustration,
   loadJson,
   toBeats,
@@ -44,9 +45,6 @@ import { Clock } from '../services/clock';
 import { Renderer } from '../services/renderer';
 import { ResourcePackHandler } from '../handlers/ResourcePackHandler';
 import { m } from '$lib/paraglide/messages';
-import { HOLD_TAIL_TOLERANCE } from '../constants';
-
-const JUDGMENT_END_GRACE_SEC = 0.2;
 
 export class Game extends Scene {
   private _status: GameStatus = GameStatus.LOADING;
@@ -81,6 +79,7 @@ export class Game extends Scene {
   private _level: string | null;
   private _offset: number;
   private _bpmList: Bpm[];
+  public readonly timeUtil: TimeUtil;
   private _numberOfNotes: number;
   private _autoplay = false;
   private _practice = false;
@@ -92,9 +91,7 @@ export class Game extends Scene {
   private _bpmIndex: number = 0;
   private _lines: Line[];
   private _notes: (PlainNote | LongNote)[];
-  private _judgmentNotesByStart: (PlainNote | LongNote)[] = [];
-  private _activeJudgmentNotes: (PlainNote | LongNote)[] = [];
-  private _judgmentNoteIndex: number = 0;
+  private _judgmentNotesByTime: (PlainNote | LongNote)[] = [];
   private _lastChartSongTime: number | undefined;
   private _shaders:
     | (
@@ -111,6 +108,14 @@ export class Game extends Scene {
   private _visible: boolean = true;
   private _timeout: NodeJS.Timeout;
   private _isSeeking: boolean = false;
+  /** Entrance transition tween; while alive, line passes must not be skipped. */
+  private _inTween: Phaser.Tweens.Tween | null = null;
+  /**
+   * Whether the clock has started playing for the current entrance. Until it
+   * does, beat and song time stay static, so line passes would be skipped
+   * and nothing would correct the alphas the in() tween leaves behind.
+   */
+  private _clockStarted: boolean = false;
   private _timeScale: number = 1;
   private _lastProgressUpdate: number | undefined;
 
@@ -406,11 +411,21 @@ export class Game extends Scene {
     targets.forEach((target) => {
       target.alpha = 0;
     });
-    this.tweens.add({
+    // While this tween drives element alphas directly, per-line update passes
+    // must keep running so updateParams re-applies each line's evaluated
+    // opacity between the tween's writes. Forcing continues until the clock
+    // actually starts (not merely until the tween completes — both take 1s,
+    // and whichever finishes first would otherwise strand lines at the
+    // tween's final alpha of 1 on a still-static clock).
+    this._clockStarted = false;
+    this._inTween = this.tweens.add({
       targets,
       alpha: 1,
       duration: 1000,
       ease: 'Sine.easeOut',
+    });
+    this._inTween.once('complete', () => {
+      this._inTween = null;
     });
   }
 
@@ -439,6 +454,7 @@ export class Game extends Scene {
     this.in();
     if (!this._render)
       this._timeout = setTimeout(() => {
+        this._clockStarted = true;
         this._clock.play();
       }, 1000 / this.tweens.timeScale);
     this._status = GameStatus.PLAYING;
@@ -509,6 +525,7 @@ export class Game extends Scene {
     this.in();
     if (!this._render)
       this._timeout = setTimeout(() => {
+        this._clockStarted = true;
         this._clock.play();
       }, 1000 / this.tweens.timeScale);
     this._status = GameStatus.PLAYING;
@@ -523,6 +540,9 @@ export class Game extends Scene {
 
   end() {
     if (this._status === GameStatus.ERROR) return;
+    // Terminate every live control so totals add up even when notes were
+    // caught mid-window (holds crossing the audio end, etc.).
+    this._judgmentHandler?.flush(this._song.duration);
     this._status = GameStatus.FINISHED;
     this.out(() => {
       this.resetShadersAndVideos();
@@ -559,6 +579,13 @@ export class Game extends Scene {
   setSeek(value: number) {
     this._isSeeking = true;
     this._clock.setSeek(value);
+    this.resetActiveNoteWindows(this.beat);
+    if (!this._render) {
+      // Apply immediately what resuming would judge for the skipped span, so
+      // score/combo show the state at the target position while paused.
+      this._judgmentHandler?.resolveUpTo(this.timeSec);
+    }
+    this.statistics?.snapDisplay();
     this._videos?.forEach((video) => video.setSeek(value));
   }
 
@@ -584,9 +611,9 @@ export class Game extends Scene {
       this._clock.update();
     }
     if (this._resultsUI) this._resultsUI.update();
+    this._judgmentHandler?.tickHitParticles(delta);
     const status = this._status;
     if (this._isSeeking) this._status = GameStatus.SEEKING;
-    this._pointerHandler?.update(delta);
     if (this._visible) {
       this._gameUI.update();
       this.positionBackground(this._background);
@@ -594,7 +621,7 @@ export class Game extends Scene {
     const realTimeSec = this.realTimeSec;
     this.report(time, realTimeSec);
     this.updateChart(this.beat, this.timeSec, time);
-    this._judgmentHandler.update(this.beat);
+    this._judgmentHandler.update(this.timeSec, delta / 1000);
     this.statistics.updateDisplay(delta);
     if (this._isSeeking) {
       this._status = status;
@@ -633,13 +660,9 @@ export class Game extends Scene {
       this._isSeeking ||
       this._lastChartSongTime === undefined ||
       songTime + 0.05 < this._lastChartSongTime;
-    if (forceFullNoteUpdate) this.resetActiveNoteWindows();
+    if (forceFullNoteUpdate) this.resetActiveNoteWindows(beat);
+    if (this._inTween || !this._clockStarted) this._lines.forEach((line) => line.invalidate());
     this._lines.forEach((line) => line.update(beat, songTime, gameTime, forceFullNoteUpdate));
-    if (forceFullNoteUpdate) {
-      this._notes.forEach((note) => note.updateJudgment(beat, songTime));
-    } else {
-      this.updateActiveJudgmentNotes(beat, songTime);
-    }
     this._lastChartSongTime = songTime;
     this._shaders?.forEach((shader) => {
       if (!shader) return;
@@ -700,6 +723,7 @@ export class Game extends Scene {
     this._offset =
       chart.META.offset + (this._adjustOffset ? 0 : this._data.preferences.chartOffset);
     this._bpmList = chart.BPMList;
+    (this as { timeUtil: TimeUtil }).timeUtil = new TimeUtil(this._bpmList);
 
     if (!this._title) this._title = chart.META.name;
     if (!this._composer) this._composer = chart.META.composer;
@@ -753,9 +777,7 @@ export class Game extends Scene {
           ? a.note.type - b.note.type
           : a.note.startBeat - b.note.startBeat,
       );
-    this._judgmentNotesByStart = [...this._notes].sort(
-      (a, b) => this.getNoteJudgmentStartTime(a) - this.getNoteJudgmentStartTime(b),
-    );
+    this._judgmentNotesByTime = [...this._notes].sort((a, b) => a.hitTime - b.hitTime);
     this._numberOfNotes = this._notes.length;
     this._lines
       .filter((line) => line.data.father != -1)
@@ -765,46 +787,9 @@ export class Game extends Scene {
       });
   }
 
-  resetActiveNoteWindows() {
+  resetActiveNoteWindows(beat: number) {
     this._lines.forEach((line) => line.resetActiveNoteWindow());
-    this._judgmentNoteIndex = 0;
-    this._activeJudgmentNotes = [];
-  }
-
-  updateActiveJudgmentNotes(beat: number, songTime: number) {
-    while (
-      this._judgmentNoteIndex < this._judgmentNotesByStart.length &&
-      this.getNoteJudgmentStartTime(this._judgmentNotesByStart[this._judgmentNoteIndex]) <= songTime
-    ) {
-      const note = this._judgmentNotesByStart[this._judgmentNoteIndex++];
-      if (this.getNoteJudgmentEndTime(note) >= songTime) {
-        this._activeJudgmentNotes.push(note);
-      }
-    }
-
-    for (let i = this._activeJudgmentNotes.length - 1; i >= 0; i--) {
-      const note = this._activeJudgmentNotes[i];
-      if (this.getNoteJudgmentEndTime(note) < songTime) {
-        this._activeJudgmentNotes.splice(i, 1);
-        continue;
-      }
-      note.updateJudgment(beat, songTime);
-    }
-  }
-
-  private getNoteJudgmentStartTime(note: PlainNote | LongNote) {
-    return note.hitTime - (this.preferences.goodJudgment * 1.125) / 1000;
-  }
-
-  private getNoteJudgmentEndTime(note: PlainNote | LongNote) {
-    const endTime = note.note.type === 2 ? (note as LongNote).endHitTime : note.hitTime;
-    return (
-      endTime +
-      (note.note.type === 2
-        ? HOLD_TAIL_TOLERANCE / 1000
-        : (this.preferences.goodJudgment * 1.125) / 1000) +
-      JUDGMENT_END_GRACE_SEC
-    );
+    this._judgmentHandler?.resetWindow(beat);
   }
 
   initializeHandlers() {
@@ -814,6 +799,7 @@ export class Game extends Scene {
       this._keyboardHandler = new KeyboardHandler(this);
     }
     this._judgmentHandler = new JudgmentHandler(this);
+    this._judgmentHandler.setNotes(this._judgmentNotesByTime);
     this._statisticsHandler = new StatisticsHandler(this);
   }
 

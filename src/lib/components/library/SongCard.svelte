@@ -3,6 +3,7 @@
   import type { StoredChartSummary } from '$lib/types';
   import { m } from '$lib/paraglide/messages';
   import { formatCompactNumber } from '$lib/utils';
+  import { riseIn } from '$lib/motion';
   import DifficultyBadge from '$lib/components/common/DifficultyBadge.svelte';
   import MusicIcon from '@lucide/svelte/icons/music';
   import DownloadIcon from '@lucide/svelte/icons/download';
@@ -11,16 +12,19 @@
     summary,
     thumbnailUrl,
     downloadCount,
+    enterDelay = 0,
     onclick,
   }: {
     summary: StoredChartSummary;
     thumbnailUrl?: string;
     downloadCount?: number;
+    /** Stagger delay for the grid entrance animation (ms). */
+    enterDelay?: number;
     onclick: () => void;
   } = $props();
 </script>
 
-<button type="button" class="group text-start" {onclick}>
+<button type="button" class="group text-start" {onclick} in:riseIn={{ y: 16, delay: enterDelay }}>
   <Card
     size="sm"
     class="h-full rounded-xl transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-primary/50 group-hover:shadow-lg group-hover:shadow-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -52,7 +56,11 @@
         <h3 class="truncate text-sm font-semibold" title={summary.metadata.title ?? undefined}>
           {summary.metadata.title ?? ''}
         </h3>
-        <DifficultyBadge levelType={summary.metadata.levelType} level={summary.metadata.level} />
+        <DifficultyBadge
+          levelType={summary.metadata.levelType}
+          level={summary.metadata.level}
+          class="max-w-[60%]"
+        />
       </div>
       <p
         class="truncate text-xs text-muted-foreground"

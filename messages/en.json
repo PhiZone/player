@@ -324,6 +324,17 @@
   "unranked": "Not on the board yet",
   "personal_best": "Personal best",
 
+  "retry": "Retry",
+  "toy_login": "Log in with Bilibili",
+  "toy_login_short": "Log in",
+  "leaderboard": "Leaderboard",
+  "score": "Score",
+  "leaderboard_empty": "No scores yet — be the first!",
+  "leaderboard_error": "Couldn't load the leaderboard.",
+  "my_rank": "Your rank: {rank}",
+  "unranked": "Not on the board yet",
+  "personal_best": "Personal best",
+
   "import_title": "Import charts",
   "import_description": "Add chart files (.pez, .zip, .pec…) or a whole folder to your library. You can also drag & drop them anywhere on this page.",
   "import_charts": "Import",

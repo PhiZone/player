@@ -1,7 +1,7 @@
 import { GameObjects } from 'phaser';
 import { Game } from '../scenes/Game';
-import type { AnimatedVariable, Bpm, VariableEvent, Video as VideoType } from '$lib/types';
-import { getTimeSec, getEventValue, processEvents, toBeats } from '../utils';
+import type { AnimatedVariable, VariableEvent, Video as VideoType } from '$lib/types';
+import { getEventValue, processEvents, toBeats, type TimeUtil } from '../utils';
 import { Signal } from './Signal';
 import { m } from '$lib/paraglide/messages';
 
@@ -29,14 +29,14 @@ export class Video extends GameObjects.Container {
     this._data = data;
     this._video = new GameObjects.Video(scene, 0, 0, `asset-${data.path}`);
     if (Array.isArray(data.alpha)) {
-      this._alphaAnimator = new VariableAnimator(data.alpha, this._scene.bpmList, data.path);
+      this._alphaAnimator = new VariableAnimator(data.alpha, this._scene.timeUtil, data.path);
     }
     if (Array.isArray(data.dim)) {
-      this._dimAnimator = new VariableAnimator(data.dim, this._scene.bpmList, data.path);
+      this._dimAnimator = new VariableAnimator(data.dim, this._scene.timeUtil, data.path);
     }
     this._video.play();
     this._video.on('metadata', () => {
-      this._data.startTimeSec = getTimeSec(scene.bpmList, toBeats(this._data.time));
+      this._data.startTimeSec = scene.timeUtil.getTimeSec(toBeats(this._data.time));
       this._data.endTimeSec = this._data.startTimeSec + this._video.getDuration();
     });
     this._video.on('unsupported', (_: never, e: DOMException | string) => {
@@ -248,13 +248,13 @@ export class Video extends GameObjects.Container {
 
 class VariableAnimator {
   private _events: VariableEvent[];
-  private _bpmList: Bpm[];
+  private _timeUtil: TimeUtil;
   private _cur: number = 0;
 
-  constructor(events: AnimatedVariable, bpmList: Bpm[], videoName: string) {
+  constructor(events: AnimatedVariable, timeUtil: TimeUtil, videoName: string) {
     this._events = events;
-    this._bpmList = bpmList;
-    processEvents(this._events, undefined, undefined, `Video ${videoName}`);
+    this._timeUtil = timeUtil;
+    processEvents(this._events, timeUtil, undefined, undefined, `Video ${videoName}`);
   }
 
   handleEvent(beat: number) {
@@ -265,7 +265,7 @@ class VariableAnimator {
       while (this._cur < this._events.length - 1 && beat > this._events[this._cur + 1].startBeat) {
         this._cur++;
       }
-      return getEventValue(this._events[this._cur], beat, this._bpmList);
+      return getEventValue(this._events[this._cur], this._timeUtil.getTimeSec(beat));
     } else {
       return undefined;
     }

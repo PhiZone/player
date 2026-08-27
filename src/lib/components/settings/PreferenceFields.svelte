@@ -5,6 +5,11 @@
   import * as Select from '$lib/components/ui/select';
   import { m } from '$lib/paraglide/messages';
   import type { Preferences } from '$lib/types';
+  import {
+    BAD_EXTRA,
+    DEFAULT_GOOD_JUDGMENT_MS,
+    DEFAULT_PERFECT_JUDGMENT_MS,
+  } from '$lib/player/constants';
 
   let { preferences }: { preferences: Preferences } = $props();
 
@@ -12,7 +17,12 @@
   const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));
 
   const calculateRksFactor = (perfectJudgment: number, goodJudgment: number) => {
-    let x = 0.8 * perfectJudgment + 0.225 * goodJudgment;
+    // Anchored so that the default judgment windows (80/180 ms) yield
+    // exactly an RKS factor of 1.0.
+    let x =
+      0.8 * perfectJudgment +
+      0.225 * goodJudgment -
+      (0.8 * DEFAULT_PERFECT_JUDGMENT_MS + 0.225 * DEFAULT_GOOD_JUDGMENT_MS - 100);
     if (x > 150) return 0;
     if (x > 100) return (x * x) / 7500 - (4 * x) / 75 + 5;
     x -= 100;
@@ -124,7 +134,7 @@
   // ── Displays (mirror-driven) ─────────────────────────────────────────
   const perfectDisplay = $derived(Math.round(perfectVals[0] ?? preferences.perfectJudgment));
   const goodDisplay = $derived(Math.round(goodVals[0] ?? preferences.goodJudgment));
-  const badJudgment = $derived((goodVals[0] ?? preferences.goodJudgment) * 1.125);
+  const badJudgment = $derived((goodVals[0] ?? preferences.goodJudgment) + BAD_EXTRA * 1000);
   const rksFactor = $derived(
     calculateRksFactor(
       perfectVals[0] ?? preferences.perfectJudgment,

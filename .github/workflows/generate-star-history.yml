@@ -1,0 +1,26 @@
+name: Star History Chart Generation
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  gen-star-history:
+    name: Generate star history chart
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Generate star history chart
+        uses: narayann7/star-history-action@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repos: ${{ github.repository }}
+          output-dir: .github/assets/star-history
+          themes: light,dark
