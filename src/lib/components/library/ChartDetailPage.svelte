@@ -362,7 +362,7 @@
   <!-- Content -->
   <div
     bind:this={advancedScroller}
-    class="relative z-10 min-h-0 flex-1 overflow-y-auto advanced-fade"
+    class="relative z-10 min-h-0 flex-1 overflow-y-auto advanced-fade scrollbar-gutter-stable"
     style:--fade={advancedOverflows ? '6rem' : '0px'}
     in:riseIn={{ y: 14, delay: 100, duration: 280 }}
   >
@@ -595,7 +595,7 @@
        the bottom of the dialog, clear of the fading content. Aligned with
        the content column's right edge and padded like the other elements. -->
   <div
-    class="relative w-full shrink-0 px-3 pt-3 pb-4 md:ml-auto md:mr-12 md:w-[min(36rem,48vw)] md:px-0 md:pt-4 md:pb-6"
+    class="relative w-full shrink-0 px-3 pt-3 pb-4 md:ml-auto md:mr-15.75 md:w-[min(36rem,48vw)] md:px-0 md:pt-4 md:pb-6"
   >
     <div class="relative flex w-full flex-wrap items-center gap-2 md:flex-nowrap md:gap-3">
       <Button
