@@ -244,11 +244,11 @@
   };
 
   // ── Advanced-panel bottom fade ───────────────────────────────────────
-  // The Advanced collapse content gets a soft fade at its own bottom edge
-  // so it visually cuts off before the action bar, instead of a gradient
-  // band painted behind the bar (which mismatches when the two have
-  // different widths). The fade is only applied when the content is tall
-  // enough to actually reach the bar.
+  // The Advanced collapse content gets a soft opacity fade at its own
+  // bottom edge so it visually dissolves before the action bar, instead of
+  // a solid band painted behind the bar (which mismatches when the two have
+  // different widths and reads as "black"). The mask only applies when the
+  // content is tall enough to actually reach the bar.
   let advancedScroller = $state<HTMLElement | null>(null);
   let advancedColumn = $state<HTMLElement | null>(null);
   let advancedOverflows = $state(false);
@@ -572,7 +572,7 @@
           <ChevronDownIcon class="size-4 transition-transform {advancedOpen ? 'rotate-180' : ''}" />
         </Collapsible.Trigger>
         <Collapsible.Content class="relative pt-2">
-          <div class="space-y-4">
+          <div class="space-y-4" class:advanced-fade={advancedOverflows}>
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div class="space-y-1 sm:col-span-2">
                 <Label for="detail-title">{m['metadata.title']()}</Label>
@@ -731,12 +731,6 @@
               </div>
             {/if}
           </div>
-          {#if advancedOverflows}
-            <div
-              aria-hidden="true"
-              class="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-background to-transparent"
-            ></div>
-          {/if}
         </Collapsible.Content>
       </Collapsible.Root>
 
@@ -800,3 +794,10 @@
     </div>
   </div>
 </div>
+
+<style>
+  .advanced-fade {
+    -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 6rem), transparent);
+    mask-image: linear-gradient(to bottom, black calc(100% - 6rem), transparent);
+  }
+</style>
