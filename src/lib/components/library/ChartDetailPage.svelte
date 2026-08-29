@@ -228,12 +228,13 @@
     return (size / Math.pow(1024, i)).toFixed(2) + ' ' + ['B', 'KiB', 'MiB', 'GiB', 'TiB'][i];
   };
 
-  // ── Advanced-panel bottom fade ───────────────────────────────────────
-  // The Advanced collapse content gets a soft opacity fade at its own
-  // bottom edge so it visually dissolves before the action bar, instead of
-  // a solid band painted behind the bar (which mismatches when the two have
-  // different widths and reads as "black"). The mask only applies when the
-  // content is tall enough to actually reach the bar.
+  // ── Scroll-container bottom fade ────────────────────────────────────
+  // The content that scrolls beneath the action bar is given an opacity
+  // mask at the scroll container's bottom edge, so it dissolves at a fixed
+  // point just above the bar instead of painting a solid band behind the
+  // bar (which mismatched when the two had different widths and read as
+  // "black"). The mask only applies when the content is tall enough to
+  // actually reach the bottom.
   let advancedScroller = $state<HTMLElement | null>(null);
   let advancedColumn = $state<HTMLElement | null>(null);
   let advancedOverflows = $state(false);
@@ -362,6 +363,7 @@
   <div
     bind:this={advancedScroller}
     class="relative z-10 min-h-0 flex-1 overflow-y-auto"
+    class:advanced-fade={advancedOverflows}
     in:riseIn={{ y: 14, delay: 100, duration: 280 }}
   >
     <div
@@ -417,96 +419,6 @@
         </div>
       </div>
 
-      <!-- Action bar: inline on mobile; on wide screens it docks to the
-               bottom right and moves up when Advanced opens, leaving the
-               space above it for the collapse content. -->
-      <div
-        class="relative w-full md:order-3 md:sticky md:bottom-0 md:z-10 md:w-[min(36rem,48vw)] md:pb-6 class:md:mt-auto={!advancedOpen}"
-      >
-        <div class="relative flex w-full flex-wrap items-center gap-2 md:flex-nowrap md:gap-3">
-          <Button
-            size="lg"
-            class="min-w-28 flex-1 gap-2 md:h-14 md:min-w-44 md:text-lg"
-            onclick={() =>
-              onPlay({ autoplay: false, practice: false, adjustOffset: false, autostart })}
-          >
-            <PlayIcon class="size-4 md:size-5" />
-            {m.play()}
-          </Button>
-          <Button
-            size="lg"
-            variant="outline"
-            class="gap-2 md:h-14 md:px-6 md:text-lg"
-            title={m.autoplay_description()}
-            onclick={() =>
-              onPlay({ autoplay: true, practice: false, adjustOffset: false, autostart })}
-          >
-            <CirclePlayIcon class="size-4 md:size-5" />
-            {m.autoplay()}
-          </Button>
-          <DropdownMenu.Root>
-            <DropdownMenu.Trigger>
-              <Button
-                variant="outline"
-                size="icon-lg"
-                class="md:size-14"
-                aria-label={m.play_options()}
-                title={m.play_options()}
-              >
-                <EllipsisIcon class="size-4 md:size-5" />
-              </Button>
-            </DropdownMenu.Trigger>
-            <DropdownMenu.Content align="end">
-              <DropdownMenu.Item
-                onSelect={(e) => {
-                  onPlay({ autoplay: false, practice: true, adjustOffset: false, autostart });
-                  e.preventDefault();
-                }}
-              >
-                <Gamepad2Icon class="size-4" />
-                {m.practice()}
-              </DropdownMenu.Item>
-              <DropdownMenu.Item
-                onSelect={(e) => {
-                  onPlay({ autoplay: true, practice: false, adjustOffset: true, autostart });
-                  e.preventDefault();
-                }}
-              >
-                <TimerIcon class="size-4" />
-                {m.adjust_offset()}
-              </DropdownMenu.Item>
-              <DropdownMenu.Separator />
-              <DropdownMenu.Item
-                onSelect={(e) => {
-                  toggleAutostart();
-                  e.preventDefault();
-                }}
-              >
-                <RocketIcon class="size-4" />
-                {m.autostart()}
-                {#if autostart}
-                  <CheckIcon class="ms-auto size-4 text-primary" />
-                {/if}
-              </DropdownMenu.Item>
-              {#if isWeb}
-                <DropdownMenu.Item
-                  onSelect={(e) => {
-                    toggleNewTab();
-                    e.preventDefault();
-                  }}
-                >
-                  <SquareArrowOutUpRightIcon class="size-4" />
-                  {m.new_tab()}
-                  {#if newTab}
-                    <CheckIcon class="ms-auto size-4 text-primary" />
-                  {/if}
-                </DropdownMenu.Item>
-              {/if}
-            </DropdownMenu.Content>
-          </DropdownMenu.Root>
-        </div>
-      </div>
-
       <Collapsible.Root bind:open={advancedOpen} class="w-full md:order-2 md:w-[min(36rem,48vw)]">
         <Collapsible.Trigger
           class="flex w-full items-center justify-between gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
@@ -515,7 +427,7 @@
           <ChevronDownIcon class="size-4 transition-transform {advancedOpen ? 'rotate-180' : ''}" />
         </Collapsible.Trigger>
         <Collapsible.Content class="relative pt-2">
-          <div class="space-y-4" class:advanced-fade={advancedOverflows}>
+          <div class="space-y-4">
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div class="space-y-1 sm:col-span-2">
                 <Label for="detail-title">{m['metadata.title']()}</Label>
@@ -676,6 +588,91 @@
           </div>
         </Collapsible.Content>
       </Collapsible.Root>
+    </div>
+  </div>
+
+  <!-- Action bar: pinned below the scrollable content so it sits fixed at
+       the bottom of the dialog, clear of the fading content. -->
+  <div class="relative w-full shrink-0 md:ml-auto md:w-[min(36rem,48vw)] md:pb-6">
+    <div class="relative flex w-full flex-wrap items-center gap-2 md:flex-nowrap md:gap-3">
+      <Button
+        size="lg"
+        class="min-w-28 flex-1 gap-2 md:h-14 md:min-w-44 md:text-lg"
+        onclick={() => onPlay({ autoplay: false, practice: false, adjustOffset: false, autostart })}
+      >
+        <PlayIcon class="size-4 md:size-5" />
+        {m.play()}
+      </Button>
+      <Button
+        size="lg"
+        variant="outline"
+        class="gap-2 md:h-14 md:px-6 md:text-lg"
+        title={m.autoplay_description()}
+        onclick={() => onPlay({ autoplay: true, practice: false, adjustOffset: false, autostart })}
+      >
+        <CirclePlayIcon class="size-4 md:size-5" />
+        {m.autoplay()}
+      </Button>
+      <DropdownMenu.Root>
+        <DropdownMenu.Trigger>
+          <Button
+            variant="outline"
+            size="icon-lg"
+            class="md:size-14"
+            aria-label={m.play_options()}
+            title={m.play_options()}
+          >
+            <EllipsisIcon class="size-4 md:size-5" />
+          </Button>
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Content align="end">
+          <DropdownMenu.Item
+            onSelect={(e) => {
+              onPlay({ autoplay: false, practice: true, adjustOffset: false, autostart });
+              e.preventDefault();
+            }}
+          >
+            <Gamepad2Icon class="size-4" />
+            {m.practice()}
+          </DropdownMenu.Item>
+          <DropdownMenu.Item
+            onSelect={(e) => {
+              onPlay({ autoplay: true, practice: false, adjustOffset: true, autostart });
+              e.preventDefault();
+            }}
+          >
+            <TimerIcon class="size-4" />
+            {m.adjust_offset()}
+          </DropdownMenu.Item>
+          <DropdownMenu.Separator />
+          <DropdownMenu.Item
+            onSelect={(e) => {
+              toggleAutostart();
+              e.preventDefault();
+            }}
+          >
+            <RocketIcon class="size-4" />
+            {m.autostart()}
+            {#if autostart}
+              <CheckIcon class="ms-auto size-4 text-primary" />
+            {/if}
+          </DropdownMenu.Item>
+          {#if isWeb}
+            <DropdownMenu.Item
+              onSelect={(e) => {
+                toggleNewTab();
+                e.preventDefault();
+              }}
+            >
+              <SquareArrowOutUpRightIcon class="size-4" />
+              {m.new_tab()}
+              {#if newTab}
+                <CheckIcon class="ms-auto size-4 text-primary" />
+              {/if}
+            </DropdownMenu.Item>
+          {/if}
+        </DropdownMenu.Content>
+      </DropdownMenu.Root>
     </div>
   </div>
 </div>
