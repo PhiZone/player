@@ -393,16 +393,10 @@
 
       <!-- Action bar: inline on mobile; on wide screens it docks to the
                bottom right and moves up when Advanced opens, leaving the
-               space above it for the collapse content. A gradient backdrop
-               fades whatever scrolls beneath it so the collapse content
-               never visually overflows the bar. -->
+               space above it for the collapse content. -->
       <div
         class="relative w-full md:order-3 md:sticky md:bottom-0 md:z-10 md:w-[min(36rem,48vw)] md:pb-6 class:md:mt-auto={!advancedOpen}"
       >
-        <div
-          aria-hidden="true"
-          class="pointer-events-none absolute inset-x-0 bottom-0 hidden h-24 bg-gradient-to-t from-background from-30% to-transparent md:block"
-        ></div>
         <div class="relative flex w-full flex-wrap items-center gap-2 md:flex-nowrap md:gap-3">
           <Button
             size="lg"
