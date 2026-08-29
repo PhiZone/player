@@ -419,13 +419,13 @@
   <!-- Content -->
   <div
     bind:this={advancedScroller}
-    class="relative z-10 min-h-0 flex-1 overflow-y-auto"
-    class:advanced-fade={advancedOverflows}
+    class="relative z-10 min-h-0 flex-1 overflow-y-auto advanced-fade"
+    style:--fade={advancedOverflows ? '6rem' : '0px'}
     in:riseIn={{ y: 14, delay: 100, duration: 280 }}
   >
     <div
       bind:this={advancedColumn}
-      class="mx-auto flex min-h-full w-full max-w-5xl flex-col items-stretch gap-4 px-3 py-4 sm:px-6 sm:py-6 md:max-w-none md:items-end md:gap-5 md:px-12 md:pt-8 md:pb-0"
+      class="mx-auto flex min-h-full w-full max-w-5xl flex-col items-stretch gap-4 px-3 pb-28 pt-4 sm:px-6 sm:pt-6 md:max-w-none md:items-end md:gap-5 md:px-12 md:pt-8"
     >
       <!-- Illustration card (mobile only; wide screens use the full-bleed
            background above) -->
@@ -707,8 +707,11 @@
   </div>
 
   <!-- Action bar: pinned below the scrollable content so it sits fixed at
-       the bottom of the dialog, clear of the fading content. -->
-  <div class="relative w-full shrink-0 md:ml-auto md:w-[min(28rem,42vw)] md:pb-6">
+       the bottom of the dialog, clear of the fading content. Aligned with
+       the content column's right edge and padded like the other elements. -->
+  <div
+    class="relative w-full shrink-0 px-3 pt-3 pb-4 md:ml-auto md:mr-12 md:w-[min(28rem,42vw)] md:px-0 md:pt-4 md:pb-6"
+  >
     <div class="relative flex w-full flex-wrap items-center gap-2 md:flex-nowrap md:gap-3">
       <Button
         size="lg"
@@ -793,8 +796,15 @@
 </div>
 
 <style>
+  @property --fade {
+    syntax: '<length>';
+    inherits: true;
+    initial-value: 0px;
+  }
+
   .advanced-fade {
-    -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 6rem), transparent);
-    mask-image: linear-gradient(to bottom, black calc(100% - 6rem), transparent);
+    transition: --fade 300ms ease;
+    -webkit-mask-image: linear-gradient(to bottom, black calc(100% - var(--fade)), transparent);
+    mask-image: linear-gradient(to bottom, black calc(100% - var(--fade)), transparent);
   }
 </style>
