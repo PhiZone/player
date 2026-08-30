@@ -28,7 +28,7 @@ import type { Game } from '../scenes/Game';
 import { NOTE_BASE_SIZE } from '../constants';
 import { dot } from 'mathjs';
 import type { Video } from './Video';
-import { isDebug } from '$lib/utils';
+import { clamp, isDebug } from '$lib/utils';
 
 /**
  * Per-frame values shared between a line and its notes.
@@ -130,7 +130,13 @@ const evalEvents = (
       const i0 = t | 0;
       const f0 = lut[i0];
       const raw = i0 >= lut.length - 1 ? f0 : f0 + (lut[i0 + 1] - f0) * (t - i0);
-      const progress = (raw - ev.__ps!) / (ev.__pe! - ev.__ps!);
+      // Clamp the normalized progress: the LUT stores float32 samples while
+      // __ps/__pe are float64, so at the segment end the ratio can overshoot
+      // 1 by ~1e-16 (e.g. easing 3: f(1) = 1 - cos(π/2) = 0.9999999999999999
+      // but lut[256] = 1). That overshoot turns a 127→0 alpha segment into a
+      // tiny negative value, which the note visibility check (`lineOpacity
+      // < 0`) misreads as a hidden line and culls every hold on the line.
+      const progress = clamp((raw - ev.__ps!) / (ev.__pe! - ev.__ps!), 0, 1);
       return ev.start + (ev.end - ev.start) * progress;
     }
   }
