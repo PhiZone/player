@@ -1027,8 +1027,11 @@ const _getEventValue = (
     // function call per frame; both endpoint values are cached constants.
     const f = event.__f;
     const cx = !x ? 0 : clamp(x, 0, 1);
-    progress =
-      (f(event.__l! + (event.__r! - event.__l!) * cx) - event.__ps) / (event.__pe - event.__ps);
+    progress = clamp(
+      (f(event.__l! + (event.__r! - event.__l!) * cx) - event.__ps) / (event.__pe - event.__ps),
+      0,
+      1,
+    );
   } else {
     progress = easing(
       easingType,
@@ -1105,7 +1108,7 @@ export const getIntegral = (
       l !== undefined &&
       r !== undefined
     ) {
-      easedAtX = (f(l + (r - l) * px) - event.__ps) / (event.__pe - event.__ps);
+      easedAtX = clamp((f(l + (r - l) * px) - event.__ps) / (event.__pe - event.__ps), 0, 1);
     } else {
       const p = sanitizeEasingParams(event.easingType, px, easingLeft, easingRight);
       easedAtX = calculateEasingValue(EASINGS[p.type - 1], p.x, p.easingLeft, p.easingRight);
