@@ -134,12 +134,14 @@ export class GameUI {
         1,
         0,
         12,
-        `${stats.displayStdDev.toFixed(3)} ms · ${stats.accuracy.toLocaleString(undefined, {
-          style: 'percent',
-          minimumFractionDigits: 2,
-        })}`,
+        scene.autoplay
+          ? 'AUTOPLAY'
+          : `${stats.displayStdDev.toFixed(3)} ms · ${stats.accuracy.toLocaleString(undefined, {
+              style: 'percent',
+              minimumFractionDigits: 2,
+            })}`,
         scene.p(this._fontSizes[4]),
-        scene.respack.bitmapFonts[0].name,
+        scene.autoplay ? undefined : scene.respack.bitmapFonts[0].name,
       );
       this._accuracy.text.setAlpha(0.7);
     }
@@ -210,13 +212,15 @@ export class GameUI {
     this._combo.setText(this._scene.statistics.combo.toString());
     this._score.setText(pad(Math.round(this._scene.statistics.displayScore), 7));
     this._accuracy?.setText(
-      `${this._scene.statistics.displayStdDev.toFixed(3)} ms · ${this._scene.statistics.accuracy.toLocaleString(
-        undefined,
-        {
-          style: 'percent',
-          minimumFractionDigits: 2,
-        },
-      )}`,
+      this._scene.autoplay
+        ? 'AUTOPLAY'
+        : `${this._scene.statistics.displayStdDev.toFixed(3)} ms · ${this._scene.statistics.accuracy.toLocaleString(
+            undefined,
+            {
+              style: 'percent',
+              minimumFractionDigits: 2,
+            },
+          )}`,
     );
     this._songTitle.setText(this._scene.metadata.title ?? '');
     this._level.setText(this._scene.metadata.level ?? '');
