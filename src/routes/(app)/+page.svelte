@@ -156,7 +156,11 @@
   let monitor: Monitor | null = null;
 
   // ── App-shell state ──────────────────────────────────────────────────
-  let activeTab: 'discover' | 'library' = 'library';
+  // Remembers which tab (Discover/Library) the user last landed on, so the
+  // app reopens there next time; first-time visitors default to Discover.
+  const LAST_TAB_KEY = 'lastLandingTab';
+  let activeTab: 'discover' | 'library' =
+    localStorage.getItem(LAST_TAB_KEY) === 'library' ? 'library' : 'discover';
   let settingsOpen = false;
   let importOpen = false;
   let detailOpen = false;
@@ -2283,6 +2287,7 @@
       const order = { discover: 0, library: 1 };
       tabDirection = Math.sign(order[tab] - order[activeTab]);
       activeTab = tab;
+      localStorage.setItem(LAST_TAB_KEY, tab);
     }
   };
 
