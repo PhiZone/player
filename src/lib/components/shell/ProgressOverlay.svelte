@@ -24,7 +24,9 @@
 </script>
 
 {#if visible}
-  <div class="pointer-events-none fixed inset-x-0 top-16 z-50 flex justify-center px-4">
+  <!-- z-100: always above dialogs/modals (z-50) so download/import
+       progress stays visible while a detail dialog is open. -->
+  <div class="pointer-events-none fixed inset-x-0 top-16 z-100 flex justify-center px-4">
     <div
       class="pointer-events-auto w-full max-w-md rounded-2xl border bg-card/95 p-4 shadow-2xl backdrop-blur-xl"
       transition:fly={{ y: -16, duration: 220 }}

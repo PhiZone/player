@@ -260,6 +260,8 @@
   },
   "open_file": "Open file",
   "open_folder": "Open folder",
+  "ok": "OK",
+  "confirm": "Confirm",
   "cancel": "Cancel",
 
   "click_to_copy": "Click to copy",
