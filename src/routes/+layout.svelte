@@ -1,6 +1,7 @@
 <script lang="ts">
   import { setFullscreen, alertError, IS_TAURI_LIKE } from '$lib/utils';
   import { tauriInvoke } from '$lib/services/tauriIpc';
+  import ModalProvider from '$lib/components/shell/ModalProvider.svelte';
   import '@fortawesome/fontawesome-free/css/all.min.css';
   import '../app.css';
 
@@ -43,3 +44,4 @@
 </script>
 
 <slot />
+<ModalProvider />

@@ -260,6 +260,8 @@
   },
   "open_file": "打开文件",
   "open_folder": "打开文件夹",
+  "ok": "确定",
+  "confirm": "确定",
   "cancel": "取消",
 
   "click_to_copy": "点击复制",

@@ -2357,7 +2357,7 @@
     const message = m.delete();
     const confirmed = IS_TAURI
       ? await confirmDialog(message, { kind: 'warning' })
-      : window.confirm(message);
+      : await window.confirm(message);
     if (!confirmed) return;
     resourcePacks = resourcePacks.filter((b) => b.id !== id);
     deleteStoredRespack(id).catch((e) => console.warn('Failed to delete stored resource pack:', e));

@@ -161,7 +161,7 @@
     const message = m['chart_manager.delete_confirm']();
     const confirmed = IS_TAURI
       ? await confirmDialog(message, { kind: 'warning' })
-      : window.confirm(message);
+      : await window.confirm(message);
     if (!confirmed) return;
     onDelete();
   };
