@@ -52,13 +52,22 @@ interface Finger {
   d1y: number;
   isNewFlick: boolean;
   stopped: boolean;
+  /**
+   * Lifted since the last update tick. The finger is kinematically processed
+   * one final frame (displacement vectors + gesture detection + matching), so
+   * a flick that ends in a lift within the same frame is not lost.
+   */
+  lifted: boolean;
 }
 
 /**
  * Judgment system implementing the officially documented Phigros mechanics
  * (https://www.bilibili.com/opus/1226031520301449218):
  *
- *   1. 触发 (trigger)   — clicks, held fingers, and flick gestures per finger
+ *   1. 触发 (trigger)   — clicks, held fingers, and flick gestures per finger;
+ *                         finger positions are distilled into per-frame
+ *                         displacement vectors (d0/d1, world units) each tick
+ *                         before the 划动触发 velocity test runs
  *   2. 匹配 (matching)  — CheckNote (clicks) / CheckFlick (red keys) over the
  *                         globally time-sorted note list, including the
  *                         weighted-Manhattan tie-break and the over-late
@@ -132,6 +141,7 @@ export class JudgmentHandler {
       d1y: 0,
       isNewFlick: false,
       stopped: true,
+      lifted: false,
     });
   }
 
@@ -162,6 +172,7 @@ export class JudgmentHandler {
         d1y: 0,
         isNewFlick: false,
         stopped: true,
+        lifted: false,
       };
       this._fingers.set(id, finger);
     } else {
@@ -171,11 +182,15 @@ export class JudgmentHandler {
       finger.d0x = finger.d0y = finger.d1x = finger.d1y = 0;
       finger.isNewFlick = false;
       finger.stopped = true;
+      finger.lifted = false;
     }
     this._pendingClicks.push(finger);
   }
 
   pointerMove(id: number, x: number, y: number) {
+    // Positions freeze while paused so the first frame after a resume never
+    // sees a displacement spanning the pause (spurious flick gesture).
+    if (this._scene.status !== GameStatus.PLAYING) return;
     const finger = this._fingers.get(id);
     if (!finger || finger.virtual) return;
     finger.x = x;
@@ -186,7 +201,9 @@ export class JudgmentHandler {
     const finger = this._fingers.get(id);
     if (!finger || finger.virtual) return;
     finger.active = false;
-    finger.isNewFlick = false;
+    // One final kinematics pass in the next update still sees this finger, so
+    // a swipe's last movement frame is detected even when the lift precedes it.
+    finger.lifted = true;
   }
 
   keyDown() {
@@ -213,8 +230,13 @@ export class JudgmentHandler {
     this._wuPx = this._scene.sys.canvas.height / 10;
     this._pxPerUnit = this._scene.p(1);
 
-    // 1. 触发 — flick-gesture detection per finger.
-    this.detectFlicks(deltaSec);
+    // 1. 触发 — per-frame finger kinematics, then flick-gesture detection.
+    //    划动触发 requires each finger's displacement vectors d0/d1 (world
+    //    units) recomputed from the positions gathered since the last tick.
+    if (deltaSec > 0) {
+      this.updateFingerDisplacements();
+      this.detectFlicks(deltaSec);
+    }
 
     // 2. 匹配 — click gestures first, then flick gestures.
     while (this._pendingClicks.length > 0) {
@@ -226,7 +248,10 @@ export class JudgmentHandler {
       this.checkFlick(this._fingers.get(-1)!, nowTime);
     }
     for (const finger of this._fingers.values()) {
-      if (finger.active && finger.isNewFlick) this.checkFlick(finger, nowTime);
+      if ((finger.active || finger.lifted) && finger.isNewFlick) this.checkFlick(finger, nowTime);
+    }
+    for (const finger of this._fingers.values()) {
+      finger.lifted = false;
     }
 
     // 3. 评分 — controls run strictly after matching, so a note crossing its
@@ -246,17 +271,35 @@ export class JudgmentHandler {
   }
 
   /**
+   * 划动触发前提: shifts each live finger's displacement vectors. `d1` becomes
+   * the movement gathered since the previous tick (events coalesce into the
+   * latest position), `d0` keeps the tick before it — both in world units,
+   * exactly the vectors the flick-gesture detection consumes.
+   */
+  private updateFingerDisplacements() {
+    const inv = 1 / this._wuPx;
+    for (const finger of this._fingers.values()) {
+      if (!finger.active && !finger.lifted) continue;
+      finger.d0x = finger.d1x;
+      finger.d0y = finger.d1y;
+      finger.d1x = (finger.x - finger.prevX) * inv;
+      finger.d1y = (finger.y - finger.prevY) * inv;
+      finger.prevX = finger.x;
+      finger.prevY = finger.y;
+    }
+  }
+
+  /**
    * 划动触发: decides whether this frame's movement constitutes a new flick
    * gesture, based on the projection of the current displacement onto the
    * previous one, normalized to a 60 fps frame.
    */
   private detectFlicks(deltaSec: number) {
-    if (!(deltaSec > 0)) return;
     const dpi = WEB_BASE_DPI * (window.devicePixelRatio || 1);
     const u = (SPEED_UNIT_FACTOR * dpi) / SPEED_UNIT_DPI;
     const k = 1 / (60 * deltaSec);
     for (const finger of this._fingers.values()) {
-      if (finger.virtual || !finger.active) continue;
+      if (finger.virtual || (!finger.active && !finger.lifted)) continue;
       const d0len = Math.hypot(finger.d0x, finger.d0y);
       let vRel = 0;
       if (d0len > FLICK_PROJECTION_MIN) {
@@ -469,7 +512,8 @@ export class JudgmentHandler {
     if (absDt < P) {
       this.hit(JudgmentType.PERFECT, -dt, note);
     } else if (absDt < G) {
-      this.hit(dt < 0 ? JudgmentType.GOOD_EARLY : JudgmentType.GOOD_LATE, -dt, note);
+      // dt > 0: the press landed before the note time (early).
+      this.hit(dt > 0 ? JudgmentType.GOOD_EARLY : JudgmentType.GOOD_LATE, -dt, note);
     } else {
       this.hit(JudgmentType.BAD, -dt, note);
     }
@@ -502,6 +546,11 @@ export class JudgmentHandler {
   private judgeFlickControl(note: PlainNote, dt: number): boolean {
     const F = this.flickRange();
     if (this._scene.autoplay && !note.flickMatched && dt <= 0) note.flickMatched = true;
+    // Keyboard play cannot swipe: while any key is held, red keys mark like
+    // drags do (the positionless virtual finger sits on every note).
+    if (!note.flickMatched && Math.abs(dt) <= F && this._fingers.get(-1)!.active) {
+      note.flickMatched = true;
+    }
     if (!note.flickMatched) {
       if (dt < -F) {
         this.judge(JudgmentType.MISS, note);
@@ -860,7 +909,7 @@ export class JudgmentHandler {
                 absDt < P
                   ? JudgmentType.PERFECT
                   : absDt < G
-                    ? dt < 0
+                    ? dt > 0
                       ? JudgmentType.GOOD_EARLY
                       : JudgmentType.GOOD_LATE
                     : JudgmentType.BAD,
@@ -934,6 +983,7 @@ export class JudgmentHandler {
     for (const finger of this._fingers.values()) {
       finger.isNewFlick = false;
       finger.stopped = true;
+      finger.lifted = false;
       finger.d0x = finger.d0y = finger.d1x = finger.d1y = 0;
       if (!finger.virtual) {
         finger.prevX = finger.x;
