@@ -916,8 +916,8 @@
     timeouts = [];
   };
 
-  const download = async (url: string) => {
-    const name = url.split(/[\\/]/).pop() || url;
+  const download = async (url: string, name?: string) => {
+    name ??= url.split(/[\\/]/).pop() || url;
 
     progress = 0;
     progressSpeed = 0;
@@ -2319,10 +2319,11 @@
     title: string,
   ) => {
     try {
-      const raw = await download(downloadUrl);
       // The counted endpoint redirects to the OSS file, so the fetched file
-      // name is meaningless (e.g. "download"); rebuild the archive with a
-      // proper name and ZIP MIME type so import detection works.
+      // name is meaningless (e.g. "download"); show the chart title in the
+      // progress overlay instead, and rebuild the archive with a proper name
+      // and ZIP MIME type so import detection works.
+      const raw = await download(downloadUrl, title);
       const archive = new File(
         [raw],
         kind === 'chart' ? `${ensafeFilename(title)}.zip` : `${ensafeFilename(title)} pack.zip`,

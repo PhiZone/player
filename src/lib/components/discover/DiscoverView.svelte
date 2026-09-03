@@ -189,6 +189,10 @@
     try {
       await onInstall(kind, downloadUrl, title);
       installedIds = new Set(installedIds).add(id);
+      // Download + import finished: dismiss the detail dialog on its own.
+      dialogOpen = false;
+    } catch {
+      // Leave the dialog open so the user can retry.
     } finally {
       installingId = null;
     }
