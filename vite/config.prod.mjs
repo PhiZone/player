@@ -3,6 +3,7 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { rmSync } from 'fs';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import { execSync } from 'child_process';
+import toyPostbuild from './toy-postbuild.mjs';
 
 const MESSAGE_INTERVAL_MS = 1000000;
 const lastMessageTime = process.env.LAST_MESSAGE_TIME || 0;
@@ -32,6 +33,7 @@ export default defineConfig({
       outdir: './src/lib/paraglide',
       strategy: ['cookie', 'localStorage', 'preferredLanguage', 'baseLocale'],
     }),
+    toyPostbuild(),
   ],
   define: {
     __COMMIT_HASH__: JSON.stringify(commitHash),

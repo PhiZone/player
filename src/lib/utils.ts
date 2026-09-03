@@ -1,4 +1,5 @@
 import { page } from '$app/state';
+import { isToyEnvironmentSync } from './services/toy';
 import {
   type Config,
   type LevelType,
@@ -67,6 +68,31 @@ export const IS_ANDROID_OR_IOS =
     }
     return false;
   })();
+
+/**
+ * In a Toy page, rewrite an internal full-page-load URL so it points at the
+ * explicit `/index.html` file (which the flat object storage serves). The
+ * startup URL-normalization turns `/index.html` back into the bare route on
+ * load. Non-Toy pages and external/non-toy URLs pass through unchanged.
+ *
+ * Only call this for full-page-load navigations (`window.open`, `target="_blank"`).
+ * Client-side `goto()` must keep bare paths — SvelteKit's router treats
+ * `/index.html` as a route path and would 404.
+ */
+export const toyFullPageUrl = (url: string): string => {
+  if (!isToyEnvironmentSync()) return url;
+  let parsed: URL;
+  try {
+    parsed = new URL(url, window.location.href);
+  } catch {
+    return url;
+  }
+  const toyPrefix = /^\/toy\//;
+  if (!toyPrefix.test(parsed.pathname)) return url;
+  if (parsed.pathname.endsWith('/index.html')) return url;
+  parsed.pathname = parsed.pathname.replace(/\/+$/, '') + '/index.html';
+  return parsed.toString();
+};
 
 export const IS_IFRAME = window.self !== window.top;
 

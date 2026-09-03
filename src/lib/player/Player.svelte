@@ -39,6 +39,7 @@
   import StatsJS from 'stats-js';
   import { m } from '$lib/paraglide/messages';
   import { tauriInvoke } from '$lib/services/tauriIpc';
+  import { detectToyEnvironment } from '$lib/services/toy';
   import { pathSep, openPath } from '$lib/services/tauriFsBridge';
   import {
     computeChartChecksum,
@@ -146,6 +147,11 @@
 
   onMount(async () => {
     if (!config) return;
+    // Resolve the Toy environment before the game starts loading assets:
+    // `toyAssetUrl` rewrites blocked-extension URLs (`.glsl` shaders, `.fnt`
+    // bitmap-font descriptors) to their `.json` twins only after the official
+    // SDK probe confirms the environment, so the probe must complete first.
+    await detectToyEnvironment();
     gameRef.game = await start('player', config);
     timeout = setTimeout(() => {
       stillLoading = true;

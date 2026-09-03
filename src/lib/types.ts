@@ -107,6 +107,8 @@ export interface StoredChart {
   checksum?: string;
   /** Original import file name (archive/folder imports only). */
   sourceName?: string;
+  /** Stable online-library id when this chart was installed from Discover. */
+  onlineId?: string;
   metadata: Metadata;
   resources: {
     chart: File;
@@ -129,6 +131,8 @@ export interface StoredChartSummary {
   checksum?: string;
   /** Original import file name (archive/folder imports only). */
   sourceName?: string;
+  /** Stable online-library id when this chart was installed from Discover. */
+  onlineId?: string;
   metadata: Metadata;
   illustration?: {
     data: Blob;

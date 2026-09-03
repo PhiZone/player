@@ -38,8 +38,19 @@
 
   let {
     onInstall,
+    onOpen,
+    installedOnlineIds = new Set<string>(),
   }: {
-    onInstall: (kind: 'chart' | 'pack', downloadUrl: string, title: string) => Promise<void>;
+    onInstall: (
+      kind: 'chart' | 'pack',
+      downloadUrl: string,
+      title: string,
+      onlineId?: string,
+    ) => Promise<void>;
+    /** Open a chart that is already installed locally (by online id). */
+    onOpen?: (onlineId: string) => void;
+    /** Online-library ids of charts already present in the local library. */
+    installedOnlineIds?: Set<string>;
   } = $props();
 
   const PAGE_SIZE = 20;
@@ -183,11 +194,12 @@
     id: string,
     downloadUrl: string,
     title: string,
+    onlineId?: string,
   ) => {
     if (installingId !== null) return;
     installingId = id;
     try {
-      await onInstall(kind, downloadUrl, title);
+      await onInstall(kind, downloadUrl, title, onlineId);
       installedIds = new Set(installedIds).add(id);
       // Download + import finished: dismiss the detail dialog on its own.
       dialogOpen = false;
@@ -196,6 +208,16 @@
     } finally {
       installingId = null;
     }
+  };
+
+  /** A chart is already in the local library when its online id matches. */
+  const isInstalled = (item: ApiChartSummary) =>
+    installedIds.has(item.id) || installedOnlineIds.has(item.id);
+
+  /** Open an already-installed chart directly (no download, no dedup). */
+  const openInstalled = (item: ApiChartSummary) => {
+    if (dialogOpen) return;
+    onOpen?.(item.id);
   };
 
   const humanizeFileSize = (size: number) => {
@@ -318,7 +340,15 @@
           >
             <Card
               size="sm"
-              class="h-full rounded-xl transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-primary/50 group-hover:shadow-lg group-hover:shadow-primary/10"
+              class={cn(
+                'h-full rounded-xl transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-primary/50 group-hover:shadow-lg group-hover:shadow-primary/10',
+                // The first three online charts own the toy's leaderboard
+                // boards — highlight their card edges so players spot the
+                // charts that carry a live leaderboard.
+                toyEnabled &&
+                  leaderboardBoards.has(item.id) &&
+                  'border-violet-400/70 shadow-md shadow-violet-500/20 group-hover:border-violet-400/90',
+              )}
             >
               <div class="relative aspect-[4/3] w-full overflow-hidden bg-muted">
                 {#if item.cover}
@@ -356,16 +386,20 @@
                     size="icon-xs"
                     variant="secondary"
                     class="bg-background/80 backdrop-blur"
-                    aria-label={m.install()}
+                    aria-label={isInstalled(item) ? m.open() : m.install()}
                     disabled={installingId !== null}
                     onclick={(e) => {
                       e.stopPropagation();
-                      install('chart', item.id, item.downloadUrl, item.title);
+                      if (isInstalled(item)) {
+                        openInstalled(item);
+                      } else {
+                        install('chart', item.id, item.downloadUrl, item.title, item.id);
+                      }
                     }}
                   >
                     {#if installingId === item.id}
                       <LoaderCircleIcon class="size-3.5 animate-spin" />
-                    {:else if installedIds.has(item.id)}
+                    {:else if isInstalled(item)}
                       <CheckIcon class="size-3.5" />
                     {:else}
                       <DownloadIcon class="size-3.5" />
@@ -557,7 +591,7 @@
             <div class="flex flex-wrap items-center gap-2">
               <DifficultyBadge levelType={detail.levelType} level={detail.level} />
               {#if detail.format}
-                <Badge variant="outline">{detail.format}</Badge>
+                <Badge variant="outline">{detail.format.toUpperCase()}</Badge>
               {/if}
             </div>
             <dl class="grid grid-cols-1 gap-x-4 gap-y-1 text-sm sm:grid-cols-2">
@@ -618,25 +652,39 @@
           <Button variant="outline" onclick={() => (dialogOpen = false)}>
             {m.close()}
           </Button>
-          <Button
-            class="gap-2"
-            disabled={installingId !== null}
-            onclick={() => {
-              if (!detail) return;
-              install(detail.kind, detail.id, detail.downloadUrl, detailTitle);
-            }}
-          >
-            {#if installingId === detail.id}
-              <LoaderCircleIcon class="size-4 animate-spin" />
-              {m.installing()}
-            {:else if installedIds.has(detail.id)}
+          {#if detail?.kind === 'chart' && isInstalled(detail)}
+            <Button
+              class="gap-2"
+              onclick={() => {
+                if (!detail) return;
+                dialogOpen = false;
+                onOpen?.(detail.id);
+              }}
+            >
               <CheckIcon class="size-4" />
-              {m.installed_label()}
-            {:else}
-              <DownloadIcon class="size-4" />
-              {m.install()}
-            {/if}
-          </Button>
+              {m.open()}
+            </Button>
+          {:else}
+            <Button
+              class="gap-2"
+              disabled={installingId !== null}
+              onclick={() => {
+                if (!detail) return;
+                install(detail.kind, detail.id, detail.downloadUrl, detailTitle, detail.id);
+              }}
+            >
+              {#if installingId === detail.id}
+                <LoaderCircleIcon class="size-4 animate-spin" />
+                {m.installing()}
+              {:else if installedIds.has(detail.id)}
+                <CheckIcon class="size-4" />
+                {m.installed_label()}
+              {:else}
+                <DownloadIcon class="size-4" />
+                {m.install()}
+              {/if}
+            </Button>
+          {/if}
         </Dialog.Footer>
       {/if}
     </Dialog.Content>

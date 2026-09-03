@@ -35,6 +35,7 @@ interface StoredChartRecord {
   updatedAt: number;
   checksum?: string;
   sourceName?: string;
+  onlineId?: string;
   metadata: Metadata;
   resources: { chart: StoredFile; song: StoredFile; illustration: StoredFile };
   assets: { name: string; type: number; file: StoredFile; included: boolean }[];
@@ -55,6 +56,7 @@ function packChart(chart: StoredChart): StoredChartRecord {
     updatedAt: chart.updatedAt,
     checksum: chart.checksum,
     sourceName: chart.sourceName,
+    onlineId: chart.onlineId,
     metadata: chart.metadata,
     resources: {
       chart: fileToStored(chart.resources.chart),
@@ -77,6 +79,7 @@ function unpackChart(record: StoredChartRecord): StoredChart {
     updatedAt: record.updatedAt,
     checksum: record.checksum,
     sourceName: record.sourceName,
+    onlineId: record.onlineId,
     metadata: record.metadata,
     resources: {
       chart: storedToFile(record.resources.chart),
@@ -99,6 +102,7 @@ function recordToSummary(record: StoredChartRecord): StoredChartSummary {
     updatedAt: record.updatedAt,
     checksum: record.checksum,
     sourceName: record.sourceName,
+    onlineId: record.onlineId,
     metadata: record.metadata,
     illustration: record.resources.illustration,
   };

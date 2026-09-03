@@ -62,6 +62,7 @@ interface ToySdk {
   submitScore(req: { board?: ToyBoard; score: number }): Promise<{ score: number }>;
   getCloudStorage(keys?: string[]): Promise<Record<string, string>>;
   setCloudStorage(items: Record<string, string>): Promise<void>;
+  removeCloudStorage(keys: string[]): Promise<void>;
 }
 
 declare global {
@@ -80,10 +81,26 @@ const TOY_SCORE_MAX = 16777215;
 
 let toyEnvPromise: Promise<boolean> | undefined;
 
+// Synchronous mirror of the Toy-environment detection, driven by the official
+// `isSupport` probe once it resolves. Synchronous call sites (asset URL
+// rewriting, full-page navigation URL rewriting) read this instead of
+// guessing from the hostname/pathname. It is `false` until the first
+// `detectToyEnvironment()` resolves, so those call sites only rewrite after
+// the SDK confirmed the environment.
+let toyEnvSync = false;
+
+/** True once the SDK's `isSupport` probe confirmed a Toy environment. */
+export function isToyEnvironmentSync(): boolean {
+  return toyEnvSync;
+}
+
 function looksLikeToyPage(): boolean {
   if (typeof window === 'undefined') return false;
   const { hostname, pathname } = window.location;
-  return hostname.endsWith('bilibili.com') && pathname.startsWith('/toy/');
+  return (
+    (hostname.endsWith('bilibili.com') || hostname.endsWith('bilibilitoy.com')) &&
+    pathname.startsWith('/toy/')
+  );
 }
 
 function injectSdkScript(): Promise<void> {
@@ -103,17 +120,25 @@ export function isToyEnvironment(): boolean {
 }
 
 /**
- * Detect the Toy environment. Result is cached for the session. Never loads
- * the SDK script outside of Toy pages.
+ * Detect the Toy environment using the official `toy.isSupport` probe.
+ * Result is cached for the session, and the synchronous mirror
+ * (`isToyEnvironmentSync`) is set once the probe confirms. Never loads the
+ * SDK script outside of Toy pages.
  */
 export function detectToyEnvironment(): Promise<boolean> {
   toyEnvPromise ??= (async () => {
     try {
-      if (isToyEnvironment()) return true;
+      if (isToyEnvironment()) {
+        const ok = await window.toy!.isSupport('getUserProfile').catch(() => false);
+        toyEnvSync = ok;
+        return ok;
+      }
       if (!looksLikeToyPage()) return false;
       await injectSdkScript();
       if (!isToyEnvironment()) return false;
-      return await window.toy!.isSupport('getUserProfile').catch(() => false);
+      const ok = await window.toy!.isSupport('getUserProfile').catch(() => false);
+      toyEnvSync = ok;
+      return ok;
     } catch {
       return false;
     }
@@ -213,5 +238,20 @@ export async function toySavePersonalBest(
     });
   } catch (error) {
     console.debug('[ToySDK] setCloudStorage failed:', error);
+  }
+}
+
+/**
+ * Remove the stored personal best for a chart from Toy cloud storage. Called
+ * when a chart is deleted so orphaned per-chart data doesn't accumulate
+ * (cloud storage is scoped per toy and capped at 128 keys).
+ */
+export async function toyClearPersonalBest(chartKey: string): Promise<void> {
+  if (!(await detectToyEnvironment())) return;
+  try {
+    const key = PB_PREFIX + sanitizeKey(chartKey);
+    await window.toy!.removeCloudStorage([key]);
+  } catch (error) {
+    console.debug('[ToySDK] removeCloudStorage failed:', error);
   }
 }

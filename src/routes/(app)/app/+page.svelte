@@ -11,7 +11,7 @@
   import { page } from '$app/state';
   import { onMount } from 'svelte';
   import * as Dialog from '$lib/components/ui/dialog';
-  import { IS_ANDROID_OR_IOS, IS_TAURI_LIKE } from '$lib/utils';
+  import { IS_ANDROID_OR_IOS, IS_TAURI_LIKE, toyFullPageUrl } from '$lib/utils';
   import { riseIn, staggerDelay } from '$lib/motion';
 
   export let data;
@@ -103,7 +103,9 @@
         class="w-full bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-lg shadow-violet-500/25 hover:from-violet-400 hover:to-fuchsia-400 hover:shadow-violet-500/40"
         onclick={() => {
           window.open(
-            `${IS_ANDROID_OR_IOS ? `${base}/app` : 'phizone-player://'}${page.url.search}`,
+            toyFullPageUrl(
+              `${IS_ANDROID_OR_IOS ? `${base}/app` : 'phizone-player://'}${page.url.search}`,
+            ),
           );
         }}
       >

@@ -49,6 +49,7 @@
     readMetadataForPhiraRespack,
     readMetadataForRespack,
     send,
+    toyFullPageUrl,
     updateMetadata,
     uuid,
     versionCompare,
@@ -98,7 +99,12 @@
   import { convertHoldAtlas, getImageDimensions } from '$lib/converters/phira/respack';
   import { hexToRgba } from '$lib/player/utils';
   import { m } from '$lib/paraglide/messages';
-  import { detectToyEnvironment, toyGetUserProfile, type ToyUserProfile } from '$lib/services/toy';
+  import {
+    detectToyEnvironment,
+    toyClearPersonalBest,
+    toyGetUserProfile,
+    type ToyUserProfile,
+  } from '$lib/services/toy';
   import {
     saveRespack,
     loadAllRespacks,
@@ -148,6 +154,8 @@
     storedChecksum?: string;
     /** Original import file name (archive/folder imports only). */
     sourceName?: string;
+    /** Stable online-library id when installed from Discover. */
+    onlineId?: string;
     /** Per-chart asset files scoped at import time (within-batch grouping). */
     scopedAssetFiles?: Set<File>;
   }
@@ -178,6 +186,16 @@
   let modalMem = false;
 
   let storedChartSummaries: StoredChartSummary[] = [];
+
+  // Online-library ids of charts already in the local library — Discover
+  // uses this to show "Open" instead of "Install" (no re-download, no dedup).
+  // Rebuilt whenever the stored summaries refresh.
+  let installedOnlineIds = new Set<string>();
+  const rebuildInstalledOnlineIds = () => {
+    installedOnlineIds = new Set(
+      storedChartSummaries.map((summary) => summary.onlineId).filter((id): id is string => !!id),
+    );
+  };
 
   // True only while handling programmatic postMessage imports (zipInput/
   // fileInput/zipUrlInput/fileUrlInput) — those must not write to storage.
@@ -256,6 +274,11 @@
     included: boolean;
   }[] = [];
   let chartBundles: ChartBundle[] = [];
+
+  // Set by `handleInstallOnline` before running the import pipeline; picked
+  // up by `createBundle` so charts installed from Discover carry their stable
+  // online-library id (used for dedup and direct-open).
+  let pendingOnlineId: string | undefined;
 
   let selectedResourcePack = DEFAULT_RESOURCE_PACK_ID;
   let resourcePacks: (ResourcePackWithId<File> | ResourcePackWithId<string>)[] = [
@@ -381,6 +404,7 @@
     } catch (e) {
       console.warn('Failed to load stored charts:', e);
     }
+    rebuildInstalledOnlineIds();
 
     await init();
 
@@ -603,7 +627,11 @@
       if (toggles.inApp === 0 && !automate) {
         appModalOpen = true;
       } else if (toggles.inApp === 1) {
-        window.open(`${IS_ANDROID_OR_IOS ? `${base}/app` : 'phizone-player://'}${page.url.search}`);
+        window.open(
+          toyFullPageUrl(
+            `${IS_ANDROID_OR_IOS ? `${base}/app` : 'phizone-player://'}${page.url.search}`,
+          ),
+        );
       } else {
         await handleParamFiles(page.url.searchParams);
       }
@@ -1127,6 +1155,7 @@
       chart: chartFile.id,
       illustration: illustrationFile.id,
       sourceName,
+      onlineId: pendingOnlineId,
       metadata: metadataEntry
         ? {
             title: overrideTitle ?? metadataEntry.name,
@@ -1880,6 +1909,7 @@
     } catch (e) {
       console.warn('Failed to reload stored charts:', e);
     }
+    rebuildInstalledOnlineIds();
   };
 
   /** Asset entries belonging to `bundle` (per-chart scoping). */
@@ -1969,6 +1999,7 @@
       updatedAt: Date.now(),
       checksum: bundle.storedChecksum,
       sourceName: bundle.sourceName,
+      onlineId: bundle.onlineId,
       metadata: { ...bundle.metadata },
       resources: {
         chart: chartFile.file,
@@ -2094,6 +2125,7 @@
       storedCreatedAt: stored.createdAt,
       storedChecksum: stored.checksum,
       sourceName: stored.sourceName,
+      onlineId: stored.onlineId,
       scopedAssetFiles: new Set(stored.assets.map((asset) => asset.file)),
     };
     chartBundles.push(bundle);
@@ -2288,7 +2320,7 @@
     }
 
     if (Capacitor.getPlatform() === 'web' && toggles.newTab && !automate) {
-      window.open(url);
+      window.open(toyFullPageUrl(url));
     } else {
       goto(url);
     }
@@ -2316,14 +2348,18 @@
   /**
    * Install an online chart/pack from the Discover tab: download the counted
    * archive URL, then run it through the normal import pipeline so it lands
-   * in the local library like any other import.
+   * in the local library like any other import. `onlineId` (charts only) is
+   * the stable online-library id, persisted on the stored chart for dedup
+   * and direct-open.
    */
   const handleInstallOnline = async (
     kind: 'chart' | 'pack',
     downloadUrl: string,
     title: string,
+    onlineId?: string,
   ) => {
     try {
+      pendingOnlineId = kind === 'chart' ? onlineId : undefined;
       // The counted endpoint redirects to the OSS file, so the fetched file
       // name is meaningless (e.g. "download"); show the chart title in the
       // progress overlay instead, and rebuild the archive with a proper name
@@ -2339,6 +2375,8 @@
     } catch (e) {
       console.warn('Failed to install online content:', e);
       notify(m.install_failed({ title }), 'failure');
+    } finally {
+      pendingOnlineId = undefined;
     }
   };
 
@@ -2351,6 +2389,16 @@
     } finally {
       toyLoginLoading = false;
     }
+  };
+
+  /**
+   * Open a chart that is already installed locally (matched by its stable
+   * online-library id) — no download, no duplicate prompt.
+   */
+  const openInstalledOnline = async (onlineId: string) => {
+    const summary = storedChartSummaries.find((s) => s.onlineId === onlineId);
+    if (!summary) return;
+    await openChartDetail(summary);
   };
 
   const handleImportDirectory = async (fileList: FileList) => {
@@ -2531,6 +2579,9 @@
     if (bundle.storedId) {
       await deleteStoredChart(bundle.storedId);
       await refreshStoredSummaries();
+      // Remove the chart's Toy cloud personal-best record so it doesn't
+      // linger as an orphan (cloud storage is capped at 128 keys per toy).
+      await toyClearPersonalBest(bundle.storedId);
     }
     chartBundles = chartBundles.filter((b) => b.id !== bundle.id);
     if (chartBundles.every((b) => b.chart !== bundle.chart)) {
@@ -2713,7 +2764,11 @@
       <Dialog.Title>{m.use_the_app()}</Dialog.Title>
       <Dialog.Description>
         {m['use_the_app_description.0']()}
-        <a href="{base}/app" target="_blank" class="font-medium text-primary hover:underline">
+        <a
+          href={toyFullPageUrl(`${base}/app`)}
+          target="_blank"
+          class="font-medium text-primary hover:underline"
+        >
           {m['use_the_app_description.1']()}
         </a>
         {m['use_the_app_description.2']()}
@@ -2730,7 +2785,9 @@
       <Button
         onclick={() => {
           window.open(
-            `${IS_ANDROID_OR_IOS ? `${base}/app` : 'phizone-player://'}${page.url.search}`,
+            toyFullPageUrl(
+              `${IS_ANDROID_OR_IOS ? `${base}/app` : 'phizone-player://'}${page.url.search}`,
+            ),
           );
           if (modalMem) {
             toggles.inApp = 1;
@@ -2769,7 +2826,11 @@
   {#key activeTab}
     <div in:slideFade={{ direction: tabDirection }}>
       {#if activeTab === 'discover'}
-        <DiscoverView onInstall={handleInstallOnline} />
+        <DiscoverView
+          onInstall={handleInstallOnline}
+          onOpen={openInstalledOnline}
+          {installedOnlineIds}
+        />
       {:else}
         <LibraryView
           summaries={storedChartSummaries}

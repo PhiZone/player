@@ -29,6 +29,7 @@
   "scripts": {
     "dev": "vite --config vite/config.dev.mjs --host",
     "build:only": "svelte-kit sync && vite build --config vite/config.prod.mjs",
+    "build:toy": "TOY_BUILD=1 svelte-kit sync && TOY_BUILD=1 vite build --config vite/config.prod.mjs",
     "build": "svelte-kit sync && vite build --config vite/config.prod.mjs && pnpm cap sync",
     "preview": "vite preview --outDir build --host",
     "lint": "eslint .",

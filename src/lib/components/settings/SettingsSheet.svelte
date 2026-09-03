@@ -9,13 +9,9 @@
   import * as Select from '$lib/components/ui/select';
   import { m } from '$lib/paraglide/messages';
   import { base } from '$app/paths';
-  import { REPO_LINK } from '$lib';
   import type { MediaOptions, Preferences, FFmpegEncoder } from '$lib/types';
   import PreferenceFields from './PreferenceFields.svelte';
-  import CodeXmlIcon from '@lucide/svelte/icons/code-xml';
-  import BugIcon from '@lucide/svelte/icons/bug';
   import DownloadIcon from '@lucide/svelte/icons/download';
-  import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
   import InfoIcon from '@lucide/svelte/icons/info';
 
   let {
@@ -236,28 +232,6 @@
           <Button variant="outline" class="justify-start gap-2" href={`${base}/app`}>
             <DownloadIcon class="size-4" />
             {m.download_app()}
-          </Button>
-          <Button
-            variant="outline"
-            class="justify-start gap-2"
-            href={REPO_LINK}
-            target="_blank"
-            rel="noreferrer"
-          >
-            <CodeXmlIcon class="size-4" />
-            {m.view_on_github()}
-            <ExternalLinkIcon class="ms-auto size-3.5 text-muted-foreground" />
-          </Button>
-          <Button
-            variant="outline"
-            class="justify-start gap-2"
-            href={`${REPO_LINK}/issues/new/choose`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            <BugIcon class="size-4" />
-            {m.file_an_issue()}
-            <ExternalLinkIcon class="ms-auto size-3.5 text-muted-foreground" />
           </Button>
         </div>
       </section>

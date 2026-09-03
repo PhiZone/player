@@ -649,7 +649,7 @@
       <!-- Personal best (Bilibili Toy only): score + accuracy + rank,
            right above the action buttons bar. -->
       {#if toyEnabled && chartBoard !== null && (personalBest || (myRank?.ranked ?? false))}
-        <div class="w-full md:order-4 md:w-[min(28rem,42vw)]">
+        <div class="w-full md:order-4 md:w-[min(36rem,48vw)]">
           <div
             class="flex items-center justify-between gap-3 rounded-xl border border-violet-500/30 bg-violet-500/10 px-4 py-2.5"
           >
@@ -682,7 +682,7 @@
       {#if toyEnabled && chartBoard !== null}
         <Collapsible.Root
           bind:open={leaderboardOpen}
-          class="w-full md:order-3 md:w-[min(28rem,42vw)]"
+          class="w-full md:order-3 md:w-[min(36rem,48vw)]"
         >
           <Collapsible.Trigger
             class="flex w-full items-center justify-between gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
@@ -710,7 +710,7 @@
        the bottom of the dialog, clear of the fading content. Aligned with
        the content column's right edge and padded like the other elements. -->
   <div
-    class="relative w-full shrink-0 px-3 pt-3 pb-4 md:ml-auto md:mr-15.75 md:w-[min(28rem,42vw)] md:px-0 md:pt-4 md:pb-6"
+    class="relative w-full shrink-0 px-3 pt-3 pb-4 md:ml-auto md:mr-15.75 md:w-[min(36rem,48vw)] md:px-0 md:pt-4 md:pb-6"
   >
     <div class="relative flex w-full flex-wrap items-center gap-2 md:flex-nowrap md:gap-3">
       <Button

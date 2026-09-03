@@ -24,6 +24,7 @@ interface ChartManifest {
   updatedAt: number;
   checksum?: string;
   sourceName?: string;
+  onlineId?: string;
   metadata: Metadata;
   resources: { chart: string; song: string; illustration: string };
   assets: { name: string; type: number; file: string; included: boolean }[];
@@ -122,6 +123,7 @@ export async function saveChartToDisk(chart: StoredChart): Promise<void> {
     updatedAt: chart.updatedAt,
     checksum: chart.checksum,
     sourceName: chart.sourceName,
+    onlineId: chart.onlineId,
     metadata: chart.metadata,
     resources: {
       chart: chartFile,
@@ -165,6 +167,7 @@ export async function loadChartSummariesFromDisk(): Promise<StoredChartSummary[]
         updatedAt: manifest.updatedAt,
         checksum: manifest.checksum,
         sourceName: manifest.sourceName,
+        onlineId: manifest.onlineId,
         metadata: manifest.metadata,
         illustration: illustration
           ? { data: illustration.data, name: illustration.name, type: illustration.type }
@@ -203,6 +206,7 @@ export async function loadChartFromDisk(id: string): Promise<StoredChart> {
     updatedAt: manifest.updatedAt,
     checksum: manifest.checksum,
     sourceName: manifest.sourceName,
+    onlineId: manifest.onlineId,
     metadata: manifest.metadata,
     resources: {
       chart: toFile(chartStored),

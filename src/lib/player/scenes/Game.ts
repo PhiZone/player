@@ -41,6 +41,7 @@ import { Signal } from '../objects/Signal';
 import { Node, ROOT } from '../objects/Node';
 import { ShaderNode } from '../objects/ShaderNode';
 import { base } from '$app/paths';
+import { toyAssetUrl } from '../toyAssetUrl';
 import { Clock } from '../services/clock';
 import { Renderer } from '../services/renderer';
 import { ResourcePackHandler } from '../handlers/ResourcePackHandler';
@@ -234,7 +235,7 @@ export class Game extends Scene {
       this.load.font(font.name, font.file, font.type);
     });
     this._respack.bitmapFonts.forEach((font) => {
-      this.load.bitmapFont(font.name, font.texture, font.descriptor);
+      this.load.bitmapFont(font.name, font.texture, toyAssetUrl(font.descriptor));
     });
 
     const { spriteSheet, frameWidth, frameHeight, frameRate } = this._respack.getHitEffects();
@@ -335,7 +336,7 @@ export class Game extends Scene {
           } else {
             this._shaderAssets.push({
               key: `intsh-${effect.shader}`,
-              url: base + '/game/shaders/' + effect.shader + '.glsl',
+              url: toyAssetUrl(base + '/game/shaders/' + effect.shader + '.glsl'),
             });
             effect.shader = `intsh-${effect.shader}`;
           }
