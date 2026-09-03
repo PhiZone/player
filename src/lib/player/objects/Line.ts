@@ -23,12 +23,13 @@ import {
   toBeats,
   processControlNodes,
   isEqual,
+  sanitizeEasedProgress,
 } from '../utils';
 import type { Game } from '../scenes/Game';
 import { NOTE_BASE_SIZE } from '../constants';
 import { dot } from 'mathjs';
 import type { Video } from './Video';
-import { clamp, isDebug } from '$lib/utils';
+import { isDebug } from '$lib/utils';
 
 /**
  * Per-frame values shared between a line and its notes.
@@ -130,13 +131,12 @@ const evalEvents = (
       const i0 = t | 0;
       const f0 = lut[i0];
       const raw = i0 >= lut.length - 1 ? f0 : f0 + (lut[i0 + 1] - f0) * (t - i0);
-      // Clamp the normalized progress: the LUT stores float32 samples while
-      // __ps/__pe are float64, so at the segment end the ratio can overshoot
-      // 1 by ~1e-16 (e.g. easing 3: f(1) = 1 - cos(π/2) = 0.9999999999999999
-      // but lut[256] = 1). That overshoot turns a 127→0 alpha segment into a
-      // tiny negative value, which the note visibility check (`lineOpacity
-      // < 0`) misreads as a hidden line and culls every hold on the line.
-      const progress = clamp((raw - ev.__ps!) / (ev.__pe! - ev.__ps!), 0, 1);
+      // Normalize the sampled value to a lerp progress, snapping only the
+      // float32/float64 endpoint epsilon (see sanitizeEasedProgress). A hard
+      // clamp here would flatten legitimate back/elastic overshoot (e.g.
+      // easeOutBack reaches ~1.1 mid-segment), which is what makes those
+      // segments look linear then frozen at the end value.
+      const progress = sanitizeEasedProgress(raw, ev.__ps!, ev.__pe!);
       return ev.start + (ev.end - ev.start) * progress;
     }
   }

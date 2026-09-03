@@ -317,6 +317,26 @@ const sanitizeEasingParams = (type: number, x: number, easingLeft: number, easin
   };
 };
 
+/**
+ * Normalize a sampled easing value into a lerp progress. Eased segments are
+ * evaluated as `(f(x) - f(l)) / (f(r) - f(l))`; many built-in easings
+ * legitimately overshoot the [0, 1] unit interval (back easings reach
+ * ~1.1 / -0.1, elastic easings oscillate below 0), so the result must NOT be
+ * clamped. The only fixup we want is for the float32/float64 endpoint
+ * mismatch at segment ends (e.g. easeOutSine: f(1) = 1 - cos(π/2) resolves
+ * to 0.9999999999999999 in float64 but exactly 1 once stored in the LUT's
+ * Float32Array). That epsilon is far below any characteristic overshoot
+ * (~1e-16), so snap it to the exact endpoint while leaving true overshoot
+ * untouched. Falls back to a plain ratio when ps === pe.
+ */
+export const sanitizeEasedProgress = (raw: number, ps: number, pe: number): number => {
+  if (pe === ps) return 0;
+  const p = (raw - ps) / (pe - ps);
+  if (Math.abs(p) < 1e-12) return 0;
+  if (Math.abs(p - 1) < 1e-12) return 1;
+  return p;
+};
+
 export const download = async (url: string, name?: string) => {
   name ??= 'file';
   EventBus.emit('loading', 0);
@@ -1027,10 +1047,10 @@ const _getEventValue = (
     // function call per frame; both endpoint values are cached constants.
     const f = event.__f;
     const cx = !x ? 0 : clamp(x, 0, 1);
-    progress = clamp(
-      (f(event.__l! + (event.__r! - event.__l!) * cx) - event.__ps) / (event.__pe - event.__ps),
-      0,
-      1,
+    progress = sanitizeEasedProgress(
+      f(event.__l! + (event.__r! - event.__l!) * cx),
+      event.__ps,
+      event.__pe,
     );
   } else {
     progress = easing(
@@ -1108,7 +1128,7 @@ export const getIntegral = (
       l !== undefined &&
       r !== undefined
     ) {
-      easedAtX = clamp((f(l + (r - l) * px) - event.__ps) / (event.__pe - event.__ps), 0, 1);
+      easedAtX = sanitizeEasedProgress(f(l + (r - l) * px), event.__ps, event.__pe);
     } else {
       const p = sanitizeEasingParams(event.easingType, px, easingLeft, easingRight);
       easedAtX = calculateEasingValue(EASINGS[p.type - 1], p.x, p.easingLeft, p.easingRight);
