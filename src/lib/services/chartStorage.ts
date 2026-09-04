@@ -138,6 +138,7 @@ async function saveChartToIDB(chart: StoredChart): Promise<void> {
       store.put(stored);
       tx.oncomplete = () => {
         db.close();
+        memStore.delete(STORE_NAME, stored.id);
         resolve();
       };
       tx.onerror = () => {
@@ -151,7 +152,8 @@ async function saveChartToIDB(chart: StoredChart): Promise<void> {
 }
 
 async function loadAllChartSummariesFromIDB(): Promise<StoredChartSummary[]> {
-  const mem = toSummaries(memStore.getAll<StoredChartRecord>(STORE_NAME));
+  const memoryRecords = memStore.getAll<StoredChartRecord>(STORE_NAME);
+  const mem = toSummaries(memoryRecords);
   try {
     const db = await openDB();
     const records = await new Promise<StoredChartRecord[]>((resolve, reject) => {
@@ -167,11 +169,9 @@ async function loadAllChartSummariesFromIDB(): Promise<StoredChartSummary[]> {
         reject(request.error);
       };
     });
-    const summaries = toSummaries(records);
-    const seen = new Set(summaries.map((s) => s.id));
-    for (const m of mem) if (!seen.has(m.id)) summaries.push(m);
-    summaries.sort((a, b) => b.updatedAt - a.updatedAt);
-    return summaries;
+    const recordsById = new Map(records.map((record) => [record.id, record]));
+    for (const record of memoryRecords) recordsById.set(record.id, record);
+    return toSummaries(Array.from(recordsById.values()));
   } catch {
     return mem;
   }
@@ -193,6 +193,8 @@ async function loadChartFromIDB(id: string): Promise<StoredChart> {
         reject(request.error);
       };
     });
+    const memoryRecord = memStore.get<StoredChartRecord>(STORE_NAME, id);
+    if (memoryRecord) return unpackChart(memoryRecord);
     if (!record) throw new Error(`Stored chart not found: ${id}`);
     return unpackChart(record);
   } catch (e) {

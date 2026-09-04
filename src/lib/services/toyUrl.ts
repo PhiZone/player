@@ -16,8 +16,6 @@
  * blobs cached or succeeds before conversion).
  *
  * Non-Toy pages pass through: `base` is then `''` (root-absolute paths) and
- * `toyAppBase` returns exactly that, so behavior is unchanged everywhere
- * Non-Toy pages pass through: `base` is then `''` (root-absolute paths) and
  * `toyRootUrl` returns the path unchanged, so behavior is unchanged everywhere
  * else (regular web, Capacitor, Tauri).
  */

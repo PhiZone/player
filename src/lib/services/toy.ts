@@ -1,7 +1,7 @@
 /**
  * Bilibili Toy SDK integration (https://www.bilibili.com/toy/).
  *
- * The Toy JS SDK (v1.6.0) is an official bridge between a Toy page and the
+ * The Toy JS SDK (v1.7.0) is an official bridge between a Toy page and the
  * Bilibili App/Web environment. The SDK script is never loaded on the normal
  * website — it is injected lazily only when the page looks like a Toy page
  * (`https://*.bilibili.com/toy/<slug>/...`), and `window.toy` presence plus
@@ -14,9 +14,9 @@
  *   expected to host a single chart (authors publish one toy per chart).
  * - The first `getUserProfile()` call must be triggered by a user gesture
  *   unless a valid v1/v2 profile grant is already cached by the platform.
- * - Cloud storage is per (logged-in user + toy) and is used here only to
- *   persist the personal-best accuracy next to the official score (the SDK
- *   leaderboard has no accuracy field).
+ * - Cloud storage is per (logged-in user + toy) and is used for the
+ *   personal-best accuracy next to the official score (the SDK leaderboard
+ *   has no accuracy field), and as a last-resort store for small settings.
  * - Scores are integers in [-16777216, 16777215]; Phigros scores
  *   (0..1,000,000) fit. Display is zero-padded to 7 digits.
  */
@@ -79,49 +79,53 @@ const PB_PREFIX = 'pbacc_';
 const TOY_SCORE_MIN = -16777216;
 const TOY_SCORE_MAX = 16777215;
 
-let toyEnvPromise: Promise<boolean> | undefined;
+let toySdkPromise: Promise<ToySdk | null> | undefined;
+const toyAbilityPromises = new Map<string, Promise<boolean>>();
 
 // ── Durable settings via Toy cloud storage ────────────────────────────
-// iOS Safari does not persist localStorage/IndexedDB for the cross-origin
-// sandboxed iframe that hosts Toy pages (it works on Windows/Chrome and in a
-// normal iPad tab, but is wiped on every reload inside the Toy iframe on
-// iPad). The Toy SDK's cloud storage is the only durable store available
-// there.
+// Cloud storage is a small-value fallback for environments where browser
+// storage cannot be used. Large chart, respack and ffmpeg blobs stay in the
+// browser stores or the session memory fallback.
 //
 // Cloud storage constraints (per the SDK docs): keys are
 // `[a-zA-Z0-9_-]{1,128}` (a `__` prefix is reserved), values are strings
 // ≤1024 bytes, and the store is capped at 128 keys per (user + toy). That
 // rules out persisting chart/respack/ffmpeg blobs (MBs each) — those stay
-// session-only on Toy. We use cloud storage only for the small settings
-// JSON (preferences/toggles/mediaOptions/selected respack/last tab), which
-// fits comfortably and is what users expect to survive a reload.
+// session-only when browser storage is unavailable. The settings store uses
+// these helpers only after localStorage and IndexedDB fail.
 const CLOUD_PREFIX = 'app_'; // namespaced under the reserved-safe prefix
+const CLOUD_KEY_MAX = 128;
 const CLOUD_VALUE_MAX = 1024; // SDK hard limit
 
-/** True once the Toy cloud-storage ability is confirmed available. */
-let cloudStorageReady = false;
-
-/** Probe whether durable cloud storage is usable in this environment. */
+/** Probe cloud storage through the SDK capability API. */
 export async function toyCloudStorageAvailable(): Promise<boolean> {
-  if (!(await detectToyEnvironment())) return false;
-  if (cloudStorageReady) return true;
-  try {
-    await window.toy!.getCloudStorage([]);
-    cloudStorageReady = true;
-  } catch {
-    cloudStorageReady = false;
-  }
-  return cloudStorageReady;
+  return supportsToyAbility('getCloudStorage');
 }
 
-const cloudKey = (key: string) => CLOUD_PREFIX + sanitizeKey(key);
+function sanitizeKey(key: string): string {
+  return key.replace(/[^A-Za-z0-9_-]/g, '');
+}
+
+function isValidCloudKey(key: string): boolean {
+  return key.length > 0 && key.length <= CLOUD_KEY_MAX && !key.startsWith('__');
+}
+
+function cloudKey(key: string): string | null {
+  const fullKey = CLOUD_PREFIX + sanitizeKey(key);
+  return isValidCloudKey(fullKey) ? fullKey : null;
+}
+
+function cloudValueFits(value: string): boolean {
+  return new TextEncoder().encode(value).byteLength <= CLOUD_VALUE_MAX;
+}
 
 /** Read a durable value from Toy cloud storage. Null when absent/unavailable. */
 export async function toyCloudGet(key: string): Promise<string | null> {
-  if (!(await toyCloudStorageAvailable())) return null;
+  const storageKey = cloudKey(key);
+  if (!storageKey || !(await toyCloudStorageAvailable())) return null;
   try {
-    const data = await window.toy!.getCloudStorage([cloudKey(key)]);
-    return data[cloudKey(key)] ?? null;
+    const data = await window.toy!.getCloudStorage([storageKey]);
+    return data[storageKey] ?? null;
   } catch (error) {
     console.debug('[ToySDK] getCloudStorage failed:', error);
     return null;
@@ -130,10 +134,11 @@ export async function toyCloudGet(key: string): Promise<string | null> {
 
 /** Write a durable value to Toy cloud storage. Returns false on failure. */
 export async function toyCloudSet(key: string, value: string): Promise<boolean> {
-  if (!(await toyCloudStorageAvailable())) return false;
-  if (value.length > CLOUD_VALUE_MAX) return false;
+  const storageKey = cloudKey(key);
+  if (!storageKey || !(await supportsToyAbility('setCloudStorage'))) return false;
+  if (!cloudValueFits(value)) return false;
   try {
-    await window.toy!.setCloudStorage({ [cloudKey(key)]: value });
+    await window.toy!.setCloudStorage({ [storageKey]: value });
     return true;
   } catch (error) {
     console.debug('[ToySDK] setCloudStorage failed:', error);
@@ -143,9 +148,10 @@ export async function toyCloudSet(key: string, value: string): Promise<boolean> 
 
 /** Remove a durable value from Toy cloud storage. */
 export async function toyCloudRemove(key: string): Promise<void> {
-  if (!(await toyCloudStorageAvailable())) return;
+  const storageKey = cloudKey(key);
+  if (!storageKey || !(await supportsToyAbility('removeCloudStorage'))) return;
   try {
-    await window.toy!.removeCloudStorage([cloudKey(key)]);
+    await window.toy!.removeCloudStorage([storageKey]);
   } catch (error) {
     console.debug('[ToySDK] removeCloudStorage failed:', error);
   }
@@ -155,15 +161,11 @@ export async function toyCloudRemove(key: string): Promise<void> {
 export const padToyScore = (score: number): string =>
   String(Math.max(0, Math.min(TOY_SCORE_MAX, Math.round(score)))).padStart(7, '0');
 
-// Synchronous mirror of the Toy-environment detection, driven by the official
-// `isSupport` probe once it resolves. Synchronous call sites (asset URL
-// rewriting, full-page navigation URL rewriting) read this instead of
-// guessing from the hostname/pathname. It is `false` until the first
-// `detectToyEnvironment()` resolves, so those call sites only rewrite after
-// the SDK confirmed the environment.
+// Synchronous mirror of an official `isSupport` probe. Synchronous call sites
+// read this instead of guessing from the hostname/pathname.
 let toyEnvSync = false;
 
-/** True once the SDK's `isSupport` probe confirmed a Toy environment. */
+/** True once an SDK capability probe confirms a Toy environment. */
 export function isToyEnvironmentSync(): boolean {
   return toyEnvSync;
 }
@@ -188,6 +190,35 @@ function injectSdkScript(): Promise<void> {
   });
 }
 
+async function ensureToySdk(): Promise<ToySdk | null> {
+  if (typeof window === 'undefined') return null;
+  if (window.toy) return window.toy;
+  if (!looksLikeToyPage()) return null;
+  toySdkPromise ??= injectSdkScript()
+    .then(() => window.toy ?? null)
+    .catch(() => null);
+  return toySdkPromise;
+}
+
+function supportsToyAbility(ability: string): Promise<boolean> {
+  const existing = toyAbilityPromises.get(ability);
+  if (existing) return existing;
+  const promise = (async () => {
+    const sdk = await ensureToySdk();
+    if (!sdk) return false;
+    let supported = false;
+    try {
+      supported = await sdk.isSupport(ability);
+    } catch {
+      return false;
+    }
+    if (supported) toyEnvSync = true;
+    return supported;
+  })();
+  toyAbilityPromises.set(ability, promise);
+  return promise;
+}
+
 /** True once `window.toy` is present (script loaded). */
 export function isToyEnvironment(): boolean {
   return typeof window !== 'undefined' && !!window.toy;
@@ -200,27 +231,8 @@ export function isToyEnvironment(): boolean {
  * SDK script outside of Toy pages.
  */
 export function detectToyEnvironment(): Promise<boolean> {
-  toyEnvPromise ??= (async () => {
-    try {
-      if (isToyEnvironment()) {
-        const ok = await window.toy!.isSupport('getUserProfile').catch(() => false);
-        toyEnvSync = ok;
-        return ok;
-      }
-      if (!looksLikeToyPage()) return false;
-      await injectSdkScript();
-      if (!isToyEnvironment()) return false;
-      const ok = await window.toy!.isSupport('getUserProfile').catch(() => false);
-      toyEnvSync = ok;
-      return ok;
-    } catch {
-      return false;
-    }
-  })();
-  return toyEnvPromise;
+  return supportsToyAbility('getUserProfile');
 }
-
-const sanitizeKey = (key: string) => key.replace(/[^A-Za-z0-9_-]/g, '');
 
 /** Ask the platform for the current user's profile (consent dialog on first
  * grant). Returns null when unavailable or rejected (e.g. outside a gesture). */
@@ -239,7 +251,7 @@ export async function toyGetRankList(
   board: ToyBoard = TOY_SCORE_BOARD,
   limit = 20,
 ): Promise<ToyRankItem[] | null> {
-  if (!(await detectToyEnvironment())) return null;
+  if (!(await supportsToyAbility('getRankList'))) return null;
   try {
     return await window.toy!.getRankList({ board, period: 'all', limit });
   } catch (error) {
@@ -250,7 +262,7 @@ export async function toyGetRankList(
 
 /** Read the current user's rank on a chart leaderboard (login required). */
 export async function toyGetMyRank(board: ToyBoard = TOY_SCORE_BOARD): Promise<ToyMyRank | null> {
-  if (!(await detectToyEnvironment())) return null;
+  if (!(await supportsToyAbility('getMyRank'))) return null;
   try {
     return await window.toy!.getMyRank({ board, period: 'all' });
   } catch (error) {
@@ -264,7 +276,7 @@ export async function toySubmitScore(
   board: ToyBoard = TOY_SCORE_BOARD,
   score: number,
 ): Promise<boolean> {
-  if (!(await detectToyEnvironment())) return false;
+  if (!(await supportsToyAbility('submitScore'))) return false;
   const clamped = Math.min(TOY_SCORE_MAX, Math.max(TOY_SCORE_MIN, Math.round(score)));
   try {
     await window.toy!.submitScore({ board, score: clamped });
@@ -277,9 +289,9 @@ export async function toySubmitScore(
 
 /** Read the stored personal best for a chart (score + accuracy). */
 export async function toyGetPersonalBest(chartKey: string): Promise<ToyPersonalBest | null> {
-  if (!(await detectToyEnvironment())) return null;
+  const key = PB_PREFIX + sanitizeKey(chartKey);
+  if (!isValidCloudKey(key) || !(await supportsToyAbility('getCloudStorage'))) return null;
   try {
-    const key = PB_PREFIX + sanitizeKey(chartKey);
     const data = await window.toy!.getCloudStorage([key]);
     const raw = data[key];
     if (!raw) return null;
@@ -297,14 +309,22 @@ export async function toySavePersonalBest(
   score: number,
   accuracy: number,
 ): Promise<void> {
-  if (!(await detectToyEnvironment())) return;
+  const key = PB_PREFIX + sanitizeKey(chartKey);
+  if (
+    !isValidCloudKey(key) ||
+    !(await supportsToyAbility('getCloudStorage')) ||
+    !(await supportsToyAbility('setCloudStorage'))
+  ) {
+    return;
+  }
   try {
-    const key = PB_PREFIX + sanitizeKey(chartKey);
     const data = await window.toy!.getCloudStorage([key]);
     const previous = data[key] ? (JSON.parse(data[key]) as ToyPersonalBest) : null;
     if (previous && previous.score >= score) return;
+    const value = JSON.stringify({ score, accuracy, updatedAt: Date.now() });
+    if (!cloudValueFits(value)) return;
     await window.toy!.setCloudStorage({
-      [key]: JSON.stringify({ score, accuracy, updatedAt: Date.now() }),
+      [key]: value,
     });
   } catch (error) {
     console.debug('[ToySDK] setCloudStorage failed:', error);
@@ -317,9 +337,9 @@ export async function toySavePersonalBest(
  * (cloud storage is scoped per toy and capped at 128 keys).
  */
 export async function toyClearPersonalBest(chartKey: string): Promise<void> {
-  if (!(await detectToyEnvironment())) return;
+  const key = PB_PREFIX + sanitizeKey(chartKey);
+  if (!isValidCloudKey(key) || !(await supportsToyAbility('removeCloudStorage'))) return;
   try {
-    const key = PB_PREFIX + sanitizeKey(chartKey);
     await window.toy!.removeCloudStorage([key]);
   } catch (error) {
     console.debug('[ToySDK] removeCloudStorage failed:', error);

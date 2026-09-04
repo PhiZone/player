@@ -320,7 +320,7 @@
   {:else}
     <div
       class={cn(
-        'grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5',
+        'grid grid-cols-2 items-start gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5',
         segment === 'packs' && 'lg:grid-cols-3 xl:grid-cols-4',
       )}
     >
@@ -341,7 +341,7 @@
             <Card
               size="sm"
               class={cn(
-                'h-full rounded-xl transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-primary/50 group-hover:shadow-lg group-hover:shadow-primary/10',
+                'rounded-xl transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-primary/50 group-hover:shadow-lg group-hover:shadow-primary/10',
                 // The first three online charts own the toy's leaderboard
                 // boards — highlight their card edges so players spot the
                 // charts that carry a live leaderboard.
@@ -350,16 +350,20 @@
                   'border-violet-400/70 shadow-md shadow-violet-500/20 group-hover:border-violet-400/90',
               )}
             >
-              <div class="relative aspect-[4/3] w-full overflow-hidden bg-muted">
+              <div
+                class="discover-card-media-chart relative aspect-[4/3] w-full overflow-hidden bg-muted"
+              >
                 {#if item.cover}
                   <img
                     src={item.cover.url}
                     alt={item.title}
                     loading="lazy"
-                    class="size-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    class="discover-media-content size-full object-cover transition-transform duration-300 group-hover:scale-105"
                   />
                 {:else}
-                  <div class="flex size-full items-center justify-center text-muted-foreground">
+                  <div
+                    class="discover-media-content flex size-full items-center justify-center text-muted-foreground"
+                  >
                     <MusicIcon class="size-8 opacity-40" />
                   </div>
                 {/if}
@@ -440,18 +444,22 @@
           >
             <Card
               size="sm"
-              class="h-full rounded-xl transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-primary/50 group-hover:shadow-lg group-hover:shadow-primary/10"
+              class="rounded-xl transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-primary/50 group-hover:shadow-lg group-hover:shadow-primary/10"
             >
-              <div class="relative aspect-[16/9] w-full overflow-hidden bg-muted">
+              <div
+                class="discover-card-media-pack relative aspect-[16/9] w-full overflow-hidden bg-muted"
+              >
                 {#if item.cover}
                   <img
                     src={item.cover.url}
                     alt={item.name}
                     loading="lazy"
-                    class="size-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    class="discover-media-content size-full object-cover transition-transform duration-300 group-hover:scale-105"
                   />
                 {:else}
-                  <div class="flex size-full items-center justify-center text-muted-foreground">
+                  <div
+                    class="discover-media-content flex size-full items-center justify-center text-muted-foreground"
+                  >
                     <PaletteIcon class="size-8 opacity-40" />
                   </div>
                 {/if}
@@ -499,7 +507,14 @@
       {/if}
       {#if loading}
         {#each Array(8) as _}
-          <Skeleton class="aspect-[4/3] w-full rounded-xl" />
+          <Skeleton
+            class={cn(
+              'w-full rounded-xl',
+              segment === 'charts'
+                ? 'discover-card-media-chart aspect-[4/3]'
+                : 'discover-card-media-pack aspect-[16/9]',
+            )}
+          />
         {/each}
       {/if}
     </div>
@@ -555,7 +570,7 @@
 
       {#if detailLoading}
         <div class="space-y-3">
-          <Skeleton class="aspect-[16/9] w-full rounded-xl" />
+          <Skeleton class="discover-detail-media aspect-[16/9] w-full rounded-xl" />
           <Skeleton class="h-4 w-2/3" />
           <Skeleton class="h-4 w-1/2" />
         </div>
@@ -569,11 +584,19 @@
         </div>
       {:else if detail}
         <div class="space-y-4">
-          <div class="relative aspect-[16/9] w-full overflow-hidden rounded-xl bg-muted">
+          <div
+            class="discover-detail-media relative aspect-[16/9] w-full overflow-hidden rounded-xl bg-muted"
+          >
             {#if detail.cover}
-              <img src={detail.cover.url} alt={detailTitle} class="size-full object-cover" />
+              <img
+                src={detail.cover.url}
+                alt={detailTitle}
+                class="discover-media-content size-full object-cover"
+              />
             {:else}
-              <div class="flex size-full items-center justify-center text-muted-foreground">
+              <div
+                class="discover-media-content flex size-full items-center justify-center text-muted-foreground"
+              >
                 <MusicIcon class="size-10 opacity-40" />
               </div>
             {/if}

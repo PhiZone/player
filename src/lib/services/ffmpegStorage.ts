@@ -21,6 +21,7 @@ export async function saveFFmpegBlob(key: string, blob: Blob): Promise<void> {
       store.put({ key, data: blob } satisfies StoredFFmpegBlob);
       tx.oncomplete = () => {
         db.close();
+        memStore.delete(STORE_NAME, key);
         resolve();
       };
       tx.onerror = () => {
@@ -43,7 +44,7 @@ export async function loadFFmpegBlob(key: string): Promise<Blob | null> {
       request.onsuccess = () => {
         db.close();
         const stored = request.result as StoredFFmpegBlob | undefined;
-        resolve(stored?.data ?? null);
+        resolve(memStore.get<StoredFFmpegBlob>(STORE_NAME, key)?.data ?? stored?.data ?? null);
       };
       request.onerror = () => {
         db.close();

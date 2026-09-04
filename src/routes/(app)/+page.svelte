@@ -111,7 +111,6 @@
     loadAllRespacks,
     deleteRespack as deleteStoredRespack,
     saveSelectedRespack,
-    loadSelectedRespack,
   } from '$lib/services/respackStorage';
   import { tauriInvoke } from '$lib/services/tauriIpc';
   import { fsReadFile } from '$lib/services/tauriFsBridge';
@@ -370,9 +369,15 @@
   };
 
   onMount(async () => {
-    // Restore the last landing tab from durable storage (Toy cloud storage
-    // on Toy, otherwise localStorage). Do this before the first await that
-    // renders the tab view so the user lands where they left off.
+    // Resolve Toy login before reading settings so the cloud fallback is
+    // authenticated when browser storage is unavailable.
+    if (await detectToyEnvironment()) {
+      toyUser = await toyGetUserProfile();
+      toyLoginRequired = toyUser === null;
+    }
+
+    // Restore the last landing tab before the first await that renders the
+    // tab view so the user lands where they left off.
     const lastTab = await toySettingsGet(LAST_TAB_KEY);
     if (lastTab === 'library' || lastTab === 'discover') activeTab = lastTab;
 
@@ -397,8 +402,7 @@
         resourcePacks.push(...storedPacks);
         resourcePacks = resourcePacks;
       }
-      const storedSelection =
-        (await toySettingsGet('selectedResourcePack')) ?? loadSelectedRespack();
+      const storedSelection = await toySettingsGet('selectedResourcePack');
       if (storedSelection && resourcePacks.some((p) => p.id === storedSelection)) {
         selectedResourcePack = storedSelection;
       }
@@ -414,15 +418,6 @@
     rebuildInstalledOnlineIds();
 
     await init();
-
-    // Bilibili Toy environment: ask for the user's profile (the platform
-    // shows its own consent dialog on first grant; a prior v2 grant is
-    // reused silently). If the call needs a user gesture, the top bar shows
-    // a login button instead.
-    if (await detectToyEnvironment()) {
-      toyUser = await toyGetUserProfile();
-      toyLoginRequired = toyUser === null;
-    }
 
     // The player may have saved an offset-adjusted chart (this window, or
     // another window/tab) — reload it so reopening applies the new offset.
@@ -1887,19 +1882,9 @@
 
   const shouldSaveImport = () => !automate && !isProgrammaticImport;
 
-  const getDuplicateChoice = (): 'ask' | 'overwrite' | 'load' => {
-    const value = localStorage.getItem(DUPLICATE_CHOICE_KEY);
-    return value === 'overwrite' || value === 'load' ? value : 'ask';
-  };
-
   const resolveDuplicateChoice = async (): Promise<'overwrite' | 'load'> => {
-    // On Toy, the remembered choice lives in cloud storage; prefer it over
-    // the (ephemeral) localStorage copy.
-    const durable =
-      (await toySettingsGet(DUPLICATE_CHOICE_KEY)) ?? localStorage.getItem(DUPLICATE_CHOICE_KEY);
+    const durable = await toySettingsGet(DUPLICATE_CHOICE_KEY);
     if (durable === 'overwrite' || durable === 'load') return durable;
-    const remembered = getDuplicateChoice();
-    if (remembered !== 'ask') return remembered;
     duplicateModalMem = false;
     duplicateModalOpen = true;
     return new Promise<'overwrite' | 'load'>((resolve) => {

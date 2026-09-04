@@ -8,6 +8,7 @@ import type {
 } from '$lib/types';
 import { openDB } from './idb';
 import { memStore } from './memStore';
+import { toySettingsSet } from './toySettingsStore';
 
 const STORE_NAME = 'resource_packs';
 const SELECTED_KEY = 'selectedResourcePack';
@@ -174,6 +175,7 @@ export async function saveRespack(pack: ResourcePackWithId<File>): Promise<void>
       store.put(stored);
       tx.oncomplete = () => {
         db.close();
+        memStore.delete(STORE_NAME, stored.id);
         resolve();
       };
       tx.onerror = () => {
@@ -187,7 +189,8 @@ export async function saveRespack(pack: ResourcePackWithId<File>): Promise<void>
 }
 
 export async function loadAllRespacks(): Promise<ResourcePackWithId<File>[]> {
-  const mem = memStore.getAll<StoredResourcePack>(STORE_NAME).map(unpackRespack);
+  const memoryRecords = memStore.getAll<StoredResourcePack>(STORE_NAME);
+  const mem = memoryRecords.map(unpackRespack);
   try {
     const db = await openDB();
     const stored = await new Promise<StoredResourcePack[]>((resolve, reject) => {
@@ -203,10 +206,9 @@ export async function loadAllRespacks(): Promise<ResourcePackWithId<File>[]> {
         reject(request.error);
       };
     });
-    const storedPacks = stored.map(unpackRespack);
-    const seen = new Set(storedPacks.map((p) => p.id));
-    for (const m of mem) if (!seen.has(m.id)) storedPacks.push(m);
-    return storedPacks;
+    const recordsById = new Map(stored.map((pack) => [pack.id, pack]));
+    for (const pack of memoryRecords) recordsById.set(pack.id, pack);
+    return Array.from(recordsById.values()).map(unpackRespack);
   } catch {
     return mem;
   }
@@ -235,18 +237,11 @@ export async function deleteRespack(id: string): Promise<void> {
 }
 
 export function saveSelectedRespack(id: string): void {
-  try {
-    localStorage.setItem(SELECTED_KEY, id);
-  } catch {
-    /* ignore */
-  }
-  void import('./toySettingsStore').then(({ toySettingsSet }) => toySettingsSet(SELECTED_KEY, id));
+  void toySettingsSet(SELECTED_KEY, id);
 }
 
 export function loadSelectedRespack(): string | null {
-  // Synchronous callers expect a string here; on Toy the durable copy comes
-  // from cloud storage via the (async) settings store, handled in the page —
-  // this remains the localStorage read for non-Toy environments.
+  // Kept for synchronous callers; the app uses toySettingsGet for restoration.
   try {
     return localStorage.getItem(SELECTED_KEY);
   } catch {
