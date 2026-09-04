@@ -5,7 +5,8 @@
  *
  * On a Toy page, `$app/paths` `base` is the *current route's* base:
  * `/toy/<slug>` on the landing page but `/toy/<slug>/play` on the play page
- * (and `/toy/preview/<preview-id>` for preview pages)
+ * (and `/toy/preview/<preview-id>` or `/toy/<slug>/<toy-id>-v<version>`
+ * for preview and production pages)
  * (each prerendered page inlines `base: new URL(".", location).pathname...`
  * and the build's URL-normalization keeps trailing-slash routes).
  *
@@ -24,8 +25,8 @@ import { isToyEnvironmentSync } from './toy';
 
 /**
  * Resolve a URL against the *app root*. `path` is typically the `$app/paths`
- * base (`''`, `/toy/<slug>`/`/toy/<slug>/play`, or
- * `/toy/preview/<preview-id>`) joined with a static dir
+ * base (`''`, `/toy/<slug>`/`/toy/<slug>/play`, `/toy/preview/<preview-id>`,
+ * or `/toy/<slug>/<toy-id>-v<version>`) joined with a static dir
  * like `/ffmpeg`. On Toy pages this returns
  * `https://host/toy/<slug><rest>` regardless of the current route. Outside
  * Toy, root-relative URLs already point at the app root, so `path` is
@@ -36,12 +37,14 @@ export function toyRootUrl(path: string): string {
   return rebaseToAppRoot(path);
 }
 
-/** The current page's app root: `/toy/<slug>` or `/toy/preview/preview_<id>`. */
+/** The current page's app root, including Toy's preview or production mount. */
 function currentAppRoot(): string | null {
   if (typeof window === 'undefined') return null;
   const pathname = window.location.pathname;
   const preview = pathname.match(/^(\/toy\/preview\/preview_[^/]+)/);
   if (preview) return preview[1];
+  const production = pathname.match(/^(\/toy\/[^/]+\/[^/]+-v\d+)/);
+  if (production) return production[1];
   const m = pathname.match(/^(\/toy\/[^/]+)/);
   return m?.[1] ?? null;
 }
