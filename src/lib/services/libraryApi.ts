@@ -1,5 +1,5 @@
 /**
- * Typed client for the PhiZone Player library API (https://player-api.phi.zone).
+ * Typed client for the PhiZone Player library API (https://player-api.phizone.cn).
  *
  * Public read endpoints only — no auth, no user concept; every item is
  * publicly available content. Types mirror the API's OpenAPI schemas
@@ -83,7 +83,7 @@ export interface ApiListQuery {
 }
 
 const API_BASE: string =
-  (import.meta.env.PUBLIC_API_BASE_URL as string | undefined) ?? 'https://player-api.phi.zone';
+  (import.meta.env.PUBLIC_API_BASE_URL as string | undefined) ?? 'https://player-api.phizone.cn';
 
 const toQuery = (query: ApiListQuery): string => {
   const qs = new URLSearchParams();
