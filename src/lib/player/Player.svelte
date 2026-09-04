@@ -41,6 +41,21 @@
   import { tauriInvoke } from '$lib/services/tauriIpc';
   import { detectToyEnvironment } from '$lib/services/toy';
   import { pathSep, openPath } from '$lib/services/tauriFsBridge';
+  import { Button } from '$lib/components/ui/button';
+  import FileIcon from '@lucide/svelte/icons/file';
+  import FolderOpenIcon from '@lucide/svelte/icons/folder-open';
+  import XIcon from '@lucide/svelte/icons/x';
+  import HouseIcon from '@lucide/svelte/icons/house';
+  import RotateCwIcon from '@lucide/svelte/icons/rotate-cw';
+  import PlayIcon from '@lucide/svelte/icons/play';
+  import SaveIcon from '@lucide/svelte/icons/save';
+  import PlusIcon from '@lucide/svelte/icons/plus';
+  import MinusIcon from '@lucide/svelte/icons/minus';
+  import ChevronsLeftIcon from '@lucide/svelte/icons/chevrons-left';
+  import ChevronLeftIcon from '@lucide/svelte/icons/chevron-left';
+  import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
+  import ChevronsRightIcon from '@lucide/svelte/icons/chevrons-right';
+  import SmartphoneIcon from '@lucide/svelte/icons/smartphone';
   import {
     computeChartChecksum,
     loadAllChartSummaries,
@@ -636,39 +651,48 @@
   </div>
   <div class="absolute bottom-5">
     <div
-      class="p-3 flex flex-col gap-3 justify-center items-center rounded-full backdrop-blur-2xl backdrop-brightness-[60%] hover:backdrop-blur-3xl hover:backdrop-brightness-[35%] trans uppercase"
+      class="player-action-surface p-3 flex flex-col gap-3 justify-center items-center uppercase"
     >
       {#if renderingOutput}
         {#if IS_TAURI_LIKE}
-          <div class="flex gap-2 w-96">
-            <button
-              class="btn btn-outline border-2 btn-success text-xl rounded-full flex-1"
+          <div class="flex w-full max-w-sm gap-2">
+            <Button
+              variant="ghost"
+              size="lg"
+              class="player-action flex-1"
               onclick={async () => {
                 await openPath(renderingOutput);
               }}
             >
+              <FileIcon class="size-5" />
               {m.open_file()}
-            </button>
-            <button
-              class="btn btn-outline border-2 btn-info text-xl rounded-full flex-1"
+            </Button>
+            <Button
+              variant="ghost"
+              size="lg"
+              class="player-action flex-1"
               onclick={async () => {
                 const separator = await pathSep();
                 await openPath(renderingOutput.split(separator).slice(0, -1).join(separator));
               }}
             >
+              <FolderOpenIcon class="size-5" />
               {m.open_folder()}
-            </button>
+            </Button>
           </div>
         {/if}
       {:else}
-        <button
-          class="btn btn-outline border-2 btn-error text-xl rounded-full"
+        <Button
+          variant="ghost"
+          size="lg"
+          class="player-action"
           onclick={async () => {
             await gameRef.scene?.chartRenderer.cancel();
           }}
         >
+          <XIcon class="size-5" />
           {m.cancel()}
-        </button>
+        </Button>
       {/if}
     </div>
   </div>
@@ -733,8 +757,10 @@
         {/if}
       </div>
     {/if}
-    <button
-      class="btn btn-outline border-2 btn-lg rounded-full text-2xl w-fit"
+    <Button
+      variant="ghost"
+      size="lg"
+      class="player-action h-12 px-6 text-lg"
       onclick={() => {
         setTimeout(() => {
           showStart = false;
@@ -742,21 +768,34 @@
         gameRef.scene?.start();
       }}
     >
+      <PlayIcon class="size-6 fill-current" />
       {m.start()}
-    </button>
+    </Button>
   {:else if showPause}
     <div class="flex flex-col gap-4 items-center">
-      <h2 class="text-6xl font-bold uppercase">{m.paused()}</h2>
-      <div class="flex gap-2">
-        <button class="btn btn-outline border-2 btn-lg btn-circle trans" onclick={exit}>
+      <h2
+        class="bg-gradient-to-r from-violet-200 via-white to-fuchsia-200 bg-clip-text text-6xl font-bold uppercase text-transparent"
+      >
+        {m.paused()}
+      </h2>
+      <div class="player-action-surface flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          class="player-action player-action-icon trans"
+          aria-label={!config || config.newTab ? m.close() : 'Home'}
+          onclick={exit}
+        >
           {#if !config || config.newTab}
-            <i class="fa-solid fa-xmark fa-xl"></i>
+            <XIcon class="size-6" />
           {:else}
-            <i class="fa-solid fa-house fa-xl"></i>
+            <HouseIcon class="size-6" />
           {/if}
-        </button>
-        <button
-          class="btn btn-outline border-2 btn-lg rounded-full text-2xl w-fit trans"
+        </Button>
+        <Button
+          variant="ghost"
+          size="lg"
+          class="player-action trans"
           onclick={() => {
             setTimeout(() => {
               showPause = false;
@@ -765,10 +804,13 @@
             gameRef.scene?.restart();
           }}
         >
+          <RotateCwIcon class="size-5" />
           {m.restart()}
-        </button>
-        <button
-          class="btn btn-outline border-2 btn-lg rounded-full text-2xl w-fit trans"
+        </Button>
+        <Button
+          variant="ghost"
+          size="lg"
+          class="player-action trans"
           onclick={() => {
             setTimeout(() => {
               showPause = false;
@@ -788,8 +830,9 @@
             }
           }}
         >
+          <PlayIcon class="size-5 fill-current" />
           {m.resume()}
-        </button>
+        </Button>
       </div>
     </div>
   {/if}
@@ -799,15 +842,17 @@
   <div
     class="absolute inset-0 z-50 flex flex-col justify-center items-center gap-6 p-8 text-center bg-black/70 backdrop-blur-2xl"
   >
-    <button
-      class="btn btn-outline border-2 btn-circle absolute top-5 right-5"
+    <Button
+      variant="ghost"
+      size="icon"
+      class="player-action player-action-icon absolute top-5 right-5"
       aria-label={m.close()}
       onclick={dismissRotationPrompt}
     >
-      <i class="fa-solid fa-xmark fa-xl"></i>
-    </button>
+      <XIcon class="size-6" />
+    </Button>
     <div class="rotate-device-animation text-7xl">
-      <i class="fa-solid fa-mobile-screen"></i>
+      <SmartphoneIcon class="size-24" />
     </div>
     <h2 class="text-4xl font-bold">{m.rotate_device()}</h2>
     <span class="text-xl opacity-70">{m.rotate_device_description()}</span>
@@ -816,9 +861,11 @@
 
 {#if allowSeek}
   <div
-    class="absolute bottom-5 px-4 py-2 w-[75vw] flex flex-col gap-4 opacity-0 trans {enableOffsetHelper
+    class="progress-area absolute bottom-5 px-4 py-2 w-[75vw] flex flex-col gap-4 opacity-0 trans {enableOffsetHelper
       ? 'rounded-3xl'
       : 'rounded-full'}"
+    class:progress-area-active={progressBarHeld}
+    class:progress-area-hoverable={enableOffsetHelper}
     class:opacity-50={!enableOffsetHelper &&
       (keyboardSeeking || showPause) &&
       status !== GameStatus.PLAYING &&
@@ -868,11 +915,23 @@
           <span class="offset-text offset-with-ms">
             {offset >= 0 ? '+' : '-'}{Math.abs(offset).toFixed(0)} ms
           </span>
-          <div class="flex gap-2">
-            <div class="join rounded-full">
+          <div
+            class="flex items-center gap-1.5 rounded-2xl border border-white/10 bg-black/20 p-1 shadow-lg backdrop-blur-xl"
+          >
+            <div class="player-segment-group">
               {#each Array(6) as _, i}
-                <button
-                  class="btn btn-sm btn-square btn-outline join-item"
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  class="player-segment border-r border-white/10 last:border-r-0"
+                  aria-label={[
+                    'Decrease offset by 50 milliseconds',
+                    'Decrease offset by 10 milliseconds',
+                    'Decrease offset by 1 millisecond',
+                    'Increase offset by 1 millisecond',
+                    'Increase offset by 10 milliseconds',
+                    'Increase offset by 50 milliseconds',
+                  ][i]}
                   onclick={() => {
                     offset += [-50, -10, -1, 1, 10, 50][i];
                     isOffsetAdjustedChartExported = false;
@@ -884,23 +943,25 @@
                   }}
                 >
                   {#if i === 0}
-                    <i class="fa-solid fa-angles-left"></i>
+                    <ChevronsLeftIcon class="size-4" />
                   {:else if i === 1}
-                    <i class="fa-solid fa-angle-left"></i>
+                    <ChevronLeftIcon class="size-4" />
                   {:else if i === 2}
-                    <i class="fa-solid fa-minus"></i>
+                    <MinusIcon class="size-4" />
                   {:else if i === 3}
-                    <i class="fa-solid fa-plus"></i>
+                    <PlusIcon class="size-4" />
                   {:else if i === 4}
-                    <i class="fa-solid fa-angle-right"></i>
+                    <ChevronRightIcon class="size-4" />
                   {:else if i === 5}
-                    <i class="fa-solid fa-angles-right"></i>
+                    <ChevronsRightIcon class="size-4" />
                   {/if}
-                </button>
+                </Button>
               {/each}
             </div>
-            <button
-              class="btn btn-sm btn-circle btn-outline"
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              class="player-segment-action"
               aria-label={m.save_offset_chart()}
               title={m.save_offset_chart()}
               onclick={() => {
@@ -910,8 +971,8 @@
                 e.preventDefault();
               }}
             >
-              <i class="fa-solid fa-floppy-disk"></i>
-            </button>
+              <SaveIcon class="size-4" />
+            </Button>
           </div>
         </div>
       </div>
@@ -924,7 +985,7 @@
         max={duration}
         value={timeSec}
         step="0.001"
-        class="range cursor-default"
+        class="range cursor-default w-full"
         class:hover:cursor-pointer={(keyboardSeeking || showPause) &&
           status !== GameStatus.LOADING &&
           status !== GameStatus.READY &&
@@ -959,7 +1020,7 @@
     </div>
   </div>
   <div
-    class="absolute right-5 px-2 py-2 join join-vertical opacity-0 trans rounded-full backdrop-blur-lg hover:backdrop-blur-2xl hover:backdrop-brightness-75"
+    class="player-speed-surface absolute right-5 opacity-0 trans"
     class:opacity-50={!enableOffsetHelper &&
       (keyboardSeeking || showPause) &&
       status !== GameStatus.PLAYING &&
@@ -985,8 +1046,10 @@
       status === GameStatus.FINISHED ||
       (status === GameStatus.PLAYING && timeSec === duration)}
   >
-    <button
-      class="btn btn-outline join-item"
+    <Button
+      variant="ghost"
+      size="icon"
+      class="player-speed-button"
       aria-label="Speed up"
       onclick={() => {
         if (!gameRef.scene) return;
@@ -1001,10 +1064,12 @@
         e.preventDefault();
       }}
     >
-      <i class="fa-solid fa-plus fa-xl"></i>
-    </button>
-    <button
-      class="btn w-16 h-16 btn-outline join-item text-2xl whitespace-nowrap"
+      <PlusIcon class="size-6" />
+    </Button>
+    <Button
+      variant="ghost"
+      size="icon"
+      class="player-speed-button text-base font-semibold tabular-nums"
       aria-label="Reset to normal speed"
       onclick={() => {
         if (!gameRef.scene) return;
@@ -1023,9 +1088,11 @@
         ? '~'
         : '×'}
       {gameRef.scene ? gameRef.scene.timeScale.toFixed(1) : '?'}
-    </button>
-    <button
-      class="btn btn-outline join-item"
+    </Button>
+    <Button
+      variant="ghost"
+      size="icon"
+      class="player-speed-button"
       aria-label="Speed down"
       onclick={() => {
         if (!gameRef.scene) return;
@@ -1040,8 +1107,8 @@
         e.preventDefault();
       }}
     >
-      <i class="fa-solid fa-minus fa-xl"></i>
-    </button>
+      <MinusIcon class="size-6" />
+    </Button>
   </div>
 {/if}
 
@@ -1052,28 +1119,32 @@
     class:pointer-events-none={status !== GameStatus.FINISHED && !stillLoading}
   >
     {#if status === GameStatus.FINISHED && !config?.render}
-      <button
-        class="btn btn-outline border-2 btn-lg btn-circle"
+      <Button
+        variant="ghost"
+        size="icon"
+        class="player-action player-action-icon"
         aria-label="Restart"
         onclick={() => {
           status = GameStatus.LOADING;
           gameRef.scene?.restart();
         }}
       >
-        <i class="fa-solid fa-arrow-rotate-right fa-xl"></i>
-      </button>
+        <RotateCwIcon class="size-6" />
+      </Button>
     {/if}
-    <button
-      class="btn btn-outline border-2 btn-lg btn-circle"
+    <Button
+      variant="ghost"
+      size="icon"
+      class="player-action player-action-icon"
       aria-label={!config || config.newTab ? 'Close' : 'Home'}
       onclick={exit}
     >
       {#if !config || config.newTab}
-        <i class="fa-solid fa-xmark fa-xl"></i>
+        <XIcon class="size-6" />
       {:else}
-        <i class="fa-solid fa-house fa-xl"></i>
+        <HouseIcon class="size-6" />
       {/if}
-    </button>
+    </Button>
   </div>
 {/if}
 
@@ -1087,6 +1158,47 @@
   .trans {
     transition-timing-function: cubic-bezier(0.165, 0.84, 0.44, 1);
     @apply transition duration-300;
+  }
+  .player-action-surface {
+    @apply rounded-2xl border border-white/10 bg-black/20 p-1.5 shadow-xl backdrop-blur-xl;
+  }
+  :global(.player-action) {
+    @apply h-10 rounded-full border border-white/15 bg-white/5 px-4 text-sm font-semibold text-white/90 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-white/30 hover:bg-white/10 hover:text-white hover:shadow-lg focus-visible:ring-2 focus-visible:ring-white/40;
+  }
+  :global(.player-action-icon) {
+    @apply h-10 w-10 p-0;
+  }
+  :global(.player-segment-group) {
+    @apply flex overflow-hidden rounded-xl border border-white/10 bg-white/5;
+  }
+  :global(.player-segment) {
+    @apply h-8 w-8 rounded-none p-0 text-white/70 hover:bg-white/10 hover:text-white;
+  }
+  :global(.player-segment-action) {
+    @apply h-8 w-8 rounded-xl border border-white/10 bg-white/5 p-0 text-white/70 hover:bg-white/10 hover:text-white;
+  }
+  :global(.player-speed-surface) {
+    @apply flex flex-col gap-1 rounded-2xl border border-white/10 bg-black/20 p-1 shadow-xl backdrop-blur-xl;
+  }
+  :global(.player-speed-button) {
+    @apply h-9 w-12 rounded-xl p-0 text-white/80 hover:bg-white/10 hover:text-white;
+  }
+  .progress-area {
+    @apply bg-black/10 shadow-lg shadow-black/10;
+    border: 1px solid transparent;
+    transition-property:
+      backdrop-filter,
+      -webkit-backdrop-filter,
+      border-color,
+      background-color,
+      box-shadow,
+      opacity;
+    transition-duration: 300ms;
+    transition-timing-function: cubic-bezier(0.165, 0.84, 0.44, 1);
+  }
+  .progress-area-active,
+  .progress-area-hoverable:hover {
+    border-color: rgb(255 255 255 / 0.16);
   }
   .rotate-device-animation {
     animation: rotate-device 2s ease-in-out infinite;
