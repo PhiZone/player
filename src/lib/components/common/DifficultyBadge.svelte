@@ -28,7 +28,9 @@
 
 <Badge
   variant="outline"
-  class="min-w-25 max-w-full shrink border font-semibold tabular-nums {TYPE_STYLES[
+  class="{label.length > 10
+    ? 'min-w-0'
+    : 'min-w-fit'} max-w-full shrink border font-semibold tabular-nums {TYPE_STYLES[
     levelType ?? 2
   ] ?? TYPE_STYLES[2]} {className}"
 >

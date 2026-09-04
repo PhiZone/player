@@ -918,7 +918,7 @@
         max={duration}
         value={timeSec}
         step="0.001"
-        class="range cursor-default"
+        class="range cursor-default w-full"
         class:hover:cursor-pointer={(keyboardSeeking || showPause) &&
           status !== GameStatus.LOADING &&
           status !== GameStatus.READY &&
