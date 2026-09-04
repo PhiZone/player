@@ -7,6 +7,7 @@ import type {
   PolygonParticle,
 } from '$lib/types';
 import { openDB } from './idb';
+import { memStore } from './memStore';
 
 const STORE_NAME = 'resource_packs';
 const SELECTED_KEY = 'selectedResourcePack';
@@ -160,63 +161,95 @@ function unpackRespack(stored: StoredResourcePack): ResourcePackWithId<File> {
   };
 }
 
+/** Any IndexedDB failure falls back to the session memory store so respack
+ * features keep working for the page's lifetime (blocked opens, quota errors
+ * and unavailable storage share the same symptom). */
 export async function saveRespack(pack: ResourcePackWithId<File>): Promise<void> {
-  const db = await openDB();
   const stored = packRespack(pack);
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readwrite');
-    const store = tx.objectStore(STORE_NAME);
-    store.put(stored);
-    tx.oncomplete = () => {
-      db.close();
-      resolve();
-    };
-    tx.onerror = () => {
-      db.close();
-      reject(tx.error);
-    };
-  });
+  try {
+    const db = await openDB();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      store.put(stored);
+      tx.oncomplete = () => {
+        db.close();
+        resolve();
+      };
+      tx.onerror = () => {
+        db.close();
+        reject(tx.error);
+      };
+    });
+  } catch {
+    memStore.put(STORE_NAME, stored.id, stored);
+  }
 }
 
 export async function loadAllRespacks(): Promise<ResourcePackWithId<File>[]> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readonly');
-    const store = tx.objectStore(STORE_NAME);
-    const request = store.getAll();
-    request.onsuccess = () => {
-      db.close();
-      const stored = request.result as StoredResourcePack[];
-      resolve(stored.map(unpackRespack));
-    };
-    request.onerror = () => {
-      db.close();
-      reject(request.error);
-    };
-  });
+  const mem = memStore.getAll<StoredResourcePack>(STORE_NAME).map(unpackRespack);
+  try {
+    const db = await openDB();
+    const stored = await new Promise<StoredResourcePack[]>((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.getAll();
+      request.onsuccess = () => {
+        db.close();
+        resolve(request.result as StoredResourcePack[]);
+      };
+      request.onerror = () => {
+        db.close();
+        reject(request.error);
+      };
+    });
+    const storedPacks = stored.map(unpackRespack);
+    const seen = new Set(storedPacks.map((p) => p.id));
+    for (const m of mem) if (!seen.has(m.id)) storedPacks.push(m);
+    return storedPacks;
+  } catch {
+    return mem;
+  }
 }
 
 export async function deleteRespack(id: string): Promise<void> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readwrite');
-    const store = tx.objectStore(STORE_NAME);
-    store.delete(id);
-    tx.oncomplete = () => {
-      db.close();
-      resolve();
-    };
-    tx.onerror = () => {
-      db.close();
-      reject(tx.error);
-    };
-  });
+  memStore.delete(STORE_NAME, id);
+  try {
+    const db = await openDB();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      store.delete(id);
+      tx.oncomplete = () => {
+        db.close();
+        resolve();
+      };
+      tx.onerror = () => {
+        db.close();
+        reject(tx.error);
+      };
+    });
+  } catch {
+    // The memory copy is already gone; ignore IDB failures.
+  }
 }
 
 export function saveSelectedRespack(id: string): void {
-  localStorage.setItem(SELECTED_KEY, id);
+  try {
+    localStorage.setItem(SELECTED_KEY, id);
+  } catch {
+    /* ignore */
+  }
+  void import('./toySettingsStore').then(({ toySettingsSet }) => toySettingsSet(SELECTED_KEY, id));
 }
 
 export function loadSelectedRespack(): string | null {
-  return localStorage.getItem(SELECTED_KEY);
+  // Synchronous callers expect a string here; on Toy the durable copy comes
+  // from cloud storage via the (async) settings store, handled in the page —
+  // this remains the localStorage read for non-Toy environments.
+  try {
+    return localStorage.getItem(SELECTED_KEY);
+  } catch {
+    return null;
+  }
 }

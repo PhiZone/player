@@ -17,6 +17,7 @@
  * `utils.ts` (which imports from `player/constants`).
  */
 import { isToyEnvironmentSync } from '../services/toy';
+import { toyRootUrl } from '../services/toyUrl';
 
 const BLOCKED_EXT = /\.(fnt|glsl|xml|txt)$/i;
 
@@ -24,6 +25,11 @@ const BLOCKED_EXT = /\.(fnt|glsl|xml|txt)$/i;
  * Rewrite a URL for a platform-hosted asset whose extension is on Toy's block
  * list so it points at the `.json` copy shipped in the build. Non-Toy pages
  * and non-Toy URLs (external hosts) pass through unchanged.
+ *
+ * The `.json` twins live under the app root (`/toy/<slug>/game/...`), but the
+ * caller may be on a nested page whose `$app/paths` base differs (the play
+ * route's base is `/toy/<slug>/play`). We rebase the pathname onto the app
+ * root first (via `toyRootUrl`), then append the `.json` suffix.
  */
 export function toyAssetUrl(url: string): string {
   if (!isToyEnvironmentSync()) return url;
@@ -34,6 +40,8 @@ export function toyAssetUrl(url: string): string {
     return url;
   }
   if (!/^\/toy\//.test(parsed.pathname)) return url;
+  // Rebase onto the app root (strip any route segment beyond /toy/<slug>).
+  parsed.pathname = toyRootUrl(parsed.pathname);
   if (BLOCKED_EXT.test(parsed.pathname)) parsed.pathname += '.json';
   return parsed.toString();
 }

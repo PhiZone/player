@@ -73,10 +73,15 @@
   // ── Thumbnail object-URL caches ──────────────────────────────────────
   const chartThumbs = new Map<string, string>();
   const getChartThumb = (summary: StoredChartSummary): string | undefined => {
-    if (!summary.illustration) return undefined;
+    const blob = summary.illustration?.data;
+    if (!(blob instanceof Blob)) return undefined;
     let url = chartThumbs.get(summary.id);
     if (!url) {
-      url = URL.createObjectURL(summary.illustration.data);
+      try {
+        url = URL.createObjectURL(blob);
+      } catch {
+        return undefined;
+      }
       chartThumbs.set(summary.id, url);
     }
     return url;

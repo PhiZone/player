@@ -157,6 +157,48 @@
     @apply font-sans;
   }
 
+  /* Old iOS Safari (≤ 15) doesn't implement CSS `aspect-ratio`, so the
+     `aspect-[4/3]` / `aspect-[16/9]` / `aspect-[16/10]` media boxes collapse;
+     their full-width `size-full object-cover` images then paint at natural
+     dimensions, and a Discover/Library card with a large cover stretches far
+     past the bottom of the page. Rebuild those boxes with the classic
+     padding-top height hack on engines that lack aspect-ratio; modern
+     browsers keep the native behavior. */
+  @supports not (aspect-ratio: 1) {
+    :is(.aspect-\[4\/3\], .aspect-\[16\/9\], .aspect-\[16\/10\]) {
+      position: relative;
+      height: 0 !important;
+    }
+    .aspect-\[4\/3\] {
+      padding-top: 75%;
+    }
+    .aspect-\[16\/9\] {
+      padding-top: 56.25%;
+    }
+    .aspect-\[16\/10\] {
+      padding-top: 62.5%;
+    }
+    /* The media boxes above only ever contain one non-absolute child (the
+       image) plus absolutely-positioned overlay badges; force that child to
+       fill the hack-built box. */
+    .aspect-\[4\/3\] > *,
+    .aspect-\[16\/9\] > *,
+    .aspect-\[16\/10\] > * {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100% !important;
+      height: 100% !important;
+    }
+  }
+
+  /* dvh fallback for old WebKit that only understands vh. */
+  @supports not (min-height: 100dvh) {
+    .min-h-dvh {
+      min-height: 100vh;
+    }
+  }
+
   /* Respect the OS reduced-motion preference for all CSS-driven
      animations/transitions (Svelte transitions handle this in JS). */
   @media (prefers-reduced-motion: reduce) {

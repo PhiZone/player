@@ -3,22 +3,32 @@ import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { base } from '$app/paths';
 import { loadFFmpegBlob, saveFFmpegBlob } from '$lib/services/ffmpegStorage';
 import { clamp } from '$lib/utils';
+import { toyRootUrl } from '$lib/services/toyUrl';
 
 const ffmpeg = new FFmpeg();
-const baseURL =
-  'PUBLIC_FFMPEG_URL' in env && env.PUBLIC_FFMPEG_URL
-    ? (env.PUBLIC_FFMPEG_URL as string)
-    : `${base}/ffmpeg`;
+
+/**
+ * Root for the platform-served ffmpeg files, evaluated lazily (the Toy
+ * environment probe resolves well after module init, and this module is
+ * first imported by the landing page at startup).
+ *
+ * Outside Toy, `base` is `''` (root-absolute paths) and `toyRootUrl` is a
+ * pass-through. On Toy, the ffmpeg directory sits at the app root
+ * (`/toy/<slug>/ffmpeg/`), while `$app/paths` `base` on the play page is
+ * `/toy/<slug>/play` — joining `base` directly would 404 `play/ffmpeg/...`
+ * every time the player needs to (re)convert audio. See `toyUrl.ts`.
+ */
+const rootFfmpegUrl = () => toyRootUrl(`${base}/ffmpeg`);
 
 export const getFFmpegURLs = () => ({
   core:
     'PUBLIC_FFMPEG_CORE_URL' in env && env.PUBLIC_FFMPEG_CORE_URL
       ? (env.PUBLIC_FFMPEG_CORE_URL as string)
-      : `${baseURL}/ffmpeg-core.js`,
+      : `${rootFfmpegUrl()}/ffmpeg-core.js`,
   wasm:
     'PUBLIC_FFMPEG_WASM_URL' in env && env.PUBLIC_FFMPEG_WASM_URL
       ? (env.PUBLIC_FFMPEG_WASM_URL as string)
-      : `${baseURL}/ffmpeg-core.wasm`,
+      : `${rootFfmpegUrl()}/ffmpeg-core.wasm`,
   isRemote:
     ('PUBLIC_FFMPEG_URL' in env && env.PUBLIC_FFMPEG_URL) ||
     ('PUBLIC_FFMPEG_CORE_URL' in env && env.PUBLIC_FFMPEG_CORE_URL) ||
@@ -96,13 +106,29 @@ const fetchBlob = async (
 
 export const loadCachedFFmpegBlobs = async (): Promise<{ core: Blob; wasm: Blob } | null> => {
   try {
+    // The cache key is the (app-root) URL of the file, so the play page and
+    // the landing page share the same ffmpeg cache — the previous flat key
+    // from the landing page never matches the play page's older attempts
+    // that were written under a broken route-base URL.
+    const [core, wasm] = await Promise.all([
+      loadFFmpegBlob(getFFmpegURLs().core),
+      loadFFmpegBlob(getFFmpegURLs().wasm),
+    ]);
+    if (core && wasm) return { core, wasm };
+  } catch (e) {
+    console.warn('Failed to load cached FFmpeg blobs:', e);
+  }
+  // Backward compatibility: older builds (non-Toy web, Tauri, Capacitor)
+  // cached under the flat keys `ffmpeg-core.js` / `ffmpeg-core.wasm`. Reuse
+  // those so a cache upgrade doesn't force a re-download of the 30 MB blob.
+  try {
     const [core, wasm] = await Promise.all([
       loadFFmpegBlob('ffmpeg-core.js'),
       loadFFmpegBlob('ffmpeg-core.wasm'),
     ]);
     if (core && wasm) return { core, wasm };
   } catch (e) {
-    console.warn('Failed to load cached FFmpeg blobs:', e);
+    console.warn('Failed to load legacy cached FFmpeg blobs:', e);
   }
   return null;
 };
@@ -110,8 +136,8 @@ export const loadCachedFFmpegBlobs = async (): Promise<{ core: Blob; wasm: Blob 
 export const cacheFFmpegBlobs = async (core: Blob, wasm: Blob): Promise<void> => {
   try {
     await Promise.all([
-      saveFFmpegBlob('ffmpeg-core.js', core),
-      saveFFmpegBlob('ffmpeg-core.wasm', wasm),
+      saveFFmpegBlob(getFFmpegURLs().core, core),
+      saveFFmpegBlob(getFFmpegURLs().wasm, wasm),
     ]);
   } catch (e) {
     console.warn('Failed to cache FFmpeg blobs:', e);

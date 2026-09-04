@@ -81,6 +81,80 @@ const TOY_SCORE_MAX = 16777215;
 
 let toyEnvPromise: Promise<boolean> | undefined;
 
+// ── Durable settings via Toy cloud storage ────────────────────────────
+// iOS Safari does not persist localStorage/IndexedDB for the cross-origin
+// sandboxed iframe that hosts Toy pages (it works on Windows/Chrome and in a
+// normal iPad tab, but is wiped on every reload inside the Toy iframe on
+// iPad). The Toy SDK's cloud storage is the only durable store available
+// there.
+//
+// Cloud storage constraints (per the SDK docs): keys are
+// `[a-zA-Z0-9_-]{1,128}` (a `__` prefix is reserved), values are strings
+// ≤1024 bytes, and the store is capped at 128 keys per (user + toy). That
+// rules out persisting chart/respack/ffmpeg blobs (MBs each) — those stay
+// session-only on Toy. We use cloud storage only for the small settings
+// JSON (preferences/toggles/mediaOptions/selected respack/last tab), which
+// fits comfortably and is what users expect to survive a reload.
+const CLOUD_PREFIX = 'app_'; // namespaced under the reserved-safe prefix
+const CLOUD_VALUE_MAX = 1024; // SDK hard limit
+
+/** True once the Toy cloud-storage ability is confirmed available. */
+let cloudStorageReady = false;
+
+/** Probe whether durable cloud storage is usable in this environment. */
+export async function toyCloudStorageAvailable(): Promise<boolean> {
+  if (!(await detectToyEnvironment())) return false;
+  if (cloudStorageReady) return true;
+  try {
+    await window.toy!.getCloudStorage([]);
+    cloudStorageReady = true;
+  } catch {
+    cloudStorageReady = false;
+  }
+  return cloudStorageReady;
+}
+
+const cloudKey = (key: string) => CLOUD_PREFIX + sanitizeKey(key);
+
+/** Read a durable value from Toy cloud storage. Null when absent/unavailable. */
+export async function toyCloudGet(key: string): Promise<string | null> {
+  if (!(await toyCloudStorageAvailable())) return null;
+  try {
+    const data = await window.toy!.getCloudStorage([cloudKey(key)]);
+    return data[cloudKey(key)] ?? null;
+  } catch (error) {
+    console.debug('[ToySDK] getCloudStorage failed:', error);
+    return null;
+  }
+}
+
+/** Write a durable value to Toy cloud storage. Returns false on failure. */
+export async function toyCloudSet(key: string, value: string): Promise<boolean> {
+  if (!(await toyCloudStorageAvailable())) return false;
+  if (value.length > CLOUD_VALUE_MAX) return false;
+  try {
+    await window.toy!.setCloudStorage({ [cloudKey(key)]: value });
+    return true;
+  } catch (error) {
+    console.debug('[ToySDK] setCloudStorage failed:', error);
+    return false;
+  }
+}
+
+/** Remove a durable value from Toy cloud storage. */
+export async function toyCloudRemove(key: string): Promise<void> {
+  if (!(await toyCloudStorageAvailable())) return;
+  try {
+    await window.toy!.removeCloudStorage([cloudKey(key)]);
+  } catch (error) {
+    console.debug('[ToySDK] removeCloudStorage failed:', error);
+  }
+}
+
+/** Zero-pad a score to 7 digits (Phigros convention, e.g. 0012345). */
+export const padToyScore = (score: number): string =>
+  String(Math.max(0, Math.min(TOY_SCORE_MAX, Math.round(score)))).padStart(7, '0');
+
 // Synchronous mirror of the Toy-environment detection, driven by the official
 // `isSupport` probe once it resolves. Synchronous call sites (asset URL
 // rewriting, full-page navigation URL rewriting) read this instead of
@@ -145,10 +219,6 @@ export function detectToyEnvironment(): Promise<boolean> {
   })();
   return toyEnvPromise;
 }
-
-/** Zero-pad a score to 7 digits (Phigros convention, e.g. 0012345). */
-export const padToyScore = (score: number): string =>
-  String(Math.max(0, Math.min(TOY_SCORE_MAX, Math.round(score)))).padStart(7, '0');
 
 const sanitizeKey = (key: string) => key.replace(/[^A-Za-z0-9_-]/g, '');
 

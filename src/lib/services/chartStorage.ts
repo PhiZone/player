@@ -9,6 +9,7 @@
 import type { Metadata, StoredChart, StoredChartSummary } from '$lib/types';
 import { sha256Hex, uuid } from '$lib/utils';
 import { openDB } from './idb';
+import { memStore } from './memStore';
 import {
   deleteChartFromDisk,
   loadChartFromDisk,
@@ -95,7 +96,16 @@ function unpackChart(record: StoredChartRecord): StoredChart {
   };
 }
 
-function recordToSummary(record: StoredChartRecord): StoredChartSummary {
+/** A summary's illustration *is* the library thumbnail. If a record was left
+ * truncated by an interrupted/quota-failed write (missing `resources`, or a
+ * non-blob illustration), emit no summary at all — masking the card (the
+ * thumbnails are the same blob the detail page shows) instead of crashing
+ * the whole grid with a `URL.createObjectURL(undefined)` error. */
+function recordToSummary(record: StoredChartRecord): StoredChartSummary | null {
+  const illustration = record.resources?.illustration;
+  if (!illustration || typeof illustration !== 'object' || !(illustration.data instanceof Blob)) {
+    return null;
+  }
   return {
     id: record.id,
     createdAt: record.createdAt,
@@ -104,85 +114,114 @@ function recordToSummary(record: StoredChartRecord): StoredChartSummary {
     sourceName: record.sourceName,
     onlineId: record.onlineId,
     metadata: record.metadata,
-    illustration: record.resources.illustration,
+    illustration,
   };
 }
 
+const toSummaries = (records: StoredChartRecord[]): StoredChartSummary[] =>
+  records
+    .map(recordToSummary)
+    .filter((s): s is StoredChartSummary => s !== null)
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+
+/** Any IndexedDB failure falls back to the session memory store so the app
+ * keeps working for the page's lifetime instead of throwing (blocked opens,
+ * quota errors and unavailable storage all surface as "chart/thumbnail
+ * lost"), and reads merge the memory store so saves survive until reload. */
 async function saveChartToIDB(chart: StoredChart): Promise<void> {
-  const db = await openDB();
   const stored = packChart(chart);
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readwrite');
-    const store = tx.objectStore(STORE_NAME);
-    store.put(stored);
-    tx.oncomplete = () => {
-      db.close();
-      resolve();
-    };
-    tx.onerror = () => {
-      db.close();
-      reject(tx.error);
-    };
-  });
+  try {
+    const db = await openDB();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      store.put(stored);
+      tx.oncomplete = () => {
+        db.close();
+        resolve();
+      };
+      tx.onerror = () => {
+        db.close();
+        reject(tx.error);
+      };
+    });
+  } catch {
+    memStore.put(STORE_NAME, stored.id, stored);
+  }
 }
 
 async function loadAllChartSummariesFromIDB(): Promise<StoredChartSummary[]> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readonly');
-    const store = tx.objectStore(STORE_NAME);
-    const request = store.getAll();
-    request.onsuccess = () => {
-      db.close();
-      const records = request.result as StoredChartRecord[];
-      const summaries = records.map(recordToSummary);
-      summaries.sort((a, b) => b.updatedAt - a.updatedAt);
-      resolve(summaries);
-    };
-    request.onerror = () => {
-      db.close();
-      reject(request.error);
-    };
-  });
+  const mem = toSummaries(memStore.getAll<StoredChartRecord>(STORE_NAME));
+  try {
+    const db = await openDB();
+    const records = await new Promise<StoredChartRecord[]>((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.getAll();
+      request.onsuccess = () => {
+        db.close();
+        resolve(request.result as StoredChartRecord[]);
+      };
+      request.onerror = () => {
+        db.close();
+        reject(request.error);
+      };
+    });
+    const summaries = toSummaries(records);
+    const seen = new Set(summaries.map((s) => s.id));
+    for (const m of mem) if (!seen.has(m.id)) summaries.push(m);
+    summaries.sort((a, b) => b.updatedAt - a.updatedAt);
+    return summaries;
+  } catch {
+    return mem;
+  }
 }
 
 async function loadChartFromIDB(id: string): Promise<StoredChart> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readonly');
-    const store = tx.objectStore(STORE_NAME);
-    const request = store.get(id);
-    request.onsuccess = () => {
-      db.close();
-      const record = request.result as StoredChartRecord | undefined;
-      if (!record) {
-        reject(new Error(`Stored chart not found: ${id}`));
-        return;
-      }
-      resolve(unpackChart(record));
-    };
-    request.onerror = () => {
-      db.close();
-      reject(request.error);
-    };
-  });
+  try {
+    const db = await openDB();
+    const record = await new Promise<StoredChartRecord | undefined>((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.get(id);
+      request.onsuccess = () => {
+        db.close();
+        resolve(request.result as StoredChartRecord | undefined);
+      };
+      request.onerror = () => {
+        db.close();
+        reject(request.error);
+      };
+    });
+    if (!record) throw new Error(`Stored chart not found: ${id}`);
+    return unpackChart(record);
+  } catch (e) {
+    const record = memStore.get<StoredChartRecord>(STORE_NAME, id);
+    if (record) return unpackChart(record);
+    throw e;
+  }
 }
 
 async function deleteChartFromIDB(id: string): Promise<void> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readwrite');
-    const store = tx.objectStore(STORE_NAME);
-    store.delete(id);
-    tx.oncomplete = () => {
-      db.close();
-      resolve();
-    };
-    tx.onerror = () => {
-      db.close();
-      reject(tx.error);
-    };
-  });
+  memStore.delete(STORE_NAME, id);
+  try {
+    const db = await openDB();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      store.delete(id);
+      tx.oncomplete = () => {
+        db.close();
+        resolve();
+      };
+      tx.onerror = () => {
+        db.close();
+        reject(tx.error);
+      };
+    });
+  } catch {
+    // The memory copy is already gone; ignore IDB failures.
+  }
 }
 
 // ── Unified facade ────────────────────────────────────────────────────

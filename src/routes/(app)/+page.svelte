@@ -105,6 +105,7 @@
     toyGetUserProfile,
     type ToyUserProfile,
   } from '$lib/services/toy';
+  import { toySettingsGet, toySettingsSet } from '$lib/services/toySettingsStore';
   import {
     saveRespack,
     loadAllRespacks,
@@ -169,8 +170,7 @@
   // Remembers which tab (Discover/Library) the user last landed on, so the
   // app reopens there next time; first-time visitors default to Discover.
   const LAST_TAB_KEY = 'lastLandingTab';
-  let activeTab: 'discover' | 'library' =
-    localStorage.getItem(LAST_TAB_KEY) === 'library' ? 'library' : 'discover';
+  let activeTab: 'discover' | 'library' = 'discover';
   let settingsOpen = false;
   let importOpen = false;
   // Bilibili Toy integration: logged-in user shown in the top bar. `toyUser`
@@ -370,6 +370,12 @@
   };
 
   onMount(async () => {
+    // Restore the last landing tab from durable storage (Toy cloud storage
+    // on Toy, otherwise localStorage). Do this before the first await that
+    // renders the tab view so the user lands where they left off.
+    const lastTab = await toySettingsGet(LAST_TAB_KEY);
+    if (lastTab === 'library' || lastTab === 'discover') activeTab = lastTab;
+
     [
       { key: 'debug', name: m.debug_mode() },
       { key: 'performance', name: m.performance_metrics() },
@@ -391,7 +397,8 @@
         resourcePacks.push(...storedPacks);
         resourcePacks = resourcePacks;
       }
-      const storedSelection = loadSelectedRespack();
+      const storedSelection =
+        (await toySettingsGet('selectedResourcePack')) ?? loadSelectedRespack();
       if (storedSelection && resourcePacks.some((p) => p.id === storedSelection)) {
         selectedResourcePack = storedSelection;
       }
@@ -575,9 +582,9 @@
       if (args['level']) overrideLevel = args['level'];
     }
 
-    pref ??= localStorage.getItem('preferences');
-    tgs ??= localStorage.getItem('toggles');
-    mopts ??= localStorage.getItem('mediaOptions');
+    pref ??= await toySettingsGet('preferences');
+    tgs ??= await toySettingsGet('toggles');
+    mopts ??= await toySettingsGet('mediaOptions');
 
     if (pref) {
       pref = JSON.parse(pref);
@@ -1886,6 +1893,11 @@
   };
 
   const resolveDuplicateChoice = async (): Promise<'overwrite' | 'load'> => {
+    // On Toy, the remembered choice lives in cloud storage; prefer it over
+    // the (ephemeral) localStorage copy.
+    const durable =
+      (await toySettingsGet(DUPLICATE_CHOICE_KEY)) ?? localStorage.getItem(DUPLICATE_CHOICE_KEY);
+    if (durable === 'overwrite' || durable === 'load') return durable;
     const remembered = getDuplicateChoice();
     if (remembered !== 'ask') return remembered;
     duplicateModalMem = false;
@@ -1897,7 +1909,7 @@
 
   const chooseDuplicate = (choice: 'overwrite' | 'load') => {
     if (duplicateModalMem) {
-      localStorage.setItem(DUPLICATE_CHOICE_KEY, choice);
+      void toySettingsSet(DUPLICATE_CHOICE_KEY, choice);
     }
     duplicateResolve?.(choice);
     duplicateResolve = null;
@@ -2336,7 +2348,7 @@
       const order = { discover: 0, library: 1 };
       tabDirection = Math.sign(order[tab] - order[activeTab]);
       activeTab = tab;
-      localStorage.setItem(LAST_TAB_KEY, tab);
+      void toySettingsSet(LAST_TAB_KEY, tab);
     }
   };
 
@@ -2537,15 +2549,15 @@
       playOptions.adjustOffset = false;
       playOptions.autostart = true;
     }
-    localStorage.setItem('preferences', JSON.stringify(preferences));
-    localStorage.setItem('toggles', JSON.stringify(toggles));
+    void toySettingsSet('preferences', JSON.stringify(preferences));
+    void toySettingsSet('toggles', JSON.stringify(toggles));
     if (toggles.render) {
       if (overrideResolution) {
         mediaOptions.overrideResolution = [mediaResolutionWidth, mediaResolutionHeight];
       } else {
         mediaOptions.overrideResolution = null;
       }
-      localStorage.setItem('mediaOptions', JSON.stringify(mediaOptions));
+      void toySettingsSet('mediaOptions', JSON.stringify(mediaOptions));
     }
     start(handleConfig(playOptions));
   };
@@ -2791,7 +2803,7 @@
           );
           if (modalMem) {
             toggles.inApp = 1;
-            localStorage.setItem('toggles', JSON.stringify(toggles));
+            void toySettingsSet('toggles', JSON.stringify(toggles));
           }
         }}
       >
@@ -2803,7 +2815,7 @@
           await handleParamFiles(page.url.searchParams);
           if (modalMem) {
             toggles.inApp = 2;
-            localStorage.setItem('toggles', JSON.stringify(toggles));
+            void toySettingsSet('toggles', JSON.stringify(toggles));
           }
         }}
       >
