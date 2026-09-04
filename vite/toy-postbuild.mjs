@@ -7,7 +7,7 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
-import { extname, join, resolve } from 'node:path';
+import { extname, join, relative, resolve, sep } from 'node:path';
 
 /**
  * Post-build plugin that makes the SvelteKit static export portable for
@@ -30,16 +30,18 @@ import { extname, join, resolve } from 'node:path';
  *    We inject a snippet that strips the suffix (via history.replaceState)
  *    before the router reads the URL.
  *
- * 3. Toy refuses to host `.fnt` / `.glsl` / `.xml` text assets. The app
+ * 3. Toy refuses to host `.fnt` / `.glsl` / `.xml` / `.txt` text assets and
+ *    currently rejects standalone FFmpeg `.js` / `.wasm` files. The app
  *    rewrites URLs for these to a `.json` twin at runtime (see
- *    src/lib/player/toyAssetUrl.ts), so we emit that byte-identical twin here.
+ *    src/lib/player/toyAssetUrl.ts), so we emit those byte-identical twins here.
  *
  * 4. Vite does not emit the @fontsource-variable/inter woff2 files that the
  *    built CSS references, so we copy them from the package into the build.
  *
  * Enable with `TOY_BUILD=1`; otherwise this plugin is a no-op.
  */
-const BLOCKED_EXT = new Set(['.fnt', '.glsl', '.xml']);
+const JSON_TWIN_EXT = new Set(['.fnt', '.glsl', '.xml', '.txt']);
+const FFMPEG_ASSETS = new Set(['ffmpeg/ffmpeg-core.js', 'ffmpeg/ffmpeg-core.wasm']);
 
 const INTER_FONTS = [
   'inter-cyrillic-ext-wght-normal.woff2',
@@ -78,7 +80,10 @@ function collectFiles(dir) {
 function emitJsonTwins(root) {
   let made = 0;
   for (const f of collectFiles(root)) {
-    if (!BLOCKED_EXT.has(extname(f).toLowerCase())) continue;
+    const relativePath = relative(root, f).split(sep).join('/');
+    if (!JSON_TWIN_EXT.has(extname(f).toLowerCase()) && !FFMPEG_ASSETS.has(relativePath)) {
+      continue;
+    }
     const twin = `${f}.json`;
     if (existsSync(twin)) continue;
     copyFileSync(f, twin);

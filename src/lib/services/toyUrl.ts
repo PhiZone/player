@@ -5,6 +5,7 @@
  *
  * On a Toy page, `$app/paths` `base` is the *current route's* base:
  * `/toy/<slug>` on the landing page but `/toy/<slug>/play` on the play page
+ * (and `/toy/preview/<preview-id>` for preview pages)
  * (each prerendered page inlines `base: new URL(".", location).pathname...`
  * and the build's URL-normalization keeps trailing-slash routes).
  *
@@ -23,7 +24,8 @@ import { isToyEnvironmentSync } from './toy';
 
 /**
  * Resolve a URL against the *app root*. `path` is typically the `$app/paths`
- * base (`''` or `/toy/<slug>`/`/toy/<slug>/play`) joined with a static dir
+ * base (`''`, `/toy/<slug>`/`/toy/<slug>/play`, or
+ * `/toy/preview/<preview-id>`) joined with a static dir
  * like `/ffmpeg`. On Toy pages this returns
  * `https://host/toy/<slug><rest>` regardless of the current route. Outside
  * Toy, root-relative URLs already point at the app root, so `path` is
@@ -34,10 +36,13 @@ export function toyRootUrl(path: string): string {
   return rebaseToAppRoot(path);
 }
 
-/** The current page's app root: `/toy/<slug>`. */
+/** The current page's app root: `/toy/<slug>` or `/toy/preview/preview_<id>`. */
 function currentAppRoot(): string | null {
   if (typeof window === 'undefined') return null;
-  const m = window.location.pathname.match(/^(\/toy\/[^/]+)/);
+  const pathname = window.location.pathname;
+  const preview = pathname.match(/^(\/toy\/preview\/preview_[^/]+)/);
+  if (preview) return preview[1];
+  const m = pathname.match(/^(\/toy\/[^/]+)/);
   return m?.[1] ?? null;
 }
 
@@ -55,8 +60,10 @@ function rebaseToAppRoot(path: string): string {
   const baseWithRoute = appRoot + routePrefix;
   if (rest.startsWith(baseWithRoute)) {
     rest = rest.slice(baseWithRoute.length);
+  } else if (rest.startsWith(appRoot)) {
+    rest = rest.slice(appRoot.length);
+  } else {
+    rest = rest.replace(/^\/toy\/[^/]+/, '');
   }
-  // Also drop a bare leading /toy/<slug> token (already at the app root).
-  rest = rest.replace(/^\/toy\/[^/]+/, '');
   return `${appRoot}${rest.startsWith('/') ? rest : `/${rest}`}`;
 }

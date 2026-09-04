@@ -4,6 +4,7 @@ import { base } from '$app/paths';
 import { loadFFmpegBlob, saveFFmpegBlob } from '$lib/services/ffmpegStorage';
 import { clamp } from '$lib/utils';
 import { toyRootUrl } from '$lib/services/toyUrl';
+import { toyAssetUrl } from '$lib/player/toyAssetUrl';
 
 const ffmpeg = new FFmpeg();
 
@@ -19,16 +20,17 @@ const ffmpeg = new FFmpeg();
  * every time the player needs to (re)convert audio. See `toyUrl.ts`.
  */
 const rootFfmpegUrl = () => toyRootUrl(`${base}/ffmpeg`);
+const ffmpegAssetUrl = (name: string) => toyAssetUrl(`${rootFfmpegUrl()}/${name}`);
 
 export const getFFmpegURLs = () => ({
   core:
     'PUBLIC_FFMPEG_CORE_URL' in env && env.PUBLIC_FFMPEG_CORE_URL
       ? (env.PUBLIC_FFMPEG_CORE_URL as string)
-      : `${rootFfmpegUrl()}/ffmpeg-core.js`,
+      : ffmpegAssetUrl('ffmpeg-core.js'),
   wasm:
     'PUBLIC_FFMPEG_WASM_URL' in env && env.PUBLIC_FFMPEG_WASM_URL
       ? (env.PUBLIC_FFMPEG_WASM_URL as string)
-      : `${rootFfmpegUrl()}/ffmpeg-core.wasm`,
+      : ffmpegAssetUrl('ffmpeg-core.wasm'),
   isRemote:
     ('PUBLIC_FFMPEG_URL' in env && env.PUBLIC_FFMPEG_URL) ||
     ('PUBLIC_FFMPEG_CORE_URL' in env && env.PUBLIC_FFMPEG_CORE_URL) ||
@@ -40,53 +42,47 @@ const ensureMimeType = (blob: Blob, mimeType: string): Blob =>
 
 const MAX_FETCH_ATTEMPTS = 3;
 const FETCH_RETRY_DELAY_MS = 1000;
+const FETCH_INACTIVITY_TIMEOUT_MS = 30000;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const getContentLength = async (url: string): Promise<number> => {
-  try {
-    const response = await fetch(url, { method: 'HEAD', cache: 'no-store' });
-    if (!response.ok) return -1;
-    const length = parseInt(response.headers.get('content-length') ?? '-1', 10);
-    if (length > 0) return length;
-  } catch {
-    // fall through to range probe
-  }
-  try {
-    const response = await fetch(url, {
-      headers: { Range: 'bytes=0-0' },
-      cache: 'no-store',
-    });
-    if (!response.ok) return -1;
-    const range = response.headers.get('content-range');
-    const length = range ? parseInt(range.split('/')[1] ?? '-1', 10) : -1;
-    if (length > 0) return length;
-    const contentLength = parseInt(response.headers.get('content-length') ?? '-1', 10);
-    return contentLength > 0 ? contentLength : -1;
-  } catch {
-    return -1;
-  }
-};
+type FetchProgress = (loaded: number, total: number, complete?: boolean) => void;
 
-const fetchBlob = async (
-  url: string,
-  expectedTotal: number,
-  attempt = 0,
-  onProgress?: (loaded: number, total: number) => void,
-): Promise<Blob> => {
+const fetchBlob = async (url: string, attempt = 0, onProgress?: FetchProgress): Promise<Blob> => {
+  let controller: AbortController | undefined;
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  let timedOut = false;
+  const resetTimeout = () => {
+    if (!controller) return;
+    if (timeout) clearTimeout(timeout);
+    timeout = setTimeout(() => {
+      timedOut = true;
+      controller?.abort();
+    }, FETCH_INACTIVITY_TIMEOUT_MS);
+  };
   try {
-    const response = await fetch(url, { cache: 'no-store' });
+    controller = typeof AbortController === 'function' ? new AbortController() : undefined;
+    resetTimeout();
+    const response = await fetch(url, {
+      cache: 'no-store',
+      ...(controller ? { signal: controller.signal } : {}),
+    });
+    resetTimeout();
     if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
-    let total = parseInt(response.headers.get('content-length') ?? '-1', 10);
-    if (!(total > 0)) total = expectedTotal;
-    if (!response.body || !onProgress || !(total > 0)) {
-      return await response.blob();
+    const total = parseInt(response.headers.get('content-length') ?? '-1', 10);
+    if (!response.body || !onProgress) {
+      onProgress?.(0, total);
+      const blob = await response.blob();
+      onProgress?.(blob.size, total > 0 ? total : blob.size, true);
+      return blob;
     }
     const reader = response.body.getReader();
     const chunks: Uint8Array<ArrayBuffer>[] = [];
     let loaded = 0;
+    onProgress(0, total);
     while (true) {
       const { done, value } = await reader.read();
+      resetTimeout();
       if (done) break;
       if (value) {
         chunks.push(Uint8Array.from(value));
@@ -94,13 +90,23 @@ const fetchBlob = async (
         onProgress(loaded, total);
       }
     }
+    onProgress(loaded, total, true);
     return new Blob(chunks);
   } catch (error) {
     if (attempt >= MAX_FETCH_ATTEMPTS - 1) {
-      throw new Error(`Failed to fetch ${url}: ${(error as Error).message}`);
+      const message = timedOut
+        ? `timed out after ${FETCH_INACTIVITY_TIMEOUT_MS / 1000}s of inactivity`
+        : error instanceof Error
+          ? error.message
+          : String(error);
+      throw new Error(`Failed to fetch ${url}: ${message}`);
     }
+    if (timeout) clearTimeout(timeout);
+    timeout = undefined;
     await sleep(FETCH_RETRY_DELAY_MS * (attempt + 1));
-    return fetchBlob(url, expectedTotal, attempt + 1, onProgress);
+    return fetchBlob(url, attempt + 1, onProgress);
+  } finally {
+    if (timeout) clearTimeout(timeout);
   }
 };
 
@@ -156,32 +162,37 @@ export const loadFFmpeg = async (
       wasm = cached.wasm;
     } else {
       const urls = getFFmpegURLs();
-      const [coreTotal, wasmTotal] = await Promise.all([
-        getContentLength(urls.core),
-        getContentLength(urls.wasm),
-      ]);
-      const sizes: Record<string, number> = {
-        [urls.core]: coreTotal,
-        [urls.wasm]: wasmTotal,
-      };
+      const sizes: Record<string, number> = {};
       const loaded: Record<string, number> = { [urls.core]: 0, [urls.wasm]: 0 };
-      const report = (key: string, bytes: number, total: number) => {
+      const completed: Record<string, boolean> = { [urls.core]: false, [urls.wasm]: false };
+      const report = (key: string, bytes: number, total: number, done = false) => {
         loaded[key] = bytes;
         if (total > 0) sizes[key] = total;
+        if (done) completed[key] = true;
         if (!onProgress) return;
         const keys = [urls.core, urls.wasm];
-        const known = keys.filter((k) => sizes[k] > 0);
-        if (known.length === 0) return;
-        const totalLoaded = known.reduce((sum, k) => sum + loaded[k], 0);
-        const totalSize = known.reduce((sum, k) => sum + sizes[k], 0);
-        onProgress(clamp(totalLoaded / totalSize, 0, 1));
+        const known = keys.filter((current) => sizes[current] > 0);
+        if (known.length === keys.length) {
+          const totalLoaded = known.reduce((sum, current) => sum + loaded[current], 0);
+          const totalSize = known.reduce((sum, current) => sum + sizes[current], 0);
+          onProgress(clamp(totalLoaded / totalSize, 0, 1));
+          return;
+        }
+        const progress =
+          keys.reduce((sum, current) => {
+            if (sizes[current] > 0) {
+              return sum + clamp(loaded[current] / sizes[current], 0, 1);
+            }
+            return sum + (completed[current] ? 1 : loaded[current] > 0 ? 0.05 : 0.01);
+          }, 0) / keys.length;
+        onProgress(clamp(progress, 0, 1));
       };
       [core, wasm] = await Promise.all([
-        fetchBlob(urls.core, coreTotal, 0, (loadedBytes, total) =>
-          report(urls.core, loadedBytes, total),
+        fetchBlob(urls.core, 0, (loadedBytes, total, done) =>
+          report(urls.core, loadedBytes, total, done),
         ),
-        fetchBlob(urls.wasm, wasmTotal, 0, (loadedBytes, total) =>
-          report(urls.wasm, loadedBytes, total),
+        fetchBlob(urls.wasm, 0, (loadedBytes, total, done) =>
+          report(urls.wasm, loadedBytes, total, done),
         ),
       ]);
       await cacheFFmpegBlobs(core, wasm);

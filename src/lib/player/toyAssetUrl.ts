@@ -1,15 +1,16 @@
 /**
- * Bilibili Toy only hosts an explicit allow list of file extensions
- * (.js/.json/.css/.html/.svg/.png/.jpg/.gif/.webp/.ttf/.woff/.woff2/.wav/.mp3/
- * .wasm/.ico …). Text assets with blocked extensions — `.glsl` shaders and
- * `.fnt` bitmap-font descriptors, plus `.xml`/`.txt` — are stripped from the
- * package at upload and return 404 on the real host.
+ * Bilibili Toy only hosts an explicit allow list of file extensions. Text
+ * assets with blocked extensions — `.glsl` shaders and `.fnt` bitmap-font
+ * descriptors, plus `.xml`/`.txt` — are stripped from the package at upload
+ * and return 404 on the real host. Standalone FFmpeg `.js` and `.wasm` files
+ * are also currently rejected by the Toy package filter, even though
+ * application chunks under `_app/` are served normally.
  *
- * Every loader that consumes these files reads the **content as text**
- * (Phaser's `XMLFile` uses `responseText` + `DOMParser`; the app's `loadText`
- * uses `blob.text()`), so what matters is the bytes, not the extension. We
- * therefore ship a `.json` copy of each blocked-extension file (the platform
- * allows `.json`) and rewrite the URL to that copy while on a Toy page.
+ * The loaders consume the response bytes rather than relying on the original
+ * extension: text loaders parse the bytes as text, while FFmpeg turns the
+ * fetched `.json` response back into typed Blob URLs. We therefore ship a
+ * `.json` copy of each affected file (the platform allows `.json`) and
+ * rewrite the URL to that copy while on a Toy page.
  *
  * This is a small leaf module — it only imports the Toy environment probe
  * (`isToyEnvironmentSync`) from `services/toy`, so both `constants.ts` and
@@ -19,12 +20,13 @@
 import { isToyEnvironmentSync } from '../services/toy';
 import { toyRootUrl } from '../services/toyUrl';
 
-const BLOCKED_EXT = /\.(fnt|glsl|xml|txt)$/i;
+const JSON_TWIN_EXT = /\.(fnt|glsl|xml|txt)$/i;
+const FFMPEG_CORE_ASSET = /\/ffmpeg\/ffmpeg-core\.(js|wasm)$/i;
 
 /**
- * Rewrite a URL for a platform-hosted asset whose extension is on Toy's block
- * list so it points at the `.json` copy shipped in the build. Non-Toy pages
- * and non-Toy URLs (external hosts) pass through unchanged.
+ * Rewrite a URL for a platform-hosted asset that Toy strips so it points at
+ * the `.json` copy shipped in the build. Non-Toy pages and non-Toy URLs
+ * (external hosts) pass through unchanged.
  *
  * The `.json` twins live under the app root (`/toy/<slug>/game/...`), but the
  * caller may be on a nested page whose `$app/paths` base differs (the play
@@ -42,6 +44,8 @@ export function toyAssetUrl(url: string): string {
   if (!/^\/toy\//.test(parsed.pathname)) return url;
   // Rebase onto the app root (strip any route segment beyond /toy/<slug>).
   parsed.pathname = toyRootUrl(parsed.pathname);
-  if (BLOCKED_EXT.test(parsed.pathname)) parsed.pathname += '.json';
+  if (JSON_TWIN_EXT.test(parsed.pathname) || FFMPEG_CORE_ASSET.test(parsed.pathname)) {
+    parsed.pathname += '.json';
+  }
   return parsed.toString();
 }
