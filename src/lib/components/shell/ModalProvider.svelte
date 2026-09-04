@@ -18,7 +18,12 @@
 
   type AlertOptions = { title?: string; okText?: string };
   type ConfirmOptions = { title?: string; okText?: string; cancelText?: string };
-  type PromptOptions = { title?: string; okText?: string; cancelText?: string; placeholder?: string };
+  type PromptOptions = {
+    title?: string;
+    okText?: string;
+    cancelText?: string;
+    placeholder?: string;
+  };
 
   let open = $state(false);
   let kind = $state<'alert' | 'confirm' | 'prompt'>('alert');
