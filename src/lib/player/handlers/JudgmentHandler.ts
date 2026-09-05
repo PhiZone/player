@@ -724,7 +724,7 @@ export class JudgmentHandler {
           this._scene.tweens.add({
             targets: note,
             alpha: 0,
-            easing: 'Cubic.easeIn',
+            ease: 'Cubic.easeIn',
             duration: 500,
           });
         }
