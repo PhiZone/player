@@ -1,5 +1,6 @@
 import { GameObjects, Math as PhaserMath } from 'phaser';
 import {
+  JudgmentType,
   type AlphaControl,
   type ColorEvent,
   type Event,
@@ -593,6 +594,7 @@ export class Line {
   }
 
   private isNoteInCullArea(note: PlainNote | LongNote, ctx: LineFrameCtx) {
+    if (note.judgmentType === JudgmentType.BAD) return true;
     // All frame-constant values (trig, scales, bounds) are hoisted into the
     // per-line ctx; previously this recomputed them for every note, every
     // frame, which profiled as one of the hottest functions in the game.
