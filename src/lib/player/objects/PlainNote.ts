@@ -13,7 +13,7 @@ import { clamp, isDebug } from '$lib/utils';
 import { calculateValue, ControlTypes, easing, rgbToHex } from '../utils';
 import type { Game } from '../scenes/Game';
 import type { Line, LineFrameCtx } from './Line';
-import { NOTE_BASE_SIZE, NOTE_PRIORITIES } from '../constants';
+import { DRAG_TIME_RANGE, FLICK_P_FACTOR, NOTE_BASE_SIZE, NOTE_PRIORITIES } from '../constants';
 
 /**
  * Property name of the value field for each control type, indexed by
@@ -35,7 +35,7 @@ export class PlainNote extends SkewImage {
   public readonly visualEndTime: number;
   private _targetHeight: number = 0;
 
-  private _alpha: number = 1;
+  private _baseAlpha: number = 1;
 
   private _judgmentType: JudgmentType = JudgmentType.UNJUDGED;
   private _beatJudged: number | undefined = undefined;
@@ -74,8 +74,8 @@ export class PlainNote extends SkewImage {
     this._noteScaleBase =
       (989 / scene.skinSize) * scene.p(NOTE_BASE_SIZE * scene.preferences.noteSize);
     this.resize();
-    this._alpha = data.alpha / 255;
-    this.setAlpha(this._alpha);
+    this._baseAlpha = data.alpha / 255;
+    this.setAlpha(this._baseAlpha);
     if (data.tint) {
       this.setTint(rgbToHex(data.tint));
     }
@@ -119,12 +119,28 @@ export class PlainNote extends SkewImage {
         this.setVisible(false);
       }
     }
+    // Chart base alpha (note alpha × alpha control). Kept in its own field
+    // rather than the inherited `_alpha` slot, so the per-frame fade below can
+    // modulate the rendered alpha without being overwritten by this base value.
+    this._baseAlpha =
+      (this._data.alpha *
+        this.getControlValue(
+          chartDist,
+          ControlTypes.ALPHA,
+          ctx?.alphaControl ?? this._line.data.alphaControl,
+        )) /
+      255;
+
     if (this._judgmentType === JudgmentType.UNJUDGED) {
+      const judgmentProgress = clamp((songTime - this._hitTime) / this.missWindow, 0, 1);
       const targetVisible =
         visible &&
         songTime >= this._hitTime - this._data.visibleTime &&
-        (dist * this._data.speed >= 0 || !(ctx?.isCover ?? this._line.data.isCover));
+        (judgmentProgress > 0 ||
+          dist * this._data.speed >= 0 ||
+          !(ctx?.isCover ?? this._line.data.isCover));
       if (this.visible !== targetVisible) super.setVisible(targetVisible);
+      this.setAlpha(this._baseAlpha * (1 - judgmentProgress));
     }
 
     const xMod = this._xModifier;
@@ -155,14 +171,6 @@ export class PlainNote extends SkewImage {
           ctx?.skewControl ?? this._line.data.skewControl,
         ),
     );
-    this._alpha =
-      (this._data.alpha *
-        this.getControlValue(
-          chartDist,
-          ControlTypes.ALPHA,
-          ctx?.alphaControl ?? this._line.data.alphaControl,
-        )) /
-      255;
     this.resize(chartDist);
     if (this._judgmentType !== JudgmentType.BAD) {
       this.setY(
@@ -185,6 +193,18 @@ export class PlainNote extends SkewImage {
 
   setHeight(height: number) {
     this._targetHeight = height;
+  }
+
+  /**
+   * Pre-judgment fade duration (seconds): the note starts fading once it
+   * crosses the judgment line and reaches zero exactly when it is judged
+   * MISS, matching each note type's miss window.
+   */
+  private get missWindow() {
+    if (this._data.type === 4) return DRAG_TIME_RANGE;
+    if (this._data.type === 3)
+      return (this._scene.preferences.perfectJudgment / 1000) * FLICK_P_FACTOR;
+    return this._scene.preferences.goodJudgment / 1000;
   }
 
   applySkewX(deg: number) {
@@ -242,7 +262,7 @@ export class PlainNote extends SkewImage {
   reset() {
     this._judgmentType = JudgmentType.UNJUDGED;
     this._beatJudged = undefined;
-    this.setAlpha(this._alpha);
+    this.setAlpha(this._baseAlpha);
     this.clearTint();
     if (this._data.tint) {
       this.setTint(rgbToHex(this._data.tint));
