@@ -214,7 +214,7 @@
   // Persistent settings (stored in localStorage and restored on startup).
   let toggles = {
     render: false,
-    newTab: Capacitor.getPlatform() === 'web',
+    newTab: !IS_ANDROID_OR_IOS && Capacitor.getPlatform() === 'web',
     inApp: IS_TAURI_LIKE || Capacitor.getPlatform() !== 'web' ? 2 : 0,
   };
   // Mirror of `toggles.render` for the settings sheet; turning it on may be
