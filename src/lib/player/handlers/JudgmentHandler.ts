@@ -93,6 +93,20 @@ export class JudgmentHandler {
   private _hitParticleLayers: Record<number, HitParticleLayer> = {};
   private _judgingHolds: { note: LongNote; beatLastExecuted: number }[] = [];
 
+  /**
+   * Deferred hit-effect spawns. Drag/flick controls score up to
+   * SCORE_DT_EPS (5 ms) before the note time (official Phigros scoring),
+   * but the note's visual kick-in (its line's move events) lands exactly at
+   * the note time. Spawning the effect on the scoring frame would place it
+   * at the line's pre-jump (often off-screen) position, so the spawn is
+   * deferred to the first frame at/after the note's own time.
+   */
+  private _pendingEffects: {
+    note: PlainNote | LongNote;
+    type: JudgmentType;
+    dueAt: number;
+  }[] = [];
+
   /** All judgeable notes, sorted ascending by hit time. */
   private _notesByTime: (PlainNote | LongNote)[] = [];
 
@@ -229,6 +243,11 @@ export class JudgmentHandler {
     if (this._scene.status !== GameStatus.PLAYING) return;
     this._wuPx = this._scene.sys.canvas.height / 10;
     this._pxPerUnit = this._scene.p(1);
+
+    // 0. 视觉 — spawn deferred hit effects whose note time has arrived, so
+    //    effects appear exactly when their note's visual kick-in happens
+    //    (the scoring step below may run up to SCORE_DT_EPS earlier).
+    this.flushDueEffects(nowTime);
 
     // 1. 触发 — per-frame finger kinematics, then flick-gesture detection.
     //    划动触发 requires each finger's displacement vectors d0/d1 (world
@@ -455,6 +474,46 @@ export class JudgmentHandler {
     finger.isNewFlick = false;
   }
 
+  /**
+   * Queues a hit-effect spawn for the first frame at/after the note's own
+   * time. Drag/flick controls score up to SCORE_DT_EPS early (official
+   * Phigros scoring), but the note's visual position (its line's move
+   * events) is only correct from the note time onward, so the effect must
+   * wait for that frame. Taps and holds score by their P/G windows and
+   * spawn immediately, matching the tap-driven effect timing.
+   */
+  private deferHitEffects(note: PlainNote | LongNote, type: JudgmentType) {
+    if (note.note.type === 3 || note.note.type === 4) {
+      this._pendingEffects.push({ note, type, dueAt: note.hitTime });
+    } else {
+      this.createHitEffects(type, note);
+    }
+  }
+
+  /**
+   * Spawns every deferred effect whose note time has been reached. Runs
+   * before matching/scoring each frame so an effect never lags behind its
+   * note's visual kick-in, and reads `judgmentPosition` at spawn time — the
+   * line transform of this frame, which is now at/past the note time.
+   */
+  private flushDueEffects(now: number) {
+    if (this._pendingEffects.length === 0) return;
+    let w = 0;
+    for (let i = 0; i < this._pendingEffects.length; i++) {
+      const pending = this._pendingEffects[i];
+      if (pending.dueAt > now) {
+        this._pendingEffects[w++] = pending;
+        continue;
+      }
+      try {
+        this.createHitEffects(pending.type, pending.note);
+      } catch (e) {
+        console.error('Failed to play hit effects', e);
+      }
+    }
+    this._pendingEffects.length = w;
+  }
+
   /** Pushes every note whose control should exist by now into `_controls`. */
   private activateControls(now: number) {
     const list = this._notesByTime;
@@ -659,7 +718,7 @@ export class JudgmentHandler {
         (!this._scene.autoplay || Math.abs(delta / this._scene.timeScale) < 1e-1)
       ) {
         this.createHitsound(note);
-        this.createHitEffects(type, note);
+        this.deferHitEffects(note, type);
         this._judgingHolds.push({ note, beatLastExecuted: beat });
         this._judgmentDeltas.push({ delta: delta / this._scene.timeScale, beat });
       }
@@ -686,7 +745,7 @@ export class JudgmentHandler {
         continue;
       }
       if (beat - beatLastExecuted >= 0.5 && this._scene.status === GameStatus.PLAYING) {
-        this.createHitEffects(note.tempJudgmentType, note);
+        this.deferHitEffects(note, note.tempJudgmentType);
         this._judgingHolds[i].beatLastExecuted = beat;
       }
     }
@@ -718,7 +777,7 @@ export class JudgmentHandler {
       if (this._scene.status === GameStatus.PLAYING && (!this._scene.autoplay || deltaAbs < 0.1)) {
         if (isPerfectOrGood(type)) {
           this.createHitsound(note);
-          this.createHitEffects(type, note);
+          this.deferHitEffects(note, type);
         } else if (type === JudgmentType.BAD) {
           note.setTint(getJudgmentColor(type).hex);
           this._scene.tweens.add({
@@ -857,6 +916,7 @@ export class JudgmentHandler {
 
   reset() {
     this._judgmentDeltas = [];
+    this._pendingEffects.length = 0;
   }
 
   /**
@@ -941,6 +1001,10 @@ export class JudgmentHandler {
         }
       }
     }
+    // Effects queued but never drained (the song ended inside the ≤5 ms
+    // scoring-to-visual gap) still get their spawn, so the final notes'
+    // effects are not lost.
+    this.flushDueEffects(Infinity);
     this._controls.length = 0;
     this._judgingHolds.length = 0;
   }
@@ -980,6 +1044,9 @@ export class JudgmentHandler {
     this._pendingClicks.length = 0;
     this._pendingKeyboardFlicks = 0;
     this._judgingHolds.length = 0;
+    // Deferred effects belong to notes that were just (partially) unjudged;
+    // dropping them lets a re-judgment re-queue the spawn from clean state.
+    this._pendingEffects.length = 0;
     for (const finger of this._fingers.values()) {
       finger.isNewFlick = false;
       finger.stopped = true;
