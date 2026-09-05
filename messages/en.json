@@ -317,6 +317,9 @@
   "published": "Published {date}",
   "online_stats": "Online stats",
 
+  "chart_not_downloaded": "Not downloaded",
+  "download_ready": "Download",
+
   "toy_login": "Log in with Bilibili",
   "toy_login_short": "Log in",
   "leaderboard": "Leaderboard",

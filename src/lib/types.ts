@@ -139,6 +139,10 @@ export interface StoredChartSummary {
     name: string;
     type: string;
   };
+  /** Remote cover URL for cloud-only (degraded-mode) charts. These entries
+   * have no local Blob; their thumbnail is the online cover fetched from the
+   * library API, persisted on Toy cloud. */
+  illustrationUrl?: string;
 }
 
 export interface RpeJson {

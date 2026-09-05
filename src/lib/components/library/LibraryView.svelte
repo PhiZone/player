@@ -6,7 +6,8 @@
   import { m } from '$lib/paraglide/messages';
   import type { StoredChartSummary, ResourcePackWithId } from '$lib/types';
   import { lookupChartStats, lookupPacksStats } from '$lib/services/onlineStats';
-  import type { ApiChartSummary, ApiPackSummary } from '$lib/services/libraryApi';
+  import { libraryApi, type ApiChartSummary, type ApiPackSummary } from '$lib/services/libraryApi';
+  import { isCloudOnlySummary } from '$lib/services/chartStorage';
   import { slideFade, staggerDelay } from '$lib/motion';
   import SongCard from './SongCard.svelte';
   import PackCard from './PackCard.svelte';
@@ -53,6 +54,47 @@
       onlineCharts = charts;
       onlinePacks = packs;
     }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  });
+
+  // ── Cloud-only cover URLs ─────────────────────────────────────────────
+  // A chart that only exists as a Toy-cloud metadata entry (no local payload)
+  // has no stored thumbnail. Its online cover is fetched lazily from the API
+  // by onlineId and rendered so the card isn't a blank tile until download.
+  let cloudCovers = $state<Map<string, string>>(new Map());
+  const cloudCoverUrl = (summary: StoredChartSummary): string | undefined => {
+    if (!isCloudOnlySummary(summary)) return undefined;
+    // Persisted URL (survives reloads, no API needed) takes priority.
+    if (summary.illustrationUrl) return summary.illustrationUrl;
+    return cloudCovers.get(summary.id) ?? onlineCharts.get(summary.id)?.cover?.url ?? undefined;
+  };
+  $effect(() => {
+    const cloudOnly = summaries.filter((s) => isCloudOnlySummary(s) && !s.illustrationUrl);
+    const missing = cloudOnly.filter(
+      (s) => !cloudCovers.has(s.id) && !onlineCharts.get(s.id)?.cover?.url,
+    );
+    if (missing.length === 0) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const next = new Map(cloudCovers);
+      await Promise.all(
+        missing.map(async (s) => {
+          if (cancelled || next.has(s.id)) return;
+          try {
+            const detail = await libraryApi.getChart(s.onlineId!);
+            const url = detail.cover?.url;
+            if (url) next.set(s.id, url);
+            else next.set(s.id, '');
+          } catch {
+            next.set(s.id, '');
+          }
+        }),
+      );
+      if (!cancelled) cloudCovers = next;
+    }, 200);
     return () => {
       cancelled = true;
       clearTimeout(timer);
@@ -161,8 +203,9 @@
             {#each summaries as summary, i (summary.id)}
               <SongCard
                 {summary}
-                thumbnailUrl={getChartThumb(summary)}
+                thumbnailUrl={getChartThumb(summary) ?? cloudCoverUrl(summary)}
                 downloadCount={onlineCharts.get(summary.id)?.downloadCount}
+                cloudOnly={isCloudOnlySummary(summary)}
                 enterDelay={staggerDelay(i)}
                 onclick={() => onChartSelect(summary)}
               />

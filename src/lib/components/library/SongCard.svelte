@@ -12,12 +12,17 @@
     summary,
     thumbnailUrl,
     downloadCount,
+    cloudOnly = false,
     enterDelay = 0,
     onclick,
   }: {
     summary: StoredChartSummary;
     thumbnailUrl?: string;
     downloadCount?: number;
+    /** True when this card is registry-only (no payload stored) — show a
+     * "download" badge and, on click, trigger a re-download instead of a
+     * local open. */
+    cloudOnly?: boolean;
     /** Stagger delay for the grid entrance animation (ms). */
     enterDelay?: number;
     onclick: () => void;
@@ -48,6 +53,15 @@
         >
           <DownloadIcon class="size-3" />
           {formatCompactNumber(downloadCount)}
+        </div>
+      {/if}
+      {#if cloudOnly}
+        <div
+          class="absolute bottom-2 left-2 flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground"
+          title={m.chart_not_downloaded()}
+        >
+          <DownloadIcon class="size-3" />
+          {m.download_ready()}
         </div>
       {/if}
     </div>

@@ -317,6 +317,9 @@
   "published": "发布于 {date}",
   "online_stats": "在线数据",
 
+  "chart_not_downloaded": "未下载",
+  "download_ready": "下载",
+
   "toy_login": "使用 B站账号登录",
   "toy_login_short": "登录",
   "leaderboard": "排行榜",

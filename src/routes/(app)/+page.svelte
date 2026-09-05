@@ -99,6 +99,7 @@
   import { convertHoldAtlas, getImageDimensions } from '$lib/converters/phira/respack';
   import { hexToRgba } from '$lib/player/utils';
   import { m } from '$lib/paraglide/messages';
+  import { libraryApi } from '$lib/services/libraryApi';
   import {
     detectToyEnvironment,
     toyClearPersonalBest,
@@ -115,6 +116,7 @@
   import { tauriInvoke } from '$lib/services/tauriIpc';
   import { fsReadFile } from '$lib/services/tauriFsBridge';
   import {
+    CloudOnlyChartError,
     computeChartChecksum,
     deleteChart as deleteStoredChart,
     loadAllChartSummaries,
@@ -2414,9 +2416,30 @@
       await loadChartIntoWorkingState(stored);
       detailOpen = true;
     } catch (e) {
+      // Degraded mode (no IndexedDB): a chart whose payload isn't stored yet
+      // is marked cloud-only. Re-download it from the online API on demand,
+      // then load it into the session working state. It won't be re-persisted
+      // (there's no durable store), so the library card stays cloud-only.
+      if (e instanceof CloudOnlyChartError) {
+        try {
+          await downloadOnlineChart(e.onlineId);
+        } catch (err) {
+          console.warn('Failed to fetch online chart:', err);
+          notify(m.install_failed({ title: e.meta.title ?? '' }), 'failure');
+        }
+        return;
+      }
       console.warn('Failed to load stored chart:', e);
       notify(String(e), 'failure');
     }
+  };
+
+  /** Re-download an installed-but-not-yet-downloaded (cloud-only) chart and
+   * load it into the session working state. Mirrors `handleInstallOnline` but
+   * never writes to the (unavailable) durable store. */
+  const downloadOnlineChart = async (onlineId: string) => {
+    const detail = await libraryApi.getChart(onlineId);
+    return handleInstallOnline('chart', detail.fileUrl, detail.title, onlineId);
   };
 
   const exportStoredChart = async (id: string, options?: { preserveSourceName?: boolean }) => {

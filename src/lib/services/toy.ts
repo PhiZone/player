@@ -345,3 +345,165 @@ export async function toyClearPersonalBest(chartKey: string): Promise<void> {
     console.debug('[ToySDK] removeCloudStorage failed:', error);
   }
 }
+
+// ── Durable chart-metadata registry (only when IDB is unavailable) ──
+// In sandboxed Toy environments where IndexedDB is unavailable, MB-scale
+// chart blobs cannot be persisted. An online-installed chart (one with an
+// `onlineId`) keeps only its lightweight metadata here so the library still
+// lists the card; the payload is re-downloaded from the online API on
+// demand and held in session memory.
+//
+// Layout (respects the Toy SDK cloud constraints of a 1 KB value cap and a
+// 128-key cap per user+toy):
+//  - ONE per-chart key `chart_<onlineId>` holding that chart's full metadata
+//    including its illustration URL (~290 B each, well under 1 KB).
+//  - ONE compact index key `chartindex` holding just the array of onlineIds
+//    (~789 B for 40 charts, under 1 KB), because the SDK provides NO way to
+//    enumerate cloud keys — only read-by-known-key. The index is what lets
+//    us "list" the library and then fetch each chart's own key.
+// This scales to ~40-100 charts depending on title/URL lengths before the
+// index hits the 1 KB value cap. Within that range, thumbnails persist and
+// render offline; beyond it the index write is dropped (no partial state).
+
+const CHART_INDEX_KEY = 'chartindex';
+const CHART_KEY_PREFIX = 'chart_';
+
+export interface ToyChartMeta {
+  onlineId: string;
+  title: string | null;
+  composer: string | null;
+  charter: string | null;
+  illustrator: string | null;
+  levelType: number;
+  level: string | null;
+  sourceName?: string;
+  checksum?: string;
+  /** Direct URL of the online cover art — persisted so the card can show a
+   * thumbnail without re-downloading the chart payload. */
+  illustrationUrl?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+function chartCloudKey(onlineId: string): string | null {
+  const fullKey = CHART_KEY_PREFIX + sanitizeKey(onlineId);
+  return isValidCloudKey(fullKey) ? fullKey : null;
+}
+
+/** All metadata entries the library should still list in a degraded env. */
+export async function toyListChartMetadata(): Promise<ToyChartMeta[]> {
+  // Read the index (the list of onlineIds), then each chart's own key.
+  const indexRaw = await toyCloudGet(CHART_INDEX_KEY);
+  let onlineIds: string[] = [];
+  if (indexRaw) {
+    try {
+      const parsed = JSON.parse(indexRaw) as unknown;
+      if (Array.isArray(parsed)) {
+        onlineIds = parsed.filter((v): v is string => typeof v === 'string');
+      }
+    } catch {
+      onlineIds = [];
+    }
+  }
+  if (onlineIds.length === 0) return [];
+  const values = await window.toy!.getCloudStorage(
+    onlineIds.map(chartCloudKey).filter((key): key is string => key !== null),
+  );
+  const metas: ToyChartMeta[] = [];
+  for (const id of onlineIds) {
+    const key = chartCloudKey(id);
+    const raw = key ? values[key] : undefined;
+    if (!raw) continue;
+    try {
+      const parsed = JSON.parse(raw) as ToyChartMeta;
+      if (parsed && typeof parsed.onlineId === 'string') metas.push(parsed);
+    } catch {
+      // skip corrupt entry
+    }
+  }
+  return metas;
+}
+
+/** Upsert a chart metadata entry. False when it wouldn't fit cloud limits. */
+export async function toySaveChartMetadata(meta: ToyChartMeta): Promise<boolean> {
+  const key = chartCloudKey(meta.onlineId);
+  if (!key || !(await supportsToyAbility('setCloudStorage'))) return false;
+  const value = JSON.stringify(meta);
+  if (!cloudValueFits(value)) return false;
+  // Persist the per-chart entry first.
+  try {
+    await window.toy!.setCloudStorage({ [key]: value });
+  } catch (error) {
+    console.debug('[ToySDK] setChartMetadata failed:', error);
+    return false;
+  }
+  // Then ensure the onlineId is present in the index.
+  const indexRaw = await toyCloudGet(CHART_INDEX_KEY);
+  let onlineIds: string[] = [];
+  if (indexRaw) {
+    try {
+      const parsed = JSON.parse(indexRaw) as unknown;
+      if (Array.isArray(parsed))
+        onlineIds = parsed.filter((v): v is string => typeof v === 'string');
+    } catch {
+      onlineIds = [];
+    }
+  }
+  if (!onlineIds.includes(meta.onlineId)) {
+    onlineIds.push(meta.onlineId);
+    const indexValue = JSON.stringify(onlineIds);
+    if (cloudValueFits(indexValue)) {
+      const ok = await toyCloudSet(CHART_INDEX_KEY, indexValue);
+      if (!ok) await toyCloudRemove(key); // index didn't fit — drop the entry for consistency
+    } else {
+      await toyCloudRemove(key); // index cap reached — don't leave an orphan
+    }
+  }
+  return true;
+}
+
+/** Read a single chart's stored metadata by onlineId. */
+export async function toyGetChartMetadata(onlineId: string): Promise<ToyChartMeta | null> {
+  const key = chartCloudKey(onlineId);
+  if (!key || !(await toyCloudStorageAvailable())) return null;
+  try {
+    const data = await window.toy!.getCloudStorage([key]);
+    const raw = data[key];
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as ToyChartMeta;
+    return parsed && typeof parsed.onlineId === 'string' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Remove a chart metadata entry. True when an entry was actually removed. */
+export async function toyRemoveChartMetadata(onlineId: string): Promise<boolean> {
+  const key = chartCloudKey(onlineId);
+  let removed = false;
+  if (key && (await supportsToyAbility('removeCloudStorage'))) {
+    try {
+      await window.toy!.removeCloudStorage([key]);
+      removed = true;
+    } catch (error) {
+      console.debug('[ToySDK] removeChartMetadata failed:', error);
+    }
+  }
+  // Pull the onlineId out of the index too.
+  const indexRaw = await toyCloudGet(CHART_INDEX_KEY);
+  if (!indexRaw) return removed;
+  try {
+    const parsed = JSON.parse(indexRaw) as unknown;
+    if (!Array.isArray(parsed)) return removed;
+    const next = parsed.filter((v): v is string => typeof v === 'string' && v !== onlineId);
+    if (next.length === parsed.length) return removed;
+    if (next.length === 0) {
+      await toyCloudRemove(CHART_INDEX_KEY);
+    } else {
+      await toyCloudSet(CHART_INDEX_KEY, JSON.stringify(next));
+    }
+    return true;
+  } catch {
+    return removed;
+  }
+}

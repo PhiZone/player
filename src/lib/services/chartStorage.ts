@@ -8,8 +8,16 @@
 
 import type { Metadata, StoredChart, StoredChartSummary } from '$lib/types';
 import { sha256Hex, uuid } from '$lib/utils';
-import { openDB } from './idb';
+import { isIdbAvailable, openDB } from './idb';
 import { memStore } from './memStore';
+import { libraryApi } from './libraryApi';
+import {
+  toyGetChartMetadata,
+  toyListChartMetadata,
+  toyRemoveChartMetadata,
+  toySaveChartMetadata,
+  type ToyChartMeta,
+} from './toy';
 import {
   deleteChartFromDisk,
   loadChartFromDisk,
@@ -228,24 +236,165 @@ async function deleteChartFromIDB(id: string): Promise<void> {
 
 // ── Unified facade ────────────────────────────────────────────────────
 
+/**
+ * Whether the environment offers durable browser storage (IndexedDB). Chart
+ * payloads (multi-MB blobs) are only persisted when this is true. When it is
+ * false, the app runs in "degraded" mode: online charts keep their metadata
+ * on Toy cloud and are re-downloaded on demand, local charts stay session-only.
+ *
+ * Cached for the session (the probe runs a real read/write transaction).
+ */
+let durableStoragePromise: Promise<boolean> | undefined;
+const durableStorageAvailable = () => (durableStoragePromise ??= isIdbAvailable());
+
+function metaToSummary(meta: ToyChartMeta): StoredChartSummary {
+  return {
+    id: meta.onlineId,
+    createdAt: meta.createdAt,
+    updatedAt: meta.updatedAt,
+    // Intentionally no checksum: the cloud-only placeholder must not match a
+    // re-download's checksum dedup (its payload isn't stored), or the import
+    // pipeline would treat a "need to download" chart as an existing copy.
+    sourceName: meta.sourceName,
+    onlineId: meta.onlineId,
+    illustrationUrl: meta.illustrationUrl,
+    metadata: {
+      title: meta.title,
+      composer: meta.composer,
+      charter: meta.charter,
+      illustrator: meta.illustrator,
+      levelType: meta.levelType as Metadata['levelType'],
+      level: meta.level,
+      difficulty: null,
+    },
+  };
+}
+
+/** A summary that only exists in the Toy cloud registry (`degraded` mode).
+ * IDB-stored online charts keep a UUID `id` separate from `onlineId`, while
+ * degraded-registry entries use the onlineId directly as their id — so
+ * `id === onlineId` unambiguously marks a registry-only card that has no
+ * local payload attached.
+ */
+export function isCloudOnlySummary(
+  summary: StoredChartSummary,
+): summary is StoredChartSummary & { onlineId: string } {
+  return (
+    typeof summary.id === 'string' &&
+    typeof summary.onlineId === 'string' &&
+    summary.id === summary.onlineId
+  );
+}
+
+/** Thrown by `loadChart` for a cloud-only entry that has no local payload. */
+export class CloudOnlyChartError extends Error {
+  constructor(
+    public readonly onlineId: string,
+    public readonly meta: ToyChartMeta,
+  ) {
+    super(`Online chart not downloaded yet: ${onlineId}`);
+    this.name = 'CloudOnlyChartError';
+  }
+}
+
+/** Best-effort online cover URL for an online chart, used so a cloud-only
+ * card can show a thumbnail without re-downloading the payload. */
+async function fetchOnlineCover(onlineId: string): Promise<string | undefined> {
+  try {
+    const detail = await libraryApi.getChart(onlineId);
+    return detail.cover?.url ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function saveChart(chart: StoredChart): Promise<void> {
   if (isTauriLike()) return saveChartToDisk(chart);
-  return saveChartToIDB(chart);
+  if (await durableStorageAvailable()) return saveChartToIDB(chart);
+  // Degraded mode: only online charts can be re-downloaded, so only their
+  // metadata is persisted. Local (non-online) charts have no download source,
+  // so they stay session-only (memStore) and vanish on reload.
+  if (!chart.onlineId) {
+    memStore.put(STORE_NAME, chart.id, packChart(chart));
+    return;
+  }
+  // Keep a session copy too so a chart re-downloaded this session can be
+  // re-opened without hitting the network again. The cloud entry is what
+  // survives a reload.
+  memStore.put(STORE_NAME, chart.id, packChart(chart));
+  // Best-effort cover URL: fetch it from the online API by id so the
+  // cloud-only card has a thumbnail without re-downloading the payload. The
+  // existing cloud entry's URL is reused when present (avoids an extra claim
+  // call and survives API downtime).
+  const priorMeta = await toyGetChartMetadata(chart.onlineId);
+  let illustrationUrl = priorMeta?.illustrationUrl;
+  if (!illustrationUrl) {
+    illustrationUrl = await fetchOnlineCover(chart.onlineId);
+  }
+  const persisted = await toySaveChartMetadata({
+    onlineId: chart.onlineId,
+    title: chart.metadata.title,
+    composer: chart.metadata.composer,
+    charter: chart.metadata.charter,
+    illustrator: chart.metadata.illustrator,
+    levelType: chart.metadata.levelType,
+    level: chart.metadata.level,
+    sourceName: chart.sourceName,
+    checksum: chart.checksum,
+    illustrationUrl: illustrationUrl ?? undefined,
+    createdAt: chart.createdAt,
+    updatedAt: chart.updatedAt,
+  });
+  if (!persisted) {
+    // Cloud write failed (e.g. value outgrew the 1 KB cap or SDK down): the
+    // session copy above still keeps this session working.
+    memStore.put(STORE_NAME, chart.id, packChart(chart));
+  }
 }
 
 export async function loadAllChartSummaries(): Promise<StoredChartSummary[]> {
   if (isTauriLike()) return loadChartSummariesFromDisk();
-  return loadAllChartSummariesFromIDB();
+  const idbSummaries = await loadAllChartSummariesFromIDB();
+  // Merge any cloud-metadata entries (degraded-mode cards). We merge on
+  // every read even when IDB is available (it may have come back between
+  // writes) so a chart saved while degraded isn't lost.
+  const cloudMetas = await toyListChartMetadata();
+  if (cloudMetas.length === 0) return idbSummaries;
+  const byOnlineId = new Map(idbSummaries.map((s) => [s.onlineId, s]));
+  const merged = [...idbSummaries];
+  for (const meta of cloudMetas) {
+    if (byOnlineId.has(meta.onlineId)) continue;
+    merged.push(metaToSummary(meta));
+  }
+  return merged.sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
 export async function loadChart(id: string): Promise<StoredChart> {
   if (isTauriLike()) return loadChartFromDisk(id);
-  return loadChartFromIDB(id);
+  try {
+    return await loadChartFromIDB(id);
+  } catch (e) {
+    // A cloud-only summary (id == onlineId, no local blob) surfaces as a
+    // `not found` here. Figure out whether this id has a cloud-metadata
+    // entry and, if so, throw a typed error the caller can use to re-fetch.
+    const metas = await toyListChartMetadata();
+    const meta = metas.find((entry) => entry.onlineId === id);
+    if (meta) throw new CloudOnlyChartError(meta.onlineId, meta);
+    throw e;
+  }
 }
 
 export async function deleteChart(id: string): Promise<void> {
   if (isTauriLike()) return deleteChartFromDisk(id);
-  return deleteChartFromIDB(id);
+  await deleteChartFromIDB(id);
+  // Remove any cloud-metadata entry too, so an online chart deleted while
+  // degraded (or after IDB recovered) clears both copies. The summary id is
+  // the onlineId in degraded mode, so matching on it covers both paths.
+  const metas = await toyListChartMetadata();
+  const meta = metas.find((entry) => entry.onlineId === id);
+  if (meta) {
+    await toyRemoveChartMetadata(meta.onlineId);
+  }
 }
 
 /** Upsert a chart, normalizing identity fields. */
