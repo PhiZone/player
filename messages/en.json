@@ -292,7 +292,6 @@
   "search_charts": "Search charts…",
 
   "discover_placeholder_title": "Online charts are on their way",
-  "discover_placeholder_description": "Soon you'll be able to browse community charts and resource packs right here. This tab lights up once the PhiZone content API is ready.",
   "discover_coming_soon": "Coming soon",
 
   "retry": "Retry",
@@ -314,7 +313,7 @@
   "import_from_clipboard": "Paste from clipboard",
 
   "library_empty_title": "Your library is empty",
-  "library_empty_description": "Import a chart to start playing, or wait for online charts to arrive.",
+  "library_empty_description": "Import a chart to start playing.",
   "browse_online": "Browse online",
   "chart_count": "{count} charts",
   "pack_count": "{count} packs",

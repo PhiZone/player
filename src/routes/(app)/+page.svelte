@@ -160,7 +160,7 @@
   // app reopens there next time; first-time visitors default to Discover.
   const LAST_TAB_KEY = 'lastLandingTab';
   let activeTab: 'discover' | 'library' =
-    localStorage.getItem(LAST_TAB_KEY) === 'library' ? 'library' : 'discover';
+    localStorage.getItem(LAST_TAB_KEY) === 'discover' ? 'discover' : 'library';
   let settingsOpen = false;
   let importOpen = false;
   let detailOpen = false;

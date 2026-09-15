@@ -16,12 +16,8 @@
   </div>
   <div in:riseIn={{ y: 14, delay: 80, duration: 340 }} class="max-w-md space-y-2">
     <h1 class="text-2xl font-bold">{m.discover_placeholder_title()}</h1>
-    <p class="text-sm text-muted-foreground">{m.discover_placeholder_description()}</p>
-  </div>
-  <div in:riseIn={{ y: 10, delay: 160, duration: 300 }}>
-    <Badge variant="outline" class="border-violet-500/40 text-violet-400">
-      {m.discover_coming_soon()}
-    </Badge>
+    <p class="text-sm text-muted-foreground">
+      {m.discover_coming_soon()}</p>
   </div>
   <div
     in:riseIn={{ y: 10, delay: 240, duration: 300 }}
