@@ -89,6 +89,8 @@
   let duration = 0;
   let timeSec = 0;
   let lastWaveformUpdate = -100;
+  let waveformAnimationFrame: number | undefined;
+  let pendingWaveformTime: number | undefined;
 
   let title: string | null = config?.metadata.title ?? null;
   let level: string | null =
@@ -126,6 +128,19 @@
 
   let orientationPortrait = isPortrait();
   let rotationPromptDismissed = false;
+
+  const updateWaveformProgress = (t: number) => {
+    pendingWaveformTime = t;
+    if (waveformAnimationFrame !== undefined) return;
+
+    waveformAnimationFrame = requestAnimationFrame(() => {
+      waveformAnimationFrame = undefined;
+      const waveformTime = pendingWaveformTime;
+      pendingWaveformTime = undefined;
+      if (!wavesurfer || waveformTime === undefined || duration <= 0) return;
+      wavesurfer.getRenderer().renderProgress(clamp(waveformTime / duration, 0, 1), false);
+    });
+  };
 
   $: rotationPromptVisible =
     status === GameStatus.LOADING &&
@@ -354,6 +369,7 @@
         wavesurfer?.setTime(t);
         lastWaveformUpdate = now;
       }
+      updateWaveformProgress(t);
       if (Math.abs(t - timeSec) >= 0.1) {
         timeSec = t;
       }
@@ -400,6 +416,9 @@
       gameRef.scene?.events.off('preupdate', performanceStats.begin);
       gameRef.scene?.events.off('render', performanceStats.end);
       document.body.removeChild(performanceStats.dom);
+    }
+    if (waveformAnimationFrame !== undefined) {
+      cancelAnimationFrame(waveformAnimationFrame);
     }
   });
 
