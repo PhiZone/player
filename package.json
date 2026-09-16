@@ -93,7 +93,7 @@
     "@fix-webm-duration/fix": "^1.0.1",
     "@fortawesome/fontawesome-free": "^6.7.2",
     "@sentry/sveltekit": "^8.55.1",
-    "@tauri-apps/api": "^2.10.1",
+    "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-clipboard-manager": "^2.3.2",
     "@tauri-apps/plugin-deep-link": "~2.4.8",
     "@tauri-apps/plugin-dialog": "~2.7.0",

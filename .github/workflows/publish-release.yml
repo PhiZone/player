@@ -129,6 +129,9 @@ jobs:
       - name: Install dependencies
         run: pnpm i
 
+      - name: Sync Capacitor iOS project
+        run: pnpm exec cap update ios
+
       - name: Install iOS dependencies
         run: |
           cd ios/App
@@ -240,9 +243,9 @@ jobs:
       - name: Clean up keychain and provisioning profiles
         if: ${{ always() }}
         run: |
-          security delete-keychain $RUNNER_TEMP/app-signing.keychain-db
-          rm ~/Library/MobileDevice/Provisioning\ Profiles/app.mobileprovision
-          rm ~/Library/MobileDevice/Provisioning\ Profiles/share-extension.mobileprovision
+          security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true
+          rm -f ~/Library/MobileDevice/Provisioning\ Profiles/app.mobileprovision
+          rm -f ~/Library/MobileDevice/Provisioning\ Profiles/share-extension.mobileprovision
 
       - name: Clean Xcode caches and derived data
         if: ${{ always() }}
