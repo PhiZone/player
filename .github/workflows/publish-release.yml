@@ -130,7 +130,10 @@ jobs:
         run: pnpm i
 
       - name: Sync Capacitor iOS project
-        run: pnpm exec cap update ios
+        run: |
+          mkdir -p build
+          printf '%s\n' '<!doctype html><title>placeholder</title>' > build/index.html
+          pnpm exec cap sync ios
 
       - name: Install iOS dependencies
         run: |
