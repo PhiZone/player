@@ -10,13 +10,9 @@ import {
 
 type ParticleObject = GameObjects.Arc | GameObjects.Rectangle | GameObjects.Polygon;
 
-interface PooledParticle {
-  obj: ParticleObject;
-  tint: number;
-}
-
 interface ParticleState {
   obj: ParticleObject;
+  tint: number;
   x0: number;
   y0: number;
   tx: number;
@@ -44,7 +40,7 @@ export class HitParticleLayer {
   private _container: GameObjects.Container;
   private _pref: OrdinaryParticle | PolygonParticle;
   private _live: ParticleState[] = [];
-  private _pool: PooledParticle[] = [];
+  private _pool: ParticleState[] = [];
   private _baseScale: number | undefined;
 
   constructor(
@@ -65,31 +61,29 @@ export class HitParticleLayer {
     for (let i = 0; i < this._pref.count; i++) {
       const range = Math.random() * spread;
       const angle = Math.random() * Math.PI * 2;
-      const pooled = this._acquire(color, x, y);
-      const obj = pooled.obj;
+      const state = this._acquire(color, x, y);
+      const obj = state.obj;
       obj.visible = true;
       obj.setPosition(x, y);
       obj.setScale(0);
       obj.setAlpha(1);
-      this._live.push({
-        obj,
-        x0: x,
-        y0: y,
-        tx: x + range * Math.cos(angle),
-        ty: y + range * Math.sin(angle),
-        age: 0,
-      });
+      state.x0 = x;
+      state.y0 = y;
+      state.tx = x + range * Math.cos(angle);
+      state.ty = y + range * Math.sin(angle);
+      state.age = 0;
+      this._live.push(state);
     }
   }
 
-  private _acquire(color: number, x: number, y: number): PooledParticle {
-    const pooled = this._pool.pop();
-    if (pooled) {
-      if (pooled.tint !== color) {
-        pooled.obj.setFillStyle(color);
-        pooled.tint = color;
+  private _acquire(color: number, x: number, y: number): ParticleState {
+    const state = this._pool.pop();
+    if (state) {
+      if (state.tint !== color) {
+        state.obj.setFillStyle(color);
+        state.tint = color;
       }
-      return pooled;
+      return state;
     }
     const pref = this._pref;
     const scale = this._baseScale!;
@@ -118,7 +112,7 @@ export class HitParticleLayer {
       obj.setOrigin(0.5);
     }
     this._container.add(obj);
-    return { obj, tint: color };
+    return { obj, tint: color, x0: 0, y0: 0, tx: 0, ty: 0, age: 0 };
   }
 
   tick(delta: number) {
@@ -129,7 +123,7 @@ export class HitParticleLayer {
       p.age += delta;
       if (p.age >= PARTICLE_LIFETIME) {
         p.obj.visible = false;
-        this._pool.push({ obj: p.obj, tint: 0 });
+        this._pool.push(p);
         continue;
       }
       const t = p.age / 800;
@@ -183,8 +177,8 @@ export class HitEffects extends GameObjects.Sprite {
     this.setVisible(true);
     this.setActive(true);
     this.setColor(this._scene.respack.getHitEffectsColor(type));
+    // Note-level tint overrides the judgment color; otherwise keep setColor's tint.
     if (tint !== undefined) this.setTint(tint);
-    else this.clearTint();
     this.off('animationcomplete', this._onAnimComplete);
     this.once('animationcomplete', this._onAnimComplete);
     this.play('hit-effects');

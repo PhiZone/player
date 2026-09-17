@@ -60,6 +60,9 @@ export class PlainNote extends SkewImage {
   /** Precomputed base scale (pixels per note-size unit × skin size factor). */
   private _noteScaleBase: number;
 
+  /** Reused by judgmentPosition to avoid per-hit allocation. */
+  private _judgePos = { x: 0, y: 0 };
+
   private _debug: GameObjects.Container | undefined = undefined;
 
   constructor(scene: Game, data: Note, index: number, highlight: boolean = false) {
@@ -278,10 +281,11 @@ export class PlainNote extends SkewImage {
 
   public get judgmentPosition() {
     const y = this._yModifier * this._scene.o(this._data.yOffset);
-    return {
-      x: this._line.x + this.x * Math.cos(this._line.rotation) - y * Math.sin(this._line.rotation),
-      y: this._line.y + this.x * Math.sin(this._line.rotation) + y * Math.cos(this._line.rotation),
-    };
+    const cos = Math.cos(this._line.rotation);
+    const sin = Math.sin(this._line.rotation);
+    this._judgePos.x = this._line.x + this.x * cos - y * sin;
+    this._judgePos.y = this._line.y + this.x * sin + y * cos;
+    return this._judgePos;
   }
 
   public get judgmentType() {

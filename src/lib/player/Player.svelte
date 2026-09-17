@@ -349,11 +349,15 @@
         });
       }
       const now = performance.now();
-      if (now - lastWaveformUpdate > 100) {
-        wavesurfer?.setTime(t);
-        lastWaveformUpdate = now;
+      // WaveSurfer redraws are only needed for offset adjustment / seeking —
+      // not while the chart is running (they allocate canvas bitmaps every frame).
+      if (status !== GameStatus.PLAYING) {
+        if (now - lastWaveformUpdate > 100) {
+          wavesurfer?.setTime(t);
+          lastWaveformUpdate = now;
+        }
+        updateWaveformProgress(t);
       }
-      updateWaveformProgress(t);
       if (Math.abs(t - timeSec) >= 0.1) {
         timeSec = t;
       }
