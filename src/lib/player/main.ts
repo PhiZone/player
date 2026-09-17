@@ -1,19 +1,32 @@
 import { Game as MainGame } from './scenes/Game';
 import { WEBGL, Game, Scale, type Types } from 'phaser';
 import type { Config } from '$lib/types';
-import { fit, IS_TAURI, IS_TAURI_LIKE } from '$lib/utils';
+import { fit, IS_ANDROID_OR_IOS, IS_TAURI, IS_TAURI_LIKE } from '$lib/utils';
 import { Capacitor } from '@capacitor/core';
 import { currentMonitor, getCurrentWindow } from '@tauri-apps/api/window';
 import { EventBus } from './EventBus';
 import { scaleConfigImages } from './utils';
 
+/**
+ * Backing-store scale. Full devicePixelRatio (often 3) with MSAA is fill-rate
+ * bound on phones — residual present time sits just above a 60Hz vsync and
+ * produces continuous ~50fps jank even when JS is only a few ms.
+ */
+const RENDER_DPR_CAP = 2;
+
+const getRenderDpr = () => {
+  const dpr = window.devicePixelRatio || 1;
+  return IS_ANDROID_OR_IOS ? Math.min(dpr, RENDER_DPR_CAP) : dpr;
+};
+
 const start = async (parent: string, sceneConfig: Config) => {
   const parentElement = document.getElementById(parent)!;
+  const renderDpr = getRenderDpr();
 
   const config: Types.Core.GameConfig = {
     type: WEBGL,
-    width: parentElement.clientWidth * window.devicePixelRatio,
-    height: parentElement.clientHeight * window.devicePixelRatio,
+    width: parentElement.clientWidth * renderDpr,
+    height: parentElement.clientHeight * renderDpr,
     fps: {
       smoothStep: !(IS_TAURI_LIKE && sceneConfig.render),
     },
@@ -21,7 +34,7 @@ const start = async (parent: string, sceneConfig: Config) => {
       mode: Scale.EXPAND,
       autoCenter: Scale.CENTER_BOTH,
     },
-    antialias: true,
+    antialias: !IS_ANDROID_OR_IOS,
     backgroundColor: '#000000',
     loader: {
       crossOrigin: 'anonymous',
@@ -52,8 +65,8 @@ const start = async (parent: string, sceneConfig: Config) => {
 
     if (Capacitor.getPlatform() !== 'web') {
       dimensions = {
-        width: Math.max(window.screen.width, window.screen.height) * window.devicePixelRatio,
-        height: Math.min(window.screen.width, window.screen.height) * window.devicePixelRatio,
+        width: Math.max(window.screen.width, window.screen.height) * renderDpr,
+        height: Math.min(window.screen.width, window.screen.height) * renderDpr,
       };
     }
 
@@ -62,8 +75,8 @@ const start = async (parent: string, sceneConfig: Config) => {
       dimensions = fit(
         ratio[0],
         ratio[1],
-        Math.max(window.screen.width, window.screen.height) * window.devicePixelRatio,
-        Math.min(window.screen.width, window.screen.height) * window.devicePixelRatio,
+        Math.max(window.screen.width, window.screen.height) * renderDpr,
+        Math.min(window.screen.width, window.screen.height) * renderDpr,
         true,
       );
     }
@@ -126,8 +139,8 @@ const start = async (parent: string, sceneConfig: Config) => {
       requestAnimationFrame(() => {
         try {
           game.scale.resize(
-            entries[0].contentBoxSize[0].inlineSize * window.devicePixelRatio,
-            entries[0].contentBoxSize[0].blockSize * window.devicePixelRatio,
+            entries[0].contentBoxSize[0].inlineSize * renderDpr,
+            entries[0].contentBoxSize[0].blockSize * renderDpr,
           );
         } catch (e) {
           console.warn(e);
