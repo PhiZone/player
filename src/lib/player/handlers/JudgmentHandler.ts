@@ -913,6 +913,10 @@ export class JudgmentHandler {
     );
   }
 
+  registerHitsound(key: string, url: string) {
+    this._hitsoundPool.register(key, url);
+  }
+
   destroy() {
     this._hitsoundPool.destroy();
     for (const depth in this._hitEffectsPools) {

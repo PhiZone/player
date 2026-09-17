@@ -1,72 +1,67 @@
-import type { Sound } from 'phaser';
-import type { Game } from '../scenes/Game';
-
-type PlayableSound = Sound.NoAudioSound | Sound.HTML5AudioSound | Sound.WebAudioSound;
-
-/** Concurrent hitsound instances allowed per key before we steal the oldest. */
-const MAX_PER_KEY = 12;
-
 /**
- * Pooled hitsound playback, keyed by Phaser sound key.
+ * Pooled hitsound playback using HTMLAudioElements.
  *
- * Previously every judgment called `sound.add()` + `play()`, which allocated
- * a new WebAudio node graph per hit and fed the 10s full-GC freezes seen on
- * dense charts. Sounds are created lazily, reused when idle, grown up to
- * {@link MAX_PER_KEY} under burst, then round-robin stolen (stop + replay)
- * so allocation stays bounded.
+ * Phaser's WebAudioSound allocates a new AudioBufferSourceNode on every
+ * play() (Web Audio API one-shot rule), which fed frequent partial GCs on
+ * dense autoplay. HTMLAudioElements can be paused and seeked back to 0 and
+ * replayed without creating a new source graph.
  */
 export class HitsoundPool {
-  private _scene: Game;
-  private _pools = new Map<string, PlayableSound[]>();
-  private _stealCursors = new Map<string, number>();
+  private _pools = new Map<string, HTMLAudioElement[]>();
+  private _urls = new Map<string, string>();
+  private _steal = new Map<string, number>();
 
-  constructor(scene: Game) {
-    this._scene = scene;
+  register(key: string, url: string) {
+    this._urls.set(key, url);
   }
 
   play(key: string, volume: number) {
     if (volume <= 0) return;
+    const url = this._urls.get(key);
+    if (!url) return;
     let pool = this._pools.get(key);
     if (!pool) {
       pool = [];
       this._pools.set(key, pool);
     }
 
-    let sound: PlayableSound | undefined;
+    let el: HTMLAudioElement | undefined;
     for (let i = 0; i < pool.length; i++) {
-      const s = pool[i];
-      if (!s.isPlaying && !s.isPaused) {
-        sound = s;
+      if (pool[i].paused || pool[i].ended) {
+        el = pool[i];
         break;
       }
     }
-    if (!sound) {
-      if (pool.length < MAX_PER_KEY) {
-        sound = this._scene.sound.add(key);
-        pool.push(sound);
+    if (!el) {
+      if (pool.length < 8) {
+        el = new Audio(url);
+        el.preload = 'auto';
+        pool.push(el);
       } else {
-        const cursor = this._stealCursors.get(key) ?? 0;
-        sound = pool[cursor % pool.length];
-        this._stealCursors.set(key, cursor + 1);
+        const cursor = this._steal.get(key) ?? 0;
+        el = pool[cursor % pool.length];
+        this._steal.set(key, cursor + 1);
       }
     }
 
-    sound.setVolume(volume);
-    if (sound.isPlaying || sound.isPaused) sound.stop();
-    sound.play();
+    el.volume = Math.min(1, Math.max(0, volume));
+    try {
+      el.currentTime = 0;
+    } catch {
+      // not seekable yet
+    }
+    void el.play().catch(() => {});
   }
 
   destroy() {
     for (const pool of this._pools.values()) {
-      for (const sound of pool) {
-        try {
-          sound.destroy();
-        } catch {
-          // manager may already be tearing down
-        }
+      for (const el of pool) {
+        el.pause();
+        el.src = '';
       }
     }
     this._pools.clear();
-    this._stealCursors.clear();
+    this._urls.clear();
+    this._steal.clear();
   }
 }

@@ -67,6 +67,7 @@ export class Game extends Scene {
     repeat?: number;
   }[] = [];
   private _audioAssets: { key: string; url: string }[] = [];
+  private _hitsoundUrls = new Map<string, string>();
   private _shaderAssets: { key: string; url: string; source?: string }[] = [];
   private _skinSize: number | undefined = undefined;
 
@@ -401,6 +402,7 @@ export class Game extends Scene {
 
   loadAudio(key: string, url: string) {
     if (this._render) return;
+    this._hitsoundUrls.set(key, url);
     this.load.audio(key, url);
   }
 
@@ -789,6 +791,9 @@ export class Game extends Scene {
       this._keyboardHandler = new KeyboardHandler(this);
     }
     this._judgmentHandler = new JudgmentHandler(this);
+    for (const [key, url] of this._hitsoundUrls) {
+      this._judgmentHandler.registerHitsound(key, url);
+    }
     this._judgmentHandler.setNotes(this._judgmentNotesByTime);
     this._statisticsHandler = new StatisticsHandler(this);
   }

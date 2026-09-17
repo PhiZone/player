@@ -12,7 +12,7 @@ import { scaleConfigImages } from './utils';
  * bound on phones — residual present time sits just above a 60Hz vsync and
  * produces continuous ~50fps jank even when JS is only a few ms.
  */
-const RENDER_DPR_CAP = 2;
+const RENDER_DPR_CAP = 1.5;
 
 const getRenderDpr = () => {
   const dpr = window.devicePixelRatio || 1;
@@ -42,6 +42,10 @@ const start = async (parent: string, sceneConfig: Config) => {
     scene: [MainGame],
     input: {
       activePointers: 10,
+    },
+    render: {
+      powerPreference: 'high-performance',
+      antialias: false,
     },
   };
 
