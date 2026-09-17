@@ -1,23 +1,11 @@
 import { Game as MainGame } from './scenes/Game';
 import { WEBGL, Game, Scale, type Types } from 'phaser';
 import type { Config } from '$lib/types';
-import { fit, IS_ANDROID_OR_IOS, IS_TAURI, IS_TAURI_LIKE } from '$lib/utils';
+import { fit, getRenderDpr, IS_ANDROID_OR_IOS, IS_TAURI, IS_TAURI_LIKE } from '$lib/utils';
 import { Capacitor } from '@capacitor/core';
 import { currentMonitor, getCurrentWindow } from '@tauri-apps/api/window';
 import { EventBus } from './EventBus';
 import { scaleConfigImages } from './utils';
-
-/**
- * Backing-store scale. Full devicePixelRatio (often 3) with MSAA is fill-rate
- * bound on phones — residual present time sits just above a 60Hz vsync and
- * produces continuous ~50fps jank even when JS is only a few ms.
- */
-const RENDER_DPR_CAP = 1.5;
-
-const getRenderDpr = () => {
-  const dpr = window.devicePixelRatio || 1;
-  return IS_ANDROID_OR_IOS ? Math.min(dpr, RENDER_DPR_CAP) : dpr;
-};
 
 const start = async (parent: string, sceneConfig: Config) => {
   const parentElement = document.getElementById(parent)!;

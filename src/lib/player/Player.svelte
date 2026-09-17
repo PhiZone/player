@@ -835,6 +835,7 @@
     class="absolute bottom-5 px-4 py-2 w-[75vw] flex flex-col gap-4 opacity-0 trans {enableOffsetHelper
       ? 'rounded-3xl'
       : 'rounded-full'}"
+    class:hidden={status === GameStatus.PLAYING}
     class:opacity-50={!enableOffsetHelper &&
       (keyboardSeeking || showPause) &&
       status !== GameStatus.PLAYING &&

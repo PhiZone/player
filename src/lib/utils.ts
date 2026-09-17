@@ -70,6 +70,17 @@ export const IS_ANDROID_OR_IOS =
 
 export const IS_IFRAME = window.self !== window.top;
 
+/**
+ * Max backing-store scale for interactive playback on phones. Full DPR (3)
+ * is fill-rate bound; residual present time then sits above a 60Hz vsync.
+ */
+export const MOBILE_RENDER_DPR_CAP = 1.25;
+
+export const getRenderDpr = (cap = MOBILE_RENDER_DPR_CAP) => {
+  const dpr = window.devicePixelRatio || 1;
+  return IS_ANDROID_OR_IOS ? Math.min(dpr, cap) : dpr;
+};
+
 export const isDebug = () => checkIfEnabled('debug');
 
 export const showPerformance = () => checkIfEnabled('performance');
