@@ -1100,6 +1100,11 @@
   :global(canvas) {
     @apply touch-none;
   }
+  :global(#player > canvas) {
+    width: 100% !important;
+    height: 100% !important;
+    display: block !important;
+  }
   .trans {
     transition-timing-function: cubic-bezier(0.165, 0.84, 0.44, 1);
     @apply transition duration-300;

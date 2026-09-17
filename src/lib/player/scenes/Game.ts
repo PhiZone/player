@@ -1,14 +1,6 @@
 import { Cameras, GameObjects, Scene, Sound } from 'phaser';
 import { EventBus, isAutostartBlocked } from '../EventBus';
-import {
-  inferLevelType,
-  fit,
-  send,
-  getLines,
-  getRenderDpr,
-  IS_ANDROID_OR_IOS,
-  IS_TAURI_LIKE,
-} from '$lib/utils';
+import { inferLevelType, fit, send, getLines, IS_TAURI_LIKE } from '$lib/utils';
 import {
   TimeUtil,
   processIllustration,
@@ -101,11 +93,6 @@ export class Game extends Scene {
   private _notes: (PlainNote | LongNote)[];
   private _judgmentNotesByTime: (PlainNote | LongNote)[] = [];
   private _lastChartSongTime: number | undefined;
-  /** Dynamic resolution scale (mobile only); starts at getRenderDpr(). */
-  private _drsDpr: number = 1;
-  private _drsEma = 16;
-  private _drsDownStreak = 0;
-  private _drsUpStreak = 0;
   private _shaders:
     | (
         | {
@@ -202,7 +189,6 @@ export class Game extends Scene {
     this._autostart = this._data.autostart;
     this._adjustOffset = this._data.adjustOffset;
     this._render = this._data.render && IS_TAURI_LIKE;
-    this._drsDpr = getRenderDpr();
 
     this._respack = new ResourcePackHandler(this._data.resourcePack);
 
@@ -617,7 +603,6 @@ export class Game extends Scene {
     }
     if (this._resultsUI) this._resultsUI.update();
     this._judgmentHandler?.tickHitParticles(delta);
-    if (!this._render) this.tickDynamicResolution(delta);
     const status = this._status;
     if (this._isSeeking) this._status = GameStatus.SEEKING;
     if (this._visible) {
@@ -713,15 +698,31 @@ export class Game extends Scene {
     refHeight?: number,
     scaleOnly = false,
   ) {
-    if (!scaleOnly) object.setPosition(this.sys.canvas.width / 2, this.sys.canvas.height / 2);
     refWidth ??= this.sys.canvas.width;
     refHeight ??= this.sys.canvas.height;
+    const x = this.sys.canvas.width / 2;
+    const y = this.sys.canvas.height / 2;
+    if (!scaleOnly && (object.x !== x || object.y !== y)) object.setPosition(x, y);
+
+    // Fit against the *source* texture size, not the already-scaled display
+    // size (which made the previous fit() input change every frame).
+    let srcW = object.displayWidth;
+    let srcH = object.displayHeight;
+    if (object instanceof GameObjects.Image || object instanceof GameObjects.Video) {
+      const frame = object.frame;
+      if (frame && frame.width > 0 && frame.height > 0) {
+        srcW = frame.width;
+        srcH = frame.height;
+      }
+    }
     const dimensions =
       mode !== 'stretch'
-        ? fit(object.displayWidth, object.displayHeight, refWidth, refHeight, mode === 'fit')
+        ? fit(srcW, srcH, refWidth, refHeight, mode === 'fit')
         : { width: refWidth, height: refHeight };
-    object.displayWidth = dimensions.width;
-    object.displayHeight = dimensions.height;
+    if (object.displayWidth !== dimensions.width || object.displayHeight !== dimensions.height) {
+      object.displayWidth = dimensions.width;
+      object.displayHeight = dimensions.height;
+    }
   }
 
   initializeChart() {
@@ -797,49 +798,6 @@ export class Game extends Scene {
   resetActiveNoteWindows(beat: number) {
     this._lines.forEach((line) => line.resetActiveNoteWindow());
     this._judgmentHandler?.resetWindow(beat);
-  }
-
-  /**
-   * Mobile-only resolution scaler. Timeline data shows a near-constant GPU
-   * residual (~19ms) that is pure fill/present; JS is only ~3ms. Shrinking
-   * the backing store is the only lever that moves that residual.
-   */
-  private tickDynamicResolution(delta: number) {
-    if (!IS_ANDROID_OR_IOS || this._status !== GameStatus.PLAYING) return;
-    if (delta <= 0 || delta > 200) return;
-    this._drsEma = this._drsEma * 0.9 + delta * 0.1;
-
-    if (this._drsEma > 19.5) {
-      this._drsUpStreak = 0;
-      this._drsDownStreak++;
-      // ~0.75s of sustained over-budget frames before shrinking.
-      if (this._drsDownStreak >= 45 && this._drsDpr > 1) {
-        this._drsDpr = Math.max(1, this._drsDpr - 0.25);
-        this.applyDynamicResolution();
-        this._drsDownStreak = 0;
-      }
-    } else if (this._drsEma < 14.5) {
-      this._drsDownStreak = 0;
-      this._drsUpStreak++;
-      const maxDpr = getRenderDpr();
-      // ~3s of headroom before trying a higher scale again.
-      if (this._drsUpStreak >= 180 && this._drsDpr < maxDpr) {
-        this._drsDpr = Math.min(maxDpr, this._drsDpr + 0.25);
-        this.applyDynamicResolution();
-        this._drsUpStreak = 0;
-      }
-    } else {
-      this._drsDownStreak = 0;
-      this._drsUpStreak = 0;
-    }
-  }
-
-  private applyDynamicResolution() {
-    const parent = this.sys.canvas.parentElement;
-    if (!parent) return;
-    const w = Math.max(1, Math.round(parent.clientWidth * this._drsDpr));
-    const h = Math.max(1, Math.round(parent.clientHeight * this._drsDpr));
-    this.scale.resize(w, h);
   }
 
   initializeHandlers() {

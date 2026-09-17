@@ -10,17 +10,22 @@ import { scaleConfigImages } from './utils';
 const start = async (parent: string, sceneConfig: Config) => {
   const parentElement = document.getElementById(parent)!;
   const renderDpr = getRenderDpr();
+  const width = Math.max(1, Math.round(parentElement.clientWidth * renderDpr));
+  const height = Math.max(1, Math.round(parentElement.clientHeight * renderDpr));
 
   const config: Types.Core.GameConfig = {
     type: WEBGL,
-    width: parentElement.clientWidth * renderDpr,
-    height: parentElement.clientHeight * renderDpr,
+    width,
+    height,
     fps: {
       smoothStep: !(IS_TAURI_LIKE && sceneConfig.render),
     },
+    // Scale.NONE: keep a fixed backing store and let CSS stretch the canvas.
+    // EXPAND/FIT + ResizeObserver re-creates GL resources whenever iOS Safari
+    // collapses its toolbar, which showed up as 100ms+ JS frames.
     scale: {
-      mode: Scale.EXPAND,
-      autoCenter: Scale.CENTER_BOTH,
+      mode: Scale.NONE,
+      autoCenter: Scale.NO_CENTER,
     },
     antialias: !IS_ANDROID_OR_IOS,
     backgroundColor: '#000000',
@@ -126,18 +131,35 @@ const start = async (parent: string, sceneConfig: Config) => {
   // @ts-expect-error - globalThis is not defined in TypeScript
   globalThis.__PHASER_GAME__ = game;
   game.scene.start('MainGame');
-  if (!config.scale || config.scale.mode === Scale.EXPAND) {
-    new ResizeObserver((entries) => {
-      requestAnimationFrame(() => {
+
+  const canvas = game.canvas;
+  canvas.style.width = '100%';
+  canvas.style.height = '100%';
+  canvas.style.display = 'block';
+
+  // Only rebuild the backing store on real layout changes (rotation / split
+  // view). iOS Safari toolbar collapse must not resize the GL canvas.
+  if (config.scale?.mode === Scale.NONE) {
+    let lastW = parentElement.clientWidth;
+    let lastH = parentElement.clientHeight;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    new ResizeObserver(() => {
+      const w = parentElement.clientWidth;
+      const h = parentElement.clientHeight;
+      if (Math.abs(w - lastW) < 2 && Math.abs(h - lastH) < 80) return;
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        lastW = parentElement.clientWidth;
+        lastH = parentElement.clientHeight;
         try {
           game.scale.resize(
-            entries[0].contentBoxSize[0].inlineSize * renderDpr,
-            entries[0].contentBoxSize[0].blockSize * renderDpr,
+            Math.max(1, Math.round(lastW * renderDpr)),
+            Math.max(1, Math.round(lastH * renderDpr)),
           );
         } catch (e) {
           console.warn(e);
         }
-      });
+      }, 250);
     }).observe(parentElement);
   }
   return game;
