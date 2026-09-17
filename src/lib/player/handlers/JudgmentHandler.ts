@@ -1,5 +1,6 @@
 import { GameObjects } from 'phaser';
-import { HitEffects, HitParticleLayer } from '../objects/HitEffects';
+import { HitEffectsPool, HitParticleLayer } from '../objects/HitEffects';
+import { HitsoundPool } from '../services/HitsoundPool';
 import type { Line } from '../objects/Line';
 import type { LongNote } from '../objects/LongNote';
 import type { PlainNote } from '../objects/PlainNote';
@@ -91,6 +92,8 @@ export class JudgmentHandler {
   private _judgmentDeltas: { delta: number; beat: number }[] = [];
   private _hitEffectsContainers: Record<number, GameObjects.Container> = {};
   private _hitParticleLayers: Record<number, HitParticleLayer> = {};
+  private _hitEffectsPools: Record<number, HitEffectsPool> = {};
+  private _hitsoundPool: HitsoundPool;
   private _judgingHolds: { note: LongNote; beatLastExecuted: number }[] = [];
 
   /**
@@ -138,6 +141,7 @@ export class JudgmentHandler {
 
   constructor(scene: Game) {
     this._scene = scene;
+    this._hitsoundPool = new HitsoundPool(scene);
     [...new Set(scene.notes.map((note) => note.note.zIndexHitEffects))].forEach((zIndex) => {
       this.createHitEffectsContainer(zIndex ?? 7);
     });
@@ -879,6 +883,7 @@ export class JudgmentHandler {
       this._scene.respack.hitEffects.particle,
     );
     this._hitParticleLayers[depth] = layer;
+    this._hitEffectsPools[depth] = new HitEffectsPool(this._scene);
     return container;
   }
 
@@ -890,20 +895,30 @@ export class JudgmentHandler {
   createHitEffects(type: JudgmentType, note: PlainNote | LongNote) {
     const { x, y } = note.judgmentPosition;
     const depth = note.note.zIndexHitEffects ?? 7;
-    this._hitEffectsContainers[depth].add(
-      new HitEffects(this._scene, x, y, type).hit(
-        rgbToHex(note.note.tintHitEffects),
-        this._hitParticleLayers[depth],
-      ),
+    this._hitEffectsPools[depth]?.spawn(
+      this._hitEffectsContainers[depth],
+      x,
+      y,
+      type,
+      rgbToHex(note.note.tintHitEffects),
+      this._hitParticleLayers[depth],
     );
   }
 
   createHitsound(note: PlainNote | LongNote) {
     if (this._scene.render) return;
-    this._scene.sound
-      .add(note.note.hitsound ? `asset-${note.note.hitsound}` : note.note.type.toString())
-      .setVolume(this._scene.preferences.hitSoundVolume)
-      .play();
+    this._hitsoundPool.play(
+      note.note.hitsound ? `asset-${note.note.hitsound}` : note.note.type.toString(),
+      this._scene.preferences.hitSoundVolume,
+    );
+  }
+
+  destroy() {
+    this._hitsoundPool.destroy();
+    for (const depth in this._hitEffectsPools) {
+      this._hitEffectsPools[depth].destroy();
+    }
+    this._hitEffectsPools = {};
   }
 
   countJudgments() {

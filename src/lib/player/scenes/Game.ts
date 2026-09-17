@@ -635,6 +635,7 @@ export class Game extends Scene {
   destroy() {
     EventBus.off('autostart-unblocked', this._onAutostartUnblocked);
     this._status = GameStatus.DESTROYED;
+    this._judgmentHandler?.destroy();
     this._song.destroy();
     this._lines.forEach((line) => line.destroy());
     this._gameUI.destroy();

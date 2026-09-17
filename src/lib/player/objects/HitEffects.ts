@@ -146,33 +146,102 @@ export class HitParticleLayer {
   }
 }
 
+/**
+ * One hit-effect sprite. Reused by {@link HitEffectsPool}: after the animation
+ * finishes the sprite is hidden and returned to the pool instead of destroyed,
+ * so dense autoplay no longer allocates a Sprite (and its event listeners)
+ * on every judgment.
+ */
 export class HitEffects extends GameObjects.Sprite {
   private _scene: Game;
-  private _color: number;
+  private _color: number = 0xffffff;
+  private _pool: HitEffectsPool | null = null;
+  private readonly _onAnimComplete = () => {
+    this._release();
+  };
 
-  constructor(scene: Game, x: number, y: number, type: JudgmentType) {
-    super(scene, x, y, 'hit-effects');
-
+  constructor(scene: Game) {
+    super(scene, 0, 0, 'hit-effects');
     this._scene = scene;
     this.setScale((256 / this.width) * scene.p(HIT_EFFECTS_SIZE * scene.preferences.noteSize));
-    this.setColor(scene.respack.getHitEffectsColor(type));
+    this.setVisible(false);
+    this.setActive(false);
   }
 
-  hit(tint?: number, layer?: HitParticleLayer) {
-    if (tint) {
-      this.setTint(tint);
-    }
+  /** Plays from a pool entry; returns false if this sprite is already live. */
+  playPooled(
+    pool: HitEffectsPool,
+    x: number,
+    y: number,
+    type: JudgmentType,
+    tint: number | undefined,
+    layer?: HitParticleLayer,
+  ) {
+    if (this._pool) return false;
+    this._pool = pool;
+    this.setPosition(x, y);
+    this.setVisible(true);
+    this.setActive(true);
+    this.setColor(this._scene.respack.getHitEffectsColor(type));
+    if (tint !== undefined) this.setTint(tint);
+    else this.clearTint();
+    this.off('animationcomplete', this._onAnimComplete);
+    this.once('animationcomplete', this._onAnimComplete);
     this.play('hit-effects');
-    this.once('animationcomplete', () => {
-      this.destroy();
-    });
-    if (layer) layer.spawn(this.x, this.y, tint ?? this._color, this.scale);
-    return [this];
+    if (layer) layer.spawn(this.x, this.y, tint ?? this._color, this.scaleX);
+    return true;
+  }
+
+  private _release() {
+    this.stop();
+    this.setVisible(false);
+    this.setActive(false);
+    const pool = this._pool;
+    this._pool = null;
+    pool?.onRelease(this);
   }
 
   setColor(color: { hex: number; alpha: number }) {
     this._color = color.hex;
     this.setTint(this._color);
     this.setAlpha(color.alpha);
+  }
+}
+
+/**
+ * Per-depth pool of hit-effect sprites. Sprites stay parented to their
+ * container for the whole playthrough; only visibility/animation state is
+ * recycled.
+ */
+export class HitEffectsPool {
+  private _scene: Game;
+  private _free: HitEffects[] = [];
+
+  constructor(scene: Game) {
+    this._scene = scene;
+  }
+
+  spawn(
+    container: GameObjects.Container,
+    x: number,
+    y: number,
+    type: JudgmentType,
+    tint: number | undefined,
+    layer?: HitParticleLayer,
+  ) {
+    let fx = this._free.pop();
+    if (!fx) {
+      fx = new HitEffects(this._scene);
+      container.add(fx);
+    }
+    fx.playPooled(this, x, y, type, tint, layer);
+  }
+
+  onRelease(fx: HitEffects) {
+    this._free.push(fx);
+  }
+
+  destroy() {
+    this._free.length = 0;
   }
 }
